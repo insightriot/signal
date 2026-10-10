@@ -91,15 +91,24 @@ function tile(lines, rows, nameOf, splitAt = new Set()) {
   });
   if (cursor <= total) stretches.push({ from: cursor, to: total, first: rows.length === 0, last: true });
 
-  // Break stretches at forced split lines.
-  for (let k = 0; k < stretches.length; k++) {
-    const s = stretches[k];
-    const cut = [...splitAt].filter((l) => l > s.from && l <= s.to).sort((x, y) => x - y)[0];
-    if (cut === undefined) continue;
-    stretches.splice(k, 1, { ...s, to: cut - 1, last: false }, { from: cut, to: s.to, first: false, last: s.last });
+  // Break stretches at forced split lines. One walk over both sorted lists
+  // (REVIEW pass 3 suggestion: a filter of every split line per stretch, and a
+  // splice per cut, made OPEN-QUESTIONS.md with many `##` groups quadratic).
+  const cuts = [...splitAt].sort((x, y) => x - y);
+  const pieces = [];
+  let ci = 0;
+  for (const s0 of stretches) {
+    let s = s0;
+    while (ci < cuts.length && cuts[ci] <= s.from) ci++;
+    while (ci < cuts.length && cuts[ci] <= s.to) {
+      pieces.push({ ...s, to: cuts[ci] - 1, last: false });
+      s = { from: cuts[ci], to: s.to, first: false, last: s.last };
+      ci++;
+    }
+    pieces.push(s);
   }
 
-  for (const s of stretches) {
+  for (const s of pieces) {
     let a = s.from;
     let b = s.to;
     while (a <= b && isGapLine(lines[a - 1])) a++;
@@ -766,16 +775,29 @@ export function segmentQuestions(text) {
   const grouped = h3.length > 0;
   const heads = grouped ? h3 : h2;
   const allHeads = [...h2, ...h3].sort((a, b) => a - b);
+  // One pass over the sorted headings (REVIEW pass 3 suggestion: a filter
+  // and a find per entry were quadratic — 16k entries, 1.4 s): each heading's
+  // next heading and the `##` it sits under, each group heading read once.
+  const nextOf = new Map(allHeads.map((x, i) => [x, allHeads[i + 1]]));
+  const groupAt = new Map();
+  const groupInfo = new Map();
+  let lastH2;
+  const h2Set = new Set(h2);
+  for (const x of allHeads) {
+    if (h2Set.has(x)) {
+      lastH2 = x;
+      const groupHeading = lines[x - 1].replace(H2_RE, '').trim();
+      const { word } = finishedLead(groupHeading);
+      groupInfo.set(x, { groupHeading, groupWord: GROUP_WORDS.has(word) ? word : null });
+    } else if (lastH2 !== undefined) groupAt.set(x, lastH2);
+  }
   const groupOf = (h) => {
-    const g = grouped ? h2.filter((x) => x < h).pop() : undefined;
-    if (g === undefined) return { groupHeading: null, groupWord: null };
-    const groupHeading = lines[g - 1].replace(H2_RE, '').trim();
-    const { word } = finishedLead(groupHeading);
-    return { groupHeading, groupWord: GROUP_WORDS.has(word) ? word : null };
+    const g = grouped ? groupAt.get(h) : undefined;
+    return g === undefined ? { groupHeading: null, groupWord: null } : groupInfo.get(g);
   };
 
   const rows = heads.map((h) => {
-    const nextHead = allHeads.find((x) => x > h);
+    const nextHead = nextOf.get(h);
     const limit = nextHead !== undefined ? nextHead - 1 : lines.length;
     let end = h;
     while (end < limit && !topSep.has(end + 1)) end++;

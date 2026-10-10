@@ -450,3 +450,61 @@ describe('I-5 — the routes REVIEW pass 3 found untested', () => {
     }
   });
 });
+
+describe('REVIEW pass 3 suggestions', () => {
+  const bug = (summary) => ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|', `| B1 | fixed | P2 | ${summary} |`, ''].join('\n');
+
+  it('a retrospective path in the proof is printable, and the whole proof is capped at 400', () => {
+    const path = `.planning/archive/${'deep/'.repeat(100)}\u202e\u0007M3.E1-RETROSPECTIVE.md`;
+    const ev = { ...EVIDENCE, epics: new Map([['M3.E1', path]]) };
+    const p = plan({ 'BUGS.md': bug('Header lost — shipped with M3.E1.') }, { evidence: ev, confirmCloses: true });
+    const { proof } = closedEvent(p.records[0]);
+    expect(proof.length).toBeLessThanOrEqual(400);
+    // eslint-disable-next-line no-control-regex
+    expect(proof).not.toMatch(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e]/);
+    for (const e of p.proposedCloses[0].evidence) {
+      // eslint-disable-next-line no-control-regex
+      expect(e).not.toMatch(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e]/);
+    }
+  });
+
+  it('a migration_note names at most a few missing references, then "… and N more"', () => {
+    const refs = Array.from({ length: 500 }, (_, i) => `PR #${1000 + i}`).join(', ');
+    const p = plan({ 'BUGS.md': bug(`Rows vanish — ${refs}.`) });
+    const note = p.records[0].record.migration_note;
+    expect(p.records[0].flagged).toBe('no-evidence');
+    expect(note).toMatch(/and 49\d more/);
+    expect(note.length).toBeLessThan(2000);
+  });
+
+  it('printable also drops LRM/RLM/ALM, line and paragraph separators, and zero-width characters', () => {
+    const p = plan({ 'BUGS.md': bug('Rows\u200e vanish\u200f\u061c\u2028\u2029\u200b\u200c\u200d\ufeff\u2060 — PR #157.') });
+    // A RegExp from a string: a line separator inside a regex literal breaks the parse.
+    expect(p.records[0].record.title).not.toMatch(new RegExp('[\\u200b-\\u200f\\u061c\\u2028\\u2029\\ufeff\\u2060]'));
+    expect(p.records[0].record.title).toMatch(/^Rows vanish/);
+  });
+});
+
+describe('segmentQuestions is linear in the number of `###` entries (REVIEW pass 3 suggestion)', async () => {
+  const { segmentQuestions } = await import('../plugin/tools/lib/work-migrate.js');
+  const { performance } = await import('node:perf_hooks');
+  const doc = (n) => ['# Open Questions', '', ...Array.from({ length: n }, (_, i) => (i % 50 === 0 ? `## Group ${i}\n\n### Q${i} — x?\n\nBody.\n` : `### Q${i} — x?\n\nBody.\n`)), ''].join('\n');
+  const best = (text) => Math.min(...[0, 1, 2, 3, 4].map(() => {
+    const t0 = performance.now();
+    segmentQuestions(text);
+    return performance.now() - t0;
+  }));
+  // Four times the entries: linear ~4×, quadratic ~16×; the line at 8× leaves
+  // room for a busy machine.
+  it('4000 → 16 000 entries costs well under 8× (quadratic would be ~16×), groups still right', () => {
+    const small = doc(4000);
+    const large = doc(16000);
+    best(small);
+    const ratio = best(large) / best(small);
+    const rows = segmentQuestions(large).rows;
+    expect(rows).toHaveLength(16000);
+    expect(rows[51].groupHeading).toBe('Group 50');
+    expect(rows[49].groupHeading).toBe('Group 0');
+    expect(ratio).toBeLessThan(8);
+  });
+});

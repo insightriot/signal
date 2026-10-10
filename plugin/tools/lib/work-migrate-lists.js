@@ -416,9 +416,11 @@ const masked = (m) => (m.length > 8 ? `${m.slice(0, 6)}…` : m);
 // names, proofs) carries no control characters — C0, DEL, C1 — and no bidi
 // overrides or isolates: a terminal would act on them, or show the text in
 // another order than it is stored. Applied per line, so the report's own line
-// breaks stay.
+// breaks stay. Also the marks that move or hide text without showing (REVIEW
+// pass 3 suggestion): LRM, RLM, ALM, the line and paragraph separators, and
+// the zero-width characters.
 // eslint-disable-next-line no-control-regex
-const printable = (s) => String(s).replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '');
+const printable = (s) => String(s).replace(/[\u0000-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060\u2066-\u2069\ufeff]/g, '');
 
 function dryRunReport(a) {
   const lines = ['/sig:docs-migrate --work-store — dry run (nothing written)', ''];
@@ -1132,6 +1134,7 @@ function sensitiveHits(text) {
 // screen; list text cannot give more.
 
 const PROOF_MAX = 400;
+const EVIDENCE_MAX = 120;
 const HEX_REF_G = /\b(?=[0-9a-f]{0,39}[a-f])(?=[0-9a-f]{0,39}\d)[0-9a-f]{7,40}\b/g;
 // `PR #N` / `pull request #N` always; a bare `#N` only in a list whose own IDs
 // are not `#N` (there it is a cross-reference to another entry, REVIEW pass 3
@@ -1297,7 +1300,17 @@ function checkEvidence(text, legacy, evidence, { bareHash = true } = {}) {
       else missing.push(`Epic ${r.key} has no retrospective under .planning/`);
     }
   }
-  return { found: [...new Set(found)], missing, cited };
+  // Each piece of evidence printable and bounded, so three always fit in a
+  // proof (REVIEW pass 3 suggestion: a retrospective path is file-system text).
+  return { found: [...new Set(found.map((f) => clip(printable(f), EVIDENCE_MAX)))], missing, cited };
+}
+
+// At most a few of a long list in a note, then how many more (REVIEW pass 3
+// suggestion: a 400 KB row made a 2.8 MB note).
+const NOTE_LIST_MAX = 5;
+function capped(list, sep = '; ') {
+  const shown = list.slice(0, NOTE_LIST_MAX).map((x) => clip(printable(x), EVIDENCE_MAX));
+  return list.length > NOTE_LIST_MAX ? `${shown.join(sep)}${sep}… and ${list.length - NOTE_LIST_MAX} more` : shown.join(sep);
 }
 
 // `text` without its folded `<details>` blocks. `segmentBacklog` folds a
@@ -1346,15 +1359,15 @@ function decide(file, folded, evidence, { bareHash = true } = {}) {
     const said = `Its wording says ${m.markers.map((x) => quote(clip(printable(x.text)))).join(', ')}`;
     if (checked.found.length === 0) {
       let why;
-      if (!evidence) why = `, but no repository history was given to check it against${checked.missing.length ? ` (it cites ${checked.cited.join(', ')})` : ''}`;
-      else if (evidence.source === 'none') why = `, but the migration could not read this repository's history, so nothing it cites could be checked${checked.cited.length ? ` (it cites ${checked.cited.join(', ')})` : ''}`;
+      if (!evidence) why = `, but no repository history was given to check it against${checked.missing.length ? ` (it cites ${capped(checked.cited, ', ')})` : ''}`;
+      else if (evidence.source === 'none') why = `, but the migration could not read this repository's history, so nothing it cites could be checked${checked.cited.length ? ` (it cites ${capped(checked.cited, ', ')})` : ''}`;
       else if (checked.missing.length === 0) why = ', but it cites no commit, pull request or Epic that could be checked';
-      else why = `; ${checked.missing.join('; ')}`;
+      else why = `; ${capped(checked.missing)}`;
       return { flag: 'no-evidence', note: `${said}${why} — left open rather than closed on its wording alone.` };
     }
     const shown = checked.found.slice(0, 3).join('; ');
     const room = PROOF_MAX - shown.length - 2;
-    const proof = `${clip(printable(wording), Math.max(room, 20))}; ${shown}`;
+    const proof = clip(`${clip(printable(wording), Math.max(room, 20))}; ${shown}`, PROOF_MAX);
     return { close: { reason: [...reasons][0], proof, wording, evidence: checked.found } };
   }
   if (m.statuses.length > 0) {
