@@ -170,9 +170,10 @@ const ENTRY_STATUS_RE = /^\*\*Status:\*\*\s*(.*)$/;
 const TABLE_SEP_RE = /^\|(?:\s*:?-{3,}:?\s*\|)+\s*$/;
 const ANY_ROW_RE = /^\|([^|]*)\|([^|]*)\|([^|]*)\|/;
 // What a bug table's ID cell may hold (REVIEW S3, legacy_id hygiene): one
-// short token with a digit — `B1`, `BUG-7`, `NFR-04`, `#99`, `Issue #45` — at
-// most 40 characters, no spaces (but `Issue #`), no control characters.
-const ID_CELL_RE = /^(?=[^\d]{0,39}\d)(?:Issue #\d{1,9}|#\d{1,9}|[A-Za-z][A-Za-z0-9._-]{0,39})$/;
+// short token with a digit — `B1`, `BUG-7`, `NFR-04`, `#99`, `Issue #45`, a
+// bare `1` (REVIEW pass 2 I-B) — at most 40 characters, no spaces (but
+// `Issue #`), no control characters.
+const ID_CELL_RE = /^(?=[^\d]{0,39}\d)(?:Issue #\d{1,9}|#\d{1,9}|\d{1,9}|[A-Za-z][A-Za-z0-9._-]{0,39})$/;
 
 // Where does a summary cell's text begin? Right after the fourth `|` of the
 // first line — i.e. after the id, status and priority cells.
