@@ -429,7 +429,7 @@ function dryRunReport(a) {
     ? `Project key: ${a.key} (from --key)`
     : `Project key: ${a.key} (proposed from the folder name "${a.folder}"; pass --key KEY to choose another)`);
   lines.push(a.evidence.source === 'git'
-    ? `Closes are checked against this repository's history — the checked-out branch, HEAD (${a.evidence.commits.length} commits, ${a.evidence.epics.size} retrospectives): `
+    ? `Closes are checked against this repository's history — the default branch, ${a.evidence.ref} (${a.evidence.commits.length} commits, ${a.evidence.epics.size} retrospectives): `
       + 'an entry is proposed for closing only when its wording says it is finished AND a commit, pull request or Epic it cites is found there. '
       + 'Nothing closes unless you confirm the proposals. Anything else stays open, flagged, with a note saying what was found and not found.'
     : 'The migration could not read this repository\'s history, so nothing can be proposed for closing (not a git checkout, no commits, or git failed): '
@@ -1116,7 +1116,7 @@ function sensitiveHits(text) {
 // summary) must resolve in the repository being migrated —
 //
 //   - a commit: 7–40 lowercase hex (with a letter and a digit) that is a
-//     prefix of a commit in `git log HEAD` (the checked-out branch);
+//     prefix of a commit on the default branch (`buildEvidenceIndex`);
 //   - a pull request: `PR #N`, `pull request #N`, a bare `#N` (not in a list
 //     whose own IDs are `#N`), or a `https://host/owner/repo/pull/N` link
 //     whose host and owner/repo are this repository's `origin`, where N
@@ -1165,11 +1165,12 @@ const RETRO_WALK_MAX = 50000;
 export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   let out = '';
   let source = 'git';
+  const ref = ['refs/remotes/origin/HEAD', 'refs/heads/main', 'refs/heads/master'].find((r) => { try { execFn('git', ['rev-parse', '--verify', '--quiet', r], { cwd: baseDir, stdio: 'ignore' }); return true; } catch { return false; } }) ?? 'HEAD';
   try {
-    // HEAD, not --all (D-M6E15-25): unmerged branches, stashes and fetched
+    // The default branch (origin/HEAD, else main, else master, else HEAD), not --all (D-M6E15-25, AC4.1): unmerged branches, stashes and fetched
     // remote work are not what this project shipped; native closes, too, are
     // confirmed only once their commit is on the default branch.
-    out = String(execFn('git', ['log', 'HEAD', '--format=%H%x09%s'], {
+    out = String(execFn('git', ['log', '--format=%H%x09%s', ref, '--'], {
       cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024,
     }));
   } catch {
@@ -1225,7 +1226,7 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
       }
     }
   }
-  return { source, commits, prs, epics, origin };
+  return { source, ref: ref.replace(/^refs\/(?:heads|remotes)\//, ''), commits, prs, epics, origin };
 }
 
 const repoKey = (owner, repo) => `${owner}/${repo}`.toLowerCase().replace(/\.git$/, '');

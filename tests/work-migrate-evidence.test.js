@@ -412,9 +412,16 @@ describe('C1 (b) — integration: the index is built from this repository’s gi
       return execFileSync(cmd, args, o);
     };
     buildEvidenceIndex(base, { execFn });
-    // Two fixed-argument reads: the history, and the origin a /pull/N link
-    // must point at (REVIEW pass 3 I-2).
-    expect(calls).toEqual([['git', 'log', 'HEAD', '--format=%H%x09%s'], ['git', 'remote', 'get-url', 'origin']]);
+    // Fixed-argument reads only: which default branch exists (no origin/HEAD
+    // here, so main), its history — `--` after the ref, so a file named like
+    // the ref cannot make it ambiguous (REVIEW pass 4) — and the origin a
+    // /pull/N link must point at (REVIEW pass 3 I-2).
+    expect(calls).toEqual([
+      ['git', 'rev-parse', '--verify', '--quiet', 'refs/remotes/origin/HEAD'],
+      ['git', 'rev-parse', '--verify', '--quiet', 'refs/heads/main'],
+      ['git', 'log', '--format=%H%x09%s', 'refs/heads/main', '--'],
+      ['git', 'remote', 'get-url', 'origin'],
+    ]);
   });
 });
 

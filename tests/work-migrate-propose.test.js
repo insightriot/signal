@@ -214,7 +214,7 @@ describe('evidence comes from the default branch only (D-M6E15-25)', () => {
   });
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
-  it('a commit on an unmerged side branch is not evidence; the checked-out branch’s is', async () => {
+  it('with main checked out, a commit on an unmerged side branch is not evidence; main’s is', async () => {
     git(base, ['checkout', '-q', '-b', 'side']);
     git(base, ['commit', '-q', '--allow-empty', '-m', 'Unmerged work (#9)'], at('2026-01-06'));
     const sideHash = git(base, ['rev-parse', 'HEAD']).trim();
@@ -353,7 +353,7 @@ describe('I-3 — no readable history: no evidence at all, retrospectives includ
 
   it('git failing', async () => {
     const execFn = (cmd, args, o) => {
-      if (cmd === 'git' && args[0] === 'log' && args[1] === 'HEAD') throw new Error('boom');
+      if (cmd === 'git' && args[0] === 'log' && args.includes('--format=%H%x09%s')) throw new Error('boom');
       return execFileSync(cmd, args, o);
     };
     expectNothingProposed(await runWorkStoreMigrate(base, { key: 'LN', execFn }));

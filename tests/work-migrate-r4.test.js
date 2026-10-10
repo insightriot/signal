@@ -129,3 +129,63 @@ describe('own-ID rule, pinned: `PR #12` and a /pull/12 link inside row #12', () 
     expect(p.proposedCloses.map((c) => c.legacyId)).toEqual(['#12']);
   });
 });
+
+// ── F1, F2: the evidence is the DEFAULT branch's history (AC4.1) ──────────────
+describe('evidence reads the default branch, with a fixed `--` (REVIEW pass 4)', () => {
+  let root;
+  let base;
+  beforeEach(() => {
+    ({ root, base } = repo('r4-branch-'));
+    git(base, ['add', '-A']);
+    git(base, ['commit', '-q', '-m', 'Start (#1)'], at('2026-01-05'));
+  });
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+  it('a committed file named HEAD does not make the history read ambiguous (no main/master/origin: HEAD is read)', async () => {
+    git(base, ['branch', '-m', 'main', 'trunk']);
+    writeFileSync(join(base, 'HEAD'), 'not a ref\n');
+    git(base, ['add', '-A']);
+    git(base, ['commit', '-q', '-m', 'Add a file named HEAD (#2)'], at('2026-01-06'));
+    const { buildEvidenceIndex } = await import('../plugin/tools/lib/work-migrate-lists.js');
+    const idx = buildEvidenceIndex(base);
+    expect(idx.source).toBe('git');
+    expect(idx.ref).toBe('HEAD');
+    expect([...idx.prs.keys()].sort()).toEqual([1, 2]);
+  });
+
+  it('on an unmerged feature branch, with main present: a commit only on the feature branch is not evidence', async () => {
+    git(base, ['checkout', '-q', '-b', 'feature']);
+    git(base, ['commit', '-q', '--allow-empty', '-m', 'Feature work (#9)'], at('2026-01-06'));
+    const featureHash = git(base, ['rev-parse', 'HEAD']).trim();
+    const { buildEvidenceIndex } = await import('../plugin/tools/lib/work-migrate-lists.js');
+    const idx = buildEvidenceIndex(base);
+    expect(idx.prs.has(1)).toBe(true);
+    expect(idx.prs.has(9)).toBe(false);
+    expect(idx.commits).not.toContain(featureHash);
+    const dry = await runWorkStoreMigrate(base, { key: 'LN' });
+    expect(dry.report).toMatch(/the default branch, main \(/);
+  });
+
+  it('origin/HEAD wins when it resolves: a local commit not on it is not evidence, and the report names it', async () => {
+    const first = git(base, ['rev-parse', 'HEAD']).trim();
+    git(base, ['update-ref', 'refs/remotes/origin/main', first]);
+    git(base, ['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main']);
+    git(base, ['commit', '-q', '--allow-empty', '-m', 'Not pushed (#5)'], at('2026-01-06'));
+    const { buildEvidenceIndex } = await import('../plugin/tools/lib/work-migrate-lists.js');
+    const idx = buildEvidenceIndex(base);
+    expect(idx.prs.has(1)).toBe(true);
+    expect(idx.prs.has(5)).toBe(false);
+    const dry = await runWorkStoreMigrate(base, { key: 'LN' });
+    expect(dry.report).toMatch(/the default branch, origin\/HEAD \(/);
+  });
+
+  it('master when there is no main and no origin/HEAD', async () => {
+    git(base, ['branch', '-m', 'main', 'master']);
+    git(base, ['checkout', '-q', '-b', 'feature']);
+    git(base, ['commit', '-q', '--allow-empty', '-m', 'Feature work (#9)'], at('2026-01-06'));
+    const { buildEvidenceIndex } = await import('../plugin/tools/lib/work-migrate-lists.js');
+    const idx = buildEvidenceIndex(base);
+    expect(idx.prs.has(1)).toBe(true);
+    expect(idx.prs.has(9)).toBe(false);
+  });
+});
