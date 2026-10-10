@@ -117,12 +117,14 @@ const EXEMPTIONS = [
       'renameSync(join(aside, ITEMS_REL), join(baseDir, ITEMS_REL))',
       'renameSync(join(aside, rel), join(baseDir, rel))',
       'atomicWrite(join(baseDir, MANIFEST_REL)',
+      'writeFileSync(join(baseDir, INDEX_REL), done.index)',
     ],
     reason: '`/sig:docs-migrate --work-store` (M6.E15 S4) is a migration INTO an empty store: every record is born from a '
       + 'hand-kept list with its full planned event log (created, and triaged or a legacy close), validated by '
       + '`validateRecord`/`checkEvents` before any write — there is no store yet for work-records.js to write through. '
       + '`buildAside` writes records only into a fresh build folder; outside it the project sees renames (lists to the '
-      + 'archive, the built store and views in, and the restore that moves an archive copy back) and the MANIFEST.json',
+      + 'archive, the built store and views in, and the restore that moves an archive copy back), the MANIFEST.json, '
+      + 'and the restore that puts INDEX.md\'s own bytes back after a failure (t4.8; INDEX.md is not a record)',
   },
   {
     file: 'plugin/tools/lib/work-views.js',

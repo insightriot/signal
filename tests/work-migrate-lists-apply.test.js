@@ -20,6 +20,8 @@ import { fileURLToPath } from 'node:url';
 import { runWorkStoreMigrate } from '../plugin/tools/lib/work-migrate-lists.js';
 import { checkRecords, listRecords } from '../plugin/tools/lib/work-records.js';
 import { GENERATED_MARKER } from '../plugin/tools/lib/work-marker.js';
+import { regeneratePlanningIndexCore } from '../plugin/tools/lib/planning-index.js';
+import { runSweep } from '../plugin/tools/lib/sweep.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIX = join(__dirname, 'fixtures', 'work-migrate-corpus1');
@@ -161,6 +163,69 @@ describe('t4.1 — apply: originals archived byte-for-byte, records + views writ
     expect(r.revertLine).toContain('git reset --hard pre-work-store-T1');
     expect(r.report).toContain(r.revertLine);
     expect(existsSync(join(base, '.planning/work/.lock'))).toBe(false);
+  });
+});
+
+describe('t4.8 — a project with an INDEX.md: the apply regenerates it, stages it, and puts it back on failure', () => {
+  // corpusProject, plus a managed INDEX.md generated from the lists and committed.
+  async function withIndex() {
+    corpusProject();
+    await regeneratePlanningIndexCore(base);
+    commitAll(base, '2026-02-21');
+    return read('.planning/INDEX.md');
+  }
+
+  it('after the apply, /sig:docs-sweep reports no stale INDEX.md and no orphan item files', async () => {
+    const before = await withIndex();
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    expect(r.applied).toBe(true);
+    expect(read('.planning/INDEX.md')).not.toBe(before);
+    expect(git(base, ['diff', '--cached', '--name-only']).trim().split('\n')).toContain('.planning/INDEX.md');
+    const { findings } = await runSweep(base);
+    expect(findings.filter((f) => f.check === 'index-freshness')).toEqual([]);
+    expect(findings.filter((f) => f.check === 'orphan-doc' && String(f.file).startsWith('.planning/work/'))).toEqual([]);
+  });
+
+  it('a failure after the INDEX.md regeneration puts INDEX.md back byte for byte', async () => {
+    const before = await withIndex();
+    const fail = (s) => {
+      if (s === 'index') throw new Error('injected failure at index');
+    };
+    await expect(runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', onSwapStep: fail })).rejects.toThrow(/injected failure/);
+    expect(read('.planning/INDEX.md')).toBe(before);
+    for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(git(base, ['status', '--porcelain']).trim()).toBe('');
+  });
+
+  it('a project with no INDEX.md does not get one', async () => {
+    corpusProject();
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    expect(r.applied).toBe(true);
+    expect(existsSync(join(base, '.planning/INDEX.md'))).toBe(false);
+  });
+
+  it('a hand-written (foreign) INDEX.md is left as it is, and the report says so', async () => {
+    corpusProject();
+    write('.planning/INDEX.md', '# Our own index\n\nWritten by hand.\n');
+    commitAll(base, '2026-02-21');
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    expect(r.applied).toBe(true);
+    expect(read('.planning/INDEX.md')).toBe('# Our own index\n\nWritten by hand.\n');
+    expect(r.report).toMatch(/INDEX\.md.*left as it is/);
+  });
+
+  it('an INDEX.md that is a symbolic link is not followed or written; the report says so', async () => {
+    const outside = join(root, 'outside');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'INDEX.md'), 'outside\n');
+    corpusProject();
+    symlinkSync(join(outside, 'INDEX.md'), join(base, '.planning/INDEX.md'));
+    commitAll(base, '2026-02-21');
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    expect(r.applied).toBe(true);
+    expect(readFileSync(join(outside, 'INDEX.md'), 'utf-8')).toBe('outside\n');
+    expect(r.report).toMatch(/INDEX\.md is a symbolic link or not a regular file/);
   });
 });
 

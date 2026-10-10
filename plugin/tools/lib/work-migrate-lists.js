@@ -43,6 +43,13 @@
 // following renames; outside git, or for a file git has no history for, the
 // file's modification date — the manifest says which.
 //
+// A project with a `.planning/INDEX.md` gets it regenerated after the swap
+// (t4.8), as `/sig:docs-index` would, so the first `/sig:docs-sweep` does not
+// report it stale and every new item file as an orphan. A hand-written
+// (foreign) INDEX.md is left as it is and the report says so; a project
+// without one does not get one. It is staged with the rest, and put back on
+// a failure.
+//
 // The apply builds aside, then swaps (D-M6E15-20): the records, WORK.md and the
 // views are written and verified in a sibling folder under `.planning/` (same
 // filesystem, so every move is a rename), then the lists move to the archive
@@ -55,7 +62,7 @@
 // V2_MODULES): it reaches the list parsers.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
@@ -68,6 +75,7 @@ import {
   stagePaths,
   tagPreApply,
 } from './migrate-memory.js';
+import { isForeignIndexFormat, regeneratePlanningIndexCore } from './planning-index.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
 import { bodyDirFor } from './work-convert.js';
 import { lockFailure, WorkStoreError } from './work-errors.js';
@@ -95,6 +103,7 @@ const WORK_MD_REL = `.planning/${WORK_DIR}/${WORK_FILE}`;
 const ITEMS_REL = `.planning/${WORK_DIR}/items`;
 const HISTORY_REL = `.planning/${WORK_DIR}/history`;
 const STATE_REL = '.planning/STATE.md';
+const INDEX_REL = '.planning/INDEX.md';
 // Where a list goes when the store takes its path (the same folder Signal's own
 // lists went to at M6.E11).
 export const PRE_STORE_ARCHIVE_REL = '.planning/archive/pre-work-store';
@@ -340,11 +349,12 @@ function dryRunReport(a) {
 // undone: the files and folders it created are removed, then each archived
 // list is moved back. `fs-backup` is outside git, an unborn HEAD, or an ignored
 // `.planning/` (`probeGitState`); none can be reset to a commit.
-function revertLineFor(probe, force, tag, created, archived) {
-  const fileUndo = [`rm -rf -- ${created.join(' ')}`, ...archived.map((a) => `mv -- ${a.to} ${a.from}`)].join(' && ');
+function revertLineFor(probe, force, tag, created, archived, indexRegenerated) {
+  const fileUndo = [`rm -rf -- ${created.join(' ')}`, ...archived.map((a) => `mv -- ${a.to} ${a.from}`)].join(' && ')
+    + (indexRegenerated ? `, then run /sig:docs-index to regenerate ${INDEX_REL}` : '');
   if (probe.mode !== 'git') return `# nothing staged (.planning/ is not under git): undo with ${fileUndo}`;
   if (probe.dirty && force) {
-    const staged = [...created, ...archived.map((a) => a.to)];
+    const staged = [...created, ...archived.map((a) => a.to), ...(indexRegenerated ? [INDEX_REL] : [])];
     return '# --force on a dirty tree: do NOT \'git reset --hard\' (it would discard your other uncommitted work). '
       + `Undo only this migration: git reset -q -- ${staged.join(' ')} && ${fileUndo}`;
   }
@@ -405,6 +415,7 @@ function restore(baseDir, done) {
   if (done.items) quietly(() => rmSync(join(baseDir, ITEMS_REL), { recursive: true, force: true }));
   if (done.workMd) quietly(() => unlinkSync(join(baseDir, WORK_MD_REL)));
   if (done.manifest) quietly(() => unlinkSync(join(baseDir, MANIFEST_REL)));
+  if (done.index !== null) quietly(() => writeFileSync(join(baseDir, INDEX_REL), done.index));
   for (const x of [...done.archived].reverse()) {
     quietly(() => {
       if (!existsSync(join(baseDir, x.from))) renameSync(join(baseDir, x.to), join(baseDir, x.from));
@@ -426,7 +437,9 @@ async function buildAndSwap(baseDir, a, ctx) {
   }
 
   const step = (name) => ctx.onSwapStep?.(name);
-  const done = { archived: [], views: [], made: [], items: false, workMd: false, manifest: false };
+  // `index`: INDEX.md's bytes before it was regenerated, or null.
+  const done = { archived: [], views: [], made: [], items: false, workMd: false, manifest: false, index: null };
+  let index = null; // 'regenerated' | 'foreign' | 'not-a-file' | null
   try {
     step('archive');
     if (a.archived.length > 0) mkdirTracked(join(baseDir, PRE_STORE_ARCHIVE_REL), done.made);
@@ -475,11 +488,26 @@ async function buildAndSwap(baseDir, a, ctx) {
       done.manifest = true;
       await atomicWrite(join(baseDir, MANIFEST_REL), `${JSON.stringify(manifest, null, 2)}\n`);
     }
+    // INDEX.md lists every .md under .planning/, the aside's included: the
+    // aside goes first, so the index is not stale the moment it is removed.
+    if (existsSync(join(baseDir, INDEX_REL))) {
+      rmSync(aside, { recursive: true, force: true });
+      const before = regularFileRefusal(baseDir, INDEX_REL) === null ? readRegularFile(baseDir, INDEX_REL) : null;
+      if (before === null) {
+        index = 'not-a-file';
+      } else if (isForeignIndexFormat(before)) {
+        index = 'foreign';
+      } else {
+        done.index = before;
+        if ((await regeneratePlanningIndexCore(baseDir)).written) index = 'regenerated';
+      }
+    }
+    step('index');
   } catch (err) {
     restore(baseDir, done);
     throw err;
   }
-  return { written, items: records.length > 0, manifest: a.archived.length > 0 };
+  return { written, items: records.length > 0, manifest: a.archived.length > 0, index };
 }
 
 /**
@@ -488,7 +516,7 @@ async function buildAndSwap(baseDir, a, ctx) {
  * @param {string} baseDir — project root
  * @param {{apply?: boolean, force?: boolean, key?: string, expectedHash?: string,
  *          acknowledgeSensitive?: boolean, stamp?: string, execFn?: typeof execFileSync,
- *          onSwapStep?: (step: 'archive'|'work'|'views'|'verify') => void,
+ *          onSwapStep?: (step: 'archive'|'work'|'views'|'verify'|'index') => void,
  *          segmenters?: Record<string, (text: string) => object>}} [opts]
  *   `acknowledgeSensitive`: go ahead past the sensitive-data hits the dry run
  *   listed, after a person has read them (the text is kept as it is).
@@ -599,8 +627,10 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
 
   const { written } = swapped;
   const created = [WORK_MD_REL, ...(swapped.items ? [ITEMS_REL] : []), ...written, ...(swapped.manifest ? [MANIFEST_REL] : [])];
-  if (probe.mode === 'git') stagePaths(baseDir, [...created, ...b.archived.map((x) => x.to)], execFn);
-  const revertLine = revertLineFor(probe, force, tag, created, b.archived);
+  // INDEX.md is staged but never in `created`: the undo line removes those.
+  const indexRegenerated = swapped.index === 'regenerated';
+  if (probe.mode === 'git') stagePaths(baseDir, [...created, ...b.archived.map((x) => x.to), ...(indexRegenerated ? [INDEX_REL] : [])], execFn);
+  const revertLine = revertLineFor(probe, force, tag, created, b.archived, indexRegenerated);
   const items = b.plan.manifest.items;
   const flagged = items.filter((it) => it.flag).length;
   const report = [
@@ -609,6 +639,9 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
     `Wrote ${items.length} record${items.length === 1 ? '' : 's'} under ${ITEMS_REL}/, ${WORK_MD_REL} and the generated views: ${written.join(', ')}.`,
     ...b.files.map((f) => `Moved ${f.file} to ${archiveRel(f.file)}, byte for byte (${f.items} items, ${f.regions.length} non-item region${f.regions.length === 1 ? '' : 's'}).`),
     ...(swapped.manifest ? [`Manifest: ${MANIFEST_REL} — where every entry went, the verification result, and where the dates came from.`] : []),
+    ...(indexRegenerated ? [`Regenerated ${INDEX_REL} so it lists the new files.`] : []),
+    ...(swapped.index === 'not-a-file' ? [`${INDEX_REL} is a symbolic link or not a regular file, so it was not regenerated: run /sig:docs-index.`] : []),
+    ...(swapped.index === 'foreign' ? [`${INDEX_REL} is hand-written, so it was left as it is: reconcile it with /sig:docs-index.`] : []),
     ...(flagged > 0 ? [`${flagged} item${flagged === 1 ? ' is' : 's are'} flagged for a person's look (each carries a migration_note saying why): triage with /sig:item.`] : []),
     probe.mode === 'git' ? 'Staged, not committed — review with `git diff --cached`, then commit.' : 'Not a git checkout: nothing staged.',
     ...(tag ? [`Pre-apply tag: ${tag}`] : []),
