@@ -675,16 +675,20 @@ const NOTE_START_RE = /^(?:\s*$|\.(?:\s|$)|\s{0,3}[(—–]|\s{1,3}-\s)/;
 // a `.` that ends a sentence — after markdown links lose their URL (the link
 // text is read) and bare URLs go (a URL is a reference). Every token left
 // must be a date, a reference (a token with a digit: `#157`, `M9.E1`, `S5`,
-// `v2`, a commit hash), a finish word, or `in`/`on`/`PR`/`pull request`.
+// `v2`, a commit hash) — `in`/`on`/`PR`/`pull request` only right before one
+// — or a finish word.
 const TAIL_LINK_G = /\[([^\][]{0,200})\]\([^()\s]{0,500}\)/g;
 const TAIL_URL_G = /\bhttps?:\/\/[^\s()<>\]]{1,500}/gi;
 const TAIL_SPECIFIC_G = /\bnot[- ]a[- ]bug\b|\bwon['’]?t[- ]?fix\b/gi;
+// "Resolved — PR" alone is a word, not a reference: the lead-ins go only when
+// a token with a digit follows.
+const TAIL_LEAD_IN_G = /\b(?:PR|pull\s{1,3}request|in|on)\s{1,3}(?=#?[\w.#/-]{0,60}\d)/gi;
 const TAIL_SPLIT_RE = /[\s—–,;()]+|\.(?=\s|$)|(?<=\s)-(?=\s)/;
 const TAIL_REF_RE = /^#?[A-Za-z]{0,12}[\w.#/-]{0,60}\d[\w.#/-]{0,60}$/;
 const TAIL_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const TAIL_WORD_RE = new RegExp(`^(?:${FINISH_WORDS}|superseded|in|on|pr|pull|request|\u0001)$`, 'i');
+const TAIL_WORD_RE = new RegExp(`^(?:${FINISH_WORDS}|superseded|\u0001)$`, 'i');
 function tailIsPlain(rest) {
-  const t = rest.replace(TAIL_LINK_G, ' $1 ').replace(TAIL_URL_G, ' ').replace(TAIL_SPECIFIC_G, ' \u0001 ');
+  const t = rest.replace(TAIL_LINK_G, ' $1 ').replace(TAIL_URL_G, ' ').replace(TAIL_SPECIFIC_G, ' \u0001 ').replace(TAIL_LEAD_IN_G, ' ');
   return t.split(TAIL_SPLIT_RE).every((tok) => tok === '' || tok === '-' || TAIL_DATE_RE.test(tok) || TAIL_REF_RE.test(tok) || TAIL_WORD_RE.test(tok));
 }
 

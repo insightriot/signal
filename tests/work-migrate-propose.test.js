@@ -414,3 +414,39 @@ describe('C1 (pass 3) — after the finish word only a date, `in <ref>`, a refer
     });
   }
 });
+
+describe('I-5 — the routes REVIEW pass 3 found untested', () => {
+  it('a reference needs a digit: "in staging", "— QA", "in vNext" are words, not references', async () => {
+    const { finishedLead } = await import('../plugin/tools/lib/work-migrate.js');
+    for (const t of ['Fixed in staging', 'Fixed — QA', 'Done in vNext', 'Fixed (S)', 'Resolved — PR']) {
+      expect(finishedLead(t).unclear, t).toBe(true);
+    }
+    for (const t of ['Fixed in v2', 'Fixed — QA2', 'Fixed (S5)', 'Resolved — PR #3']) {
+      expect(finishedLead(t).unclear, t).toBe(false);
+    }
+  });
+
+  it('a `Merge pull request #N from owner/branch` subject resolves PR #N', async () => {
+    const { buildEvidenceIndex } = await import('../plugin/tools/lib/work-migrate-lists.js');
+    const root = mkdtempSync(join(tmpdir(), 'propose-merge-'));
+    try {
+      const base = join(root, 'leaf-notes');
+      mkdirSync(join(base, '.planning'), { recursive: true });
+      git(base, ['init', '-q', '-b', 'main']);
+      git(base, ['config', 'user.email', 't@t.co']);
+      git(base, ['config', 'user.name', 'T']);
+      git(base, ['config', 'commit.gpgsign', 'false']);
+      writeFileSync(join(base, '.planning', 'STATE.md'), STATE);
+      git(base, ['add', '-A']);
+      git(base, ['commit', '-q', '-m', 'Merge pull request #12 from acme/rows-fix'], at('2026-01-05'));
+      const hash = git(base, ['rev-parse', 'HEAD']).trim();
+      const idx = buildEvidenceIndex(base);
+      expect(idx.prs.get(12)).toBe(hash);
+      const p = plan({ 'BUGS.md': ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|', '| B1 | fixed | P2 | Rows vanish — PR #12. |', ''].join('\n') },
+        { evidence: idx });
+      expect(p.proposedCloses[0].evidence).toEqual([`PR #12 → ${hash.slice(0, 7)}`]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});

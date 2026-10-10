@@ -65,6 +65,21 @@ describe('I-D — hostile list text stays linear in the dry run', () => {
     expect(segmentQuestions('# Q\n\n## Q3 — ANSWERED ~~later~~\n').rows[0].answered).toBe(false);
   });
 
+  // REVIEW pass 3 I-5: a fixed budget at 8000 left a ~1.3× margin, which a
+  // fast machine could pass with the quadratic version. A doubling ratio is
+  // machine-independent: linear work doubles (~2×), quadratic quadruples
+  // (~4×). Best of three runs per size, to keep a GC pause out of it.
+  it('inbox segmentation is linear: 10 000 → 20 000 entries costs well under 3× (quadratic would be ~4×)', () => {
+    const inbox = (n) => `# Issues Inbox\n\n${Array.from({ length: n }, (_, i) => `## Capture ${i + 1}\nSomething to look at.\n`).join('\n')}`;
+    const best = (text) => Math.min(...[0, 1, 2].map(() => timed(() => segmentInbox(text)).ms));
+    const small = inbox(10000);
+    const large = inbox(20000);
+    best(small); // warm up
+    const ratio = best(large) / best(small);
+    expect(segmentInbox(large).rows).toHaveLength(20000);
+    expect(ratio).toBeLessThan(3);
+  });
+
   it('8000 inbox entries: segmented and planned in under 2 s, one row each', () => {
     const entries = Array.from({ length: 8000 }, (_, i) => `## Capture ${i + 1}\nSomething to look at.\n`).join('\n');
     const text = `# Issues Inbox\n\n${entries}`;

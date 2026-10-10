@@ -426,11 +426,14 @@ describe('a folded <details> block never closes the row above it', () => {
   const folded = (liveBody, foldBody) => ['# Backlog', '', '### #12 — Export the ledger as CSV · **roadmap**', liveBody, '',
     '<details><summary>#11 — Older export work</summary>', '', foldBody, '', '</details>', ''].join('\n');
 
-  it('passing wording on the live row, a resolving PR only inside the fold → open', () => {
-    const p = plan({ 'BACKLOG.md': folded('**Done** — shipped to users.', '**Done** in M2.10.E2 — [PR #157](x).') });
+  // The live wording passes the grammar (REVIEW pass 3 C1: no note of words),
+  // so the only thing missing is evidence — pinned as `no-evidence` (REVIEW
+  // pass 3 S-3), which fails if the fold's PR were counted.
+  it('passing wording on the live row, a resolving PR only inside the fold → open, no-evidence', () => {
+    const p = plan({ 'BACKLOG.md': folded('**Done** — 2026-03-01.', '**Done** in M2.10.E2 — [PR #157](x).') });
     const live = p.records.find((r) => r.record.title.includes('Export the ledger'));
     expect(status(live)).not.toBe('C');
-    expect(live.flagged).toBeTruthy();
+    expect(live.flagged).toBe('no-evidence');
   });
 
   it('no wording on the live row, finished wording and evidence only inside the fold → open', () => {
