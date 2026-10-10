@@ -175,6 +175,22 @@ const ANY_ROW_RE = /^\|([^|]*)\|([^|]*)\|([^|]*)\|/;
 // `Issue #`), no control characters.
 const ID_CELL_RE = /^(?=[^\d]{0,39}\d)(?:Issue #\d{1,9}|#\d{1,9}|\d{1,9}|[A-Za-z][A-Za-z0-9._-]{0,39})$/;
 
+// The ID inside a decorated cell (REVIEW pass 2 I-C): strike-through and
+// code/bold markup off, a markdown link unwrapped to its text
+// (`[B1](notes/b1.md)` → `B1`), a trailing tick or emoji dropped (`B1 ✅`). A
+// cell longer than any ID is returned as it is (and then reads as no ID), so
+// no pattern runs over a long one.
+const ID_CELL_MAX = 200;
+const ID_LINK_RE = /^\[([^\][]{1,60})\]\([^()\s]{0,500}\)$/;
+const ID_TAIL_RE = /(?:\s|\p{Extended_Pictographic}|[\u2713\u2714]|\uFE0F|\u200D){1,20}$/u;
+function idCellText(raw) {
+  if (raw.length > ID_CELL_MAX) return raw;
+  let t = raw.replace(/~~/g, '').replace(/[`*]/g, '').trim().replace(ID_TAIL_RE, '');
+  const link = t.match(ID_LINK_RE);
+  if (link) t = link[1].trim().replace(ID_TAIL_RE, '');
+  return t.replace(/_/g, '');
+}
+
 // Where does a summary cell's text begin? Right after the fourth `|` of the
 // first line — i.e. after the id, status and priority cells.
 function afterThirdCell(firstLine) {
@@ -349,7 +365,8 @@ export function segmentBugs(text) {
     const end = close <= n && close < nextStop[ln + 1] ? close : ln;
     const rowText = sliceLines(lines, ln, end);
     const m = l.match(ANY_ROW_RE);
-    const idCell = (l.split('|')[1] ?? '').replace(/[`*_]/g, '').trim();
+    const rawId = (l.split('|')[1] ?? '').trim();
+    const idCell = idCellText(rawId);
     const none = /^[-—–]*$/.test(idCell);
     const idShaped = !none && ID_CELL_RE.test(idCell);
     if (none || idShaped) tableHasId[table] = true;
@@ -362,6 +379,9 @@ export function segmentBugs(text) {
         kind: 'table',
         id: idShaped ? idCell : null,
         ...(none || idShaped ? {} : { idUnreadable: true }),
+        // A struck ID cell (`~~B1~~`) is a strike marker, read like a struck
+        // heading (the planner's `readMarkers`).
+        ...(idShaped && rawId.includes('~~') ? { struckId: rawId } : {}),
         n: null,
         line: ln,
         endLine: end,

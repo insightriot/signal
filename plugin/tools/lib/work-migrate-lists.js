@@ -993,6 +993,7 @@ function readMarkers(file, row) {
     }
   }
   if (file === 'BUGS.md' && row.kind === 'table') {
+    if (row.struckId) markers.push({ reason: 'fixed', text: row.struckId });
     const cell = row.statusRaw ?? '';
     if (!take(cell) && cell.trim()) statuses.push(cell.trim());
   }

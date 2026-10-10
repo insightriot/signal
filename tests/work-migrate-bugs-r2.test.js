@@ -28,3 +28,41 @@ describe('I-B — bare numeric IDs: one item per row, the number kept as legacy_
     expect(p.records[0].body.split('\n')[0]).toBe('Old ID: 1');
   });
 });
+
+describe('I-C — a decorated ID cell keeps its ID (AC5.2)', () => {
+  it('[B1](notes/b1.md) → legacy_id B1; the status cell still decides', () => {
+    const p = plan(table('| [B1](notes/b1.md) | fixed | P2 | Rows vanish — PR #7. |'));
+    expect(p.errors).toEqual([]);
+    expect(p.records).toHaveLength(1);
+    expect(p.records[0].record.legacy_id).toBe('B1');
+    expect(status(p.records[0])).toBe('C');
+  });
+
+  for (const cell of ['B1 ✅', 'B1 ✔️', 'B1 🎉']) {
+    it(`"${cell}" → legacy_id B1`, () => {
+      const p = plan(table(`| ${cell} | open | P2 | Rows vanish. |`));
+      expect(p.records).toHaveLength(1);
+      expect(p.records[0].record.legacy_id).toBe('B1');
+      expect(p.records[0].flagged).not.toBe('id-unreadable');
+    });
+  }
+
+  it('~~B1~~ with a finished status and a resolving reference → legacy_id B1, closed', () => {
+    const p = plan(table('| ~~B1~~ | fixed | P2 | Rows vanish — PR #7. |'));
+    expect(p.records).toHaveLength(1);
+    expect(p.records[0].record.legacy_id).toBe('B1');
+    expect(status(p.records[0])).toBe('C');
+  });
+
+  it('~~B1~~ is a strike marker like a struck heading: beside an open status → open, flagged conflict', () => {
+    const p = plan(table('| ~~B1~~ | open | P2 | Rows vanish — PR #7. |'));
+    expect(p.records[0].record.legacy_id).toBe('B1');
+    expect(status(p.records[0])).toBe('T');
+    expect(p.records[0].flagged).toBe('conflict');
+  });
+
+  it('~~B1~~ alone (empty status) still needs a resolving reference', () => {
+    expect(status(plan(table('| ~~B1~~ |  | P2 | Rows vanish. |')).records[0])).toBe('T');
+    expect(status(plan(table('| ~~B1~~ |  | P2 | Rows vanish — PR #7. |')).records[0])).toBe('C');
+  });
+});
