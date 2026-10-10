@@ -32,6 +32,7 @@ const EVIDENCE = {
   commits: [HASH],
   prs: new Map([[157, HASH]]),
   epics: new Map([['M2.10.E2', '.planning/archive/M2.10.E2-RETROSPECTIVE.md']]),
+  origin: { host: 'example.com', repo: 'acme/ledger' },
 };
 // confirmCloses: true is the person's yes to the proposed closes (D-M6E15-25):
 // these tests pin what a CONFIRMED close carries. That nothing closes without
@@ -236,7 +237,8 @@ describe('C1 (b) — a finished entry closes only on a reference that resolves (
     ['a commit hash (40 hex)', `Landed in ${HASH}.`, 'commit e41d30e'],
     ['a PR number (#N)', 'Landed in #157.', 'PR #157 → e41d30e'],
     ['a PR number (PR #N)', 'Landed in PR #157.', 'PR #157 → e41d30e'],
-    ['a /pull/N link', 'See [the change](https://example.com/acme/pull/157).', 'PR #157 → e41d30e'],
+    // A full link to this repository's origin (REVIEW pass 3 I-2).
+    ['a /pull/N link', 'See [the change](https://example.com/acme/ledger/pull/157).', 'PR #157 → e41d30e'],
     ['an Epic ID with a retrospective', 'Shipped with M2.10.E2.', 'M2.10.E2 → .planning/archive/M2.10.E2-RETROSPECTIVE.md'],
   ];
   for (const [name, body, evidence] of kinds) {
@@ -402,7 +404,9 @@ describe('C1 (b) — integration: the index is built from this repository’s gi
       return execFileSync(cmd, args, o);
     };
     buildEvidenceIndex(base, { execFn });
-    expect(calls).toEqual([['git', 'log', 'HEAD', '--format=%H%x09%s']]);
+    // Two fixed-argument reads: the history, and the origin a /pull/N link
+    // must point at (REVIEW pass 3 I-2).
+    expect(calls).toEqual([['git', 'log', 'HEAD', '--format=%H%x09%s'], ['git', 'remote', 'get-url', 'origin']]);
   });
 });
 

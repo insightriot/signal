@@ -253,3 +253,56 @@ describe('I-1 — evidence is the entry’s own text; a child question’s own h
     });
   }
 });
+
+describe('I-2 — what counts as a pull request (REVIEW pass 3)', () => {
+  const ORIGIN = { host: 'example.com', repo: 'acme/ledger' };
+  const ev = { ...EVIDENCE, prs: new Map([[99, HASH], [157, HASH], [12, HASH]]), origin: ORIGIN };
+  const flagOf = (file, text, evidence = ev) => {
+    const p = plan({ [file]: text }, { evidence });
+    expect(p.errors).toEqual([]);
+    return p.records.filter((x) => x.flagged !== 'non-item')[0].flagged;
+  };
+  const backlog = (body) => ['# Backlog', '', '### #12 — Export to CSV · **roadmap** · small · **DONE**', body, '',
+    '### #13 — Export to PDF · **roadmap**', 'Body.', ''].join('\n');
+  const bug = (summary) => ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|', `| B1 | fixed | P2 | ${summary} |`, ''].join('\n');
+
+  it('in a list whose IDs are #N, a bare #N is a cross-reference, not a PR', () => {
+    expect(flagOf('BACKLOG.md', backlog('Split from #99.'))).toBe('no-evidence');
+  });
+  for (const body of ['Landed in PR #99.', 'Landed as pull request #99.', 'See [the change](https://example.com/acme/ledger/pull/99).']) {
+    it(`in a #N list, "${body}" counts`, () => {
+      expect(flagOf('BACKLOG.md', backlog(body))).toBe('looks-finished');
+    });
+  }
+  it('in a list whose IDs are not #N, a bare #N still counts', () => {
+    expect(flagOf('BUGS.md', bug('Rows vanish — #157.'))).toBe('looks-finished');
+  });
+  it('a /pull/N link to another repository or host does not count', () => {
+    expect(flagOf('BUGS.md', bug('Rows vanish — [fix](https://example.com/other/repo/pull/157).'))).toBe('no-evidence');
+    expect(flagOf('BUGS.md', bug('Rows vanish — [fix](https://elsewhere.org/acme/ledger/pull/157).'))).toBe('no-evidence');
+  });
+  it('a /pull/N link to this repository’s origin counts (case and .git ignored)', () => {
+    expect(flagOf('BUGS.md', bug('Rows vanish — [fix](https://Example.com/Acme/Ledger/pull/157).'))).toBe('looks-finished');
+  });
+  it('with no origin, no /pull/N link counts', () => {
+    expect(flagOf('BUGS.md', bug('Rows vanish — [fix](https://example.com/acme/ledger/pull/157).'), { ...ev, origin: null })).toBe('no-evidence');
+  });
+  for (const summary of ['Rows vanish — issue: #157.', 'Rows vanish — Issues #12, #157.', 'Rows vanish — issues #12 and #157.']) {
+    it(`"${summary}" names issues, never PRs`, () => {
+      expect(flagOf('BUGS.md', bug(summary))).toBe('no-evidence');
+    });
+  }
+});
+
+describe('parseOrigin', () => {
+  it('reads the common remote shapes', async () => {
+    const { parseOrigin } = await import('../plugin/tools/lib/work-migrate-lists.js');
+    const want = { host: 'example.com', repo: 'acme/ledger' };
+    for (const u of ['git@example.com:acme/ledger.git', 'ssh://git@example.com:22/acme/ledger', 'https://example.com/acme/ledger.git',
+      'https://user@example.com/Acme/Ledger', 'https://example.com/acme/ledger/']) {
+      expect(parseOrigin(u), u).toEqual(want);
+    }
+    expect(parseOrigin('/some/local/path')).toBeNull();
+    expect(parseOrigin('')).toBeNull();
+  });
+});

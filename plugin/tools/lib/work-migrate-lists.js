@@ -1113,9 +1113,11 @@ function sensitiveHits(text) {
 //
 //   - a commit: 7–40 lowercase hex (with a letter and a digit) that is a
 //     prefix of a commit in `git log HEAD` (the checked-out branch);
-//   - a pull request: `#N`, `PR #N` or a `/pull/N` link, where N appears in a
-//     commit subject as `(#N)` or `Merge pull request #N`. `Issue #N` is an
-//     issue, and the entry's own old ID is never its evidence;
+//   - a pull request: `PR #N`, `pull request #N`, a bare `#N` (not in a list
+//     whose own IDs are `#N`), or a `https://host/owner/repo/pull/N` link
+//     whose host and owner/repo are this repository's `origin`, where N
+//     appears in a commit subject as `(#N)` or `Merge pull request #N`. Issue
+//     references are issues, and the entry's own old ID is never its evidence;
 //   - an Epic: an ID shaped `M2.10.E2` with a `<ID>-RETROSPECTIVE.md` under
 //     `.planning/` (archive included).
 //
@@ -1130,7 +1132,16 @@ function sensitiveHits(text) {
 
 const PROOF_MAX = 400;
 const HEX_REF_G = /\b(?=[0-9a-f]{0,39}[a-f])(?=[0-9a-f]{0,39}\d)[0-9a-f]{7,40}\b/g;
-const PR_REF_GS = [/\bPR\s{0,3}#?(\d{1,7})\b/gi, /\/pull\/(\d{1,7})\b/g, /(?<![\w&#/])(?<!\bissue\s{1,3})#(\d{1,7})\b/gi];
+// `PR #N` / `pull request #N` always; a bare `#N` only in a list whose own IDs
+// are not `#N` (there it is a cross-reference to another entry, REVIEW pass 3
+// I-2). Issue references are masked first (`issue #N`, `issue: #N`,
+// `Issues #12, #13`, `issues #12 and #13`).
+const PR_NAMED_GS = [/\bPR\s{0,3}#?(\d{1,7})\b/gi, /\bpull\s{1,3}request\s{0,3}#?(\d{1,7})\b/gi];
+const PR_BARE_G = /(?<![\w&#/])#(\d{1,7})\b/g;
+const ISSUE_REFS_G = /\bissues?\s{0,3}:?\s{0,3}#\d{1,7}(?:\s{0,3}(?:,|&|and)\s{0,3}#\d{1,7}){0,50}/gi;
+// A full pull-request URL; it counts only when host and owner/repo are this
+// repository's `origin` (case and a trailing `.git` ignored).
+const PR_URL_G = /\bhttps?:\/\/(?:[^@\s/()<>\]]{1,100}@)?([^/\s()<>\]]{1,200})\/([^/\s()<>\]]{1,100})\/([^/\s()<>\]]{1,100})\/pull\/(\d{1,7})\b/gi;
 const EPIC_REF_G = /\bM\d{1,4}(?:\.\d{1,4}){0,4}\.E\d{1,4}\b/g;
 const SUBJECT_PR_RES = [/\(#(\d{1,7})\)/g, /^Merge pull request #(\d{1,7})\b/g];
 const RETRO_RE = /^(.+)-RETROSPECTIVE\.md$/;
@@ -1143,7 +1154,8 @@ const RETRO_WALK_MAX = 50000;
  *
  * @param {string} baseDir
  * @param {{execFn?: Function}} [opts]
- * @returns {{source: 'git'|'none', commits: string[], prs: Map<number, string>, epics: Map<string, string>}}
+ * @returns {{source: 'git'|'none', commits: string[], prs: Map<number, string>, epics: Map<string, string>,
+ *   origin: {host: string, repo: string}|null}}
  */
 export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   let out = '';
@@ -1173,6 +1185,19 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   }
   commits.sort();
 
+  // The repository a `/pull/N` link must point at (REVIEW pass 3 I-2): one
+  // fixed-argument read; none outside git or with no `origin`.
+  let origin = null;
+  if (source === 'git') {
+    try {
+      origin = parseOrigin(String(execFn('git', ['remote', 'get-url', 'origin'], {
+        cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+      })).trim());
+    } catch {
+      origin = null;
+    }
+  }
+
   const epics = new Map();
   const stack = [['.planning', 0]];
   let seen = 0;
@@ -1193,7 +1218,17 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
       }
     }
   }
-  return { source, commits, prs, epics };
+  return { source, commits, prs, epics, origin };
+}
+
+const repoKey = (owner, repo) => `${owner}/${repo}`.toLowerCase().replace(/\.git$/, '');
+
+// `git@host:owner/repo.git`, `ssh://git@host:22/owner/repo`,
+// `https://host/owner/repo.git` → `{host, repo: 'owner/repo'}`, lower case;
+// null for anything else.
+export function parseOrigin(url) {
+  const m = String(url).match(/^(?:[a-z+]+:\/\/)?(?:[^@/\s]+@)?([^:/\s]+)(?::\d+)?[:/]([^/\s]+)\/([^/\s]+?)\/?$/i);
+  return m ? { host: m[1].toLowerCase(), repo: repoKey(m[2], m[3]) } : null;
 }
 
 // The commit `prefix` names, from the sorted list: binary search, no scan.
@@ -1210,8 +1245,10 @@ function commitFor(commits, prefix) {
 
 // What `text` cites, in order, and which of it resolves. `found` and
 // `missing` are the phrases the proof and the note print.
-function checkEvidence(text, legacy, evidence) {
+function checkEvidence(text, legacy, evidence, { bareHash = true } = {}) {
   const own = legacy && /^#\d+$/.test(legacy) ? Number(legacy.slice(1)) : null;
+  // Issue references masked, same length, so positions stay.
+  const scan = text.replace(ISSUE_REFS_G, (m) => ' '.repeat(m.length));
   const refs = []; // {at, kind, key}
   const seen = new Set();
   const add = (at, kind, key) => {
@@ -1219,9 +1256,18 @@ function checkEvidence(text, legacy, evidence) {
     seen.add(`${kind}:${key}`);
     refs.push({ at, kind, key });
   };
-  for (const m of text.matchAll(HEX_REF_G)) add(m.index, 'commit', m[0]);
-  for (const re of PR_REF_GS) for (const m of text.matchAll(re)) if (Number(m[1]) !== own) add(m.index, 'pr', Number(m[1]));
-  for (const m of text.matchAll(EPIC_REF_G)) add(m.index, 'epic', m[0]);
+  for (const m of scan.matchAll(HEX_REF_G)) add(m.index, 'commit', m[0]);
+  for (const re of [...PR_NAMED_GS, ...(bareHash ? [PR_BARE_G] : [])]) {
+    for (const m of scan.matchAll(re)) if (Number(m[1]) !== own) add(m.index, 'pr', Number(m[1]));
+  }
+  const origin = evidence?.origin ?? null;
+  for (const m of scan.matchAll(PR_URL_G)) {
+    const n = Number(m[4]);
+    if (n === own) continue;
+    if (origin && m[1].toLowerCase().replace(/:\d+$/, '') === origin.host && repoKey(m[2], m[3]) === origin.repo) add(m.index, 'pr', n);
+    else add(m.index, 'pr-elsewhere', `${m[2]}/${m[3]}#${n}`);
+  }
+  for (const m of scan.matchAll(EPIC_REF_G)) add(m.index, 'epic', m[0]);
   refs.sort((a, b) => a.at - b.at);
 
   const found = [];
@@ -1233,6 +1279,9 @@ function checkEvidence(text, legacy, evidence) {
       const hash = evidence ? commitFor(evidence.commits, r.key) : null;
       if (hash) found.push(`commit ${hash.slice(0, 7)}`);
       else missing.push(`commit ${r.key} not found in this repository's history`);
+    } else if (r.kind === 'pr-elsewhere') {
+      cited.push(`a pull request link (${r.key})`);
+      missing.push(`a pull request link (${r.key}) not to this repository's origin${evidence?.origin ? '' : ' (no origin remote could be read)'}`);
     } else if (r.kind === 'pr') {
       cited.push(`PR #${r.key}`);
       const hash = evidence?.prs.get(r.key);
@@ -1268,7 +1317,7 @@ function withoutFolds(text) {
 
 // The entry's outcome: `{close: {reason, proof, wording}}`, or `{flag, note}`
 // (open).
-function decide(file, folded, evidence) {
+function decide(file, folded, evidence, { bareHash = true } = {}) {
   const row = typeof folded.text === 'string' ? { ...folded, text: withoutFolds(folded.text) } : folded;
   if (file === 'BUGS.md' && row.idUnreadable) {
     return { flag: 'id-unreadable', note: 'Its ID cell does not read as an ID (one short token with a digit, on the first line), so no old ID was kept and the row was not read for a finished marker; left open.' };
@@ -1290,7 +1339,7 @@ function decide(file, folded, evidence) {
     const wording = [...new Set(m.markers.map((x) => x.text))].join('; ');
     // The entry's own text only (REVIEW pass 3 I-1): a grouping heading's
     // reference is not evidence for every entry under it.
-    const checked = checkEvidence(row.text, legacyOf(file, row), evidence);
+    const checked = checkEvidence(row.text, legacyOf(file, row), evidence, { bareHash });
     const said = `Its wording says ${m.markers.map((x) => quote(clip(printable(x.text)))).join(', ')}`;
     if (checked.found.length === 0) {
       let why;
@@ -1406,7 +1455,9 @@ export function planListsToRecords(texts, opts = {}) {
       continue;
     }
     files[file].verified = true;
-    for (const row of seg.rows) planned.push({ file, row, pieces: [row] });
+    // A list whose own IDs are `#N`: there a bare `#N` names another entry.
+    const bareHash = !seg.rows.some((row) => /^#\d+$/.test(legacyOf(file, row) ?? ''));
+    for (const row of seg.rows) planned.push({ file, row, pieces: [row], bareHash });
     const prose = [];
     for (const o of seg.orphans) {
       if (structureOnly(o.text)) regions.push({ file, kind: 'orphan', name: o.name, line: o.line, endLine: o.endLine, text: o.text });
@@ -1462,7 +1513,7 @@ export function planListsToRecords(texts, opts = {}) {
       const legacy = legacyOf(file, row);
       if (legacy) record.legacy_id = legacy;
       text = row.text;
-      let outcome = decide(file, row, evidence);
+      let outcome = decide(file, row, evidence, { bareHash: p.bareHash });
       // A close is only ever PROPOSED (D-M6E15-25, AC4.1): the person confirms
       // the list as one yes; without it the entry stays open, flagged.
       if (outcome.close) {
