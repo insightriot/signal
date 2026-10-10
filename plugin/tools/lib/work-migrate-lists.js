@@ -85,6 +85,8 @@ import {
   backlogTag,
   bugTitle,
   clip,
+  finishedLead,
+  markerDates,
   segmentBacklog,
   segmentBugs,
   segmentInbox,
@@ -689,7 +691,6 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
 
 const PLAN_BY = 'migration';
 const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-const ISO_DAY_G = /\b(\d{4}-\d{2}-\d{2})\b/g;
 const OLD_ID_PREFIX = 'Old ID: ';
 
 const SEGMENTERS = Object.freeze({
@@ -783,53 +784,32 @@ function titleOf(file, row) {
 //   - a heading's bold annotations (`· **DONE — M9.E1, 2026-03-08**`), and the
 //     plain text after a struck span (`~~Q4~~ — ANSWERED`). A bold run that
 //     OPENS the heading is its title, not an annotation;
-//   - a `**Status:** …` line in the entry: only its lead phrase (before the
-//     first ` — `, `.`, `;` or `,`, parentheticals removed) is read, because
-//     the rest is prose (`not-a-bug (closed …) — …` is not-a-bug, not closed);
+//   - a `**Status:** …` line in the entry;
 //   - a bug table's status cell;
 //   - in BACKLOG.md, a body line that opens with a bold marker (`**Done** in
-//     …`, `**Closed — superseded**`) — the shape corpus project 1 writes;
+//     …`, `**Closed — superseded**`) — the shape corpus project 1 writes. Only
+//     the bold run is read;
 //   - in OPEN-QUESTIONS.md, the section heading an entry sits under, when it
-//     says Resolved / Done / Closed (the segmenter's `groupWord`).
+//     leads with Resolved / Done / Closed (the segmenter's `groupWord`); a
+//     section heading that is unclear makes its entries unclear.
 //
-// Words, any case: done / resolved / answered / fixed / closed / shipped →
-// `fixed` (SHIPPED joined at D-M6E15-23);
-// not-a-bug → `rejected`; won't-fix → `wontdo`; superseded → `stale`. Within
-// ONE marker a specific word wins over a generic one (`Closed — superseded`
-// is a close because superseded: `stale`). ACROSS markers, two reasons — or a
-// marker beside a status that is not one — is a conflict: open, flagged. A
-// qualified word (`partially resolved`, `not fixed`) is unclear: open,
-// flagged. A finished word the backlog reader knows but this list does not
-// map (ABANDONED, CUT — `wontdo` or partial work, D-M6E15-23) is flagged,
-// never guessed — alone, or beside a marker that does map (`~~…~~ ·
+// Whether one of those texts is a marker, and which reason, is ONE rule:
+// `finishedLead` in work-migrate.js (REVIEW C1). The finish word must lead the
+// text; any negation or futurity word beside a finish word is `unclear`;
+// "done when" / "… of done" are never markers. Within ONE marker a specific
+// word wins over a generic one (`Closed — superseded` is `stale`). ACROSS
+// markers, two reasons — or a marker beside a status that is not one — is a
+// conflict: open, flagged. A finished word the backlog reader knows but this
+// list does not map (ABANDONED, CUT — `wontdo` or partial work, D-M6E15-23) is
+// flagged, never guessed — alone, or beside a marker that does map (`~~…~~ ·
 // **ABANDONED**` is not a fixed close).
 // Nothing throws.
 
-const FINISH_RE = /\b(?:done|resolved|answered|fixed|closed|shipped)\b/i;
-const QUALIFIED_FINISH_RE = /\b(?:partially|partly|mostly|largely|not)\s+(?:done|resolved|answered|fixed|closed|shipped)\b/i;
-const SPECIFIC_FINISH = [
-  [/\bnot[- ]a[- ]bug\b/i, 'rejected'],
-  [/\bwon['’]?t[- ]?fix\b/i, 'wontdo'],
-  [/\bsuperseded\b/i, 'stale'],
-];
 const UNMAPPED_FINISH_RE = /\b(?:ABANDONED|CUT)\b/;
 const STRUCK_RE = /~~[^~]+~~/;
 const BOLD_RE = /\*\*([^*]+)\*\*/g;
 const STATUS_LINE_RE = /^\*\*Status:\*\*\s*(.*)$/;
 const BOLD_LEAD_RE = /^\*\*([^*]+)\*\*/;
-
-// The words a status line's lead phrase carries.
-function leadPhrase(text) {
-  return text.replace(/\([^)]*\)/g, ' ').split(/\s[—–-]\s|[.;,](?:\s|$)/)[0];
-}
-
-// `{reasons: Set, unclear: boolean}` for one marker's text.
-function classify(text) {
-  const unclear = QUALIFIED_FINISH_RE.test(text);
-  const specific = new Set(SPECIFIC_FINISH.filter(([re]) => re.test(text)).map(([, r]) => r));
-  const reasons = specific.size > 0 ? specific : FINISH_RE.test(text) ? new Set(['fixed']) : new Set();
-  return { reasons, unclear };
-}
 
 // Everything an entry says about being finished.
 function readMarkers(file, row) {
@@ -838,7 +818,7 @@ function readMarkers(file, row) {
   const statuses = []; // status text that is not a finished marker
   const unmappedFinish = [];
   const take = (text, words = text) => {
-    const c = classify(words);
+    const c = finishedLead(words);
     if (c.unclear) unclear.push(text);
     else if (c.reasons.size > 1) [...c.reasons].forEach((reason) => markers.push({ reason, text }));
     else if (c.reasons.size === 1) markers.push({ reason: [...c.reasons][0], text });
@@ -862,9 +842,10 @@ function readMarkers(file, row) {
   }
   if (file === 'BUGS.md' && row.kind === 'table') {
     const cell = row.statusRaw ?? '';
-    if (!take(cell, leadPhrase(cell.replace(/[`*_]/g, ''))) && cell.trim()) statuses.push(cell.trim());
+    if (!take(cell) && cell.trim()) statuses.push(cell.trim());
   }
   if (file === 'OPEN-QUESTIONS.md' && row.groupWord) markers.push({ reason: 'fixed', text: row.groupHeading });
+  else if (file === 'OPEN-QUESTIONS.md' && row.groupHeading && finishedLead(row.groupHeading).unclear) unclear.push(row.groupHeading);
 
   let statusLine = false;
   let fence = false;
@@ -875,7 +856,7 @@ function readMarkers(file, row) {
     if (st) {
       statusLine = true;
       const text = st[1].trim();
-      if (!take(text, leadPhrase(text)) && text) statuses.push(text);
+      if (!take(text) && text) statuses.push(text);
       continue;
     }
     const bold = file === 'BACKLOG.md' ? line.match(BOLD_LEAD_RE) : null;
@@ -1060,9 +1041,10 @@ export function planListsToRecords(texts, opts = {}) {
       text = row.text;
       const outcome = decide(file, row);
       if (outcome.close) {
-        // A date the marker writes wins, when it writes exactly one; two (a
-        // logged date and a fix date) do not say which is the close.
-        const written = [...new Set([...outcome.close.proof.matchAll(ISO_DAY_G)].map((m) => m[1]))];
+        // A date the marker writes beside its finish word wins, when there is
+        // exactly one (`markerDates`, REVIEW S1); any other date in the proof is
+        // not the close date, and two do not say which is.
+        const written = markerDates(outcome.close.proof);
         const at = written.length === 1 ? written[0] : d.last;
         if (at < created) {
           events[0].at = at;

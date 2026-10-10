@@ -344,7 +344,7 @@ describe('t3.3 — dates come from the entry, else from the file’s history; ne
     const p = byId(plan(corpus()));
     expect(closedEvent(p.get('LF-4')).at).toBe('2026-03-02'); // not-a-bug (closed 2026-03-02 …)
     expect(closedEvent(p.get('LF-11')).at).toBe('2026-03-08'); // DONE — M9.E2, 2026-03-08
-    expect(closedEvent(p.get('LF-21')).at).toBe('2026-02-15'); // (PR #22, 2026-02-15)
+    expect(closedEvent(p.get('LF-21')).at).toBe(DATES['OPEN-QUESTIONS.md'].last); // `Resolved. … (PR #22, 2026-02-15)`: the date is not beside the marker (REVIEW S1)
     expect(closedEvent(p.get('LF-1')).at).toBe(DATES['BUGS.md'].last); // `fixed`, no date
     expect(closedEvent(p.get('LF-20')).at).toBe(DATES['OPEN-QUESTIONS.md'].last); // 2026-02-10 and 2026-02-14: which is the close is not said
   });

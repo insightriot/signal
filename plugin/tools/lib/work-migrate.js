@@ -494,7 +494,89 @@ export function segmentInbox(text) {
 
 const ANSWERED_RE = /~~[^~]+~~.*\bANSWERED\b/;
 const H3_RE = /^### /;
-const GROUP_WORD_RE = /\b(resolved|done|closed)\b/i;
+const GROUP_WORDS = new Set(['resolved', 'done', 'closed']);
+
+// ── The finished lead (M6.E15 REVIEW C1; D-M6E15-10, -18; AC4.1, AC4.2) ──────
+//
+// ONE rule for "does this text say the entry is finished", used for every
+// marker the planner reads (a heading's bold annotation, the text after a
+// struck span, a `**Status:**` line, a bug table cell, a backlog body line's
+// bold lead) and for a question's grouping heading here. Read in order:
+//
+//   1. The clause: markup (`*_~` and backticks) and leading punctuation off,
+//      then up to the first sentence end (`.`, `;` or `:` before a space or
+//      the end). Dashes and parentheticals stay in it: "Resolved during v2.6
+//      — but not closed" is one clause.
+//   2. Never a marker: "done when …", "… of done" (`**Done when:**`,
+//      `**Definition of done:**` — a criterion, not a verdict).
+//   3. The finish word must LEAD the clause, after at most one affirming word
+//      (`Fully resolved.`): done / resolved / answered / fixed / closed /
+//      shipped → `fixed`; not-a-bug → `rejected`; won't-fix → `wontdo`;
+//      superseded → `stale`. A generic lead refined by a specific word that
+//      opens a later ` — ` part (`Closed — superseded`) is that specific
+//      reason. A finish word later in the clause ("Half are fixed") is not a
+//      marker.
+//   4. Unclear: a finish word anywhere in the clause beside a negation or
+//      futurity word (not, no, never, yet, until, when, once, pending, blocked,
+//      waiting, will, "to be") or a partial one (partially, partly, mostly,
+//      largely) — open and flagged, whether or not the word leads. The three
+//      specific markers are masked first, so `not-a-bug` is not a negation.
+//
+// Returns `{reasons: Set<string>, unclear: boolean, word: string|null}`;
+// `word` is the leading generic finish word, lower case.
+const FINISH_WORDS = 'done|resolved|answered|fixed|closed|shipped';
+const SPECIFIC_FINISH = [
+  [/not[- ]a[- ]bug\b/iy, /\bnot[- ]a[- ]bug\b/gi, 'rejected'],
+  [/won['’]?t[- ]?fix\b/iy, /\bwon['’]?t[- ]?fix\b/gi, 'wontdo'],
+  [/superseded\b/iy, /\bsuperseded\b/gi, 'stale'],
+];
+const AFFIRM_RE = /^(?:fully|completely|already|now)\s+/i;
+const GENERIC_LEAD_RE = new RegExp(`^(${FINISH_WORDS})\\b`, 'i');
+const FINISH_ANY_RE = new RegExp(`\\b(?:${FINISH_WORDS})\\b`, 'i');
+const NEVER_MARKER_RE = /\bdone\s+when\b|\bof\s+done\b/i;
+const QUALIFIER_RE = /\b(?:not|no|never|yet|until|when|once|pending|blocked|waiting|will|to\s+be|partially|partly|mostly|largely)\b/i;
+const CLAUSE_END_RE = /[.;:](?:\s|$)/;
+
+// The dates a marker writes BESIDE a finish word (REVIEW S1; D-M6E15-19):
+// `fixed 2026-10-04`, `DONE — M9.E1, 2026-10-08`, `closed on 2026-03-02`. Only
+// punctuation, an optional `on`/`in`, and at most one ID-like token (letters,
+// digits and dots, with a digit: `M9.E1`, `v2.6`) may come between the word and
+// the date. Any other date in the text ("a regression from the 2025-11-01
+// release") is not the close date. Returns the distinct dates, in order.
+const MARKER_DATE_G = new RegExp(
+  `\\b(?:${FINISH_WORDS}|not[- ]a[- ]bug|won['’]?t[- ]?fix|superseded)\\b[\\s*_~\`—–:,(-]{0,12}(?:(?:on|in)\\s{1,3})?`
+    + `(?:[A-Za-z][\\w.]{0,20}\\d[\\w.]{0,20}[\\s*_~\`,;)—–:-]{1,12})?(\\d{4}-\\d{2}-\\d{2})\\b`,
+  'gi'
+);
+
+export function markerDates(text) {
+  return [...new Set([...String(text).matchAll(MARKER_DATE_G)].map((m) => m[1]))];
+}
+
+export function finishedLead(text) {
+  const none = { reasons: new Set(), unclear: false, word: null };
+  const plain = String(text).replace(/[*_~`]/g, '').replace(/^[\s\p{P}\p{S}]+/u, '');
+  const end = plain.search(CLAUSE_END_RE);
+  const clause = (end === -1 ? plain : plain.slice(0, end)).trim();
+  if (clause === '' || NEVER_MARKER_RE.test(clause)) return none;
+
+  let masked = clause;
+  for (const [, g] of SPECIFIC_FINISH) masked = masked.replace(g, ' ');
+  const anyFinish = FINISH_ANY_RE.test(clause) || masked !== clause;
+  if (anyFinish && QUALIFIER_RE.test(masked)) return { ...none, unclear: true };
+
+  const lead = clause.replace(AFFIRM_RE, '');
+  const specificAt = (s) => SPECIFIC_FINISH.find(([y]) => {
+    y.lastIndex = 0;
+    return y.test(s);
+  });
+  const sp = specificAt(lead);
+  if (sp) return { ...none, reasons: new Set([sp[2]]) };
+  const g = lead.match(GENERIC_LEAD_RE);
+  if (!g) return none;
+  const refined = new Set(lead.split(/\s[—–-]\s/).slice(1).map((part) => specificAt(part.replace(/^[\s(]+/, ''))?.[2]).filter(Boolean));
+  return { reasons: refined.size > 0 ? refined : new Set(['fixed']), unclear: false, word: g[1].toLowerCase() };
+}
 
 /**
  * @param {string} text — OPEN-QUESTIONS.md content
@@ -522,8 +604,8 @@ export function segmentQuestions(text) {
     const g = grouped ? h2.filter((x) => x < h).pop() : undefined;
     if (g === undefined) return { groupHeading: null, groupWord: null };
     const groupHeading = lines[g - 1].replace(H2_RE, '').trim();
-    const w = groupHeading.match(GROUP_WORD_RE);
-    return { groupHeading, groupWord: w ? w[1].toLowerCase() : null };
+    const { word } = finishedLead(groupHeading);
+    return { groupHeading, groupWord: GROUP_WORDS.has(word) ? word : null };
   };
 
   const rows = heads.map((h) => {
