@@ -206,6 +206,9 @@ export function segmentBugs(text) {
   const isBoundary = (i) => tableStarts.has(i) || (!inFence[i - 1] && (H2_RE.test(lines[i - 1]) || TALLY_RE.test(lines[i - 1])));
 
   const rows = [];
+  // The line of each `## ` entry taken so far: a lookup, not a scan of `rows`
+  // per heading (headings × rows on a hostile file).
+  const entryAt = new Set();
   for (const e of entries) {
     if (e.kind === 'row') {
       let end = e.line;
@@ -244,12 +247,13 @@ export function segmentBugs(text) {
     if (h < 1) {
       throw new WorkStoreError('SCHEMA', `BUGS.md:${e.line}: a **Status:** line with no \`## \` heading above it`);
     }
-    if (rows.some((r) => r.kind === 'entry' && r.line === h)) {
+    if (entryAt.has(h)) {
       throw new WorkStoreError('SCHEMA', `BUGS.md:${h}: an entry carries two **Status:** lines (second at line ${e.line})`);
     }
     let end = h + 1;
     while (end <= lines.length && !isBoundary(end) && !(lines[end - 1].trim() === '---' && !inFence[end - 1])) end++;
     end = trimRowEnd(lines, h, end - 1);
+    entryAt.add(h);
     rows.push({
       source: 'BUGS.md',
       kind: 'entry',
@@ -270,7 +274,7 @@ export function segmentBugs(text) {
   // ending where a status-line entry would; what that means is the planner's.
   lines.forEach((l, i) => {
     const h = i + 1;
-    if (inFence[i] || !H2_RE.test(l) || rows.some((r) => r.kind === 'entry' && r.line === h)) return;
+    if (inFence[i] || !H2_RE.test(l) || entryAt.has(h)) return;
     let end = h + 1;
     while (end <= lines.length && !isBoundary(end) && !(lines[end - 1].trim() === '---' && !inFence[end - 1])) end++;
     end = trimRowEnd(lines, h, end - 1);

@@ -148,4 +148,20 @@ describe('I4 — a hostile BUGS.md segments in linear time', () => {
     expect(seg.rows.filter((r) => r.kind === 'table')).toHaveLength(8000);
     expect(ms).toBeLessThan(2000);
   }, 600_000);
+
+  // `##` headings × table rows (batch A residue): each heading looked its
+  // entry up by scanning every row. 4000 + 4000 is the size REVIEW asked for;
+  // at 20000 + 20000 status-line entries the scan took ~6 s on the author's
+  // machine (measured before the fix), so that size is what goes red.
+  it.each([4000, 20000])('%i table rows + as many `## ` entries segment in under 2 s', (n) => {
+    const text = ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|',
+      ...Array.from({ length: n }, (_, i) => `| B${i + 1} | fixed | P1 | thing ${i} |`), '',
+      ...Array.from({ length: n }, (_, i) => `## Entry ${i}\n**Status:** open`), ''].join('\n');
+    const t0 = performance.now();
+    const seg = segmentBugs(text);
+    const ms = performance.now() - t0;
+    expect(seg.rows.filter((r) => r.kind === 'table')).toHaveLength(n);
+    expect(seg.rows.filter((r) => r.kind === 'entry')).toHaveLength(n);
+    expect(ms).toBeLessThan(2000);
+  }, 600_000);
 });
