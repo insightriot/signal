@@ -2384,3 +2384,9 @@ Evidence: on #284 (227 changed lines, the first PR after #283 merged) the review
 Unknown: why it stops. The log shows only the result summary, not the conversation, so the cause cannot be read from it. A guess, not checked: the upstream /code-review command's first step can decide a PR needs no review and exit early. Another guess: the plugin command is not loading.
 
 Next step: turn on the action's full output (show_full_output) on a test PR to see what the reviewer did, then fix the cause.
+
+### /sig:docs-migrate --work-store: support corpus project 2 list shapes (prose roadmap backlog, long write-ups with status in the text) · SIG-290
+
+**Status:** triaged (T)
+
+Deferred from M6.E15 by D-M6E15-17 (land on corpus project 1 first). Shapes recorded in .planning/M6.E15-REQUIREMENTS.md (Why now table) and M6.E15-RESEARCH.md §1: a BACKLOG that is a prose roadmap with a numbered list and no headings (today it would become one flagged non-item entry); bugs as `##` write-ups with status in bold prose; inbox (217 lines) and open questions (383 lines) as long `##` write-ups whose finished ones are struck through with RESOLVED <date>. Run the migration dry run on a scratch clone first and file what it gets wrong.

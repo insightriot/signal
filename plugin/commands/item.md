@@ -100,7 +100,7 @@ The body is not a record field: edit `SIG-n.md` directly.
 
 `getRecord(baseDir, id)` → the label, path, status, Epic (if any), the record's fields and events, and the body. Records of archived Epics are read the same way: a record never leaves `items/`.
 
-An argument that is not an item ID (`KEY-n`) is an old ID — `#99`, `R3`, `B7`, kept in `legacy_id` when the lists moved to the store: `findByLegacyId(baseDir, oldId)` gives the item's ID, then `getRecord` as above. Say which item the old ID resolved to.
+An argument that is not an item ID (`KEY-n`) is an old ID — `#99`, `R3`, `B7`, kept in `legacy_id` when the lists moved to the store: `findByLegacyId(baseDir, oldId)` returns the item's entry (its `id` among it), then `getRecord` as above. Say which item the old ID resolved to.
 
 ### `list [filters]` — many items
 

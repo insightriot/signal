@@ -58,6 +58,9 @@ committed, an undo line printed.
   came from), and the records, `WORK.md` and the generated views move in. If the plan cannot account
   for every byte of a list, nothing is written; if anything fails part-way, the project is put back.
   A list or store path that is a symbolic link, or a `.planning/` outside the repository, is refused.
+  Closes more than 30 days older than the newest event land in `.planning/work/history/` (a view), and
+  `.planning/INDEX.md`, when the project has a generated one, is regenerated and staged with the rest so
+  the first `/sig:docs-sweep` afterwards lists the new files.
 - **Undo** with the printed line (`git reset --hard <tag>` on a clean tree). **Afterwards**, triage the
   flagged items with `/sig:item` — each carries a `migration_note` saying why it was left open.
 

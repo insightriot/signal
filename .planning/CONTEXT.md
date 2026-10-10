@@ -9,7 +9,7 @@ Load this at the start of every work session. Short on purpose.
 **`M6.E15` — *"other projects onto the store"*** — `/sig:docs-migrate --work-store` turns the store on
 for a project and moves its hand-kept lists into records (`SIG-274`, design step 5), plus `SIG-286`.
 Branch `feat/m6.e15-migrate-projects-to-store`. Requirements:
-[`M6.E15-REQUIREMENTS.md`](M6.E15-REQUIREMENTS.md); decisions `D-M6E15-1` … `D-M6E15-17`. Run by
+[`M6.E15-REQUIREMENTS.md`](M6.E15-REQUIREMENTS.md); decisions `D-M6E15-1` … `D-M6E15-23`. Run by
 `/sig:drive` at `checkpointed`.
 
 ## Previously (2026-10-07) — M6.E14 at DISCUSS (shipped v0.1.49)

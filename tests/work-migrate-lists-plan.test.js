@@ -544,4 +544,10 @@ describe('t3.5 — every planned record is valid, bodies are scrubbed, and Signa
     const fromConvert = [...src.matchAll(/import\s*\{([^}]*)\}\s*from\s*'\.\/work-convert\.js'/g)].flatMap((m) => m[1].split(',').map((x) => x.trim()).filter(Boolean));
     expect(fromConvert).toEqual(['bodyDirFor']);
   });
+
+  it('AC2.3: the new path never reaches planMigrationFromTexts, whose key defaults to SIG', () => {
+    const src = readFileSync(join(__dirname, '..', 'plugin', 'tools', 'lib', 'work-migrate-lists.js'), 'utf-8');
+    expect(src).not.toMatch(/\bplanMigrationFromTexts\b/);
+    expect(src).not.toMatch(/\bplanMigration\b/);
+  });
 });

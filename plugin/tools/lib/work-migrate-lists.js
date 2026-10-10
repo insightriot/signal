@@ -340,7 +340,8 @@ function dryRunReport(a) {
   }
   lines.push('', `--apply moves ${a.files.length > 0 ? 'each list' : 'nothing'}${a.files.length > 0 ? ` to ${PRE_STORE_ARCHIVE_REL}/ (with MANIFEST.json)` : ''}, `
     + `writes ${items.length} record${items.length === 1 ? '' : 's'}, ${WORK_MD_REL} and the generated views `
-    + `(${Object.values(VIEW_PATHS).join(', ')}), and leaves them staged, not committed.`);
+    + `(${Object.values(VIEW_PATHS).join(', ')}, plus .planning/work/history/ for closes more than 30 days old), `
+    + `regenerates .planning/INDEX.md if the project has one, and leaves them staged, not committed.`);
   return lines.join('\n');
 }
 
