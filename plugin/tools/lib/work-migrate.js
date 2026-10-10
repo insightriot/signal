@@ -124,10 +124,14 @@ function tile(lines, rows, nameOf, splitAt = new Set()) {
 // `B{n}`: in a list other than BUGS.md it names the bug, not this entry
 // (`leadingId` still carries both). The decoration run is bounded, as in
 // `leading-id.js`, so a non-matching heading cannot backtrack.
+//
+// In BUGS.md a `##` heading's leading `B{n}` DOES name the entry itself, so
+// there (`{bugs: true}`, REVIEW S2) a `B{n}` counts like any other letter ID.
 const LEGACY_ID_RE = /^[\s`*_~]{0,10}(?:(Issue #\d+|#\d+)\b|((?!B\d)[A-Z]{1,5}-?\d+)(?=\s{0,3}(?:—|–|:|-\s)))/;
+const BUGS_LEGACY_ID_RE = /^[\s`*_~]{0,10}(?:(Issue #\d+|#\d+)\b|([A-Z]{1,5}-?\d+)(?=\s{0,3}(?:—|–|:|-\s)))/;
 
-function legacyIdOf(heading) {
-  const m = String(heading).match(LEGACY_ID_RE);
+export function legacyIdOf(heading, { bugs = false } = {}) {
+  const m = String(heading).match(bugs ? BUGS_LEGACY_ID_RE : LEGACY_ID_RE);
   return m ? (m[1] ?? m[2]) : null;
 }
 
@@ -165,6 +169,10 @@ const ENTRY_STATUS_RE = /^\*\*Status:\*\*\s*(.*)$/;
 // A markdown table separator row (`|---|---|`), and any row's first three cells.
 const TABLE_SEP_RE = /^\|(?:\s*:?-{3,}:?\s*\|)+\s*$/;
 const ANY_ROW_RE = /^\|([^|]*)\|([^|]*)\|([^|]*)\|/;
+// What a bug table's ID cell may hold (REVIEW S3, legacy_id hygiene): one
+// short token with a digit — `B1`, `BUG-7`, `NFR-04`, `#99`, `Issue #45` — at
+// most 40 characters, no spaces (but `Issue #`), no control characters.
+const ID_CELL_RE = /^(?=[^\d]{0,39}\d)(?:Issue #\d{1,9}|#\d{1,9}|[A-Za-z][A-Za-z0-9._-]{0,39})$/;
 
 // Where does a summary cell's text begin? Right after the fourth `|` of the
 // first line — i.e. after the id, status and priority cells.
@@ -286,9 +294,31 @@ export function segmentBugs(text) {
   // item) and only outside every row and entry above — a table quoted inside
   // an entry's body is that entry's text. `walkBugEntries` is not changed: the
   // tally, sweep and advise read B-rows through it.
-  const claimed = (ln) => rows.some((r) => ln >= r.line && ln <= r.endLine);
+  //
+  // Only a BUG table's rows are bugs (REVIEW S3): a table at least one of
+  // whose body rows opens with an ID (`ID_CELL_RE`, a `B{n}` row included) or
+  // a dash. Any other table (a legend, a glossary) is text between rows. The
+  // ID is read from the first line of the first cell only; a cell that is not
+  // ID-shaped gives no `id` and sets `idUnreadable` (legacy_id hygiene).
+  //
+  // Linear time (REVIEW I4): claimed lines are a lookup array, and each line's
+  // next closing line (one ending in `|`) and next stop (a boundary or a
+  // claimed line) are found once, back to front — not by a scan per row.
+  const n = lines.length;
+  const claimedAt = new Uint8Array(n + 2);
+  for (const r of rows) for (let k = r.line; k <= r.endLine; k++) claimedAt[k] = 1;
+  const nextClose = new Int32Array(n + 2).fill(n + 1);
+  const nextStop = new Int32Array(n + 2).fill(n + 1);
+  for (let k = n; k >= 1; k--) {
+    nextClose[k] = lines[k - 1].trimEnd().endsWith('|') ? k : nextClose[k + 1];
+    nextStop[k] = claimedAt[k] || isBoundary(k) ? k : nextStop[k + 1];
+  }
+  const bRowStarts = new Set(rows.filter((r) => r.kind === 'table').map((r) => r.line));
+  const tableHasId = [];
+  const candidates = [];
+  let table = -1;
   let inTable = false;
-  for (let ln = 1; ln <= lines.length; ln++) {
+  for (let ln = 1; ln <= n; ln++) {
     const l = lines[ln - 1];
     if (inFence[ln - 1]) {
       inTable = false;
@@ -296,9 +326,13 @@ export function segmentBugs(text) {
     }
     if (TABLE_SEP_RE.test(l)) {
       inTable = true;
+      tableHasId[++table] = false;
       continue;
     }
-    if (claimed(ln)) continue;
+    if (claimedAt[ln]) {
+      if (inTable && bRowStarts.has(ln)) tableHasId[table] = true;
+      continue;
+    }
     if (!l.startsWith('|')) {
       inTable = false;
       continue;
@@ -306,28 +340,35 @@ export function segmentBugs(text) {
     if (!inTable) continue;
     // A row that does not close on its first line continues to the first line
     // that does, when one comes before a boundary; otherwise it is one line.
-    let end = ln;
-    while (end < lines.length && !lines[end - 1].trimEnd().endsWith('|') && !isBoundary(end + 1) && !claimed(end + 1)) end++;
-    if (!lines[end - 1].trimEnd().endsWith('|')) end = ln;
+    const close = nextClose[ln];
+    const end = close <= n && close < nextStop[ln + 1] ? close : ln;
     const rowText = sliceLines(lines, ln, end);
     const m = l.match(ANY_ROW_RE);
-    const idCell = (m ? m[1] : rowText.split('|')[1] ?? '').replace(/[`*_]/g, '').trim();
+    const idCell = (l.split('|')[1] ?? '').replace(/[`*_]/g, '').trim();
+    const none = /^[-—–]*$/.test(idCell);
+    const idShaped = !none && ID_CELL_RE.test(idCell);
+    if (none || idShaped) tableHasId[table] = true;
     const start = m ? m[0].length : 1;
-    const close = rowText.lastIndexOf('|');
-    rows.push({
-      source: 'BUGS.md',
-      kind: 'table',
-      id: /^[-—–]*$/.test(idCell) ? null : idCell,
-      n: null,
-      line: ln,
-      endLine: end,
-      text: rowText,
-      statusRaw: m ? m[2].trim() : null,
-      priority: m ? m[3].trim() : null,
-      summary: (close >= start ? rowText.slice(start, close) : rowText.slice(start)).trim(),
+    const last = rowText.lastIndexOf('|');
+    candidates.push({
+      table,
+      row: {
+        source: 'BUGS.md',
+        kind: 'table',
+        id: idShaped ? idCell : null,
+        ...(none || idShaped ? {} : { idUnreadable: true }),
+        n: null,
+        line: ln,
+        endLine: end,
+        text: rowText,
+        statusRaw: m ? m[2].trim() : null,
+        priority: m ? m[3].trim() : null,
+        summary: (last >= start ? rowText.slice(start, last) : rowText.slice(start)).trim(),
+      },
     });
     ln = end;
   }
+  for (const c of candidates) if (tableHasId[c.table]) rows.push(c.row);
 
   rows.sort((a, b) => a.line - b.line);
   const { orphans, gaps } = tile(lines, rows, (core, ctx) => {

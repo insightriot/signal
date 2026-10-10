@@ -86,6 +86,7 @@ import {
   bugTitle,
   clip,
   finishedLead,
+  legacyIdOf,
   markerDates,
   segmentBacklog,
   segmentBugs,
@@ -308,6 +309,12 @@ const DATE_SOURCE = { git: 'git history', mtime: 'file modification date — no 
 // A hit's match, shown only by its start: enough to find it in the file.
 const masked = (m) => (m.length > 8 ? `${m.slice(0, 6)}…` : m);
 
+// List text shown to a person before they confirm (titles, old IDs, region
+// names) carries no control characters, C0 and DEL: a terminal would act on
+// them. Applied per line, so the report's own line breaks stay.
+// eslint-disable-next-line no-control-regex
+const printable = (s) => String(s).replace(/[\u0000-\u001f\u007f]/g, '');
+
 function dryRunReport(a) {
   const lines = ['/sig:docs-migrate --work-store — dry run (nothing written)', ''];
   lines.push(a.keySource === '--key'
@@ -344,7 +351,7 @@ function dryRunReport(a) {
     + `writes ${items.length} record${items.length === 1 ? '' : 's'}, ${WORK_MD_REL} and the generated views `
     + `(${Object.values(VIEW_PATHS).join(', ')}, plus .planning/work/history/ for closes more than 30 days old), `
     + `regenerates .planning/INDEX.md if the project has one, and leaves them staged, not committed.`);
-  return lines.join('\n');
+  return lines.map(printable).join('\n');
 }
 
 // The undo line, worded for this migration. Clean git: reset to the tag. With
@@ -747,7 +754,7 @@ const typeOf = (file, row) => {
 };
 
 const legacyOf = (file, row) => {
-  if (file === 'BUGS.md') return row.kind === 'table' ? row.id : null;
+  if (file === 'BUGS.md') return row.kind === 'table' ? row.id : legacyIdOf(row.heading, { bugs: true });
   if (file === 'BACKLOG.md' || file === 'OPEN-QUESTIONS.md') return row.legacyId ?? null;
   return null;
 };
@@ -769,7 +776,7 @@ function withoutLegacyId(title, legacy) {
 function titleOf(file, row) {
   let t;
   const legacy = legacyOf(file, row);
-  if (file === 'BUGS.md') t = row.kind === 'table' ? bugTitle(row.summary) : clip(row.heading.replace(/~~/g, ''));
+  if (file === 'BUGS.md') t = row.kind === 'table' ? bugTitle(row.summary) : clip(withoutLegacyId(row.heading.replace(/~~/g, ''), legacy));
   else if (file === 'BACKLOG.md') t = clip(withoutLegacyId(row.title, legacy));
   else t = clip(withoutLegacyId(String(row.heading).replace(/~~/g, ''), legacy));
   return /\S/.test(t) ? t : `Untitled entry at ${file}:${row.line}`;
@@ -882,6 +889,9 @@ function sensitiveHits(text) {
 
 // The entry's outcome: `{close: {reason, proof}}`, or `{flag, note}` (open).
 function decide(file, row) {
+  if (file === 'BUGS.md' && row.idUnreadable) {
+    return { flag: 'id-unreadable', note: 'Its ID cell does not read as an ID (one short token with a digit, on the first line), so no old ID was kept and the row was not read for a finished marker; left open.' };
+  }
   const m = readMarkers(file, row);
   const reasons = new Set(m.markers.map((x) => x.reason));
   if (m.unclear.length > 0) {
@@ -943,7 +953,8 @@ function decide(file, row) {
  *   `records` is empty whenever `errors` is not. `flagged` (and a manifest
  *   item's `flag`) is null for a closed entry and an unmarked inbox entry;
  *   otherwise why it needs a person's look: `no-marker`, `status-unmapped`,
- *   `no-status-line`, `unclear`, `conflict`, `finished-word-unmapped`, or
+ *   `no-status-line`, `unclear`, `conflict`, `finished-word-unmapped`,
+ *   `id-unreadable` (a bug table row whose ID cell is not an ID), or
  *   `non-item` (the file's text outside its entries). `verified` is set on a
  *   file whose bytes all landed in one record or region.
  * @throws {WorkStoreError} SCHEMA when `key` is missing or not a valid key
