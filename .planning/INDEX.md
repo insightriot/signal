@@ -464,6 +464,7 @@
 - [work/items/00/SIG-29.md](work/items/00/SIG-29.md) — `other` — _(note pending)_
 - [work/items/00/SIG-290.md](work/items/00/SIG-290.md) — `other` — _(note pending)_
 - [work/items/00/SIG-291.md](work/items/00/SIG-291.md) — `other` — _(note pending)_
+- [work/items/00/SIG-292.md](work/items/00/SIG-292.md) — `other` — _(note pending)_
 - [work/items/00/SIG-3.md](work/items/00/SIG-3.md) — `other` — _(note pending)_
 - [work/items/00/SIG-30.md](work/items/00/SIG-30.md) — `other` — _(note pending)_
 - [work/items/00/SIG-31.md](work/items/00/SIG-31.md) — `other` — _(note pending)_
