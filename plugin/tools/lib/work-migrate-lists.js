@@ -429,7 +429,7 @@ function dryRunReport(a) {
     ? `Closes are checked against this repository's history — the checked-out branch, HEAD (${a.evidence.commits.length} commits, ${a.evidence.epics.size} retrospectives): `
       + 'an entry is proposed for closing only when its wording says it is finished AND a commit, pull request or Epic it cites is found there. '
       + 'Nothing closes unless you confirm the proposals. Anything else stays open, flagged, with a note saying what was found and not found.'
-    : 'Closes are checked against this repository\'s history, and there is none here (not a git checkout, or no commits): '
+    : 'The migration could not read this repository\'s history, so nothing can be proposed for closing (not a git checkout, no commits, or git failed): '
       + 'every entry stays open, flagged, whatever its wording says.');
   if (a.files.length === 0) {
     lines.push('Lists: none — the store starts empty.');
@@ -1184,18 +1184,20 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
     }
   }
   commits.sort();
+  // No readable history (not a repository, no commits, git failing): no
+  // evidence at all — the retrospective walk is skipped too, so nothing can be
+  // proposed for closing (REVIEW pass 3 I-3).
+  if (source === 'none') return { source, commits: [], prs: new Map(), epics: new Map(), origin: null };
 
   // The repository a `/pull/N` link must point at (REVIEW pass 3 I-2): one
   // fixed-argument read; none outside git or with no `origin`.
   let origin = null;
-  if (source === 'git') {
-    try {
-      origin = parseOrigin(String(execFn('git', ['remote', 'get-url', 'origin'], {
-        cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
-      })).trim());
-    } catch {
-      origin = null;
-    }
+  try {
+    origin = parseOrigin(String(execFn('git', ['remote', 'get-url', 'origin'], {
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+    })).trim());
+  } catch {
+    origin = null;
   }
 
   const epics = new Map();
@@ -1344,6 +1346,7 @@ function decide(file, folded, evidence, { bareHash = true } = {}) {
     if (checked.found.length === 0) {
       let why;
       if (!evidence) why = `, but no repository history was given to check it against${checked.missing.length ? ` (it cites ${checked.cited.join(', ')})` : ''}`;
+      else if (evidence.source === 'none') why = `, but the migration could not read this repository's history, so nothing it cites could be checked${checked.cited.length ? ` (it cites ${checked.cited.join(', ')})` : ''}`;
       else if (checked.missing.length === 0) why = ', but it cites no commit, pull request or Epic that could be checked';
       else why = `; ${checked.missing.join('; ')}`;
       return { flag: 'no-evidence', note: `${said}${why} — left open rather than closed on its wording alone.` };

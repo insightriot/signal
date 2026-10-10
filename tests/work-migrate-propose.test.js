@@ -306,3 +306,57 @@ describe('parseOrigin', () => {
     expect(parseOrigin('')).toBeNull();
   });
 });
+
+describe('I-3 — no readable history: no evidence at all, retrospectives included (REVIEW pass 3)', () => {
+  let root;
+  let base;
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'propose-nogit-'));
+    base = join(root, 'leaf-notes');
+    mkdirSync(join(base, '.planning', 'archive'), { recursive: true });
+    writeFileSync(join(base, '.planning', 'STATE.md'), STATE);
+    // A retrospective the entry cites: if the walk still ran, B1 would be proposed.
+    writeFileSync(join(base, '.planning', 'archive', 'M3.E1-RETROSPECTIVE.md'), '# Retro\n');
+    writeFileSync(join(base, '.planning', 'BUGS.md'), ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|',
+      '| B1 | fixed | P2 | Header lost — shipped with M3.E1. |', ''].join('\n'));
+  });
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+  const expectNothingProposed = (dry) => {
+    expect(dry.refused).toBeUndefined();
+    expect(dry.proposedCloses).toEqual([]);
+    for (const it of dry.items) {
+      expect(it.status, it.id).toBe('T');
+      expect(it.flag, it.id).toBe('no-evidence');
+    }
+    expect(dry.report).toMatch(/could not read this repository's history, so nothing can be proposed for closing/);
+    expect(dry.report).not.toMatch(/Proposed closes/);
+  };
+
+  it('not a git checkout', async () => {
+    expectNothingProposed(await runWorkStoreMigrate(base, { key: 'LN' }));
+  });
+
+  it('a repository with no commits', async () => {
+    git(base, ['init', '-q', '-b', 'main']);
+    expectNothingProposed(await runWorkStoreMigrate(base, { key: 'LN' }));
+  });
+
+  it('git failing', async () => {
+    const execFn = (cmd, args, o) => {
+      if (cmd === 'git' && args[0] === 'log' && args[1] === 'HEAD') throw new Error('boom');
+      return execFileSync(cmd, args, o);
+    };
+    expectNothingProposed(await runWorkStoreMigrate(base, { key: 'LN', execFn }));
+  });
+
+  it('the index is empty — no retrospective is read — and the entry’s note says the history could not be read', async () => {
+    const { buildEvidenceIndex } = await import('../plugin/tools/lib/work-migrate-lists.js');
+    const idx = buildEvidenceIndex(base);
+    expect(idx.source).toBe('none');
+    expect(idx.epics.size).toBe(0);
+    const p = planListsToRecords({ 'BUGS.md': ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|',
+      '| B1 | fixed | P2 | Header lost — shipped with M3.E1. |', ''].join('\n') }, { key: 'LN', dates: DATES, evidence: idx });
+    expect(p.records[0].record.migration_note).toMatch(/could not read this repository's history/);
+  });
+});
