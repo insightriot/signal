@@ -578,6 +578,7 @@
 - [M6.E12-RETROSPECTIVE.md](M6.E12-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E13-RETROSPECTIVE.md](M6.E13-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E14-RETROSPECTIVE.md](M6.E14-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M6.E15-RETROSPECTIVE.md](M6.E15-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E2-RETROSPECTIVE.md](M6.E2-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E3-RETROSPECTIVE.md](M6.E3-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E4-RETROSPECTIVE.md](M6.E4-RETROSPECTIVE.md) — `other` — _(note pending)_
@@ -1038,3 +1039,4 @@
 - [M6.E12](M6.E12-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E13](M6.E13-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E14](M6.E14-RETROSPECTIVE.md) — _(note pending)_
+- [M6.E15](M6.E15-RETROSPECTIVE.md) — _(note pending)_

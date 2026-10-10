@@ -2365,9 +2365,9 @@ Seen 2026-10-01 during M6.E12 EXECUTE. plugin/references/anti-rationalization-fo
 
 Found 2026-10-03 on the second outside-Signal /sig:advise run (eval-project, run 1). The maintainer picked priority 1 AND a four-step order (1, then a polish batch, then versioning work, then a DISCUSS). recordChoice can record one pick only, so the agent recorded it as "Something else" with its own summary of the order — the advisory now reads as a miss although priority 1 was picked. For the outcome oracle (D-M6E12-12) count that run as priority 1. Fix: an optional `order` recorded alongside the pick.
 
-### No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13) · SIG-274
+### No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13) · SIG-274 · closing
 
-**Status:** queued for M6.E15 (Q)
+**Status:** closing — a fixed close waiting for its commit on the default branch
 
 Found 2026-10-04 at M6.E13 t6.2. The only path that turns a store on is node tools/work-migrate.mjs (v1, maintainer script). After M6.E13 the v2 library refuses writes on a v1 store, so a project that enables the store gets one it cannot use until it runs tools/work-migrate-v2.mjs too. Belongs with the other-projects Epic (/sig:docs-migrate), but the gap is real from this release.
 

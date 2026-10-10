@@ -13,8 +13,8 @@
 
 ## M6.E15 — no Epic folder
 
-- SIG-274 · FEAT · Q — No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13)
-- SIG-286 · BUG · Q — /sig:docs-migrate dry run lists a unit's files to move while also saying it "could not evaluate" that unit
+- SIG-274 · FEAT · closing — No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13)
+- SIG-286 · BUG · closing — /sig:docs-migrate dry run lists a unit's files to move while also saying it "could not evaluate" that unit
 
 ## M6.E11 — closed 2026-09-30 · PR #263 · v0.1.43 · by claude
 

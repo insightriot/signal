@@ -35,6 +35,13 @@
       "at": "2026-10-08T17:08:19.367Z",
       "by": "claude (M6.E15 DISCUSS)",
       "epic": "M6.E15"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-10T23:42:45.000Z",
+      "by": "M6.E15",
+      "reason": "fixed",
+      "proof": "13c8ed4934cd97eaa82c212e88171c99df9f1c8a"
     }
   ]
 }
