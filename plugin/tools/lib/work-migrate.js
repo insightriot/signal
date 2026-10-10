@@ -692,7 +692,7 @@ const TAIL_SPECIFIC_G = /\bnot[- ]a[- ]bug\b|\bwon['’]?t[- ]?fix\b/gi;
 const TAIL_LEAD_IN_G = /\b(?:PR|pull\s{1,3}request|in|on)\s{1,3}(?=#?[\w.#/-]{0,60}\d)/gi;
 const TAIL_SPLIT_RE = /[\s—–,;()]+|\.(?=\s|$)|(?<=\s)-(?=\s)/;
 const TAIL_REF_RE = /^(?:(?:PR\s{0,3})?#\d{1,7}|(?=[0-9a-f]{0,39}[a-f])(?=[0-9a-f]{0,39}\d)[0-9a-f]{7,40}|M\d{1,4}(?:\.\d{1,4}){0,4}\.E\d{1,4}|S\d{1,4}|v\d{1,4}(?:\.\d{1,4}){0,4}|\d{4}-\d{2}-\d{2}|[A-Z]{1,5}-?\d{1,7})$/;
-const IN_REF_STEP_RE = new RegExp(`^\\s{1,3}(?:in|In|IN)\\s{1,3}(?:(?:PR|pull\\s{1,3}request)\\s{1,3})?${TAIL_REF_RE.source.slice(1, -1)}(?![\\w#/-]|\\.\\w)`);
+const IN_REF_STEP_RE = new RegExp(`^\\s{1,3}(?:in|In|IN)\\s{1,3}(?:(?:[Pp][Rr]|[Pp]ull\\s{1,3}[Rr]equest)\\s{1,3})?${TAIL_REF_RE.source.slice(1, -1)}(?![\\w#/-]|\\.\\w)`);
 const TAIL_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TAIL_WORD_RE = new RegExp(`^(?:${FINISH_WORDS}|superseded|\u0001)$`, 'i');
 function tailIsPlain(rest) {

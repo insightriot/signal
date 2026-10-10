@@ -364,7 +364,7 @@ describe('finished wording: references are explicit shapes (REVIEW pass 4)', asy
     'Fixed — 2x-slower PR #1', 'Fixed — https://x.y/needs-QA PR #1', 'Fixed — https://github.com/o/r/pull/1/needs-more-work'];
   const plain = ['DONE — M2.10.E2, 2026-10-08', '**Done** in M2.10.E2 (S5) — [PR #157](https://github.com/o/r/pull/157).', 'fixed in PR #12',
     'Fixed in v2.1', 'Closed — not a bug', 'Closed — won\'t fix', 'Fixed — https://github.com/o/r/pull/157', 'Fixed in e41d30e.',
-    'Fixed — BUG-7, SIG-12', 'Fixed in v2.'];
+    'Fixed — BUG-7, SIG-12', 'Fixed in v2.', 'Fixed in pr #12', 'Fixed in Pull Request #12', 'Fixed IN PR #12'];
   it.each(unclear)('"%s" → unclear', (text) => {
     expect(finishedLead(text).unclear).toBe(true);
   });
