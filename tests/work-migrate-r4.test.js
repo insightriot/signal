@@ -189,3 +189,46 @@ describe('evidence reads the default branch, with a fixed `--` (REVIEW pass 4)',
     expect(idx.prs.has(9)).toBe(false);
   });
 });
+
+// ── F3: the token covers each list's dates, and each proposal's evidence ──────
+describe('AC4.3 — the token covers the dates and every proposal’s evidence (REVIEW pass 4)', () => {
+  let root;
+  let base;
+  beforeEach(() => {
+    ({ root, base } = repo('r4-hash-'));
+    writeFileSync(join(base, '.planning', 'BUGS.md'), ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|',
+      '| B1 | fixed | P2 | Rows vanish — PR #7. |', ''].join('\n'));
+    git(base, ['add', '-A']);
+    git(base, ['commit', '-q', '-m', 'Add the exporter (#7)'], at('2026-01-05'));
+  });
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+  const halves = (h) => h.split(':');
+
+  it('only a list’s dates move → the inputs half moves', async () => {
+    const plain = await runWorkStoreMigrate(base, { key: 'LN' });
+    const execFn = (cmd, args, o) => (cmd === 'git' && args.includes('--follow') ? '2026-02-01\n2026-01-05\n' : execFileSync(cmd, args, o));
+    const moved = await runWorkStoreMigrate(base, { key: 'LN', execFn });
+    expect(moved.dates['BUGS.md'].last).toBe('2026-02-01');
+    expect(moved.items).toEqual(plain.items);
+    expect(moved.proposedCloses).toEqual(plain.proposedCloses);
+    expect(halves(moved.inputHash)[0]).not.toBe(halves(plain.inputHash)[0]);
+  });
+
+  it('only a proposal’s evidence moves (same items, statuses, flags) → the outcome half moves, the apply refuses', async () => {
+    const plain = await runWorkStoreMigrate(base, { key: 'LN' });
+    expect(plain.proposedCloses).toHaveLength(1);
+    const other = 'b'.repeat(40);
+    const execFn = (cmd, args, o) => {
+      const out = String(execFileSync(cmd, args, { ...o, encoding: 'utf8' }));
+      return cmd === 'git' && isHistoryLog(args) ? out.replace(/^[0-9a-f]{40}(?=\tAdd the exporter)/m, other) : out;
+    };
+    const moved = await runWorkStoreMigrate(base, { key: 'LN', execFn });
+    expect(moved.items).toEqual(plain.items);
+    expect(moved.proposedCloses[0].evidence).toEqual(['PR #7 → bbbbbbb']);
+    expect(halves(moved.inputHash)[0]).toBe(halves(plain.inputHash)[0]);
+    expect(halves(moved.inputHash)[1]).not.toBe(halves(plain.inputHash)[1]);
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LN', stamp: 'T1', expectedHash: plain.inputHash, confirmCloses: true, execFn });
+    expect(r.refused).toBe(true);
+    expect(git(base, ['status', '--porcelain']).trim()).toBe('');
+  });
+});

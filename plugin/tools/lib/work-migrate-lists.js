@@ -204,15 +204,15 @@ function listDates(baseDir, rel, execFn) {
 // The token the dry run hands the apply, in two halves joined by `:` so a
 // refusal can say which moved:
 //   - the inputs: STATE.md and every list, each named, an absent list distinct
-//     from an empty one (AC6.4);
+//     from an empty one (AC6.4), and each list's first and last dates;
 //   - what the person saw (AC4.3, D-M6E15-25): every item's ID, status and
 //     flag, and each proposed close with its wording and evidence. The lists
 //     can stay byte-identical while this moves — a commit, a fetch into the
 //     default branch, a checkout, a retrospective added — and a yes given to one
 //     list of closes must never close another.
-function inputHashOf(stateText, texts, shown) {
+function inputHashOf(stateText, texts, shown, dates) {
   const parts = [['STATE.md', stateText], ...GENERATED_FILES.map((n) => [n, texts[n] ?? null])];
-  const inputs = hashState(parts.map(([n, t]) => `${n}\0${t === null ? '\u0001absent' : t}\0`).join(''));
+  const inputs = hashState(parts.map(([n, t]) => `${n}\0${t === null ? '\u0001absent' : t}\0`).join('') + JSON.stringify(GENERATED_FILES.map((n) => [dates[n]?.first, dates[n]?.last])));
   const outcome = hashState(JSON.stringify({
     items: shown.manifest.items.map((it) => [it.id, it.status, it.flag]),
     proposed: shown.proposedCloses.map((c) => [c.id, c.legacyId, c.reason, c.wording, c.evidence, c.proof]),
@@ -380,7 +380,7 @@ function assess(baseDir, opts) {
     const f = plan.manifest.files[name] ?? { items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
     return { file: `.planning/${name}`, items: f.items, open: f.open, closed: f.closed, flagged: f.flagged, regions: f.regions.map((r) => r.name) };
   });
-  return { key, keySource, folder, files, archived, dates, texts, plan, shown, sensitiveHits, evidence, inputHash: inputHashOf(stateText, texts, shown) };
+  return { key, keySource, folder, files, archived, dates, texts, plan, shown, sensitiveHits, evidence, inputHash: inputHashOf(stateText, texts, shown, dates) };
 }
 
 // The `pre-work-store-*` tags this tool's apply makes, from a fixed-argument
