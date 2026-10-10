@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 
 import { bodyPath, findByLegacyId, recordPath } from '../plugin/tools/lib/work-records.js';
 import { serializeRecord } from '../plugin/tools/lib/work-record.js';
+import { checkDanglingReferences } from '../plugin/tools/lib/doc-hygiene.js';
 
 const AT = '2026-02-20T12:00:00.000Z';
 const created = { type: 'created', at: AT, by: 'migration' };
@@ -71,5 +72,33 @@ describe('t5.1 — findByLegacyId (AC5.3, D-M6E15-12)', () => {
     }
     expect(err?.code).toBe('CONFLICT');
     for (const id of ['LF-2', 'LF-5', 'LF-7']) expect(err.message).toContain(id);
+  });
+});
+
+describe('t5.3 — a B{n} citation outside Signal answers only to a record whose legacy_id is B{n} (FR7, D-M6E15-2)', () => {
+  const dangling = async () => (await checkDanglingReferences(base)).filter((f) => f.check === 'dangling-reference');
+
+  it('key LF: bug LF-7 does not answer to B7 by its number', async () => {
+    await storeOn('LF');
+    await plant(rec('LF-7', { type: 'BUG' }));
+    await put('.planning/NOTES.md', 'see B7 for the detail\n');
+    const f = await dangling();
+    expect(f.map((x) => x.message).join('\n')).toMatch(/B7 is cited/);
+  });
+
+  it('key LF: B7 is answered by the record whose legacy_id is B7, whatever its new number', async () => {
+    await storeOn('LF');
+    await plant(rec('LF-3', { type: 'BUG', legacy_id: 'B7' }));
+    await put('.planning/NOTES.md', 'see B7 for the detail; B3 is something else\n');
+    const msgs = (await dangling()).map((x) => x.message).join('\n');
+    expect(msgs).not.toMatch(/B7 is cited/);
+    expect(msgs).toMatch(/B3 is cited/);
+  });
+
+  it('key SIG (Signal) is unchanged: bug SIG-7 answers to B7 by its number (D-M6E11-20)', async () => {
+    await storeOn('SIG');
+    await plant(rec('SIG-7', { type: 'BUG' }));
+    await put('.planning/NOTES.md', 'see B7 for the detail\n');
+    expect(await dangling()).toEqual([]);
   });
 });
