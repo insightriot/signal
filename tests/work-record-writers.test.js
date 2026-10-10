@@ -113,9 +113,8 @@ const EXEMPTIONS = [
     writes: [
       'renameSync(join(baseDir, x.to), join(baseDir, x.from))',
       'renameSync(join(baseDir, x.from), join(baseDir, x.to))',
-      'renameSync(join(aside, WORK_MD_REL), join(baseDir, WORK_MD_REL))',
+      'renameSync(from, join(baseDir, rel))', // moveInNew: WORK.md and each view, never over a file (REVIEW I1)
       'renameSync(join(aside, ITEMS_REL), join(baseDir, ITEMS_REL))',
-      'renameSync(join(aside, rel), join(baseDir, rel))',
       'atomicWrite(join(baseDir, MANIFEST_REL)',
       'writeFileSync(join(baseDir, INDEX_REL), done.index)',
     ],

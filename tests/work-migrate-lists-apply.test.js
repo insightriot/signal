@@ -530,3 +530,103 @@ describe('STATE.md is read only as a regular file', () => {
     await refusedEither(/STATE\.md is a symbolic link/, { outsideDir: outside });
   });
 });
+
+describe('I1 — a capture made during the apply is never lost', () => {
+  const CAPTURE = '\n## Captured while the migration ran\n\nThese words must survive.\n';
+  const applyWith = async (onSwapStep) => {
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    return runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1', onSwapStep });
+  };
+
+  it('a list changed after the plan under the lock, before the archive → refused; the change and every list kept', async () => {
+    corpusProject();
+    const r = await applyWith((s) => {
+      if (s === 'archive') writeFileSync(join(base, '.planning/ISSUES-INBOX.md'), fixture('ISSUES-INBOX.md') + CAPTURE);
+    });
+    expect(r.applied).toBe(false);
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/ISSUES-INBOX\.md changed while the migration ran/);
+    expect(read('.planning/ISSUES-INBOX.md')).toBe(fixture('ISSUES-INBOX.md') + CAPTURE);
+    for (const f of LISTS.filter((x) => x !== 'ISSUES-INBOX.md')) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(existsSync(join(base, '.planning/archive'))).toBe(false);
+    expect(asideLeft()).toEqual([]);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+  });
+
+  it('/sig:add’s lock is held for the whole apply, and released after', async () => {
+    corpusProject();
+    const held = [];
+    const r = await applyWith((s) => held.push([s, existsSync(join(base, '.planning/.add.lock'))]));
+    expect(r.applied).toBe(true);
+    expect(held.length).toBeGreaterThan(4);
+    for (const [s, h] of held) expect(h, s).toBe(true);
+    expect(existsSync(join(base, '.planning/.add.lock'))).toBe(false);
+  });
+
+  it('/sig:add holding its lock → the apply is refused LOCKED, nothing written', async () => {
+    corpusProject();
+    const { acquireLock } = await import('../plugin/tools/lib/add.js');
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    const lock = await acquireLock(base);
+    try {
+      // --force: the held lock file itself makes the tree dirty.
+      await expect(runWorkStoreMigrate(base, { apply: true, force: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1' }))
+        .rejects.toMatchObject({ code: 'LOCKED' });
+    } finally {
+      await lock.released();
+    }
+    for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work/.lock'))).toBe(false);
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+  });
+
+  it('a list file written back at a view’s path after the archive → refused CONFLICT; that file is not written over, the original is in the archive', async () => {
+    corpusProject();
+    await expect(applyWith((s) => {
+      if (s === 'views') writeFileSync(join(base, '.planning/BUGS.md'), `# Bugs${CAPTURE}`);
+    })).rejects.toMatchObject({ code: 'CONFLICT', message: expect.stringMatching(/\.planning\/BUGS\.md appeared/) });
+    expect(read('.planning/BUGS.md')).toBe(`# Bugs${CAPTURE}`);
+    expect(read(`${ARCHIVE}/BUGS.md`)).toBe(fixture('BUGS.md'));
+    for (const f of LISTS.filter((x) => x !== 'BUGS.md')) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+  });
+});
+
+describe('I9 — a failure part-way through the archive step (list 2 of 4) puts the project back', () => {
+  it('fails on BACKLOG.md’s move, after BUGS.md moved: BUGS.md comes back, no archive, no work/', async () => {
+    corpusProject();
+    const before = snapshot(base);
+    const seen = [];
+    const fail = (s) => {
+      seen.push(s);
+      if (s === 'archive:BACKLOG.md') throw new Error('injected failure moving list 2');
+    };
+    await expect(runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', onSwapStep: fail, expectedHash: (await runWorkStoreMigrate(base, { key: 'LF' })).inputHash }))
+      .rejects.toThrow(/injected failure moving list 2/);
+    expect(seen).toEqual(['archive', 'archive:BUGS.md', 'archive:BACKLOG.md']);
+    for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/archive'))).toBe(false);
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+    expect(git(base, ['status', '--porcelain']).trim()).toBe('');
+    expect(Object.keys(snapshot(base)).sort()).toEqual(Object.keys(before).sort());
+  });
+});
+
+describe('I6 — the moved-in store failing its own verification puts the project back', () => {
+  it('a record corrupted at the verify step (the hook returns): "did not verify", lists back, no work/', async () => {
+    corpusProject();
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    const corrupt = (s) => {
+      if (s === 'verify') writeFileSync(join(base, '.planning/work/items/00/LF-1.json'), '{ not json');
+    };
+    await expect(runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1', onSwapStep: corrupt }))
+      .rejects.toThrow(/the migrated store did not verify/);
+    for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(existsSync(join(base, '.planning/archive'))).toBe(false);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+    expect(git(base, ['status', '--porcelain']).trim()).toBe('');
+  });
+});

@@ -65,7 +65,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, lstatSync, mkdirSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
-import { LOCK_FILE as ADD_LOCK_REL } from './add.js';
+import { acquireLock as acquireAddLock, LOCK_FILE as ADD_LOCK_REL } from './add.js';
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
 import {
@@ -313,7 +313,7 @@ function assess(baseDir, opts) {
     const f = plan.manifest.files[name] ?? { items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
     return { file: `.planning/${name}`, items: f.items, open: f.open, closed: f.closed, flagged: f.flagged, regions: f.regions.map((r) => r.name) };
   });
-  return { key, keySource, folder, files, archived, dates, plan, sensitiveHits, inputHash: inputHashOf(stateText, texts) };
+  return { key, keySource, folder, files, archived, dates, texts, plan, sensitiveHits, inputHash: inputHashOf(stateText, texts) };
 }
 
 // Anything at `rel`, a link (even a dangling one) included.
@@ -460,6 +460,32 @@ function restore(baseDir, done) {
   for (const d of [...done.made].reverse()) quietly(() => rmdirSync(d));
 }
 
+// Each list whose bytes on disk (at `at(name)`, or absent) are not the text
+// the plan was made from.
+function changedLists(baseDir, texts, at) {
+  return GENERATED_FILES.filter((n) => (onDisk(baseDir, at(n)) ? readRegularFile(baseDir, at(n)) : null) !== (texts[n] ?? null));
+}
+
+// A list changed by another writer while the swap ran (REVIEW I1): the swap is
+// undone and the run refused, so the change is kept where it was written.
+function listsChangedError(names) {
+  const err = new WorkStoreError('CONFLICT', `${names.map((n) => `.planning/${n}`).join(', ')} changed while the migration ran, so it was undone and nothing was written; `
+    + 'the change is kept. Re-run the dry run.');
+  err.listsChanged = true;
+  return err;
+}
+
+// Move a built file to its place in the project — never over a file already
+// there: a list written back at a view's path after the archive step (by a
+// writer that does not take `.add.lock`) is left as it is (REVIEW I1).
+function moveInNew(from, baseDir, rel) {
+  if (onDisk(baseDir, rel)) {
+    throw new WorkStoreError('CONFLICT', `${rel} appeared while the migration ran (another writer?), so the migration was undone and that file left as it is — `
+      + `nothing was written over it. Any list already moved is in ${PRE_STORE_ARCHIVE_REL}/. Fold the new text back in by hand, then re-run the dry run.`);
+  }
+  renameSync(from, join(baseDir, rel));
+}
+
 // Build the store aside, verify it, then swap it in and verify again. Throws
 // (after `restore`) on any failure; the project is unchanged until the swap.
 async function buildAndSwap(baseDir, a, ctx) {
@@ -478,14 +504,22 @@ async function buildAndSwap(baseDir, a, ctx) {
   let index = null; // 'regenerated' | 'foreign' | 'not-a-file' | null
   try {
     step('archive');
+    // The lists are re-read just before they move, and the archived copies
+    // after: bytes another writer added since the plan are never archived as
+    // "placed" (REVIEW I1). `/sig:add` cannot write — this run holds its lock.
+    const before = changedLists(baseDir, a.texts, (n) => `.planning/${n}`);
+    if (before.length > 0) throw listsChangedError(before);
     if (a.archived.length > 0) mkdirTracked(join(baseDir, PRE_STORE_ARCHIVE_REL), done.made);
     for (const x of a.archived) {
-      renameSync(join(baseDir, x.from), join(baseDir, x.to)); // the same bytes, by construction
+      step(`archive:${basename(x.from)}`);
+      renameSync(join(baseDir, x.from), join(baseDir, x.to));
       done.archived.push(x);
     }
+    const moved = changedLists(baseDir, a.texts, (n) => (a.texts[n] === undefined ? `.planning/${n}` : archiveRel(n)));
+    if (moved.length > 0) throw listsChangedError(moved);
     step('work');
     mkdirTracked(join(baseDir, '.planning', WORK_DIR), done.made);
-    renameSync(join(aside, WORK_MD_REL), join(baseDir, WORK_MD_REL));
+    moveInNew(join(aside, WORK_MD_REL), baseDir, WORK_MD_REL);
     done.workMd = true;
     if (existsSync(join(aside, ITEMS_REL))) {
       renameSync(join(aside, ITEMS_REL), join(baseDir, ITEMS_REL));
@@ -495,7 +529,7 @@ async function buildAndSwap(baseDir, a, ctx) {
     for (const rel of written) {
       confineView(baseDir, rel);
       mkdirTracked(dirname(join(baseDir, rel)), done.made);
-      renameSync(join(aside, rel), join(baseDir, rel));
+      moveInNew(join(aside, rel), baseDir, rel);
       done.views.push(rel);
     }
     step('verify');
@@ -552,12 +586,15 @@ async function buildAndSwap(baseDir, a, ctx) {
  * @param {string} baseDir — project root
  * @param {{apply?: boolean, force?: boolean, key?: string, expectedHash?: string,
  *          acknowledgeSensitive?: boolean, stamp?: string, execFn?: typeof execFileSync,
- *          onSwapStep?: (step: 'archive'|'work'|'views'|'verify'|'index') => void,
+ *          onSwapStep?: (step: string) => void,
  *          segmenters?: Record<string, (text: string) => object>}} [opts]
  *   `acknowledgeSensitive`: go ahead past the sensitive-data hits the dry run
  *   listed, after a person has read them (the text is kept as it is).
- *   `onSwapStep`: TEST SEAM ONLY — called before each step of the swap, so a
- *   test can fail one and prove the project is put back. `segmenters`: TEST
+ *   `onSwapStep`: TEST SEAM ONLY — called with `archive`, `work`, `views` and
+ *   `verify` before those steps of the swap, with `archive:<list>` before each
+ *   list's move, and with `index` AFTER INDEX.md is regenerated (the last
+ *   step), so a test can fail any one — or change a file and return — and
+ *   prove the project is put back. `segmenters`: TEST
  *   SEAM ONLY — passed to `planListsToRecords`, to prove a segmentation that
  *   loses a byte refuses the whole run (AC6.2). Production callers pass neither.
  * @returns {Promise<object>} a refusal `{applied: false, refused: true, reason}`; a
@@ -607,10 +644,19 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
 
   const workDir = join(baseDir, '.planning', WORK_DIR);
   const workDirExisted = existsSync(workDir);
+  // `/sig:add`'s lock as well as the store's (REVIEW I1): with no WORK.md,
+  // `/sig:add` writes to the hand-kept lists, under `.add.lock` only.
+  let addLock;
+  try {
+    addLock = await acquireAddLock(baseDir);
+  } catch (err) {
+    throw lockFailure(err);
+  }
   let lock;
   try {
     lock = await acquireLock(join(baseDir, WORK_LOCK_REL), { label: 'work store migration', ttlMs: WORK_LOCK_TTL_MS });
   } catch (err) {
+    await addLock.released();
     throw lockFailure(err);
   }
   let tag = null;
@@ -640,7 +686,8 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
             /* best-effort — keep the original throw */
           }
         }
-        throw err;
+        if (!err.listsChanged) throw err;
+        stop = refused(err.message);
       }
     }
   } finally {
@@ -650,6 +697,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
       /* best-effort */
     }
     await lock.released();
+    await addLock.released();
     // A refusal or a failure leaves no empty folder behind the lock.
     if ((stop !== null || failed) && !workDirExisted) {
       try {
