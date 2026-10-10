@@ -366,9 +366,10 @@ function assess(baseDir, opts) {
     return refuse(`The lists could not be planned as records, so nothing was written:\n  ${plan.errors.join('\n  ')}`);
   }
   // What the person saw is always the unconfirmed plan (the proposals, open);
-  // the apply builds the confirmed one when they said yes (D-M6E15-25).
+  // the apply builds the confirmed one when they said yes (D-M6E15-25). A
+  // dry run never does: its per-file counts must match its own item list.
   const shown = plan;
-  if (opts.confirmCloses === true) {
+  if (opts.confirmCloses === true && opts.apply === true) {
     plan = planListsToRecords(texts, { ...planOpts, acknowledgeSensitive: sensitiveHits.length > 0, confirmCloses: true });
     if (plan.errors.length > 0) {
       return refuse(`The lists could not be planned as records, so nothing was written:\n  ${plan.errors.join('\n  ')}`);

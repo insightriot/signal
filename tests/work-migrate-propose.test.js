@@ -117,6 +117,15 @@ describe('AC4.1 — end to end: the dry run shows the proposals; the apply close
     expect(b1.record.events.at(-1).type).toBe('triaged');
   });
 
+  it('a dry run ignores confirmCloses: its per-file counts and items are the unconfirmed plan', async () => {
+    const plain = await runWorkStoreMigrate(base, { key: 'LN' });
+    const asked = await runWorkStoreMigrate(base, { key: 'LN', confirmCloses: true });
+    expect(asked.files).toEqual(plain.files);
+    expect(asked.files.every((f) => f.closed === 0)).toBe(true);
+    expect(asked.items).toEqual(plain.items);
+    expect(asked.inputHash).toBe(plain.inputHash);
+  });
+
   it('apply with confirmCloses after an unchanged dry run → succeeds and closes exactly the proposals', async () => {
     const dry = await runWorkStoreMigrate(base, { key: 'LN' });
     const r = await runWorkStoreMigrate(base, { apply: true, key: 'LN', stamp: 'T1', expectedHash: dry.inputHash, confirmCloses: true });
