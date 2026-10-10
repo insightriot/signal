@@ -232,3 +232,45 @@ describe('AC4.3 — the token covers the dates and every proposal’s evidence (
     expect(git(base, ['status', '--porcelain']).trim()).toBe('');
   });
 });
+
+// ── F4: only a literal `true` applies or confirms ─────────────────────────────
+describe('only a literal true applies or confirms (REVIEW pass 4)', async () => {
+  const { listRecords } = await import('../plugin/tools/lib/work-records.js');
+  let root;
+  let base;
+  beforeEach(() => {
+    ({ root, base } = repo('r4-true-'));
+    writeFileSync(join(base, '.planning', 'BUGS.md'), ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|',
+      '| B1 | fixed | P2 | Rows vanish — PR #7. |', '| B2 | open | P2 | Totals wrong. |', ''].join('\n'));
+    git(base, ['add', '-A']);
+    git(base, ['commit', '-q', '-m', 'Add the exporter (#7)'], at('2026-01-05'));
+  });
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+  for (const apply of ['yes', 1]) {
+    it(`apply: ${JSON.stringify(apply)} is a dry run — nothing written`, async () => {
+      const dry = await runWorkStoreMigrate(base, { key: 'LN' });
+      const r = await runWorkStoreMigrate(base, { apply, key: 'LN', stamp: 'T1', expectedHash: dry.inputHash, confirmCloses: true });
+      expect(r.applied).toBe(false);
+      expect(r.dryRun).toBe(true);
+      expect(git(base, ['status', '--porcelain']).trim()).toBe('');
+    });
+  }
+  for (const confirmCloses of ['yes', 1]) {
+    it(`confirmCloses: ${JSON.stringify(confirmCloses)} does not confirm — nothing closed, closesConfirmed 0`, async () => {
+      const dry = await runWorkStoreMigrate(base, { key: 'LN' });
+      const r = await runWorkStoreMigrate(base, { apply: true, key: 'LN', stamp: 'T1', expectedHash: dry.inputHash, confirmCloses });
+      expect(r.applied).toBe(true);
+      expect(r.closesConfirmed).toBe(0);
+      expect(r.report).toMatch(/1 proposed close was not confirmed/);
+      expect(listRecords(base).records.filter((x) => x.record.events.some((e) => e.type === 'closed'))).toEqual([]);
+    });
+  }
+  it('confirmCloses: true → closesConfirmed counts the closed events written among the proposals', async () => {
+    const dry = await runWorkStoreMigrate(base, { key: 'LN' });
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LN', stamp: 'T1', expectedHash: dry.inputHash, confirmCloses: true });
+    expect(r.closesConfirmed).toBe(1);
+    expect(r.report).toMatch(/Closed 1 proposed close,/);
+    expect(listRecords(base).records.filter((x) => x.record.events.some((e) => e.type === 'closed')).map((x) => x.record.legacy_id)).toEqual(['B1']);
+  });
+});

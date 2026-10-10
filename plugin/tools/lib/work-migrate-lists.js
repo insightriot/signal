@@ -713,7 +713,7 @@ async function buildAndSwap(baseDir, a, ctx) {
  *   the build or the swap threw, after the project is put back and the tag removed
  */
 export async function runWorkStoreMigrate(baseDir, opts = {}) {
-  const apply = opts.apply ?? false;
+  const apply = opts.apply === true;
   const force = opts.force ?? false;
   const execFn = opts.execFn ?? execFileSync;
   const stamp = opts.stamp ?? new Date().toISOString().replace(/[:.]/g, '-');
@@ -830,9 +830,11 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   const items = b.plan.manifest.items;
   const flagged = items.filter((it) => it.flag).length;
   const proposedN = b.plan.proposedCloses.length;
+  const closedIds = new Set(items.filter((it) => it.status === 'C').map((it) => it.id));
+  const confirmedN = b.plan.proposedCloses.filter((c) => closedIds.has(c.id)).length;
   const proposedLine = proposedN === 0 ? []
-    : opts.confirmCloses === true
-      ? [`Closed ${proposedN} proposed close${proposedN === 1 ? '' : 's'}, as confirmed (each a legacy close; its proof is the wording and the evidence).`]
+    : confirmedN > 0
+      ? [`Closed ${confirmedN} proposed close${confirmedN === 1 ? '' : 's'}, as confirmed (each a legacy close; its proof is the wording and the evidence).`]
       : [`${proposedN} proposed close${proposedN === 1 ? ' was' : 's were'} not confirmed: left open, flagged looks-finished.`];
   const report = [
     `/sig:docs-migrate --work-store — the work store is on (key ${b.key})`,
@@ -851,7 +853,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   ].join('\n');
   return {
     applied: true, key: b.key, mode: probe.mode, tag, revertLine, written, archived: b.archived,
-    records: items.length, flagged, closesConfirmed: opts.confirmCloses === true ? proposedN : 0, warnings: probe.warnings, report,
+    records: items.length, flagged, closesConfirmed: confirmedN, warnings: probe.warnings, report,
   };
 }
 
