@@ -425,3 +425,35 @@ describe('t1.5 — the store-off messages name the shipped command', () => {
     expect(doc).toContain('runWorkStoreMigrate');
   });
 });
+
+describe('S4 — the pointers name the shipped lists migration', () => {
+  it('the hand-kept view refusal points a never-migrated list at /sig:docs-migrate --work-store, not the v1 script', async () => {
+    const { regenerateViews } = await import('../plugin/tools/lib/work-views.js');
+    project();
+    mkdirSync(join(base, '.planning', 'work'), { recursive: true });
+    writeFileSync(join(base, WORK_MD), '---\nkey: ACME\nschema_version: 2\n---\n');
+    writeFileSync(join(base, '.planning', 'BUGS.md'), '# Bugs\n');
+    let msg = '';
+    try {
+      await regenerateViews(base);
+    } catch (err) {
+      msg = err.message;
+    }
+    expect(msg).toContain('hand-kept');
+    expect(msg).not.toContain('work-migrate-v2.mjs');
+    expect(msg).toContain('/sig:docs-migrate --work-store');
+  });
+
+  it('commands/docs-migrate.md describes the lists migration, not a refusal', () => {
+    const doc = readFileSync(join(process.cwd(), 'plugin', 'commands', 'docs-migrate.md'), 'utf-8');
+    expect(doc).not.toContain('refused in this build');
+    expect(doc).toContain('MANIFEST.json');
+    expect(doc).toContain('acknowledgeSensitive');
+    expect(doc).toMatch(/flagged/);
+  });
+
+  it('work-migrate.js no longer says the lists migration is "in a later release"', () => {
+    const src = readFileSync(join(process.cwd(), 'plugin', 'tools', 'lib', 'work-migrate.js'), 'utf-8');
+    expect(src).not.toContain('in a later release');
+  });
+});

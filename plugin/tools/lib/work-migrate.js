@@ -22,7 +22,8 @@
 // that cut the hand-kept lists into entries, and the lossless and count checks
 // (work-migrate / work-roundtrip tests) run on them. A plan's items are still
 // v1-shaped (`validateItem`, a status folder); turning another project's lists
-// into records is `/sig:docs-migrate`'s, in a later release.
+// into records is `/sig:docs-migrate --work-store`'s (`work-migrate-lists.js`,
+// M6.E15), which reads them through these segmenters.
 //
 // ── Which lines are entries: the SHIPPED readers decide, not this module ────
 //

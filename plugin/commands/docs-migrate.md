@@ -41,9 +41,25 @@ committed, an undo line printed.
 - **A project with no lists** (or only the empty `BACKLOG.md` skeleton a layout migration leaves):
   apply writes `WORK.md` and the empty views; the skeleton is moved, byte for byte, to
   `.planning/archive/pre-work-store/`. Afterwards `/sig:item new` works.
-- **A project whose lists have entries** is refused in this build: splitting lists into records is the
-  next step of the same Epic. Don't create `WORK.md` by hand to get round it — the store refuses to
-  regenerate over a hand-kept list, so every capture would then fail.
+- **A project whose lists have entries** — each `##`/`###` entry and bug-table row becomes one record,
+  numbered `KEY-1` upward in the order BUGS, BACKLOG, ISSUES-INBOX, OPEN-QUESTIONS. An old ID (`B1`,
+  `#99`, `R3`) is kept in `legacy_id` and on the body's first line. An entry closes (as a legacy close,
+  its marker wording as proof) only when it says so plainly — struck through, or DONE / RESOLVED /
+  ANSWERED / FIXED / CLOSED / SHIPPED, not-a-bug, won't-fix, superseded; anything else, or markers that
+  disagree, stays open and is **flagged**. Text outside any entry becomes one flagged item per file.
+  Dates come from each list's git history (first commit → created; last commit → an undated close),
+  or the file's modification date outside git.
+- **The dry run** prints, per list, its counts (open / closed / flagged / non-item regions) and its
+  dates, then every item's new ID, old ID, status and title, with the flag reason beside each flagged
+  one. Review it — the flagged items especially — before `--apply`.
+- **The apply** is all-or-nothing. The records and views are built and checked in a folder beside the
+  store first; then each list moves, byte for byte, to `.planning/archive/pre-work-store/` beside a
+  `MANIFEST.json` (counts, every item's source line range, the verification result, where the dates
+  came from), and the records, `WORK.md` and the generated views move in. If the plan cannot account
+  for every byte of a list, nothing is written; if anything fails part-way, the project is put back.
+  A list or store path that is a symbolic link, or a `.planning/` outside the repository, is refused.
+- **Undo** with the printed line (`git reset --hard <tag>` on a clean tree). **Afterwards**, triage the
+  flagged items with `/sig:item` — each carries a `migration_note` saying why it was left open.
 
 ## The v2→v3 layout transition (FR6)
 
@@ -75,9 +91,9 @@ Drive the command by calling into `tools/lib/migrate-memory.js` (import with `no
 
 From `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-migrate-lists.js`. It never calls `senseProject`, `renderDryRun` or `applyMigrate`.
 
-1. **Dry run** — `const dry = await runWorkStoreMigrate(baseDir, {apply: false, key})`. If `dry.refused`, print `dry.reason` and stop. Otherwise print `dry.report` — the key it will use (proposed, or from `--key`) and what it found in each list — and hold `dry.inputHash`.
-2. **Confirm** — the user confirms the key, or re-runs with `--key KEY`. No confirmation → stop, having written nothing.
-3. **Apply** (`--apply` only) — `await runWorkStoreMigrate(baseDir, {apply: true, force, key: dry.key, expectedHash: dry.inputHash})`. A `refused` result (dirty tree, `STATE.md` changed since the dry run) → print `reason` and stop. Otherwise print `result.report`, which ends with the pre-apply tag and `result.revertLine`.
+1. **Dry run** — `const dry = await runWorkStoreMigrate(baseDir, {apply: false, key})`. If `dry.refused`, print `dry.reason` and stop. Otherwise print `dry.report` — the key, each list's counts and dates, every planned item and its flag, any sensitive-data hits — and hold `dry.inputHash`.
+2. **Confirm** — the user confirms the key (or re-runs with `--key KEY`) and has seen the counts and the flagged items. If `dry.sensitiveHits` is not empty, ask: **keep** the text as it is, or **abort** and edit the list first. No confirmation → stop, having written nothing.
+3. **Apply** (`--apply` only) — `await runWorkStoreMigrate(baseDir, {apply: true, force, key: dry.key, expectedHash: dry.inputHash, acknowledgeSensitive})`, with `acknowledgeSensitive: true` only when the user chose keep. A `refused` result (dirty tree, `STATE.md` or a list changed since the dry run) or `aborted: 'sensitive-data-pending'` → print `reason` and stop. Otherwise print `result.report`, which ends with the pre-apply tag and `result.revertLine`.
 
 ## Lib symbols this command calls
 
@@ -90,7 +106,7 @@ From `${CLAUDE_PLUGIN_ROOT}/tools/lib/migrate-memory.js`:
 - `relocateFaithful(...)` / `verifyFaithful(...)` / `conserves(...)` — the faithfulness gate (S1.t3): WORD conservation is the vector-1 gate; `verifyFaithful` is the ID/date/status-token backstop.
 
 From `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-migrate-lists.js` (`--work-store` only):
-- `runWorkStoreMigrate(baseDir, {apply, force, key, expectedHash})` — refusals, dry run (`{key, files, inputHash, report}`) or apply (`{tag, revertLine, written, archived, report}`).
+- `runWorkStoreMigrate(baseDir, {apply, force, key, expectedHash, acknowledgeSensitive})` — refusals, a sensitive-data stop (`{aborted, hits}`), dry run (`{key, files, items, dates, sensitiveHits, inputHash, report}`) or apply (`{tag, revertLine, written, archived, records, flagged, report}`).
 - `proposeKey(folderName)` → a valid key or `null` — what the dry run proposes.
 
 Supporting (pure cores + read-only sensing helpers the command uses; the mutating cores compose under the ONE coarse lock inside `runMigrate`/`applyMigrate`): `senseState`/`senseProject` (auto-sense), `deproseFrontmatter`/`locateFrontmatterProse` (vector-1), `planVector2` (vector-2), `stampOnConformance` (the stamp), `scanDanglingLinks`/`computeDanglingDelta` (dangling baseline). Vector-3 evict + archive-tree + link-rewrite + the full-corpus brain land in **S2**; the FR7.2 upgrade banner + SessionStart hook in **S3**.
