@@ -1,0 +1,75 @@
+// M6.E15 S5 — look an item up by its old ID; no B-number assumption outside
+// Signal (FR5.3, FR7; D-M6E15-2, -12). See .planning/M6.E15-PLAN.md § S5 and
+// .planning/M6.E15-VALIDATION.md rows AC5.3 and FR7 (B-number).
+//
+// Keys and titles are invented (`tests/private-name-guard.test.js`).
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+
+import { bodyPath, findByLegacyId, recordPath } from '../plugin/tools/lib/work-records.js';
+import { serializeRecord } from '../plugin/tools/lib/work-record.js';
+
+const AT = '2026-02-20T12:00:00.000Z';
+const created = { type: 'created', at: AT, by: 'migration' };
+const rec = (id, extra = {}) => ({ id, type: 'FEAT', title: `an item ${id}`, ...extra, events: [created] });
+
+let base;
+async function put(rel, content) {
+  const p = join(base, rel);
+  await mkdir(dirname(p), { recursive: true });
+  await writeFile(p, content, 'utf-8');
+}
+const storeOn = (key) => put('.planning/work/WORK.md', `---\nkey: ${key}\nschema_version: 2\n---\n`);
+const plant = (record) => Promise.all([put(recordPath(record.id), serializeRecord(record)), put(bodyPath(record.id), 'Body.\n')]);
+
+beforeEach(async () => {
+  base = await mkdtemp(join(tmpdir(), 'sig-legacy-lookup-'));
+});
+afterEach(async () => {
+  await rm(base, { recursive: true, force: true });
+});
+
+describe('t5.1 — findByLegacyId (AC5.3, D-M6E15-12)', () => {
+  it('an old ID held by one record → that record', async () => {
+    await storeOn('LF');
+    await plant(rec('LF-9', { legacy_id: '#99' }));
+    await plant(rec('LF-10', { legacy_id: 'R3' }));
+    await plant(rec('LF-11'));
+    const hit = findByLegacyId(base, '#99');
+    expect(hit.id).toBe('LF-9');
+    expect(hit.record.legacy_id).toBe('#99');
+    expect(findByLegacyId(base, 'R3').id).toBe('LF-10');
+  });
+
+  it('whitespace is normalised; anything else must match exactly', async () => {
+    await storeOn('LF');
+    await plant(rec('LF-1', { legacy_id: 'Issue #45' }));
+    expect(findByLegacyId(base, '  Issue   #45 ').id).toBe('LF-1');
+    expect(() => findByLegacyId(base, 'issue #45')).toThrow(expect.objectContaining({ code: 'NOT_FOUND' }));
+    expect(() => findByLegacyId(base, '#4')).toThrow(expect.objectContaining({ code: 'NOT_FOUND' }));
+  });
+
+  it('no record holds it → NOT_FOUND, naming the old ID', async () => {
+    await storeOn('LF');
+    await plant(rec('LF-1', { legacy_id: '#1' }));
+    expect(() => findByLegacyId(base, '#404')).toThrow(expect.objectContaining({ code: 'NOT_FOUND', message: expect.stringContaining('#404') }));
+  });
+
+  it('two records hold it → CONFLICT, naming every match', async () => {
+    await storeOn('LF');
+    await plant(rec('LF-2', { legacy_id: '#99' }));
+    await plant(rec('LF-5', { legacy_id: '#99' }));
+    await plant(rec('LF-7', { legacy_id: '#99' }));
+    let err;
+    try {
+      findByLegacyId(base, '#99');
+    } catch (e) {
+      err = e;
+    }
+    expect(err?.code).toBe('CONFLICT');
+    for (const id of ['LF-2', 'LF-5', 'LF-7']) expect(err.message).toContain(id);
+  });
+});

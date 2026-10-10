@@ -88,6 +88,14 @@ const READERS = {
   assertWritable: (base) => records.assertWritable(base),
   listRecords: (base) => records.listRecords(base, { bodies: true }),
   getRecord: (base) => records.getRecord(base, 'SIG-2'),
+  // M6.E15 S5: the fixture keeps no old IDs, so NOT_FOUND is its answer — still a full read.
+  findByLegacyId: (base) => {
+    try {
+      records.findByLegacyId(base, '#99');
+    } catch (err) {
+      if (err.code !== 'NOT_FOUND') throw err;
+    }
+  },
   nextIdV2: (base) => records.nextIdV2(base),
   findDuplicateIds: (base) => records.findDuplicateIds(base),
   isEpicArchived: (base) => records.isEpicArchived(base, 'M6.E13'),
@@ -378,11 +386,11 @@ export async function promote(b, id) { await triage(b, id); return queue(b, id);
     expect(injected).not.toBe(SOURCE);
     const { lockTaking, violations } = lockNesting(injected);
     const real = lockNesting(SOURCE).lockTaking; // the writers t2.2 added
-    // closeEpicCheck, listClosing and probeCloses (through classifyClosing,
+    // findByLegacyId (M6.E15 S5), closeEpicCheck, listClosing and probeCloses (through classifyClosing,
     // which confirmCloses shares) read through listRecords, so the injected take reaches them too;
     // so do the t7.3-prep triage readers (through triageRows).
     expect(lockTaking.filter((n) => !real.includes(n))).toEqual(
-      ['listRecords', 'getRecord', 'closeEpicCheck', 'classifyClosing', 'probeCloses', 'listClosing',
+      ['listRecords', 'getRecord', 'findByLegacyId', 'closeEpicCheck', 'classifyClosing', 'probeCloses', 'listClosing',
         'triageRows', 'triageNext', 'listNeedsReview', 'listThemes'],
     );
     // confirmCloses takes the lock AND reads through listRecords, so a take

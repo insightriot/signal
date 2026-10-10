@@ -458,6 +458,36 @@ export function getRecord(baseDir, id, opts = {}) {
   return found.records[0];
 }
 
+/**
+ * The record that kept `oldId` as its `legacy_id` — how `/sig:item show` and
+ * `list` take an old ID such as `#99` (M6.E15 FR5.3, `D-M6E15-12`). Whitespace
+ * is normalised on both sides; anything else must match exactly. Reads the
+ * records only (no bodies), never a list.
+ *
+ * @param {string} baseDir
+ * @param {string} oldId
+ * @returns {{id, path, record, status, epic}} the `listRecords` entry
+ * @throws {WorkStoreError} CONFIG (store off), SCHEMA (blank), NOT_FOUND (no
+ *   record holds it), CONFLICT (more than one does — the message names each)
+ */
+export function findByLegacyId(baseDir, oldId) {
+  const norm = (s) => String(s).trim().replace(/\s+/g, ' ');
+  const want = typeof oldId === 'string' ? norm(oldId) : '';
+  if (want === '') throw new WorkStoreError('SCHEMA', `${JSON.stringify(oldId ?? null)} is not an old ID`);
+  const { records, broken } = listRecords(baseDir);
+  const hits = records.filter((r) => typeof r.record.legacy_id === 'string' && norm(r.record.legacy_id) === want);
+  if (hits.length > 1) {
+    throw new WorkStoreError('CONFLICT', `old ID ${want} is held by ${hits.length} items: ${hits.map((r) => r.id).join(', ')} — use one of those IDs`);
+  }
+  if (hits.length === 0) {
+    const unread = broken.length > 0
+      ? ` (${broken.length} record${broken.length === 1 ? '' : 's'} could not be read, so ${broken.length === 1 ? 'its' : 'their'} old IDs are unknown: ${broken.map((b) => b.id ?? b.path).join(', ')})`
+      : '';
+    throw new WorkStoreError('NOT_FOUND', `no item has the old ID ${want}${unread}`);
+  }
+  return hits[0];
+}
+
 // A v2 read of one ID: its fixed path only (AC1.1), never a search.
 function readV2One(baseDir, key, id) {
   if (confinedItemsDir(baseDir) === null) return null;

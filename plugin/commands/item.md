@@ -100,9 +100,11 @@ The body is not a record field: edit `SIG-n.md` directly.
 
 `getRecord(baseDir, id)` → the label, path, status, Epic (if any), the record's fields and events, and the body. Records of archived Epics are read the same way: a record never leaves `items/`.
 
+An argument that is not an item ID (`KEY-n`) is an old ID — `#99`, `R3`, `B7`, kept in `legacy_id` when the lists moved to the store: `findByLegacyId(baseDir, oldId)` gives the item's ID, then `getRecord` as above. Say which item the old ID resolved to.
+
 ### `list [filters]` — many items
 
-`listRecords(baseDir)` and filter its `records` by `status`, `record.type`, `record.theme`, `record.priority` or `epic`, each optional. Print one line per item: label, title, path. With `--themes`, print each `theme` in use with its count instead. If `broken` is non-empty, say so under the list and name each by ID and path — a broken record is never silently left out.
+`listRecords(baseDir)` and filter its `records` by `status`, `record.type`, `record.theme`, `record.priority` or `epic`, each optional. Given an old ID instead of a filter, list the one item `findByLegacyId(baseDir, oldId)` returns. Print one line per item: label, title, path. With `--themes`, print each `theme` in use with its count instead. If `broken` is non-empty, say so under the list and name each by ID and path — a broken record is never silently left out.
 
 ## Checking the store
 
@@ -114,8 +116,8 @@ Show the message; it names the file and the fix. Every failure is a `WorkStoreEr
 
 - `CONFIG` — the store is off, `WORK.md` is broken, a list is hand-kept, or the store is v1 (`version` is `1` on the error, and the message names `node tools/work-migrate-v2.mjs`). See *Pre-flight* above.
 - `SCHEMA` — the change was refused before anything was written: a bad ID, status or reason, a `fixed` close without a commit hash, a close without its proof, or a broken record.
-- `NOT_FOUND` — no item has that ID; check it with `list`.
-- `CONFLICT` — a change the item's current status does not allow (a move, close or reopen from the wrong status), a `dup_of` that is itself a duplicate, a reopen into an archived Epic, two files claiming one ID, or a folder on the way that is a symlink out of `.planning/`. For the last two, resolve by hand, then run `checkRecords(baseDir)`. The views are written through no symbolic link below `.planning/`. `.planning/` itself may be a link to a folder inside the project folder (`SIG-279`, fixed in `M6.E14`); one that resolves outside it, to the project folder itself, or into `.git/` refuses with `CONFLICT`.
+- `NOT_FOUND` — no item has that ID, or no item kept that old ID; check it with `list`.
+- `CONFLICT` — an old ID kept by more than one item (the message names each: use one of those IDs), a change the item's current status does not allow (a move, close or reopen from the wrong status), a `dup_of` that is itself a duplicate, a reopen into an archived Epic, two files claiming one ID, or a folder on the way that is a symlink out of `.planning/`. For the last two, resolve by hand, then run `checkRecords(baseDir)`. The views are written through no symbolic link below `.planning/`. `.planning/` itself may be a link to a folder inside the project folder (`SIG-279`, fixed in `M6.E14`); one that resolves outside it, to the project folder itself, or into `.git/` refuses with `CONFLICT`.
 - `GENERATED` — something tried to write a view through Signal's own writer. Change the item instead.
 - `OPEN_ITEMS` — an Epic cannot close while items in it are open (*closing* counts as open); the message names each.
 - `LOCKED` — another item change is running. Wait for it and re-run.
