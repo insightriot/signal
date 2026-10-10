@@ -178,6 +178,6 @@
 | SIG-287 | `confirmed` | P3 | **/sig:docs-sweep dangling-reference flags non-bug IDs like "B3." research-assumption labels as missing bugs** |
 | SIG-288 | `confirmed` | P3 | **/sig:docs-archive shares the retro-only closure default (archive-tree.js senseArchiveTree), so a filled retrospective alone can archive an unfinished Epic** |
 | SIG-289 | `confirmed` | P3 | **An Epic whose VERIFICATION is already in archive/ keeps its STATE narrative and isV3Conformant reads true (resolveClosures lists only top-level .planning/)** |
-| SIG-292 | `confirmed` | P2 | **Work-store migration: a backlog row absorbs a folded <details> block below it, so its evidence check can borrow a sibling's PR reference** |
+| SIG-292 | `closing` | P2 | **Work-store migration: a backlog row absorbs a folded <details> block below it, so its evidence check can borrow a sibling's PR reference** |
 
-*0 needs-triage · 59 confirmed · 0 closing · 117 closed (176 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 58 confirmed · 1 closing · 117 closed (176 total) · closes more than 30 days before the newest event are in `work/history/`*
