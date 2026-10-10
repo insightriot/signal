@@ -77,24 +77,27 @@ describe('AC4.3 — the look under the lock reads the history again (execFn seam
 describe('segmentQuestions stays linear with a `##` group every 5 entries', () => {
   // A group per 5 entries makes a per-entry scan of the `##` headings (the
   // old groupOf) or a per-stretch filter of the split lines (the old tile())
-  // cost entries²/5: at four times the entries, ~16×.
+  // cost entries²/5. Measured over a 16× size step so the two shapes are far
+  // apart: linear is ~16×, quadratic ~256×. Measured: this code ~19–20×, the
+  // pre-fix code 195×. A 4× step (8× limit) failed on CI at 8.25 from timing
+  // noise alone.
   const doc = (n) => ['# Open Questions', '', ...Array.from({ length: n }, (_, i) => (i % 5 === 0 ? `## Group ${i}\n\nIntro ${i}.\n\n### Q${i} — x?\n\nBody.\n` : `### Q${i} — x?\n\nBody.\n`)), ''].join('\n');
   const best = (text) => Math.min(...[0, 1, 2, 3, 4].map(() => {
     const t0 = performance.now();
     segmentQuestions(text);
     return performance.now() - t0;
   }));
-  it('2000 → 8000 entries costs well under 8× (quadratic would be ~16×), groups still right', () => {
+  it('2000 → 32 000 entries costs well under 64× (linear ~16×, quadratic ~256×), groups still right', () => {
     const small = doc(2000);
-    const large = doc(8000);
+    const large = doc(32000);
     best(small);
     const ratio = best(large) / best(small);
     const seg = segmentQuestions(large);
-    expect(seg.rows).toHaveLength(8000);
+    expect(seg.rows).toHaveLength(32000);
     expect(seg.rows[7].groupHeading).toBe('Group 5');
-    expect(seg.rows[7999].groupHeading).toBe('Group 7995');
-    expect(seg.orphans.filter((o) => o.name.startsWith('section: '))).toHaveLength(1600);
-    expect(ratio).toBeLessThan(8);
+    expect(seg.rows[31999].groupHeading).toBe('Group 31995');
+    expect(seg.orphans.filter((o) => o.name.startsWith('section: '))).toHaveLength(6400);
+    expect(ratio).toBeLessThan(64);
   });
 });
 

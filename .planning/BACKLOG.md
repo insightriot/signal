@@ -2404,3 +2404,15 @@ Idea: when TYPESAFE_API_KEY is set, ask Jev (plugin/tools/lib/jev.js askChoice) 
 Brett's caution, recorded: if Jev disagrees often, the fault is upstream (the rule or the lists), not something Jev can fix. So it is worth building only on evidence.
 
 Trigger: Brett's triage after the first real migration (corpus project 1) finds at least one entry the rule closed that was not finished. If triage finds none, close this as wontdo.
+
+### Two speed tests use a 4× size step with an 8× ratio limit, which CI timing noise can cross · SIG-293
+
+**Status:** triaged (T)
+
+On PR #296 the M6.E15 REVIEW pass 4 test "segmentQuestions stays linear with a ## group every 5 entries" failed on CI at ratio 8.25 against a limit of 8 (one of two runs; the other passed). It was rewritten to a 16× size step (2000 → 32000) with a 64× limit: this code measures 19–20×, the pre-fix code 195×.
+
+Two tests keep the narrow shape and have passed on CI so far:
+- tests/work-migrate-propose.test.js — "segmentQuestions is linear … 4000 → 16 000 entries costs well under 8×" (this code ~4–5×).
+- tests/work-migrate-hostile.test.js — "inbox segmentation is linear: 5 000 → 20 000 entries costs well under 8×" (old code measured 29.4×).
+
+Fix shape: the same 16× step / 64× limit, each re-checked against the pre-fix code so it still fails there.
