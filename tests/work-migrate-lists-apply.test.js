@@ -353,3 +353,25 @@ describe('t4.7 — a dry run on a 400-line list finishes well under 5 s (NFR per
     expect(ms).toBeLessThan(5000);
   });
 });
+
+describe('AC6.2 — a byte the plan cannot account for refuses the whole apply (integration)', () => {
+  it('a segmentation that drops a line → dry run and apply refused, nothing written, no tag', async () => {
+    const { segmentBugs } = await import('../plugin/tools/lib/work-migrate.js');
+    // Drops the last orphan/gap piece, so its lines are in no record or region.
+    const lossy = (text) => {
+      const seg = segmentBugs(text);
+      return { ...seg, gaps: seg.gaps.slice(0, -1) };
+    };
+    corpusProject();
+    for (const apply of [false, true]) {
+      const before = snapshot(base);
+      const r = await runWorkStoreMigrate(base, { apply, key: 'LF', stamp: 'T1', segmenters: { 'BUGS.md': lossy } });
+      expect(r.refused, `apply: ${apply}`).toBe(true);
+      expect(r.reason).toMatch(/could not be planned as records/);
+      expect(r.reason).toMatch(/BUGS\.md: line \d+.* is in no record or region/);
+      expect(snapshot(base)).toEqual(before);
+      expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    }
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+  });
+});

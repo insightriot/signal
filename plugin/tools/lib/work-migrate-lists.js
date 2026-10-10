@@ -261,11 +261,12 @@ function assess(baseDir, opts) {
       + 'Move it aside (or remove it), commit, then re-run.');
   }
 
-  let plan = planListsToRecords(texts, { key, dates });
+  const planOpts = { key, dates, ...(opts.segmenters ? { segmenters: opts.segmenters } : {}) };
+  let plan = planListsToRecords(texts, planOpts);
   let sensitiveHits = [];
   if (plan.aborted === 'sensitive-data-pending') {
     sensitiveHits = plan.hits;
-    plan = planListsToRecords(texts, { key, dates, acknowledgeSensitive: true });
+    plan = planListsToRecords(texts, { ...planOpts, acknowledgeSensitive: true });
   }
   if (plan.errors.length > 0) {
     return refuse(`The lists could not be planned as records, so nothing was written:\n  ${plan.errors.join('\n  ')}`);
@@ -485,12 +486,14 @@ async function buildAndSwap(baseDir, a, ctx) {
  * @param {string} baseDir — project root
  * @param {{apply?: boolean, force?: boolean, key?: string, expectedHash?: string,
  *          acknowledgeSensitive?: boolean, stamp?: string, execFn?: typeof execFileSync,
- *          onSwapStep?: (step: 'archive'|'work'|'views'|'verify') => void}} [opts]
+ *          onSwapStep?: (step: 'archive'|'work'|'views'|'verify') => void,
+ *          segmenters?: Record<string, (text: string) => object>}} [opts]
  *   `acknowledgeSensitive`: go ahead past the sensitive-data hits the dry run
  *   listed, after a person has read them (the text is kept as it is).
  *   `onSwapStep`: TEST SEAM ONLY — called before each step of the swap, so a
- *   test can fail one and prove the project is put back. Production callers
- *   never pass it.
+ *   test can fail one and prove the project is put back. `segmenters`: TEST
+ *   SEAM ONLY — passed to `planListsToRecords`, to prove a segmentation that
+ *   loses a byte refuses the whole run (AC6.2). Production callers pass neither.
  * @returns {Promise<object>} a refusal `{applied: false, refused: true, reason}`; a
  *   sensitive-data stop `{applied: false, aborted: 'sensitive-data-pending', hits, reason}`;
  *   a dry run `{applied: false, dryRun: true, key, files, items, dates, sensitiveHits,
