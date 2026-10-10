@@ -454,3 +454,79 @@ describe('AC6.2 — a byte the plan cannot account for refuses the whole apply (
     expect(git(base, ['tag', '-l']).trim()).toBe('');
   });
 });
+
+// ── REVIEW pass 1, fix loop 1, batch B ───────────────────────────────────────
+
+// Refused in a dry run and an apply, nothing written; `outsideDir` unchanged too.
+async function refusedEither(pattern, { outsideDir, notIn } = {}) {
+  const outsideBefore = outsideDir ? snapshot(outsideDir) : null;
+  for (const apply of [false, true]) {
+    const before = snapshot(base);
+    const r = await runWorkStoreMigrate(base, { apply, key: 'LF', stamp: 'T1', expectedHash: 'x' });
+    expect(r.refused, `apply: ${apply}`).toBe(true);
+    expect(r.reason).toMatch(pattern);
+    if (notIn) expect(r.reason).not.toContain(notIn);
+    expect(snapshot(base)).toEqual(before);
+    if (outsideDir) expect(snapshot(outsideDir)).toEqual(outsideBefore);
+  }
+  expect(git(base, ['tag', '-l']).trim()).toBe('');
+}
+
+describe('I5 — the lock paths are confined; a leftover work lock is refused (NFR security)', () => {
+  const SECRET = 'TOKEN=very-private-value-0451';
+
+  it('.planning/work/.lock linked to the project’s .env: refused, the .env never read or printed', async () => {
+    corpusProject();
+    writeFileSync(join(base, '.env'), `${SECRET}\n`);
+    mkdirSync(join(base, '.planning/work'));
+    symlinkSync('../../.env', join(base, '.planning/work/.lock'));
+    await refusedEither(/\.planning\/work\/\.lock/, { notIn: 'very-private' });
+    expect(readFileSync(join(base, '.env'), 'utf-8')).toBe(`${SECRET}\n`);
+  });
+
+  it('.planning/.add.lock linked to the .env: refused the same way', async () => {
+    corpusProject();
+    writeFileSync(join(base, '.env'), `${SECRET}\n`);
+    symlinkSync('../.env', join(base, '.planning/.add.lock'));
+    await refusedEither(/\.planning\/\.add\.lock/, { notIn: 'very-private' });
+  });
+
+  it('a regular .planning/work/.lock with no store is left over: refused, naming it', async () => {
+    corpusProject();
+    mkdirSync(join(base, '.planning/work'));
+    writeFileSync(join(base, '.planning/work/.lock'), '123\n0\n');
+    await refusedEither(/\.planning\/work\/\.lock[^\n]*left over/);
+  });
+});
+
+describe('S4 — a run killed part-way is refused, never re-applied as an empty store', () => {
+  it('archive copies with no MANIFEST.json and no lists → refused, naming the pre-work-store tag reset', async () => {
+    corpusProject();
+    mkdirSync(join(base, ARCHIVE), { recursive: true });
+    for (const f of LISTS) git(base, ['mv', `.planning/${f}`, `${ARCHIVE}/${f}`]);
+    commitAll(base, '2026-02-21');
+    await refusedEither(/interrupted[\s\S]*git tag -l 'pre-work-store-\*'[\s\S]*git reset --hard/);
+  });
+
+  it('the same with WORK.md already in place (killed after it moved) → the interrupted refusal, not "already on the store"', async () => {
+    corpusProject();
+    mkdirSync(join(base, ARCHIVE), { recursive: true });
+    git(base, ['mv', '.planning/BUGS.md', `${ARCHIVE}/BUGS.md`]);
+    write('.planning/work/WORK.md', '---\nkey: LF\nschema_version: 2\n---\n');
+    commitAll(base, '2026-02-21');
+    await refusedEither(/interrupted/);
+  });
+});
+
+describe('STATE.md is read only as a regular file', () => {
+  it('STATE.md linked outside the repo → refused, the target not read', async () => {
+    const outside = join(root, 'outside');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'STATE.md'), STATE);
+    corpusProject();
+    rmSync(join(base, '.planning/STATE.md'));
+    symlinkSync(join(outside, 'STATE.md'), join(base, '.planning/STATE.md'));
+    commitAll(base, '2026-02-21');
+    await refusedEither(/STATE\.md is a symbolic link/, { outsideDir: outside });
+  });
+});

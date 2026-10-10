@@ -62,9 +62,10 @@
 // V2_MODULES): it reaches the list parsers.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
+import { LOCK_FILE as ADD_LOCK_REL } from './add.js';
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
 import {
@@ -197,6 +198,18 @@ function inputHashOf(stateText, texts) {
 function assess(baseDir, opts) {
   const refuse = (reason) => ({ refusal: reason });
 
+  // A run killed after it moved a list but before it wrote MANIFEST.json (the
+  // last step that matters) left the lists half-moved: re-running would plan
+  // what is left — an empty store over archived lists (REVIEW S4). Checked
+  // first, since the kill may have come after WORK.md moved in.
+  const stranded = GENERATED_FILES.filter((n) => onDisk(baseDir, archiveRel(n)));
+  if (stranded.length > 0 && !onDisk(baseDir, MANIFEST_REL)) {
+    return refuse(`An earlier run was interrupted: ${stranded.map(archiveRel).join(', ')} ${stranded.length === 1 ? 'is' : 'are'} in the archive with no `
+      + `${MANIFEST_REL}, so nothing was written. Put the project back first — in git, find the pre-apply tag with `
+      + "`git tag -l 'pre-work-store-*'` and run `git reset --hard <that tag>`; outside git, move each archived list back to "
+      + '.planning/ and remove .planning/work/ — then re-run.');
+  }
+
   if (existsSync(join(baseDir, WORK_MD_REL))) {
     return refuse(`This project is already on the store: ${WORK_MD_REL} exists, so nothing was written. `
       + `If that file was made by hand in a project that was never migrated, delete it and re-run.`);
@@ -204,7 +217,9 @@ function assess(baseDir, opts) {
 
   // Before any read: no store path through a link, `.planning/` inside the
   // repository, and every list a regular file (t4.6).
-  for (const rel of [WORK_MD_REL, `${ITEMS_REL}/x`, `${HISTORY_REL}/x`, MANIFEST_REL]) {
+  // The lock files too (REVIEW I5): `file-lock.js` reads a lock it finds, and
+  // a held lock's first line is printed as its pid.
+  for (const rel of [WORK_MD_REL, `${ITEMS_REL}/x`, `${HISTORY_REL}/x`, MANIFEST_REL, WORK_LOCK_REL, ADD_LOCK_REL]) {
     try {
       confineView(baseDir, rel);
     } catch (err) {
@@ -226,8 +241,16 @@ function assess(baseDir, opts) {
     }
   }
 
-  const statePath = join(baseDir, STATE_REL);
-  const stateText = existsSync(statePath) ? readFileSync(statePath, 'utf-8') : null;
+  // With no store, nothing holds the `work` lock but this run, which takes it
+  // only after this first look (`opts.underLock` is the look under it).
+  if (!opts.underLock && onDisk(baseDir, WORK_LOCK_REL)) {
+    return refuse(`${WORK_LOCK_REL} is there with no store, so it is left over (or another migration is running); nothing was read or written. `
+      + `If no Signal command is running, delete ${WORK_LOCK_REL}, then re-run.`);
+  }
+
+  const stateWhy = regularFileRefusal(baseDir, STATE_REL);
+  if (stateWhy !== null) return refuse(`${stateWhy}. Nothing was written.`);
+  const stateText = onDisk(baseDir, STATE_REL) ? readRegularFile(baseDir, STATE_REL) : null;
   const stamp = stateText === null ? null : senseState(stateText).stamp;
   if (stamp === null || stamp < CURRENT_LAYOUT_VERSION) {
     const at = stateText === null ? `there is no ${STATE_REL}` : `${STATE_REL} reads docs layout ${stamp ?? '(none)'}`;
@@ -292,6 +315,9 @@ function assess(baseDir, opts) {
   });
   return { key, keySource, folder, files, archived, dates, plan, sensitiveHits, inputHash: inputHashOf(stateText, texts) };
 }
+
+// Anything at `rel`, a link (even a dangling one) included.
+const onDisk = (baseDir, rel) => lstatSync(join(baseDir, rel), { throwIfNoEntry: false }) !== undefined;
 
 function archiveRel(file) {
   return `${PRE_STORE_ARCHIVE_REL}/${basename(file)}`;
@@ -595,7 +621,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   try {
     // Again under the lock: another writer may have turned the store on, or
     // STATE.md or a list may have changed since the dry run.
-    b = assess(baseDir, { ...opts, execFn });
+    b = assess(baseDir, { ...opts, execFn, underLock: true });
     if (b.refusal) stop = refused(b.refusal);
     else if (opts.expectedHash && opts.expectedHash !== b.inputHash) {
       stop = refused(`${STATE_REL} or a list (${GENERATED_FILES.join(', ')}) changed since the dry run, so nothing was written. `
