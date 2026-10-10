@@ -296,3 +296,62 @@ describe('printable: Cc, Cf (tag characters too) and variation selectors (REVIEW
     expect(dry.report).not.toMatch(/[\u{E0000}-\u{E007F}︀-️\u{E0100}-\u{E01EF}­⁯]/u);
   });
 });
+
+// ── F6: at most three pieces of evidence shown; every note bounded and printable ──
+describe('caps: three pieces of evidence shown, the hash keeps them all (REVIEW pass 4)', () => {
+  let root;
+  let base;
+  beforeEach(() => {
+    ({ root, base } = repo('r4-caps-'));
+    writeFileSync(join(base, '.planning', 'BUGS.md'), ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|',
+      '| B1 | fixed | P2 | Rows vanish — PR #1, PR #2, PR #3, PR #4, PR #5. |', ''].join('\n'));
+    git(base, ['add', '-A']);
+    git(base, ['commit', '-q', '-m', 'Batch (#1) (#2) (#3) (#4) (#5)'], at('2026-01-05'));
+  });
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+  it('the proposal line and proposedCloses[].evidence show three, then "… and N more"', async () => {
+    const dry = await runWorkStoreMigrate(base, { key: 'LN' });
+    const [c] = dry.proposedCloses;
+    expect(c.evidence).toHaveLength(4);
+    expect(c.evidence.slice(0, 3).map((e) => e.split(' →')[0])).toEqual(['PR #1', 'PR #2', 'PR #3']);
+    expect(c.evidence[3]).toBe('… and 2 more');
+    const line = dry.report.split('\n').find((l) => l.includes('LN-1') && l.includes('evidence'));
+    expect(line).toMatch(/PR #3 → [0-9a-f]{7}; … and 2 more$/);
+    expect(line.split('; evidence ')[1]).not.toMatch(/PR #4/);
+  });
+
+  it('the hash keeps the full list: only the fifth piece moving moves the outcome half', async () => {
+    const plain = await runWorkStoreMigrate(base, { key: 'LN' });
+    const execFn = (cmd, args, o) => {
+      const out = String(execFileSync(cmd, args, { ...o, encoding: 'utf8' }));
+      return cmd === 'git' && isHistoryLog(args) ? `${'b'.repeat(40)}\tElsewhere (#5)\n${out}` : out;
+    };
+    const moved = await runWorkStoreMigrate(base, { key: 'LN', execFn });
+    expect(moved.items).toEqual(plain.items);
+    expect(moved.proposedCloses).toEqual(plain.proposedCloses);
+    expect(moved.inputHash.split(':')[1]).not.toBe(plain.inputHash.split(':')[1]);
+  });
+});
+
+describe('every migration_note is bounded and printable, whatever the branch (REVIEW pass 4)', () => {
+  const HOSTILE = `\u001b[31m‮${'x '.repeat(200000)}`;
+  const bugs = (idCell, status) => ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|', `| ${idCell} | ${status} | P2 | Rows vanish. |`, ''].join('\n');
+  const cases = {
+    'status-unmapped': { 'BUGS.md': bugs('B1', `open ${HOSTILE}`) },
+    conflict: { 'BUGS.md': bugs('~~B1~~', `open ${HOSTILE}`) },
+    'finished-word-unmapped': { 'BACKLOG.md': `# Backlog\n\n### #12 — Export · **ABANDONED ${HOSTILE}**\nBody.\n` },
+    unclear: { 'BUGS.md': bugs('B1', `fixed but ${HOSTILE}`) },
+  };
+  for (const [flag, texts] of Object.entries(cases)) {
+    it(`${flag}: a 400 KB status with ESC and RLO → a short note with neither`, () => {
+      expect(Object.values(texts)[0].length).toBeGreaterThan(400000);
+      const p = planListsToRecords(texts, { key: 'LF', dates: DATES, evidence: EVIDENCE, acknowledgeSensitive: true });
+      expect(p.errors).toEqual([]);
+      const r = firstItem(p);
+      expect(r.flagged).toBe(flag);
+      expect(r.record.migration_note.length).toBeLessThanOrEqual(2000);
+      expect(r.record.migration_note).not.toMatch(/[\u001b‮]/);
+    });
+  }
+});

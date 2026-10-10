@@ -730,6 +730,8 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   const a = assess(baseDir, { ...opts, execFn });
   if (a.refusal) return refused(a.refusal);
   if (!apply) {
+    // What a person reads: three pieces of evidence per proposal at most (the hash, already taken, keeps every one).
+    for (const c of a.shown.proposedCloses) if (c.evidence.length > 3) c.evidence = [...c.evidence.slice(0, 3), `… and ${c.evidence.length - 3} more`];
     return {
       applied: false, dryRun: true, key: a.key, files: a.files, items: a.shown.manifest.items, dates: a.dates,
       proposedCloses: a.shown.proposedCloses, sensitiveHits: maskHits(a.sensitiveHits), inputHash: a.inputHash, report: dryRunReport(a),
@@ -1574,6 +1576,7 @@ export function planListsToRecords(texts, opts = {}) {
         }
       }
     }
+    if (record.migration_note) record.migration_note = clip(printable(record.migration_note), 2000); // every branch quotes list text
     record.events = events;
     const dir = bodyDirFor(id);
     const moved = rewriteRelativeLinks(text, '', dir);
