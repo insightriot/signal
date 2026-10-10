@@ -1193,9 +1193,28 @@ function checkEvidence(text, legacy, evidence) {
   return { found: [...new Set(found)], missing, cited };
 }
 
+// `text` without its folded `<details>` blocks. `segmentBacklog` folds a
+// `<details>` block into the row above it; its words and references belong to
+// the folded entry, so they neither close the live row nor give it evidence.
+// Counted per line like the segmenter; an unclosed block runs to the end.
+// Removing text can only leave an entry more open.
+function withoutFolds(text) {
+  if (!text.includes('<details')) return text;
+  const kept = [];
+  let depth = 0;
+  for (const line of text.split('\n')) {
+    const was = depth;
+    depth += (line.match(/<details/g) ?? []).length - (line.match(/<\/details>/g) ?? []).length;
+    if (depth < 0) depth = 0;
+    if (was === 0 && depth === 0 && !line.includes('</details>')) kept.push(line);
+  }
+  return kept.join('\n');
+}
+
 // The entry's outcome: `{close: {reason, proof, wording}}`, or `{flag, note}`
 // (open).
-function decide(file, row, evidence) {
+function decide(file, folded, evidence) {
+  const row = typeof folded.text === 'string' ? { ...folded, text: withoutFolds(folded.text) } : folded;
   if (file === 'BUGS.md' && row.idUnreadable) {
     return { flag: 'id-unreadable', note: 'Its ID cell does not read as an ID (one short token with a digit, on the first line), so no old ID was kept and the row was not read for a finished marker; left open.' };
   }

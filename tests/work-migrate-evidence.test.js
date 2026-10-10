@@ -399,3 +399,31 @@ describe('C1 (b) — integration: the index is built from this repository’s gi
     expect(calls).toEqual([['git', 'log', '--all', '--format=%H%x09%s']]);
   });
 });
+
+// ── a folded <details> block is not the live row's text (fix loop 2, executor's leftover) ──
+// segmentBacklog folds a `<details>` block into the row above it. Its words
+// and its references belong to the folded entry, so they must neither close
+// the live row nor give it evidence.
+describe('a folded <details> block never closes the row above it', () => {
+  const folded = (liveBody, foldBody) => ['# Backlog', '', '### #12 — Export the ledger as CSV · **roadmap**', liveBody, '',
+    '<details><summary>#11 — Older export work</summary>', '', foldBody, '', '</details>', ''].join('\n');
+
+  it('passing wording on the live row, a resolving PR only inside the fold → open', () => {
+    const p = plan({ 'BACKLOG.md': folded('**Done** — shipped to users.', '**Done** in M2.10.E2 — [PR #157](x).') });
+    const live = p.records.find((r) => r.record.title.includes('Export the ledger'));
+    expect(status(live)).not.toBe('C');
+    expect(live.flagged).toBeTruthy();
+  });
+
+  it('no wording on the live row, finished wording and evidence only inside the fold → open', () => {
+    const p = plan({ 'BACKLOG.md': folded('Not started.', '**Done** in M2.10.E2 — [PR #157](x).') });
+    const live = p.records.find((r) => r.record.title.includes('Export the ledger'));
+    expect(status(live)).not.toBe('C');
+  });
+
+  it('the live row still closes on its own wording and evidence, fold or not', () => {
+    const p = plan({ 'BACKLOG.md': folded('**Done** in M2.10.E2 — [PR #157](x).', 'Notes only.') });
+    const live = p.records.find((r) => r.record.title.includes('Export the ledger'));
+    expect(status(live)).toBe('C');
+  });
+});
