@@ -128,3 +128,62 @@ describe('AC4.1 — end to end: the dry run shows the proposals; the apply close
     expect(closed).toEqual(['B1']);
   });
 });
+
+describe('AC4.3 — the dry run’s hash covers what the person saw (D-M6E15-25)', () => {
+  let root;
+  let base;
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'propose-hash-'));
+    base = join(root, 'leaf-notes');
+    mkdirSync(join(base, '.planning'), { recursive: true });
+    git(base, ['init', '-q', '-b', 'main']);
+    git(base, ['config', 'user.email', 't@t.co']);
+    git(base, ['config', 'user.name', 'T']);
+    git(base, ['config', 'commit.gpgsign', 'false']);
+    git(base, ['config', 'tag.gpgsign', 'false']);
+    writeFileSync(join(base, '.planning', 'STATE.md'), STATE);
+    writeFileSync(join(base, '.planning', 'BUGS.md'), ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|',
+      '| B1 | fixed | P2 | Rows vanish — PR #42. |', ''].join('\n'));
+    git(base, ['add', '-A']);
+    git(base, ['commit', '-q', '-m', 'Add the lists'], at('2026-01-05'));
+  });
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+  it('the pass-3 repro: a commit adding (#42) between the dry run and the apply, on a clean tree → refused, nothing written', async () => {
+    const dry = await runWorkStoreMigrate(base, { key: 'LN' });
+    expect(dry.items[0].flag).toBe('no-evidence');
+    expect(dry.proposedCloses).toEqual([]);
+    writeFileSync(join(base, 'README.md'), 'x\n');
+    git(base, ['add', '-A']);
+    git(base, ['commit', '-q', '-m', 'Keep the rows (#42)'], at('2026-01-06'));
+    expect(git(base, ['status', '--porcelain']).trim()).toBe('');
+
+    for (const confirmCloses of [false, true]) {
+      const r = await runWorkStoreMigrate(base, { apply: true, key: 'LN', stamp: 'T1', expectedHash: dry.inputHash, confirmCloses });
+      expect(r.refused).toBe(true);
+      expect(r.reason).toMatch(/changed since the dry run/);
+      expect(r.reason).toMatch(/history|proposed close/);
+      expect(r.reason).not.toMatch(/STATE\.md or a list/);
+    }
+    expect(git(base, ['status', '--porcelain']).trim()).toBe('');
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+  });
+
+  it('the token moves when only the outcome moves (same lists, same STATE.md)', async () => {
+    const h0 = (await runWorkStoreMigrate(base, { key: 'LN' })).inputHash;
+    git(base, ['commit', '-q', '--allow-empty', '-m', 'Keep the rows (#42)'], at('2026-01-06'));
+    const h1 = (await runWorkStoreMigrate(base, { key: 'LN' })).inputHash;
+    expect(h1).not.toBe(h0);
+  });
+
+  it('a list edit is still named as a list change', async () => {
+    const dry = await runWorkStoreMigrate(base, { key: 'LN' });
+    writeFileSync(join(base, '.planning', 'BUGS.md'), `${['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|',
+      '| B1 | fixed | P2 | Rows vanish — PR #42. |', ''].join('\n')}\n`);
+    git(base, ['add', '-A']);
+    git(base, ['commit', '-q', '-m', 'edit'], at('2026-01-06'));
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LN', stamp: 'T1', expectedHash: dry.inputHash });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/STATE\.md or a list .* changed since the dry run/);
+  });
+});

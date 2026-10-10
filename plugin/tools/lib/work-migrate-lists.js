@@ -43,8 +43,10 @@
 // The key: `--key` if given, else proposed from the folder name (D-M6E15-7).
 // The dry run prints it; `--apply` without `--key` uses the same proposal.
 //
-// The input hash covers STATE.md and the four lists (AC6.4): a change to any of
-// them between the dry run and the apply aborts the apply before any write.
+// The input hash covers STATE.md and the four lists (AC6.4) and what the dry
+// run showed — every item's status and flag, the proposed closes and their
+// evidence (AC4.3): a change to any of them between the dry run and the apply
+// aborts the apply before any write.
 // The apply holds the store's `work` lock and `/sig:add`'s `.add.lock` (with no
 // WORK.md, `/sig:add` writes to the lists under that lock only), and re-reads
 // each list just before the archive step and the archived copies after it: a
@@ -198,11 +200,34 @@ function listDates(baseDir, rel, execFn) {
   return { first: day, last: day, source: 'mtime' };
 }
 
-// The token the dry run hands the apply: STATE.md and every list, each named,
-// an absent list distinct from an empty one (AC6.4).
-function inputHashOf(stateText, texts) {
+// The token the dry run hands the apply, in two halves joined by `:` so a
+// refusal can say which moved:
+//   - the inputs: STATE.md and every list, each named, an absent list distinct
+//     from an empty one (AC6.4);
+//   - what the person saw (AC4.3, D-M6E15-25): every item's ID, status and
+//     flag, and each proposed close with its wording and evidence. The lists
+//     can stay byte-identical while this moves — a commit, a fetch into the
+//     default branch, a checkout, a retrospective added — and a yes given to one
+//     list of closes must never close another.
+function inputHashOf(stateText, texts, shown) {
   const parts = [['STATE.md', stateText], ...GENERATED_FILES.map((n) => [n, texts[n] ?? null])];
-  return hashState(parts.map(([n, t]) => `${n}\0${t === null ? '\u0001absent' : t}\0`).join(''));
+  const inputs = hashState(parts.map(([n, t]) => `${n}\0${t === null ? '\u0001absent' : t}\0`).join(''));
+  const outcome = hashState(JSON.stringify({
+    items: shown.manifest.items.map((it) => [it.id, it.status, it.flag]),
+    proposed: shown.proposedCloses.map((c) => [c.id, c.legacyId, c.reason, c.wording, c.evidence, c.proof]),
+  }));
+  return `${inputs}:${outcome}`;
+}
+
+// Why an apply's token is not the dry run's, in the person's terms.
+function hashDriftReason(expected, actual) {
+  const [inputs] = String(expected).split(':');
+  if (inputs !== actual.split(':')[0]) {
+    return `${STATE_REL} or a list (${GENERATED_FILES.join(', ')}) changed since the dry run, so nothing was written. Re-run the dry run.`;
+  }
+  return 'What the dry run showed changed since the dry run, though the lists and STATE.md did not: this repository\'s history '
+    + 'or retrospectives now give a different outcome — an item\'s status or flag, or the proposed closes or their evidence '
+    + '(a commit, a fetch, a checkout or a retrospective since then). Nothing was written. Re-run the dry run and confirm what it shows now.';
 }
 
 // Everything both modes decide before writing: the refusals, the key, the
@@ -325,11 +350,10 @@ function assess(baseDir, opts) {
       + 'Move it aside (or remove it), commit, then re-run.');
   }
 
-  // Closes are checked against this repository's history (D-M6E15-24): the
-  // index is built once per run and shared by the look under the lock.
-  const cache = opts.evidenceCache ?? {};
-  cache.index ??= buildEvidenceIndex(baseDir, { execFn: opts.execFn });
-  const evidence = cache.index;
+  // Closes are checked against this repository's history (D-M6E15-24). The
+  // look under the lock reads it again (AC4.3): a commit landing while the
+  // apply waited for its locks must not slip past the hash.
+  const evidence = buildEvidenceIndex(baseDir, { execFn: opts.execFn });
   const planOpts = { key, dates, evidence, ...(opts.segmenters ? { segmenters: opts.segmenters } : {}) };
   let plan = planListsToRecords(texts, planOpts);
   let sensitiveHits = [];
@@ -354,7 +378,7 @@ function assess(baseDir, opts) {
     const f = plan.manifest.files[name] ?? { items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
     return { file: `.planning/${name}`, items: f.items, open: f.open, closed: f.closed, flagged: f.flagged, regions: f.regions.map((r) => r.name) };
   });
-  return { key, keySource, folder, files, archived, dates, texts, plan, shown, sensitiveHits, evidence, inputHash: inputHashOf(stateText, texts) };
+  return { key, keySource, folder, files, archived, dates, texts, plan, shown, sensitiveHits, evidence, inputHash: inputHashOf(stateText, texts, shown) };
 }
 
 // The `pre-work-store-*` tags this tool's apply makes, from a fixed-argument
@@ -700,8 +724,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
       + 'Keep the text as it is (re-run the apply with acknowledgeSensitive), or abort and edit the list first.',
   });
 
-  const evidenceCache = {};
-  const a = assess(baseDir, { ...opts, execFn, evidenceCache });
+  const a = assess(baseDir, { ...opts, execFn });
   if (a.refusal) return refused(a.refusal);
   if (!apply) {
     return {
@@ -755,12 +778,9 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   try {
     // Again under the lock: another writer may have turned the store on, or
     // STATE.md or a list may have changed since the dry run.
-    b = assess(baseDir, { ...opts, execFn, evidenceCache, underLock: true });
+    b = assess(baseDir, { ...opts, execFn, underLock: true });
     if (b.refusal) stop = refused(b.refusal);
-    else if (opts.expectedHash !== b.inputHash) {
-      stop = refused(`${STATE_REL} or a list (${GENERATED_FILES.join(', ')}) changed since the dry run, so nothing was written. `
-        + 'Re-run the dry run.');
-    } else if (b.sensitiveHits.length > 0 && !opts.acknowledgeSensitive) stop = sensitiveStop(b.sensitiveHits);
+    else if (opts.expectedHash !== b.inputHash) stop = refused(hashDriftReason(opts.expectedHash, b.inputHash)); else if (b.sensitiveHits.length > 0 && !opts.acknowledgeSensitive) stop = sensitiveStop(b.sensitiveHits);
     if (stop === null) {
       if (probe.mode === 'git') tag = tagPreApply(baseDir, `pre-work-store-${stamp}`, execFn);
       try {
