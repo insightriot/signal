@@ -3992,7 +3992,7 @@ store defect before other projects use it.
 No per-Epic profile: the project's FULL applies (integrity work on shared state). `attention:
 checkpointed`, chosen at `/sig:drive` step 0b.
 
-## 2026-10-08 — M6.E15 DISCUSS: move other projects onto the work store (D-M6E15-1 … D-M6E15-22)
+## 2026-10-08 — M6.E15 DISCUSS: move other projects onto the work store (D-M6E15-1 … D-M6E15-23)
 
 Epic label: *"other projects onto the store"*. `SIG-274` (nothing turns the store on for a project)
 plus build step 5 of [`analysis/WORK-ITEM-SYSTEM-DESIGN.md`](../analysis/WORK-ITEM-SYSTEM-DESIGN.md) §6
@@ -4118,3 +4118,11 @@ STATE narrative by the same retro-only rule (plan-checker I3).
 ### D-M6E15-22 — Backlog types follow the existing tag mapping (PLAN, 2026-10-09)
 Refines `D-M6E15-11`: `**roadmap**` → `FEAT`, `**hygiene**` → `CHORE`, untagged → `FEAT`. The tag
 carries the author's own classification; overriding it with one type per file loses it.
+
+### D-M6E15-23 — Signal's own dedupe keys are not secrets; SHIPPED means done (EXECUTE, 2026-10-09)
+The secrets scan flags the 40-hex `<!-- backlog-key: … -->` / `<!-- bugs-key: … -->` comments that
+Signal's own promote writes (`sha1(block)`), so every migration of a Signal-managed project would stop
+for a false alarm. The migration's scan skips exactly those two comment forms; the shared scrubber is
+unchanged everywhere else. `SHIPPED` joins the `fixed` words of `D-M6E15-18`; `ABANDONED` and `CUT`
+stay open and flagged (ambiguous between `wontdo` and partial work, `D-M6E15-1`). Plumbing, decided by
+the orchestrator after S3 surfaced both.
