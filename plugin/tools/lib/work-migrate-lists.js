@@ -1202,7 +1202,7 @@ function decide(file, row, evidence) {
   const m = readMarkers(file, row);
   const reasons = new Set(m.markers.map((x) => x.reason));
   if (m.unclear.length > 0) {
-    return { flag: 'unclear', note: `Its marker ${m.unclear.map(quote).join(', ')} is qualified, so it was left open rather than closed by inference.` };
+    return { flag: 'unclear', note: `Its wording ${m.unclear.map((x) => quote(clip(printable(x)))).join(', ')} does not read as plainly finished — a qualifier, or words after the finish word other than a date, \`in <ref>\`, a dash and a note, or \`(\` — so it was left open rather than closed by inference.` };
   }
   if (reasons.size > 1 || (reasons.size === 1 && (m.statuses.length > 0 || m.unmappedFinish.length > 0))) {
     const said = [

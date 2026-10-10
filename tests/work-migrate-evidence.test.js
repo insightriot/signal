@@ -180,7 +180,7 @@ describe('C1 (a) — every review phrase leaves its entry open and flagged, even
       expect(status(r)).toBe('T');
       expect(closedEvent(r)).toBeUndefined();
       expect(r.flagged).toBe('unclear');
-      expect(r.record.migration_note).toMatch(/\S/);
+      expect(r.record.migration_note).toMatch(/does not read as plainly finished/);
     });
     it(`a bug table cell "${s}" → open, flagged unclear`, () => {
       const r = one('BUGS.md', bugTable(s, '**A defect** — see PR #157.'));
