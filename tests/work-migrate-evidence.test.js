@@ -402,7 +402,7 @@ describe('C1 (b) — integration: the index is built from this repository’s gi
       return execFileSync(cmd, args, o);
     };
     buildEvidenceIndex(base, { execFn });
-    expect(calls).toEqual([['git', 'log', '--all', '--format=%H%x09%s']]);
+    expect(calls).toEqual([['git', 'log', 'HEAD', '--format=%H%x09%s']]);
   });
 });
 

@@ -187,3 +187,33 @@ describe('AC4.3 — the dry run’s hash covers what the person saw (D-M6E15-25)
     expect(r.reason).toMatch(/STATE\.md or a list .* changed since the dry run/);
   });
 });
+
+describe('evidence comes from the default branch only (D-M6E15-25)', () => {
+  let root;
+  let base;
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'propose-head-'));
+    base = join(root, 'leaf-notes');
+    mkdirSync(join(base, '.planning'), { recursive: true });
+    git(base, ['init', '-q', '-b', 'main']);
+    git(base, ['config', 'user.email', 't@t.co']);
+    git(base, ['config', 'user.name', 'T']);
+    git(base, ['config', 'commit.gpgsign', 'false']);
+    writeFileSync(join(base, '.planning', 'STATE.md'), STATE);
+    git(base, ['add', '-A']);
+    git(base, ['commit', '-q', '-m', 'Start (#1)'], at('2026-01-05'));
+  });
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+  it('a commit on an unmerged side branch is not evidence; the checked-out branch’s is', async () => {
+    git(base, ['checkout', '-q', '-b', 'side']);
+    git(base, ['commit', '-q', '--allow-empty', '-m', 'Unmerged work (#9)'], at('2026-01-06'));
+    const sideHash = git(base, ['rev-parse', 'HEAD']).trim();
+    git(base, ['checkout', '-q', 'main']);
+    const { buildEvidenceIndex } = await import('../plugin/tools/lib/work-migrate-lists.js');
+    const idx = buildEvidenceIndex(base);
+    expect(idx.prs.has(1)).toBe(true);
+    expect(idx.prs.has(9)).toBe(false);
+    expect(idx.commits).not.toContain(sideHash);
+  });
+});

@@ -425,9 +425,9 @@ function dryRunReport(a) {
     ? `Project key: ${a.key} (from --key)`
     : `Project key: ${a.key} (proposed from the folder name "${a.folder}"; pass --key KEY to choose another)`);
   lines.push(a.evidence.source === 'git'
-    ? `Closes are checked against this repository's history (${a.evidence.commits.length} commits, ${a.evidence.epics.size} retrospectives): `
-      + 'an entry closes only when its wording says it is finished AND a commit, pull request or Epic it cites is found there. '
-      + 'Anything else stays open, flagged, with a note saying what was found and not found.'
+    ? `Closes are checked against this repository's history — the checked-out branch, HEAD (${a.evidence.commits.length} commits, ${a.evidence.epics.size} retrospectives): `
+      + 'an entry is proposed for closing only when its wording says it is finished AND a commit, pull request or Epic it cites is found there. '
+      + 'Nothing closes unless you confirm the proposals. Anything else stays open, flagged, with a note saying what was found and not found.'
     : 'Closes are checked against this repository\'s history, and there is none here (not a git checkout, or no commits): '
       + 'every entry stays open, flagged, whatever its wording says.');
   if (a.files.length === 0) {
@@ -1105,7 +1105,7 @@ function sensitiveHits(text) {
 // summary) must resolve in the repository being migrated —
 //
 //   - a commit: 7–40 lowercase hex (with a letter and a digit) that is a
-//     prefix of a commit in `git log --all`;
+//     prefix of a commit in `git log HEAD` (the checked-out branch);
 //   - a pull request: `#N`, `PR #N` or a `/pull/N` link, where N appears in a
 //     commit subject as `(#N)` or `Merge pull request #N`. `Issue #N` is an
 //     issue, and the entry's own old ID is never its evidence;
@@ -1142,7 +1142,10 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   let out = '';
   let source = 'git';
   try {
-    out = String(execFn('git', ['log', '--all', '--format=%H%x09%s'], {
+    // HEAD, not --all (D-M6E15-25): unmerged branches, stashes and fetched
+    // remote work are not what this project shipped; native closes, too, are
+    // confirmed only once their commit is on the default branch.
+    out = String(execFn('git', ['log', 'HEAD', '--format=%H%x09%s'], {
       cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024,
     }));
   } catch {
