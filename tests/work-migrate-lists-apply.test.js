@@ -525,6 +525,21 @@ describe('I5 — the lock paths are confined; a leftover work lock is refused (N
     expect(readFileSync(join(base, '.env'), 'utf-8')).toBe(`${SECRET}\n`);
   });
 
+  // REVIEW pass 2 I-E: the work-lock confinement on its own. The leftover-lock
+  // refusal would also name the path, so the assertion is on the
+  // confinement's own words, and that the leftover refusal did not answer.
+  it('.planning/work/.lock linked outside, nothing else to refuse: the CONFINEMENT refusal answers, not the leftover one', async () => {
+    corpusProject();
+    const outside = join(root, 'outside');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'lock'), `${SECRET}\n0\n`);
+    mkdirSync(join(base, '.planning/work'));
+    symlinkSync(join(outside, 'lock'), join(base, '.planning/work/.lock'));
+    await refusedEither(/^\.planning\/work\/\.lock is a symbolic link — the views are never written through a link/, { outsideDir: outside, notIn: 'very-private' });
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.reason).not.toMatch(/left over/);
+  });
+
   it('.planning/.add.lock linked to the .env: refused the same way', async () => {
     corpusProject();
     writeFileSync(join(base, '.env'), `${SECRET}\n`);
@@ -669,6 +684,25 @@ describe('I1 — a capture made during the apply is never lost', () => {
     for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
     expect(existsSync(join(base, '.planning/work/.lock'))).toBe(false);
     expect(existsSync(join(base, '.planning/work'))).toBe(false);
+  });
+
+  // REVIEW pass 2 I-E: the re-read of the ARCHIVED copies, on its own. The
+  // pre-archive re-read runs at the `archive` step and passes; BUGS.md's
+  // archived copy is changed after its rename, while BACKLOG.md is being
+  // moved — only the post-rename re-read can see it.
+  it('an archived copy changed after its rename (the pre-archive re-read already passed) → refused; the change kept, every list back', async () => {
+    corpusProject();
+    const r = await applyWith((s) => {
+      if (s === 'archive:BACKLOG.md') writeFileSync(join(base, `${ARCHIVE}/BUGS.md`), fixture('BUGS.md') + CAPTURE);
+    });
+    expect(r.applied).toBe(false);
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/^\.planning\/BUGS\.md changed while the migration ran/);
+    expect(read('.planning/BUGS.md')).toBe(fixture('BUGS.md') + CAPTURE);
+    for (const f of LISTS.filter((x) => x !== 'BUGS.md')) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(existsSync(join(base, ARCHIVE))).toBe(false);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
   });
 
   it('a list file written back at a view’s path after the archive → refused CONFLICT; that file is not written over, the original is in the archive', async () => {
