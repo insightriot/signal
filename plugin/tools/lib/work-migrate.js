@@ -541,31 +541,38 @@ const ANSWERED_RE = /~~[^~]+~~.*\bANSWERED\b/;
 const H3_RE = /^### /;
 const GROUP_WORDS = new Set(['resolved', 'done', 'closed']);
 
-// ── The finished lead (M6.E15 REVIEW C1; D-M6E15-10, -18; AC4.1, AC4.2) ──────
+// ── The finished wording (M6.E15 REVIEW C1, C1 residue; D-M6E15-24) ────────
 //
 // ONE rule for "does this text say the entry is finished", used for every
 // marker the planner reads (a heading's bold annotation, the text after a
-// struck span, a `**Status:**` line, a bug table cell, a backlog body line's
-// bold lead) and for a question's grouping heading here. Read in order:
+// struck span, a `**Status:**` line, a bug table cell, a backlog body line
+// that opens bold) and for a question's grouping heading here. It is an
+// ALLOW-list (D-M6E15-24): a deny-list of words leaks by construction, which
+// is what REVIEW pass 2 measured. Read in order, on the text with markup
+// (`*_~` and backticks) and leading punctuation off:
 //
-//   1. The clause: markup (`*_~` and backticks) and leading punctuation off,
-//      then up to the first sentence end (`.`, `;` or `:` before a space or
-//      the end). Dashes and parentheticals stay in it: "Resolved during v2.6
-//      — but not closed" is one clause.
-//   2. Never a marker: "done when …", "… of done" (`**Done when:**`,
+//   1. Never a marker: "done when …", "… of done" (`**Done when:**`,
 //      `**Definition of done:**` — a criterion, not a verdict).
-//   3. The finish word must LEAD the clause, after at most one affirming word
-//      (`Fully resolved.`): done / resolved / answered / fixed / closed /
-//      shipped → `fixed`; not-a-bug → `rejected`; won't-fix → `wontdo`;
-//      superseded → `stale`. A generic lead refined by a specific word that
-//      opens a later ` — ` part (`Closed — superseded`) is that specific
-//      reason. A finish word later in the clause ("Half are fixed") is not a
+//   2. No finish word anywhere → not a marker.
+//   3. Unclear: a `?`, `-ish`, or a word that undoes or qualifies a finish
+//      (not, no, yet, until, but, still, reverted, reopened, TBD, wrong, in
+//      theory, …) ANYWHERE in the text — the note after a dash or inside `(`
+//      included. The three specific markers are masked first, so `not-a-bug`
+//      is not a negation. This is the backstop for the notes rule 5 lets in.
+//   4. The finish word must LEAD, after at most one affirming word (`Fully
+//      resolved.`): done / resolved / answered / fixed / closed / shipped →
+//      `fixed`; not-a-bug → `rejected`; won't-fix → `wontdo`; superseded →
+//      `stale`. A finish word later in the text ("Half are fixed") is not a
 //      marker.
-//   4. Unclear: a finish word anywhere in the clause beside a negation or
-//      futurity word (not, no, never, yet, until, when, once, pending, blocked,
-//      waiting, will, "to be") or a partial one (partially, partly, mostly,
-//      largely) — open and flagged, whether or not the word leads. The three
-//      specific markers are masked first, so `not-a-bug` is not a negation.
+//   5. After the finish word, only: a date (`2026-03-02`, `on 2026-03-02`,
+//      `, 2026-03-02`) or `in <ref>` (a token with a digit: `in M9.E2`,
+//      `in PR #12`, `in v2`), any number of times; then the end of the text,
+//      a sentence end (`.` before a space or the end), an em/en dash or
+//      ` - ` and a note, or `(`. Anything else — `:`, `,` then words, `by …`,
+//      `at …`, `during …`, a bare version — is unclear: open and flagged.
+//
+// A generic lead refined by a specific word that opens a later ` — ` part
+// (`Closed — superseded`) is that specific reason.
 //
 // Returns `{reasons: Set<string>, unclear: boolean, word: string|null}`;
 // `word` is the leading generic finish word, lower case.
@@ -579,8 +586,52 @@ const AFFIRM_RE = /^(?:fully|completely|already|now)\s+/i;
 const GENERIC_LEAD_RE = new RegExp(`^(${FINISH_WORDS})\\b`, 'i');
 const FINISH_ANY_RE = new RegExp(`\\b(?:${FINISH_WORDS})\\b`, 'i');
 const NEVER_MARKER_RE = /\bdone\s+when\b|\bof\s+done\b/i;
-const QUALIFIER_RE = /\b(?:not|no|never|yet|until|when|once|pending|blocked|waiting|will|to\s+be|partially|partly|mostly|largely)\b/i;
-const CLAUSE_END_RE = /[.;:](?:\s|$)/;
+const UNDOING_RE = new RegExp('\\?|-ish\\b|\\b(?:'
+  + 'not|no|never|yet|until|when|once|pending|blocked|waiting|will|to\\s+be|'
+  + 'partially|partly|mostly|largely|but|though|although|except|still|again|broken|wrong|'
+  + 'tbd|todo|theory|maybe|probably|unclear|unknown|unverified|'
+  + 'reopen(?:ed|s|ing)?|revert(?:ed|s|ing)?|rolled\\s+back|undone'
+  + ')\\b', 'i');
+// The steps rule 5 allows right after the finish word, and how what is left
+// may start.
+const DATE_STEP_RE = /^\s{0,3},?\s{0,3}(?:on\s{1,3})?\d{4}-\d{2}-\d{2}\b/i;
+const IN_REF_STEP_RE = /^\s{1,3}in\s{1,3}(?:(?:PR|pull\s{1,3}request)\s{1,3})?#?(?=[\w.#/-]{0,60}\d)[\w#][\w.#/-]{0,60}/i;
+const NOTE_START_RE = /^(?:\s*$|\.(?:\s|$)|\s{0,3}[(—–]|\s{1,3}-\s)/;
+
+export function finishedLead(text) {
+  const none = { reasons: new Set(), unclear: false, word: null };
+  const unclear = { ...none, unclear: true };
+  const plain = String(text).replace(/[*_~`]/g, '').replace(/^[\s\p{P}\p{S}]+/u, '').trim();
+  if (plain === '' || NEVER_MARKER_RE.test(plain)) return none;
+
+  let masked = plain;
+  for (const [, g] of SPECIFIC_FINISH) masked = masked.replace(g, ' ');
+  if (!FINISH_ANY_RE.test(plain) && masked === plain) return none;
+  if (UNDOING_RE.test(masked)) return unclear;
+
+  const lead = plain.replace(AFFIRM_RE, '');
+  const specificAt = (s) => {
+    for (const [y, , reason] of SPECIFIC_FINISH) {
+      y.lastIndex = 0;
+      const m = y.exec(s);
+      if (m) return { reason, length: m[0].length };
+    }
+    return null;
+  };
+  const sp = specificAt(lead);
+  const g = sp ? null : lead.match(GENERIC_LEAD_RE);
+  if (!sp && !g) return none;
+
+  let rest = lead.slice(sp ? sp.length : g[0].length);
+  for (let m = rest.match(DATE_STEP_RE) ?? rest.match(IN_REF_STEP_RE); m; m = rest.match(DATE_STEP_RE) ?? rest.match(IN_REF_STEP_RE)) {
+    rest = rest.slice(m[0].length);
+  }
+  if (!NOTE_START_RE.test(rest)) return unclear;
+
+  if (sp) return { ...none, reasons: new Set([sp.reason]) };
+  const refined = new Set(lead.split(/\s[—–-]\s/).slice(1).map((part) => specificAt(part.replace(/^[\s(]+/, ''))?.reason).filter(Boolean));
+  return { reasons: refined.size > 0 ? refined : new Set(['fixed']), unclear: false, word: g[1].toLowerCase() };
+}
 
 // The dates a marker writes BESIDE a finish word (REVIEW S1; D-M6E15-19):
 // `fixed 2026-10-04`, `DONE — M9.E1, 2026-10-08`, `closed on 2026-03-02`. Only
@@ -596,31 +647,6 @@ const MARKER_DATE_G = new RegExp(
 
 export function markerDates(text) {
   return [...new Set([...String(text).matchAll(MARKER_DATE_G)].map((m) => m[1]))];
-}
-
-export function finishedLead(text) {
-  const none = { reasons: new Set(), unclear: false, word: null };
-  const plain = String(text).replace(/[*_~`]/g, '').replace(/^[\s\p{P}\p{S}]+/u, '');
-  const end = plain.search(CLAUSE_END_RE);
-  const clause = (end === -1 ? plain : plain.slice(0, end)).trim();
-  if (clause === '' || NEVER_MARKER_RE.test(clause)) return none;
-
-  let masked = clause;
-  for (const [, g] of SPECIFIC_FINISH) masked = masked.replace(g, ' ');
-  const anyFinish = FINISH_ANY_RE.test(clause) || masked !== clause;
-  if (anyFinish && QUALIFIER_RE.test(masked)) return { ...none, unclear: true };
-
-  const lead = clause.replace(AFFIRM_RE, '');
-  const specificAt = (s) => SPECIFIC_FINISH.find(([y]) => {
-    y.lastIndex = 0;
-    return y.test(s);
-  });
-  const sp = specificAt(lead);
-  if (sp) return { ...none, reasons: new Set([sp[2]]) };
-  const g = lead.match(GENERIC_LEAD_RE);
-  if (!g) return none;
-  const refined = new Set(lead.split(/\s[—–-]\s/).slice(1).map((part) => specificAt(part.replace(/^[\s(]+/, ''))?.[2]).filter(Boolean));
-  return { reasons: refined.size > 0 ? refined : new Set(['fixed']), unclear: false, word: g[1].toLowerCase() };
 }
 
 /**

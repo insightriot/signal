@@ -72,7 +72,7 @@
 // V2_MODULES): it reaches the list parsers.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import { acquireLock as acquireAddLock, LOCK_FILE as ADD_LOCK_REL } from './add.js';
@@ -308,7 +308,12 @@ function assess(baseDir, opts) {
       + 'Move it aside (or remove it), commit, then re-run.');
   }
 
-  const planOpts = { key, dates, ...(opts.segmenters ? { segmenters: opts.segmenters } : {}) };
+  // Closes are checked against this repository's history (D-M6E15-24): the
+  // index is built once per run and shared by the look under the lock.
+  const cache = opts.evidenceCache ?? {};
+  cache.index ??= buildEvidenceIndex(baseDir, { execFn: opts.execFn });
+  const evidence = cache.index;
+  const planOpts = { key, dates, evidence, ...(opts.segmenters ? { segmenters: opts.segmenters } : {}) };
   let plan = planListsToRecords(texts, planOpts);
   let sensitiveHits = [];
   if (plan.aborted === 'sensitive-data-pending') {
@@ -323,7 +328,7 @@ function assess(baseDir, opts) {
     const f = plan.manifest.files[name] ?? { items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
     return { file: `.planning/${name}`, items: f.items, open: f.open, closed: f.closed, flagged: f.flagged, regions: f.regions.map((r) => r.name) };
   });
-  return { key, keySource, folder, files, archived, dates, texts, plan, sensitiveHits, inputHash: inputHashOf(stateText, texts) };
+  return { key, keySource, folder, files, archived, dates, texts, plan, sensitiveHits, evidence, inputHash: inputHashOf(stateText, texts) };
 }
 
 // Anything at `rel`, a link (even a dangling one) included.
@@ -346,16 +351,24 @@ const DATE_SOURCE = { git: 'git history', mtime: 'file modification date — no 
 const masked = (m) => (m.length > 8 ? `${m.slice(0, 6)}…` : m);
 
 // List text shown to a person before they confirm (titles, old IDs, region
-// names) carries no control characters, C0 and DEL: a terminal would act on
-// them. Applied per line, so the report's own line breaks stay.
+// names, proofs) carries no control characters — C0, DEL, C1 — and no bidi
+// overrides or isolates: a terminal would act on them, or show the text in
+// another order than it is stored. Applied per line, so the report's own line
+// breaks stay.
 // eslint-disable-next-line no-control-regex
-const printable = (s) => String(s).replace(/[\u0000-\u001f\u007f]/g, '');
+const printable = (s) => String(s).replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '');
 
 function dryRunReport(a) {
   const lines = ['/sig:docs-migrate --work-store — dry run (nothing written)', ''];
   lines.push(a.keySource === '--key'
     ? `Project key: ${a.key} (from --key)`
     : `Project key: ${a.key} (proposed from the folder name "${a.folder}"; pass --key KEY to choose another)`);
+  lines.push(a.evidence.source === 'git'
+    ? `Closes are checked against this repository's history (${a.evidence.commits.length} commits, ${a.evidence.epics.size} retrospectives): `
+      + 'an entry closes only when its wording says it is finished AND a commit, pull request or Epic it cites is found there. '
+      + 'Anything else stays open, flagged, with a note saying what was found and not found.'
+    : 'Closes are checked against this repository\'s history, and there is none here (not a git checkout, or no commits): '
+      + 'every entry stays open, flagged, whatever its wording says.');
   if (a.files.length === 0) {
     lines.push('Lists: none — the store starts empty.');
   } else {
@@ -640,7 +653,8 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
       + 'Keep the text as it is (re-run the apply with acknowledgeSensitive), or abort and edit the list first.',
   });
 
-  const a = assess(baseDir, { ...opts, execFn });
+  const evidenceCache = {};
+  const a = assess(baseDir, { ...opts, execFn, evidenceCache });
   if (a.refusal) return refused(a.refusal);
   if (!apply) {
     return {
@@ -694,7 +708,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   try {
     // Again under the lock: another writer may have turned the store on, or
     // STATE.md or a list may have changed since the dry run.
-    b = assess(baseDir, { ...opts, execFn, underLock: true });
+    b = assess(baseDir, { ...opts, execFn, evidenceCache, underLock: true });
     if (b.refusal) stop = refused(b.refusal);
     else if (opts.expectedHash !== b.inputHash) {
       stop = refused(`${STATE_REL} or a list (${GENERATED_FILES.join(', ')}) changed since the dry run, so nothing was written. `
@@ -902,9 +916,11 @@ function titleOf(file, row) {
 //     section heading that is unclear makes its entries unclear.
 //
 // Whether one of those texts is a marker, and which reason, is ONE rule:
-// `finishedLead` in work-migrate.js (REVIEW C1). The finish word must lead the
-// text; any negation or futurity word beside a finish word is `unclear`;
-// "done when" / "… of done" are never markers. Within ONE marker a specific
+// `finishedLead` in work-migrate.js (REVIEW C1, D-M6E15-24) — an allowed-
+// continuation grammar: the finish word leads, and only a date, `in <ref>`, a
+// sentence end, a dash and a note, or `(` may follow it; anything else, or an
+// undoing word anywhere, is `unclear`; "done when" / "… of done" are never
+// markers. Wording that passes still closes only on evidence (below). Within ONE marker a specific
 // word wins over a generic one (`Closed — superseded` is `stale`). ACROSS
 // markers, two reasons — or a marker beside a status that is not one — is a
 // conflict: open, flagged. A finished word the backlog reader knows but this
@@ -967,8 +983,13 @@ function readMarkers(file, row) {
       if (!take(text) && text) statuses.push(text);
       continue;
     }
+    // A bold lead that speaks of finishing is read with the rest of its line,
+    // so a note after it (`**Done** — reverted`) is held to the same rule.
     const bold = file === 'BACKLOG.md' ? line.match(BOLD_LEAD_RE) : null;
-    if (bold) take(line.trim(), bold[1]);
+    if (bold) {
+      const lead = finishedLead(bold[1]);
+      if (lead.reasons.size > 0 || lead.unclear) take(line.trim());
+    }
   }
   return { markers, unclear, statuses, unmappedFinish, statusLine };
 }
@@ -992,8 +1013,149 @@ function sensitiveHits(text) {
   return scrubSensitive(text).hits.filter((h) => !spans.some(([a, b]) => h.index >= a && h.index + h.match.length <= b));
 }
 
-// The entry's outcome: `{close: {reason, proof}}`, or `{flag, note}` (open).
-function decide(file, row) {
+// ── Evidence (D-M6E15-24; AC4.1, AC4.2) ─────────────────────────────────────
+//
+// Wording alone never closes an entry: at least one reference ANYWHERE in the
+// entry's text (a bug table's bare `fixed` cell often has its PR link in the
+// summary) must resolve in the repository being migrated —
+//
+//   - a commit: 7–40 lowercase hex (with a letter and a digit) that is a
+//     prefix of a commit in `git log --all`;
+//   - a pull request: `#N`, `PR #N` or a `/pull/N` link, where N appears in a
+//     commit subject as `(#N)` or `Merge pull request #N`. `Issue #N` is an
+//     issue, and the entry's own old ID is never its evidence;
+//   - an Epic: an ID shaped `M2.10.E2` with a `<ID>-RETROSPECTIVE.md` under
+//     `.planning/` (archive included).
+//
+// The index is built ONCE per run (`buildEvidenceIndex`) from one
+// fixed-argument `git log` and a directory walk; no list text reaches git's
+// argument list, and lookups are in memory. With no index (`evidence`
+// absent), nothing resolves — fail closed. The gate can only make an entry
+// more open: a defect in it over-flags rather than wrongly closing.
+//
+// This is git and retrospective evidence, not running the code or checking a
+// screen; list text cannot give more.
+
+const PROOF_MAX = 400;
+const HEX_REF_G = /\b(?=[0-9a-f]{0,39}[a-f])(?=[0-9a-f]{0,39}\d)[0-9a-f]{7,40}\b/g;
+const PR_REF_GS = [/\bPR\s{0,3}#?(\d{1,7})\b/gi, /\/pull\/(\d{1,7})\b/g, /(?<![\w&#/])(?<!\bissue\s{1,3})#(\d{1,7})\b/gi];
+const EPIC_REF_G = /\bM\d{1,4}(?:\.\d{1,4}){0,4}\.E\d{1,4}\b/g;
+const SUBJECT_PR_RES = [/\(#(\d{1,7})\)/g, /^Merge pull request #(\d{1,7})\b/g];
+const RETRO_RE = /^(.+)-RETROSPECTIVE\.md$/;
+const RETRO_WALK_MAX = 50000;
+
+/**
+ * The run's evidence index: every commit (sorted full hashes), the PR numbers
+ * commit subjects carry (→ that commit), and the Epic IDs with a
+ * retrospective under `.planning/` (→ its path). Reads only.
+ *
+ * @param {string} baseDir
+ * @param {{execFn?: Function}} [opts]
+ * @returns {{source: 'git'|'none', commits: string[], prs: Map<number, string>, epics: Map<string, string>}}
+ */
+export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
+  let out = '';
+  let source = 'git';
+  try {
+    out = String(execFn('git', ['log', '--all', '--format=%H%x09%s'], {
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024,
+    }));
+  } catch {
+    out = '';
+    source = 'none';
+  }
+  const commits = [];
+  const prs = new Map();
+  for (const line of out.split('\n')) {
+    const tab = line.indexOf('\t');
+    const hash = (tab === -1 ? line : line.slice(0, tab)).trim();
+    if (!/^[0-9a-f]{40}$/.test(hash)) continue;
+    commits.push(hash);
+    const subject = tab === -1 ? '' : line.slice(tab + 1);
+    for (const re of SUBJECT_PR_RES) {
+      for (const m of subject.matchAll(re)) if (!prs.has(Number(m[1]))) prs.set(Number(m[1]), hash);
+    }
+  }
+  commits.sort();
+
+  const epics = new Map();
+  const stack = [['.planning', 0]];
+  let seen = 0;
+  while (stack.length > 0 && seen < RETRO_WALK_MAX) {
+    const [rel, depth] = stack.pop();
+    let entries = [];
+    try {
+      entries = readdirSync(join(baseDir, rel), { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      if (++seen > RETRO_WALK_MAX) break;
+      if (e.isDirectory() && depth < 8) stack.push([`${rel}/${e.name}`, depth + 1]);
+      else if (e.isFile()) {
+        const m = e.name.match(RETRO_RE);
+        if (m && !epics.has(m[1])) epics.set(m[1], `${rel}/${e.name}`);
+      }
+    }
+  }
+  return { source, commits, prs, epics };
+}
+
+// The commit `prefix` names, from the sorted list: binary search, no scan.
+function commitFor(commits, prefix) {
+  let lo = 0;
+  let hi = commits.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (commits[mid] < prefix) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo < commits.length && commits[lo].startsWith(prefix) ? commits[lo] : null;
+}
+
+// What `text` cites, in order, and which of it resolves. `found` and
+// `missing` are the phrases the proof and the note print.
+function checkEvidence(text, legacy, evidence) {
+  const own = legacy && /^#\d+$/.test(legacy) ? Number(legacy.slice(1)) : null;
+  const refs = []; // {at, kind, key}
+  const seen = new Set();
+  const add = (at, kind, key) => {
+    if (seen.has(`${kind}:${key}`)) return;
+    seen.add(`${kind}:${key}`);
+    refs.push({ at, kind, key });
+  };
+  for (const m of text.matchAll(HEX_REF_G)) add(m.index, 'commit', m[0]);
+  for (const re of PR_REF_GS) for (const m of text.matchAll(re)) if (Number(m[1]) !== own) add(m.index, 'pr', Number(m[1]));
+  for (const m of text.matchAll(EPIC_REF_G)) add(m.index, 'epic', m[0]);
+  refs.sort((a, b) => a.at - b.at);
+
+  const found = [];
+  const missing = [];
+  const cited = [];
+  for (const r of refs) {
+    if (r.kind === 'commit') {
+      cited.push(`commit ${r.key}`);
+      const hash = evidence ? commitFor(evidence.commits, r.key) : null;
+      if (hash) found.push(`commit ${hash.slice(0, 7)}`);
+      else missing.push(`commit ${r.key} not found in this repository's history`);
+    } else if (r.kind === 'pr') {
+      cited.push(`PR #${r.key}`);
+      const hash = evidence?.prs.get(r.key);
+      if (hash) found.push(`PR #${r.key} → ${hash.slice(0, 7)}`);
+      else missing.push(`cited PR #${r.key} not found in this repository's history`);
+    } else {
+      cited.push(`Epic ${r.key}`);
+      const path = evidence?.epics.get(r.key);
+      if (path) found.push(`${r.key} → ${path}`);
+      else missing.push(`Epic ${r.key} has no retrospective under .planning/`);
+    }
+  }
+  return { found: [...new Set(found)], missing, cited };
+}
+
+// The entry's outcome: `{close: {reason, proof, wording}}`, or `{flag, note}`
+// (open).
+function decide(file, row, evidence) {
   if (file === 'BUGS.md' && row.idUnreadable) {
     return { flag: 'id-unreadable', note: 'Its ID cell does not read as an ID (one short token with a digit, on the first line), so no old ID was kept and the row was not read for a finished marker; left open.' };
   }
@@ -1011,7 +1173,20 @@ function decide(file, row) {
     return { flag: 'conflict', note: `Its finished markers disagree (${said.join('; ')}), so it was left open rather than closed by inference.` };
   }
   if (reasons.size === 1) {
-    return { close: { reason: [...reasons][0], proof: [...new Set(m.markers.map((x) => x.text))].join('; ') } };
+    const wording = [...new Set(m.markers.map((x) => x.text))].join('; ');
+    const checked = checkEvidence([row.text, ...m.markers.map((x) => x.text)].join('\n'), legacyOf(file, row), evidence);
+    const said = `Its wording says ${m.markers.map((x) => quote(clip(printable(x.text)))).join(', ')}`;
+    if (checked.found.length === 0) {
+      let why;
+      if (!evidence) why = `, but no repository history was given to check it against${checked.missing.length ? ` (it cites ${checked.cited.join(', ')})` : ''}`;
+      else if (checked.missing.length === 0) why = ', but it cites no commit, pull request or Epic that could be checked';
+      else why = `; ${checked.missing.join('; ')}`;
+      return { flag: 'no-evidence', note: `${said}${why} — left open rather than closed on its wording alone.` };
+    }
+    const shown = checked.found.slice(0, 3).join('; ');
+    const room = PROOF_MAX - shown.length - 2;
+    const proof = `${clip(printable(wording), Math.max(room, 20))}; ${shown}`;
+    return { close: { reason: [...reasons][0], proof, wording } };
   }
   if (m.statuses.length > 0) {
     return { flag: 'status-unmapped', note: `Its status reads ${m.statuses.map(quote).join(', ')}, which is not a finished marker this migration maps; left open.` };
@@ -1038,6 +1213,10 @@ function decide(file, row) {
  *   file, its first- and last-commit dates (`YYYY-MM-DD`). `created.at` is
  *   `first`; a close is at the date its marker writes, else `last`
  *   (D-M6E15-19). Never the run's own date.
+ * @param {{commits: string[], prs: Map<number, string>, epics: Map<string, string>}} [opts.evidence] —
+ *   the repository's evidence index (`buildEvidenceIndex`). A finished entry
+ *   closes only when a reference in it resolves here (D-M6E15-24); without an
+ *   index nothing resolves, so every finished entry stays open (fail closed).
  * @param {boolean} [opts.acknowledgeSensitive] — go ahead past sensitive-data
  *   hits a person has read (as `newItems`). Without it, any hit in a planned
  *   title or body returns `{aborted: 'sensitive-data-pending', hits: [{id, file,
@@ -1059,6 +1238,7 @@ function decide(file, row) {
  *   item's `flag`) is null for a closed entry and an unmarked inbox entry;
  *   otherwise why it needs a person's look: `no-marker`, `status-unmapped`,
  *   `no-status-line`, `unclear`, `conflict`, `finished-word-unmapped`,
+ *   `no-evidence` (the wording says finished; no reference in it resolves),
  *   `id-unreadable` (a bug table row whose ID cell is not an ID), or
  *   `non-item` (the file's text outside its entries). `verified` is set on a
  *   file whose bytes all landed in one record or region.
@@ -1070,6 +1250,7 @@ export function planListsToRecords(texts, opts = {}) {
     throw new WorkStoreError('SCHEMA', `planListsToRecords: ${JSON.stringify(key ?? null)} is not a store key — ${KEY_RULE}. There is no default key on this path.`);
   }
   const dates = opts.dates ?? {};
+  const evidence = opts.evidence ?? null;
   const errors = [];
   const regions = [];
   const planned = []; // {file, row|null, pieces, flagged}
@@ -1155,12 +1336,12 @@ export function planListsToRecords(texts, opts = {}) {
       const legacy = legacyOf(file, row);
       if (legacy) record.legacy_id = legacy;
       text = row.text;
-      const outcome = decide(file, row);
+      const outcome = decide(file, row, evidence);
       if (outcome.close) {
         // A date the marker writes beside its finish word wins, when there is
         // exactly one (`markerDates`, REVIEW S1); any other date in the proof is
         // not the close date, and two do not say which is.
-        const written = markerDates(outcome.close.proof);
+        const written = markerDates(outcome.close.wording);
         const at = written.length === 1 ? written[0] : d.last;
         if (at < created) {
           events[0].at = at;

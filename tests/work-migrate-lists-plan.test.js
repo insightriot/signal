@@ -35,7 +35,17 @@ const DATES = {
   'OPEN-QUESTIONS.md': { first: '2026-01-08', last: '2026-02-16' },
 };
 
-const plan = (texts, opts = {}) => lists.planListsToRecords(texts, { key: 'LF', dates: DATES, ...opts });
+// The repository's evidence index (D-M6E15-24): a close needs a reference
+// that resolves here. The corpus fixture cites PR #44, PR #57, M9.E1 and
+// M9.E2; the one-entry fixtures below cite PR #7.
+const HASH = 'e41d30e9b7c2a1f0e41d30e9b7c2a1f0e41d30e9';
+const EVIDENCE = {
+  commits: [HASH],
+  prs: new Map([7, 44, 57].map((n) => [n, HASH])),
+  epics: new Map([['M9.E1', '.planning/M9.E1-RETROSPECTIVE.md'], ['M9.E2', '.planning/archive/M9.E2-RETROSPECTIVE.md']]),
+};
+const PR7 = 'PR #7 → e41d30e';
+const plan = (texts, opts = {}) => lists.planListsToRecords(texts, { key: 'LF', dates: DATES, evidence: EVIDENCE, ...opts });
 const status = (record) => {
   const last = record.events.at(-1).type;
   return { created: 'N', triaged: 'T', closed: 'C' }[last];
@@ -181,33 +191,38 @@ const one = (file, text, opts) => {
   return entries[0];
 };
 const closedEvent = (r) => r.record.events.find((e) => e.type === 'closed');
-const bugTable = (id, cell) => ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|', `| ${id} | ${cell} | P2 | **A defect in the exporter** — details. |`, ''].join('\n');
-const bugEntry = (status) => ['# Bugs', '', '## The exporter drops a row', '', `**Status:** ${status}`, '', 'What happens.', '', '---', ''].join('\n');
-const backlogRow = (heading, body = 'Body text.') => ['# Backlog', '', `### ${heading}`, body, ''].join('\n');
+// Each one-entry fixture cites PR #7, which resolves in EVIDENCE, so what
+// these tests vary is the wording.
+const bugTable = (id, cell) => ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|', `| ${id} | ${cell} | P2 | **A defect in the exporter** — details, PR #7. |`, ''].join('\n');
+const bugEntry = (status) => ['# Bugs', '', '## The exporter drops a row', '', `**Status:** ${status}`, '', 'What happens. PR #7.', '', '---', ''].join('\n');
+const backlogRow = (heading, body = 'Body text, PR #7.') => ['# Backlog', '', `### ${heading}`, body, ''].join('\n');
 const question = (heading, status, group = null) => [
   '# Open Questions', '',
   ...(group ? [`## ${group}`, ''] : []),
   `${group ? '###' : '##'} ${heading}`, '',
   ...(status ? [`**Status:** ${status}`, ''] : []),
+  'Settled in PR #7.', '',
 ].join('\n');
 
-describe('t3.2 — finished markers close as legacy, with the marker text as proof (AC4.1, D-M6E15-10, -18)', () => {
+// The proof is the wording, then the evidence that resolved (D-M6E15-24).
+describe('t3.2 — finished markers close as legacy, the wording and the evidence as proof (AC4.1, D-M6E15-10, -18, -24)', () => {
   const cases = [
-    ['DONE in a backlog heading', 'BACKLOG.md', backlogRow('#12 — Export to CSV · **roadmap** · small · **DONE — M9.E1**'), 'fixed', 'DONE — M9.E1'],
-    ['a struck-through heading alone', 'BACKLOG.md', backlogRow('~~#13 — Export to PDF · **roadmap** · small~~'), 'fixed', '~~#13 — Export to PDF · **roadmap** · small~~'],
-    ['RESOLVED on a Status line', 'OPEN-QUESTIONS.md', question('Q4 — Which date format?', 'RESOLVED — ISO dates everywhere.'), 'fixed', 'RESOLVED — ISO dates everywhere.'],
-    ['ANSWERED in a heading', 'OPEN-QUESTIONS.md', question('Q5 — Which units? · **ANSWERED**', null), 'fixed', 'ANSWERED'],
-    ['fixed in a bug table cell', 'BUGS.md', bugTable('B3', '`fixed`'), 'fixed', '`fixed`'],
-    ['closed in a bug table cell', 'BUGS.md', bugTable('B4', '`closed`'), 'fixed', '`closed`'],
-    ['fixed on a Status line', 'BUGS.md', bugEntry('fixed in M9.E2 — rows are kept now.'), 'fixed', 'fixed in M9.E2 — rows are kept now.'],
-    ['closed on a Status line', 'BUGS.md', bugEntry('Closed. Nothing to do.'), 'fixed', 'Closed. Nothing to do.'],
-    ['DONE (lower case) on a Status line', 'BUGS.md', bugEntry('done'), 'fixed', 'done'],
-    ['not-a-bug → rejected', 'BUGS.md', bugEntry('not-a-bug (closed 2026-03-02) — works as designed.'), 'rejected', 'not-a-bug (closed 2026-03-02) — works as designed.'],
-    ['won\'t-fix → wontdo', 'BUGS.md', bugEntry("won't-fix — the old exporter is going away."), 'wontdo', "won't-fix — the old exporter is going away."],
-    ['wontfix in a table cell → wontdo', 'BUGS.md', bugTable('B5', '`wontfix`'), 'wontdo', '`wontfix`'],
-    ['superseded (lower case) → stale', 'BACKLOG.md', backlogRow('#14 — Old importer · **hygiene** · small · **superseded by #20**'), 'stale', 'superseded by #20'],
-    ['SUPERSEDED (upper case) → stale', 'BUGS.md', bugEntry('SUPERSEDED by the new exporter.'), 'stale', 'SUPERSEDED by the new exporter.'],
-    ['an entry under a Resolved/Done/Closed section heading', 'OPEN-QUESTIONS.md', question('Q6 — Which currency?', null, 'Done in v2'), 'fixed', 'Done in v2'],
+    ['DONE in a backlog heading', 'BACKLOG.md', backlogRow('#12 — Export to CSV · **roadmap** · small · **DONE — M9.E1**'), 'fixed', `DONE — M9.E1; M9.E1 → .planning/M9.E1-RETROSPECTIVE.md; ${PR7}`],
+    ['a struck-through heading alone', 'BACKLOG.md', backlogRow('~~#13 — Export to PDF · **roadmap** · small~~'), 'fixed', `~~#13 — Export to PDF · **roadmap** · small~~; ${PR7}`],
+    ['RESOLVED on a Status line', 'OPEN-QUESTIONS.md', question('Q4 — Which date format?', 'RESOLVED — ISO dates everywhere.'), 'fixed', `RESOLVED — ISO dates everywhere.; ${PR7}`],
+    ['ANSWERED in a heading', 'OPEN-QUESTIONS.md', question('Q5 — Which units? · **ANSWERED**', null), 'fixed', `ANSWERED; ${PR7}`],
+    ['fixed in a bug table cell', 'BUGS.md', bugTable('B3', '`fixed`'), 'fixed', `\`fixed\`; ${PR7}`],
+    ['closed in a bug table cell', 'BUGS.md', bugTable('B4', '`closed`'), 'fixed', `\`closed\`; ${PR7}`],
+    ['fixed on a Status line', 'BUGS.md', bugEntry('fixed in M9.E2 — rows are kept now.'), 'fixed', `fixed in M9.E2 — rows are kept now.; M9.E2 → .planning/archive/M9.E2-RETROSPECTIVE.md; ${PR7}`],
+    ['closed on a Status line', 'BUGS.md', bugEntry('Closed. Nothing to do.'), 'fixed', `Closed. Nothing to do.; ${PR7}`],
+    ['DONE (lower case) on a Status line', 'BUGS.md', bugEntry('done'), 'fixed', `done; ${PR7}`],
+    ['not-a-bug → rejected', 'BUGS.md', bugEntry('not-a-bug (closed 2026-03-02) — works as designed.'), 'rejected', `not-a-bug (closed 2026-03-02) — works as designed.; ${PR7}`],
+    ['won\'t-fix → wontdo', 'BUGS.md', bugEntry("won't-fix — the old exporter is going away."), 'wontdo', `won't-fix — the old exporter is going away.; ${PR7}`],
+    ['wontfix in a table cell → wontdo', 'BUGS.md', bugTable('B5', '`wontfix`'), 'wontdo', `\`wontfix\`; ${PR7}`],
+    // `superseded by #20` is not an allowed continuation (D-M6E15-24): a dash note is.
+    ['superseded (lower case) → stale', 'BACKLOG.md', backlogRow('#14 — Old importer · **hygiene** · small · **superseded — see #30**'), 'stale', `superseded — see #30; ${PR7}`],
+    ['SUPERSEDED (upper case) → stale', 'BUGS.md', bugEntry('SUPERSEDED — the new exporter replaced it.'), 'stale', `SUPERSEDED — the new exporter replaced it.; ${PR7}`],
+    ['an entry under a Resolved/Done/Closed section heading', 'OPEN-QUESTIONS.md', question('Q6 — Which currency?', null, 'Done in v2'), 'fixed', `Done in v2; ${PR7}`],
   ];
   for (const [name, file, text, reason, proof] of cases) {
     it(`${name} → closed ${reason}`, () => {
@@ -220,15 +235,33 @@ describe('t3.2 — finished markers close as legacy, with the marker text as pro
     });
   }
 
-  it('the corpus: B1, the not-a-bug and the fixed entries, the DONE rows and the resolved questions close; the rest stay open', () => {
+  it('the corpus: B1, the not-a-bug and the fixed entries and the DONE rows close on their cited PRs and Epics; the rest stay open', () => {
     const p = byId(plan(corpus()));
     const closes = Object.fromEntries([...p].filter(([, r]) => status(r.record) === 'C').map(([id, r]) => [id, closedEvent(r).reason]));
     expect(closes).toEqual({
       'LF-1': 'fixed', 'LF-4': 'rejected', 'LF-5': 'fixed',
-      'LF-11': 'fixed', 'LF-13': 'fixed',
-      'LF-20': 'fixed', 'LF-21': 'fixed', 'LF-22': 'fixed',
+      'LF-11': 'fixed',
     });
-    expect(closedEvent(p.get('LF-20')).proof).toBe('Resolved during v4.1 (kept for reference); Fully resolved. Logged as Issue #12 on 2026-02-10; the missing rule was added in `0007_pantry_events_delete.sql` (PR #20, 2026-02-14), so deletes now take effect.');
+    expect(closedEvent(p.get('LF-1')).proof).toBe('`fixed`; M9.E1 → .planning/M9.E1-RETROSPECTIVE.md; PR #44 → e41d30e');
+    // #279's body line is read whole (a bold lead that speaks of finishing):
+    // "**Done** in M9.E2 (S6): … still not built — file it again …" admits the
+    // work is partial, so it is unclear, not closed.
+    expect(status(p.get('LF-13').record)).toBe('T');
+    expect(p.get('LF-13').flagged).toBe('unclear');
+    // The three questions sit under "## Resolved during v4.1 (kept for
+    // reference)": "during" is not an allowed continuation, so the heading reads
+    // unclear and its entries stay open (D-M6E15-24, fail closed).
+    for (const id of ['LF-20', 'LF-21', 'LF-22']) {
+      expect(status(p.get(id).record), id).toBe('T');
+      expect(p.get(id).flagged, id).toBe('unclear');
+      expect(p.get(id).record.migration_note, id).toContain('Resolved during v4.1 (kept for reference)');
+    }
+  });
+
+  it('the corpus with no evidence index: nothing closes (fail closed)', () => {
+    const p = plan(corpus(), { evidence: undefined });
+    expect(p.records.filter((r) => status(r.record) === 'C')).toEqual([]);
+    expect(p.records.filter((r) => r.flagged === 'no-evidence').map((r) => r.record.id)).toEqual(['LF-1', 'LF-4', 'LF-5', 'LF-11']);
   });
 });
 
@@ -276,13 +309,19 @@ describe('t3.2 — no marker, an unknown word, or markers that disagree: open an
     expect(r.flagged).toBe('conflict');
   });
 
-  it('SHIPPED is a finished word: **SHIPPED v2.1** closes as fixed, the marker as proof (D-M6E15-23)', () => {
-    const r = one('BACKLOG.md', backlogRow('#15 — Share a plan · **roadmap** · small · **SHIPPED v2.1**'));
+  it('SHIPPED is a finished word: **SHIPPED in v2.1** closes as fixed, the marker as proof (D-M6E15-23)', () => {
+    const r = one('BACKLOG.md', backlogRow('#15 — Share a plan · **roadmap** · small · **SHIPPED in v2.1**'));
     expect(status(r.record)).toBe('C');
     expect(r.flagged).toBeNull();
     const close = r.record.events.at(-1);
     expect(close).toMatchObject({ type: 'closed', reason: 'fixed', legacy: true });
     expect(close.proof).toContain('SHIPPED');
+  });
+
+  it('**SHIPPED v2.1** — a bare version is not an allowed continuation → open, flagged unclear (D-M6E15-24)', () => {
+    const r = one('BACKLOG.md', backlogRow('#15 — Share a plan · **roadmap** · small · **SHIPPED v2.1**'));
+    expect(status(r.record)).toBe('T');
+    expect(r.flagged).toBe('unclear');
   });
 
   it('ABANDONED and CUT alone stay open and flagged, never closed (D-M6E15-23)', () => {
@@ -317,7 +356,7 @@ describe('t3.2 — no marker, an unknown word, or markers that disagree: open an
     const open = one('ISSUES-INBOX.md', ['# Issues Inbox', '', '## A capture', 'Text.', ''].join('\n'));
     expect(status(open.record)).toBe('N');
     expect(open.flagged).toBeNull();
-    const done = one('ISSUES-INBOX.md', ['# Issues Inbox', '', '## ~~A capture~~ **RESOLVED**', 'Text.', ''].join('\n'));
+    const done = one('ISSUES-INBOX.md', ['# Issues Inbox', '', '## ~~A capture~~ **RESOLVED**', 'Text, PR #7.', ''].join('\n'));
     expect(status(done.record)).toBe('C');
     expect(closedEvent(done).reason).toBe('fixed');
   });
@@ -344,9 +383,9 @@ describe('t3.3 — dates come from the entry, else from the file’s history; ne
     const p = byId(plan(corpus()));
     expect(closedEvent(p.get('LF-4')).at).toBe('2026-03-02'); // not-a-bug (closed 2026-03-02 …)
     expect(closedEvent(p.get('LF-11')).at).toBe('2026-03-08'); // DONE — M9.E2, 2026-03-08
-    expect(closedEvent(p.get('LF-21')).at).toBe(DATES['OPEN-QUESTIONS.md'].last); // `Resolved. … (PR #22, 2026-02-15)`: the date is not beside the marker (REVIEW S1)
     expect(closedEvent(p.get('LF-1')).at).toBe(DATES['BUGS.md'].last); // `fixed`, no date
-    expect(closedEvent(p.get('LF-20')).at).toBe(DATES['OPEN-QUESTIONS.md'].last); // 2026-02-10 and 2026-02-14: which is the close is not said
+    // (The resolved questions no longer close — D-M6E15-24 — so the "date not
+    // beside the marker" case is pinned in work-migrate-lists-r1.test.js, S1.)
   });
 
   it('a marker date before the file’s first date moves created back to it, and says so in the manifest — a close never precedes its creation', () => {

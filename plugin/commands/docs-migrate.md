@@ -43,10 +43,12 @@ committed, an undo line printed.
   `.planning/archive/pre-work-store/`. Afterwards `/sig:item new` works.
 - **A project whose lists have entries** — each `##`/`###` entry and bug-table row becomes one record,
   numbered `KEY-1` upward in the order BUGS, BACKLOG, ISSUES-INBOX, OPEN-QUESTIONS. An old ID (`B1`,
-  `#99`, `R3`) is kept in `legacy_id` and on the body's first line. An entry closes (as a legacy close,
-  its marker wording as proof) only when it says so plainly — struck through, or DONE / RESOLVED /
-  ANSWERED / FIXED / CLOSED / SHIPPED, not-a-bug, won't-fix, superseded; anything else, or markers that
-  disagree, stays open and is **flagged**. Text outside any entry becomes one flagged item per file.
+  `#99`, `R3`) is kept in `legacy_id` and on the body's first line. An entry closes (as a legacy close)
+  only when its wording says so plainly — struck through, or DONE / RESOLVED / ANSWERED / FIXED /
+  CLOSED / SHIPPED, not-a-bug, won't-fix, superseded, followed by nothing but a date, `in <ref>`, a dash
+  and a note, or `(` — **and** a commit, PR (`#N` in a commit subject) or Epic (with a retrospective)
+  it cites is found in this repository; the proof names both. Anything else stays open and **flagged**,
+  with a note saying what was found and not found. Text outside any entry becomes one flagged item per file.
   Dates come from each list's git history (first commit → created; last commit → an undated close),
   or the file's modification date outside git.
 - **The dry run** prints, per list, its counts (open / closed / flagged / non-item regions) and its

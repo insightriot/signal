@@ -175,12 +175,17 @@ describe('OPEN-QUESTIONS.md — `##` groupings over `###` items', () => {
     expect(seg.rows[0].heading).toBe('R3 — Missing delete policy on `pantry_events`');
   });
 
-  it("each item records its grouping heading and that heading's finished word", () => {
+  // `groupWord` is set only when the heading passes the finished-wording
+  // grammar (D-M6E15-24): "Resolved during …" does not ("during" is not an
+  // allowed continuation), so it is null and the planner reads it as unclear.
+  it("each item records its grouping heading, and a finished word only when the heading passes the grammar", () => {
     const seg = segmentQuestions(text);
     for (const r of seg.rows) {
       expect(r.groupHeading).toBe('Resolved during v4.1 (kept for reference)');
-      expect(r.groupWord).toBe('resolved');
+      expect(r.groupWord).toBeNull();
     }
+    const passing = segmentQuestions(text.replace('Resolved during v4.1 (kept for reference)', 'Resolved in v4.1 (kept for reference)'));
+    for (const r of passing.rows) expect(r.groupWord).toBe('resolved');
   });
 
   it('every `##` is a named non-item region, its text kept', () => {

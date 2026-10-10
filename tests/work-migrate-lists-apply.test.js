@@ -84,7 +84,9 @@ function corpusProject({ texts = {} } = {}) {
   write('.planning/BUGS.md', '# Bugs\n');
   commitAll(base, '2026-01-05');
   for (const f of LISTS) write(`.planning/${f}`, texts[f] ?? fixture(f));
-  commitAll(base, '2026-02-20');
+  // The subject carries PR #44, which B1 cites: a close needs a reference
+  // that resolves in this repository's history (D-M6E15-24).
+  commitAll(base, '2026-02-20', 'Add the lists (#44)');
 }
 
 beforeEach(() => {

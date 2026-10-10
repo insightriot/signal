@@ -17,7 +17,11 @@ const DATES = {
   'ISSUES-INBOX.md': { first: '2026-01-07', last: '2026-01-07' },
   'OPEN-QUESTIONS.md': { first: '2026-01-08', last: '2026-02-16' },
 };
-const plan = (texts, opts = {}) => planListsToRecords(texts, { key: 'LF', dates: DATES, ...opts });
+// PR #7 resolves (D-M6E15-24: a close needs a reference that does); every
+// fixture here cites it, so what these tests vary is the wording.
+const HASH = 'e41d30e9b7c2a1f0e41d30e9b7c2a1f0e41d30e9';
+const EVIDENCE = { commits: [HASH], prs: new Map([[7, HASH]]), epics: new Map() };
+const plan = (texts, opts = {}) => planListsToRecords(texts, { key: 'LF', dates: DATES, evidence: EVIDENCE, ...opts });
 const entries = (p) => p.records.filter((r) => r.flagged !== 'non-item');
 const one = (file, text) => {
   const p = plan({ [file]: text });
@@ -29,9 +33,9 @@ const one = (file, text) => {
 const status = (r) => ({ created: 'N', triaged: 'T', closed: 'C' }[r.record.events.at(-1).type]);
 const closedEvent = (r) => r.record.events.find((e) => e.type === 'closed');
 
-const bugEntry = (s) => ['# Bugs', '', '## The exporter drops a row', '', `**Status:** ${s}`, '', 'What happens.', '', '---', ''].join('\n');
+const bugEntry = (s) => ['# Bugs', '', '## The exporter drops a row', '', `**Status:** ${s}`, '', 'What happens. PR #7.', '', '---', ''].join('\n');
 const backlogRow = (heading, body) => ['# Backlog', '', `### ${heading}`, body, ''].join('\n');
-const grouped = (group) => ['# Open Questions', '', `## ${group}`, '', '### Q7 — Which currency?', '', 'Some text.', ''].join('\n');
+const grouped = (group) => ['# Open Questions', '', `## ${group}`, '', '### Q7 — Which currency?', '', 'Some text, PR #7.', ''].join('\n');
 
 describe('C1 — an open entry is never closed by inference (AC4.2)', () => {
   const unclearStatus = [
@@ -84,6 +88,6 @@ describe('S1 — a close date comes only from a date beside the finish marker (D
 
   it('"fixed 2026-02-04 — …" and "DONE — M9.E1, 2026-02-08" keep their dates', () => {
     expect(closedEvent(one('BUGS.md', bugEntry('fixed 2026-02-04 — rows are kept now.'))).at).toBe('2026-02-04');
-    expect(closedEvent(one('BACKLOG.md', backlogRow('#12 — Export · **roadmap** · small · **DONE — M9.E1, 2026-02-08**', 'Body.'))).at).toBe('2026-02-08');
+    expect(closedEvent(one('BACKLOG.md', backlogRow('#12 — Export · **roadmap** · small · **DONE — M9.E1, 2026-02-08**', 'Body, PR #7.'))).at).toBe('2026-02-08');
   });
 });
