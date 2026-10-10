@@ -417,9 +417,11 @@ const masked = (m) => (m.length > 8 ? `${m.slice(0, 6)}…` : m);
 // names, proofs) carries no control characters — C0, DEL, C1 — and no bidi
 // overrides or isolates: a terminal would act on them, or show the text in
 // another order than it is stored. Applied per line, so the report's own line
-// breaks stay. Also the marks that move or hide text without showing (REVIEW
-// pass 3 suggestion): LRM, RLM, ALM, the line and paragraph separators, and
-// the zero-width characters.
+// breaks stay. Every control (Cc) and format (Cf) character goes, which takes
+// in the marks that move or hide text (LRM, RLM, ALM, zero-width, the BOM) and
+// the invisible tag characters that could carry text a model reads and a
+// person does not (REVIEW pass 4); plus the line and paragraph separators and
+// the variation selectors.
 const printable = (s) => String(s).replace(/[\p{Cc}\p{Cf}\u2028\u2029\p{Variation_Selector}]/gu, '');
 
 function dryRunReport(a) {
