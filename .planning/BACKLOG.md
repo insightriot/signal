@@ -2390,3 +2390,17 @@ Next step: turn on the action's full output (show_full_output) on a test PR to s
 **Status:** triaged (T)
 
 Deferred from M6.E15 by D-M6E15-17 (land on corpus project 1 first). Shapes recorded in .planning/M6.E15-REQUIREMENTS.md (Why now table) and M6.E15-RESEARCH.md §1: a BACKLOG that is a prose roadmap with a numbered list and no headings (today it would become one flagged non-item entry); bugs as `##` write-ups with status in bold prose; inbox (217 lines) and open questions (383 lines) as long `##` write-ups whose finished ones are struck through with RESOLVED <date>. Run the migration dry run on a scratch clone first and file what it gets wrong.
+
+### Jev second opinion on migrated closes (flag-only) — build only if a migrated close proves wrong · SIG-291
+
+**Status:** triaged (T)
+
+Parked by Brett, 2026-10-10, after D-M6E15-24.
+
+The work-store migration (/sig:docs-migrate --work-store) closes a hand-kept entry only when its wording plainly says finished AND a cited reference resolves in the repo (commit, PR in a commit subject, Epic with a retrospective). The remaining gap is an entry whose wording and reference both pass but whose text admits the work is partial — e.g. "Done in <Epic> (S6): desktop-only notice … real responsive layout not done".
+
+Idea: when TYPESAFE_API_KEY is set, ask Jev (plugin/tools/lib/jev.js askChoice) per closed entry "finished / partial / not finished"; a disagreement only adds a flag to the dry run, never closes and never refuses (same contract as bug-fixed-jev.js).
+
+Brett's caution, recorded: if Jev disagrees often, the fault is upstream (the rule or the lists), not something Jev can fix. So it is worth building only on evidence.
+
+Trigger: Brett's triage after the first real migration (corpus project 1) finds at least one entry the rule closed that was not finished. If triage finds none, close this as wontdo.
