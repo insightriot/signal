@@ -1,0 +1,34 @@
+{
+  "id": "SIG-292",
+  "type": "BUG",
+  "title": "Work-store migration: a backlog row absorbs a folded <details> block below it, so its evidence check can borrow a sibling's PR reference",
+  "theme": "work-store",
+  "priority": "P2",
+  "source": "M6.E15 fix loop 2",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-10T21:21:48.741Z",
+      "by": "claude (M6.E15 fix loop 2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-10T21:21:48.796Z",
+      "by": "claude (M6.E15 fix loop 2)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "BUG"
+        },
+        "theme": {
+          "from": null,
+          "to": "work-store"
+        },
+        "priority": {
+          "from": null,
+          "to": "P2"
+        }
+      }
+    }
+  ]
+}
