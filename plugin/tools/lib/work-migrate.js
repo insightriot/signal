@@ -439,15 +439,23 @@ function liveBacklogHeadings(lines, maxDepth) {
 // trailing ` · **tag** · size` and ` · **DONE — …**` segments dropped, last
 // first. Nothing else is touched — a leading `#99 — ` stays (the old ID is
 // `legacyId` too). The raw heading stays on the row and as its text's first line.
-const TITLE_TAIL_RE = /\s*·\s*(?:\*\*[^*]{1,200}\*\*|small|medium|large)\s*$/i;
+//
+// Linear on any heading (REVIEW pass 2 I-D): the tails are cut from the end by
+// moving an index, each one matched in a bounded window ending there — never
+// a pattern over the whole heading once per tail.
+const TITLE_TAIL_RE = /·\s{0,40}(?:\*\*[^*]{1,200}\*\*|small|medium|large)$/i;
+const TITLE_TAIL_WINDOW = 260;
 
 function backlogTitle(heading) {
-  let t = heading.replace(/~~/g, '').trim();
-  for (let prev = null; prev !== t; ) {
-    prev = t;
-    t = t.replace(TITLE_TAIL_RE, '').trim();
+  const t = heading.replace(/~~/g, '');
+  let end = t.length;
+  for (;;) {
+    while (end > 0 && /\s/.test(t[end - 1])) end--;
+    const m = t.slice(Math.max(0, end - TITLE_TAIL_WINDOW), end).match(TITLE_TAIL_RE);
+    if (!m) break;
+    end -= m[0].length;
   }
-  return t;
+  return t.slice(0, end).trim();
 }
 
 /**
@@ -504,10 +512,23 @@ export function segmentBacklog(text) {
 // entry (the trigger watchlist) is not a work item (`D-M6E11-18`); it is
 // returned on its own so the generator can re-emit it verbatim.
 
-function lineOfOffset(text, offset) {
-  let n = 1;
-  for (let i = 0; i < offset; i++) if (text.charCodeAt(i) === 10) n++;
-  return n;
+// The 1-based line of a character offset, from the line starts computed once
+// per file (REVIEW pass 2 I-D: a scan from the top per entry was quadratic).
+function lineStarts(text) {
+  const starts = [0];
+  for (let i = text.indexOf('\n'); i !== -1; i = text.indexOf('\n', i + 1)) starts.push(i + 1);
+  return starts;
+}
+
+function lineOfOffset(starts, offset) {
+  let lo = 0;
+  let hi = starts.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (starts[mid] <= offset) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo + 1;
 }
 
 /**
@@ -516,12 +537,13 @@ function lineOfOffset(text, offset) {
 export function segmentInbox(text) {
   const src = String(text);
   const lines = src.split('\n');
+  const starts = lineStarts(src);
   const rows = [];
   let watchlist = null;
   for (const e of parseEntries(src)) {
-    const start = lineOfOffset(src, e.range.start);
+    const start = lineOfOffset(starts, e.range.start);
     // `range.end` is the first byte of the next heading line (or EOF).
-    const endExclusive = e.range.end >= src.length ? lines.length + 1 : lineOfOffset(src, e.range.end);
+    const endExclusive = e.range.end >= src.length ? lines.length + 1 : lineOfOffset(starts, e.range.end);
     const end = trimRowEnd(lines, start, endExclusive - 1);
     const region = { line: start, endLine: end, text: sliceLines(lines, start, end) };
     if (e.standing) {
@@ -558,7 +580,15 @@ export function segmentInbox(text) {
 // the `##` it sits under and that heading's finished word, for the planner.
 // A file with no `### ` heading splits exactly as before.
 
-const ANSWERED_RE = /~~[^~]+~~.*\bANSWERED\b/;
+// Answered = a struck span, then ANSWERED somewhere after it. Two linear
+// steps (REVIEW pass 2 I-D): `~~[^~]+~~.*\bANSWERED\b` backtracked from every
+// struck span to the end of the line.
+const STRUCK_SPAN_RE = /~~[^~]+~~/;
+const ANSWERED_WORD_RE = /\bANSWERED\b/;
+function isAnswered(heading) {
+  const m = heading.match(STRUCK_SPAN_RE);
+  return m !== null && ANSWERED_WORD_RE.test(heading.slice(m.index + m[0].length));
+}
 const H3_RE = /^### /;
 const GROUP_WORDS = new Set(['resolved', 'done', 'closed']);
 
@@ -714,7 +744,7 @@ export function segmentQuestions(text) {
       endLine: end,
       text: sliceLines(lines, h, end),
       heading,
-      answered: ANSWERED_RE.test(heading),
+      answered: isAnswered(heading),
       legacyId: legacyIdOf(heading),
       ...groupOf(h),
     };

@@ -980,8 +980,12 @@ function readMarkers(file, row) {
   const heading = file === 'BUGS.md' && row.kind === 'table' ? null : row.heading;
   if (heading) {
     if (STRUCK_RE.test(heading)) markers.push({ reason: 'fixed', text: heading });
+    // A bold run with nothing but `~` and spaces before it is the title, not
+    // an annotation. Where the text starts is found once (REVIEW pass 2 I-D:
+    // a slice per bold run was quadratic).
+    const textStart = heading.search(/[^~\s]/);
     for (const m of heading.matchAll(BOLD_RE)) {
-      if (heading.slice(0, m.index).replace(/[~\s]/g, '') === '') continue; // the title, not an annotation
+      if (textStart === -1 || m.index <= textStart) continue; // the title, not an annotation
       take(m[1]);
       if (UNMAPPED_FINISH_RE.test(m[1])) unmappedFinish.push(m[1]);
     }
