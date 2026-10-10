@@ -99,6 +99,9 @@ describe('C1 (a) — the allowed-continuation grammar (D-M6E15-24)', () => {
     ['shipped - in the March build', 'fixed'],
     ['fixed in M9.E2 (S4) — empty slots are passed over.', 'fixed'],
     ['Closed. Nothing to do.', 'fixed'],
+    // "again" is not an undoing word: a button label ("Try again") is common in
+    // a fix note (measured on a corpus scratch run, fix loop 2).
+    ['fixed in M9.E2 (S4) — the Try again button re-runs the open.', 'fixed'],
     ['Closed — superseded', 'stale'],
     ['not-a-bug (closed 2026-03-02) — works as designed.', 'rejected'],
     ["won't-fix — the old exporter is going away.", 'wontdo'],

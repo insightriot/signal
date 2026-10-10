@@ -639,7 +639,7 @@ const FINISH_ANY_RE = new RegExp(`\\b(?:${FINISH_WORDS})\\b`, 'i');
 const NEVER_MARKER_RE = /\bdone\s+when\b|\bof\s+done\b/i;
 const UNDOING_RE = new RegExp('\\?|-ish\\b|\\b(?:'
   + 'not|no|never|yet|until|when|once|pending|blocked|waiting|will|to\\s+be|'
-  + 'partially|partly|mostly|largely|but|though|although|except|still|again|broken|wrong|'
+  + 'partially|partly|mostly|largely|but|though|although|except|still|broken|wrong|'
   + 'tbd|todo|theory|maybe|probably|unclear|unknown|unverified|'
   + 'reopen(?:ed|s|ing)?|revert(?:ed|s|ing)?|rolled\\s+back|undone'
   + ')\\b', 'i');
