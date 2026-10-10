@@ -6,11 +6,11 @@
 // written (S4 writes). The fixtures under `fixtures/work-migrate-corpus1/` are
 // invented text in corpus project 1's shapes; the project is never named.
 //
-// ⚠ The corpus fixture's BACKLOG.md carries a `<!-- backlog-key: … -->`
-// marker — Signal's own 40-hex sha1 dedupe key — which the sensitive-data
-// scrubber reads as a `hex-blob-40` hit. So every whole-corpus plan here passes
-// `acknowledgeSensitive: true`, exactly as a person would after reading the
-// hit. The abort itself is pinned in its own describe block (t3.5).
+// The corpus fixture's BACKLOG.md carries a `<!-- backlog-key: … -->` marker
+// — Signal's own 40-hex sha1 dedupe key. The shared scrubber reads it as a
+// `hex-blob-40` hit; the migration's scan skips exactly that comment form and
+// `<!-- bugs-key: … -->` (D-M6E15-23), so whole-corpus plans here run with no
+// acknowledgement. The abort on a real secret is pinned in t3.5.
 
 import { describe, it, expect } from 'vitest';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -35,7 +35,7 @@ const DATES = {
   'OPEN-QUESTIONS.md': { first: '2026-01-08', last: '2026-02-16' },
 };
 
-const plan = (texts, opts = {}) => lists.planListsToRecords(texts, { key: 'LF', dates: DATES, acknowledgeSensitive: true, ...opts });
+const plan = (texts, opts = {}) => lists.planListsToRecords(texts, { key: 'LF', dates: DATES, ...opts });
 const status = (record) => {
   const last = record.events.at(-1).type;
   return { created: 'N', triaged: 'T', closed: 'C' }[last];
@@ -253,11 +253,22 @@ describe('t3.2 — no marker, an unknown word, or markers that disagree: open an
     expect(r.flagged).toBe('conflict');
   });
 
-  it('a finished word the backlog reader knows but this migration does not map (SHIPPED) → open, flagged', () => {
+  it('SHIPPED is a finished word: **SHIPPED v2.1** closes as fixed, the marker as proof (D-M6E15-23)', () => {
     const r = one('BACKLOG.md', backlogRow('#15 — Share a plan · **roadmap** · small · **SHIPPED v2.1**'));
-    expect(status(r.record)).toBe('T');
-    expect(r.flagged).toBe('finished-word-unmapped');
-    expect(r.record.migration_note).toContain('SHIPPED');
+    expect(status(r.record)).toBe('C');
+    expect(r.flagged).toBeNull();
+    const close = r.record.events.at(-1);
+    expect(close).toMatchObject({ type: 'closed', reason: 'fixed', legacy: true });
+    expect(close.proof).toContain('SHIPPED');
+  });
+
+  it('ABANDONED and CUT alone stay open and flagged, never closed (D-M6E15-23)', () => {
+    for (const word of ['ABANDONED', 'CUT']) {
+      const r = one('BACKLOG.md', backlogRow(`#16 — Share a plan · **roadmap** · small · **${word} — v2.1**`));
+      expect(status(r.record), word).toBe('T');
+      expect(r.flagged, word).toBe('finished-word-unmapped');
+      expect(r.record.migration_note, word).toContain(word);
+    }
   });
 
   it('an unmapped finished word beside a mapped marker (struck + ABANDONED) → open, flagged conflict — never closed as fixed', () => {
@@ -478,11 +489,29 @@ describe('t3.5 — every planned record is valid, bodies are scrubbed, and Signa
     expect(p.records[0].body).toContain(key);
   });
 
-  it('the corpus’s backlog-key marker (a 40-hex sha1) is a hit too, so an unacknowledged corpus plan stops', () => {
+  it('Signal’s own dedupe-key comments are not secrets: the corpus plans with no acknowledgement (D-M6E15-23)', () => {
     const p = lists.planListsToRecords(corpus(), { key: 'LF', dates: DATES });
-    expect(p.aborted).toBe('sensitive-data-pending');
-    expect(p.records).toEqual([]);
-    expect(p.hits.map((h) => [h.file, h.type])).toEqual([['BACKLOG.md', 'hex-blob-40']]);
+    expect(p.aborted).toBeUndefined();
+    expect(p.records.length).toBeGreaterThan(0);
+    const sha = 'a'.repeat(20) + '0123456789abcdef0123';
+    for (const comment of [`<!-- backlog-key: ${sha} -->`, `<!-- bugs-key: ${sha} -->`]) {
+      const q = lists.planListsToRecords({ 'BACKLOG.md': backlogRow('#20 — A row', `${comment}\nBody.`) }, { key: 'LF', dates: DATES });
+      expect(q.aborted, comment).toBeUndefined();
+    }
+  });
+
+  it('the skip is exactly those two comments: the same hex anywhere else is still a hit (D-M6E15-23)', () => {
+    const sha = 'b'.repeat(20) + '0123456789abcdef0123';
+    for (const text of [
+      `bare ${sha} in prose`,
+      `<!-- other-key: ${sha} -->`,
+      `<!-- backlog-key: ${sha} extra -->`,
+      `<!-- backlog-key: ${sha} -->\nand again bare: ${sha}`,
+    ]) {
+      const q = lists.planListsToRecords({ 'BACKLOG.md': backlogRow('#21 — A row', text) }, { key: 'LF', dates: DATES });
+      expect(q.aborted, text).toBe('sensitive-data-pending');
+      expect(q.hits.map((h) => h.type), text).toEqual(['hex-blob-40']);
+    }
   });
 
   it('AC7.2: the module neither imports nor names closeEvents / NO_COMMIT_LEGACY_IDS (Signal’s own data)', () => {

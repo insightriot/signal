@@ -474,25 +474,27 @@ function titleOf(file, row) {
 //   - in OPEN-QUESTIONS.md, the section heading an entry sits under, when it
 //     says Resolved / Done / Closed (the segmenter's `groupWord`).
 //
-// Words, any case: done / resolved / answered / fixed / closed → `fixed`;
+// Words, any case: done / resolved / answered / fixed / closed / shipped →
+// `fixed` (SHIPPED joined at D-M6E15-23);
 // not-a-bug → `rejected`; won't-fix → `wontdo`; superseded → `stale`. Within
 // ONE marker a specific word wins over a generic one (`Closed — superseded`
 // is a close because superseded: `stale`). ACROSS markers, two reasons — or a
 // marker beside a status that is not one — is a conflict: open, flagged. A
 // qualified word (`partially resolved`, `not fixed`) is unclear: open,
 // flagged. A finished word the backlog reader knows but this list does not
-// map (SHIPPED, ABANDONED, CUT) is flagged, never guessed — alone, or beside
-// a marker that does map (`~~…~~ · **ABANDONED**` is not a fixed close).
+// map (ABANDONED, CUT — `wontdo` or partial work, D-M6E15-23) is flagged,
+// never guessed — alone, or beside a marker that does map (`~~…~~ ·
+// **ABANDONED**` is not a fixed close).
 // Nothing throws.
 
-const FINISH_RE = /\b(?:done|resolved|answered|fixed|closed)\b/i;
-const QUALIFIED_FINISH_RE = /\b(?:partially|partly|mostly|largely|not)\s+(?:done|resolved|answered|fixed|closed)\b/i;
+const FINISH_RE = /\b(?:done|resolved|answered|fixed|closed|shipped)\b/i;
+const QUALIFIED_FINISH_RE = /\b(?:partially|partly|mostly|largely|not)\s+(?:done|resolved|answered|fixed|closed|shipped)\b/i;
 const SPECIFIC_FINISH = [
   [/\bnot[- ]a[- ]bug\b/i, 'rejected'],
   [/\bwon['’]?t[- ]?fix\b/i, 'wontdo'],
   [/\bsuperseded\b/i, 'stale'],
 ];
-const UNMAPPED_FINISH_RE = /\b(?:SHIPPED|ABANDONED|CUT)\b/;
+const UNMAPPED_FINISH_RE = /\b(?:ABANDONED|CUT)\b/;
 const STRUCK_RE = /~~[^~]+~~/;
 const BOLD_RE = /\*\*([^*]+)\*\*/g;
 const STATUS_LINE_RE = /^\*\*Status:\*\*\s*(.*)$/;
@@ -565,6 +567,19 @@ function readMarkers(file, row) {
 }
 
 const quote = (s) => `“${s}”`;
+
+// The `<!-- backlog-key: … -->` / `<!-- bugs-key: … -->` comments Signal's own
+// promote writes (`backlog.js`, a sha1 of the block), exactly: lowercase hex,
+// 40 digits, single spaces. Any other spelling is scanned as usual.
+const DEDUPE_KEY_COMMENT_G = /<!-- (?:backlog|bugs)-key: [0-9a-f]{40} -->/g;
+
+// `scrubSensitive`'s hits for `text`, minus any lying wholly inside one of
+// those comments — by position, so the same hex written anywhere else is still
+// a hit (D-M6E15-23). The shared scrubber is unchanged.
+function sensitiveHits(text) {
+  const spans = [...String(text).matchAll(DEDUPE_KEY_COMMENT_G)].map((m) => [m.index, m.index + m[0].length]);
+  return scrubSensitive(text).hits.filter((h) => !spans.some(([a, b]) => h.index >= a && h.index + h.match.length <= b));
+}
 
 // The entry's outcome: `{close: {reason, proof}}`, or `{flag, note}` (open).
 function decide(file, row) {
@@ -782,8 +797,9 @@ export function planListsToRecords(texts, opts = {}) {
   // The sensitive-data gate `newItems` applies (scrub.js): list text from
   // another repository is data, and a hit stops the plan for a person's
   // decision. Detection only — with `acknowledgeSensitive` the text is kept
-  // verbatim, never redacted in silence.
-  const hits = records.flatMap((r) => [r.record.title, r.body].flatMap((t) => scrubSensitive(t).hits)
+  // verbatim, never redacted in silence. Signal's own dedupe-key comments are
+  // not secrets (D-M6E15-23): a hit lying wholly inside one is skipped.
+  const hits = records.flatMap((r) => [r.record.title, r.body].flatMap(sensitiveHits)
     .map((h) => ({ id: r.record.id, file: r.sourceRef.file, type: h.type, match: h.match })));
   if (hits.length > 0 && !opts.acknowledgeSensitive) {
     return { key, records: [], regions, manifest, errors, aborted: 'sensitive-data-pending', hits };
