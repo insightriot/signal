@@ -4126,3 +4126,22 @@ for a false alarm. The migration's scan skips exactly those two comment forms; t
 unchanged everywhere else. `SHIPPED` joins the `fixed` words of `D-M6E15-18`; `ABANDONED` and `CUT`
 stay open and flagged (ambiguous between `wontdo` and partial work, `D-M6E15-1`). Plumbing, decided by
 the orchestrator after S3 surfaced both.
+
+### D-M6E15-24 — A migrated entry closes only on plain wording AND a reference that checks out (REVIEW pass 2, 2026-10-10)
+Replaces the marker part of `D-M6E15-10` / `D-M6E15-18` after REVIEW passes 1 and 2 both found open
+entries closed by inference (C1, C1 residue). Brett: *"ideally it's rooted in reality … 'done' can be
+factually ascertained."* An entry closes only when **both** hold: (a) its status wording passes a
+bounded **allowed-continuation** grammar — a finish word followed only by a date, `in <ref>`, `—` or
+`(`; a trailing `?`, a `:`-negation or any other continuation reads as unclear (an allow-list, because
+a deny-list leaks by construction); **and** (b) at least one reference anywhere in the entry resolves in
+this repository — a commit hash that exists, a PR number found in a commit subject (`(#N)` or
+`Merge pull request #N`), or an Epic ID with a `*-RETROSPECTIVE.md` on disk. Anything else stays open
+with a `migration_note` saying what was found and not found. The proof records both the wording and the
+evidence (`PR #157 → e41d30e`). The evidence index is built once from fixed-argument `git log`; no list
+text reaches git's argument list. The gate can only make entries *more* open, so a defect in it
+over-flags rather than wrongly closing. **This is git and retrospective evidence, not running the code
+or checking a screen** — list text cannot give more. Measured on a scratch copy of corpus project 1:
+cited PRs resolve in its history and its Epic IDs have retros; answered questions with no reference
+become flagged, by design. **Going forward this already holds:** `ship.md` § 6.6 closes an Epic's items
+with its commit as proof, confirmed only once that commit is on the default branch. A Jev second
+opinion (flag-only, never closes) is a separate follow-up item.
