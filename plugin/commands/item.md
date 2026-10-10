@@ -100,11 +100,11 @@ The body is not a record field: edit `SIG-n.md` directly.
 
 `getRecord(baseDir, id)` → the label, path, status, Epic (if any), the record's fields and events, and the body. Records of archived Epics are read the same way: a record never leaves `items/`.
 
-An argument that is not an item ID (`KEY-n`) is an old ID — `#99`, `R3`, `B7`, kept in `legacy_id` when the lists moved to the store: `findByLegacyId(baseDir, oldId)` returns the item's entry (its `id` among it), then `getRecord` as above. Say which item the old ID resolved to.
+An argument is an item ID only when it is `<key>-n` with this store's own key — the `key:` in `.planning/work/WORK.md` (`SIG-412` in a store keyed `SIG`). Anything else is an old ID, kept in `legacy_id` when the lists moved to the store — `#99`, `R3`, `B7`, and old IDs shaped like item IDs, `NFR-04` or `BUG-7`: `findByLegacyId(baseDir, oldId)` returns the item's entry (its `id` among it), then `getRecord` as above. If `getRecord` throws `NOT_FOUND` for a `<key>-n` argument, try `findByLegacyId` with it before saying it does not exist. Say which item the old ID resolved to.
 
 ### `list [filters]` — many items
 
-`listRecords(baseDir)` and filter its `records` by `status`, `record.type`, `record.theme`, `record.priority` or `epic`, each optional. Given an old ID instead of a filter, list the one item `findByLegacyId(baseDir, oldId)` returns. Print one line per item: label, title, path. With `--themes`, print each `theme` in use with its count instead. If `broken` is non-empty, say so under the list and name each by ID and path — a broken record is never silently left out.
+`listRecords(baseDir)` and filter its `records` by `status`, `record.type`, `record.theme`, `record.priority` or `epic`, each optional. Given an old ID instead of a filter (by the same rule as `show`), list the one item `findByLegacyId(baseDir, oldId)` returns. Print one line per item: label, title, path. With `--themes`, print each `theme` in use with its count instead. If `broken` is non-empty, say so under the list and name each by ID and path — a broken record is never silently left out.
 
 ## Checking the store
 

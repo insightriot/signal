@@ -86,6 +86,15 @@ describe('/sig:item command file', () => {
     expect(text).not.toMatch(/create `\.planning\/work\/WORK\.md` with `key: SIG`/);
   });
 
+  it('show/list: only `<this store\'s key>-n` is an item ID; anything else, or a NOT_FOUND, is looked up as an old ID (REVIEW I3)', () => {
+    const show = section('show');
+    expect(show).toMatch(/item ID only when it is `<key>-n` with this store's own key/);
+    expect(show).toMatch(/`key:` in `\.planning\/work\/WORK\.md`/);
+    expect(show).toContain('`NFR-04`');
+    expect(show).toMatch(/`getRecord` throws `NOT_FOUND`[^\n]*`findByLegacyId`/);
+    expect(section('list')).toMatch(/by the same rule as `show`[^\n]*findByLegacyId\(/);
+  });
+
   it('attention, not gate_strictness, governs triage confirmation', () => {
     expect(text).toMatch(/attention[^\n]*confirm/i);
     for (const level of ['attended', 'checkpointed', 'unattended']) expect(text).toContain(`\`${level}\``);

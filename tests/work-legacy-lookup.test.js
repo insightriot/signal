@@ -9,7 +9,7 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { bodyPath, findByLegacyId, recordPath } from '../plugin/tools/lib/work-records.js';
+import { bodyPath, findByLegacyId, getRecord, recordPath } from '../plugin/tools/lib/work-records.js';
 import { serializeRecord } from '../plugin/tools/lib/work-record.js';
 import { checkDanglingReferences } from '../plugin/tools/lib/doc-hygiene.js';
 
@@ -43,6 +43,16 @@ describe('t5.1 — findByLegacyId (AC5.3, D-M6E15-12)', () => {
     expect(hit.id).toBe('LF-9');
     expect(hit.record.legacy_id).toBe('#99');
     expect(findByLegacyId(base, 'R3').id).toBe('LF-10');
+  });
+
+  it('an old ID shaped like an item ID (`NFR-04`, `BUG-7`) is found; getRecord does not (REVIEW I3)', async () => {
+    await storeOn('LF');
+    await plant(rec('LF-3', { legacy_id: 'NFR-04' }));
+    await plant(rec('LF-4', { legacy_id: 'BUG-7' }));
+    expect(findByLegacyId(base, 'NFR-04').id).toBe('LF-3');
+    expect(findByLegacyId(base, 'BUG-7').id).toBe('LF-4');
+    // Why /sig:item routes by the store's key: `BUG-7` is ID-shaped, and as an ID it names nothing here.
+    expect(() => getRecord(base, 'BUG-7')).toThrow(expect.objectContaining({ code: 'NOT_FOUND' }));
   });
 
   it('whitespace is normalised; anything else must match exactly', async () => {
