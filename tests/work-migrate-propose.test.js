@@ -217,3 +217,39 @@ describe('evidence comes from the default branch only (D-M6E15-25)', () => {
     expect(idx.commits).not.toContain(sideHash);
   });
 });
+
+describe('I-1 — evidence is the entry’s own text; a child question’s own heading is read (REVIEW pass 3)', () => {
+  const question = (group, heading, body) => ['# Open Questions', '', `## ${group}`, '', `### ${heading}`, '', body, ''].join('\n');
+  const only = (text) => {
+    const p = plan({ 'OPEN-QUESTIONS.md': text });
+    expect(p.errors).toEqual([]);
+    return { r: p.records.filter((x) => x.flagged !== 'non-item')[0], p };
+  };
+
+  it('a reference in the grouping heading is not evidence for a child that cites none → open, no-evidence', () => {
+    const { r, p } = only(question('Resolved in PR #157', 'Q7 — Which currency?', 'We went with the euro.'));
+    expect(status(r)).toBe('T');
+    expect(r.flagged).toBe('no-evidence');
+    expect(p.proposedCloses).toEqual([]);
+  });
+
+  it('the child’s own reference still counts', () => {
+    const { r, p } = only(question('Resolved in v2', 'Q7 — Which currency?', 'Settled in PR #157.'));
+    expect(r.flagged).toBe('looks-finished');
+    expect(p.proposedCloses.map((c) => c.legacyId)).toEqual(['Q7']);
+  });
+
+  it('the pass-3 repro: "### R2 — Reopened: still blocking" under a Resolved heading → open, unclear', () => {
+    const { r, p } = only(question('Resolved in v2', 'R2 — Reopened: still blocking', 'Settled in PR #157.'));
+    expect(status(r)).toBe('T');
+    expect(r.flagged).toBe('unclear');
+    expect(r.record.migration_note).toContain('Reopened: still blocking');
+    expect(p.proposedCloses).toEqual([]);
+  });
+
+  for (const h of ['Q8 — Re-opened after the v3 report', 'Q9 — Regressed in v3', 'Q10 — Not resolved yet', 'Q11 — Rolled-back export', 'Q12 — Still pending']) {
+    it(`"### ${h}" under a Resolved heading → unclear`, () => {
+      expect(only(question('Resolved in v2', h, 'Settled in PR #157.')).r.flagged).toBe('unclear');
+    });
+  }
+});

@@ -101,6 +101,7 @@ import {
   bugTitle,
   clip,
   finishedLead,
+  headingUndoes,
   legacyIdOf,
   markerDates,
   segmentBacklog,
@@ -1076,6 +1077,12 @@ function readMarkers(file, row) {
       if (lead.reasons.size > 0 || lead.unclear) take(line.trim());
     }
   }
+  // A question's own plain heading is read too (REVIEW pass 3 I-1): under a
+  // "Resolved" section, "R2 — Reopened: still blocking" undoes the section.
+  if (file === 'OPEN-QUESTIONS.md' && markers.length > 0 && heading) {
+    const own = withoutLegacyId(heading.replace(BOLD_RE, ' '), row.legacyId ?? null);
+    if (headingUndoes(own)) unclear.push(heading);
+  }
   return { markers, unclear, statuses, unmappedFinish, statusLine };
 }
 
@@ -1281,7 +1288,9 @@ function decide(file, folded, evidence) {
   }
   if (reasons.size === 1) {
     const wording = [...new Set(m.markers.map((x) => x.text))].join('; ');
-    const checked = checkEvidence([row.text, ...m.markers.map((x) => x.text)].join('\n'), legacyOf(file, row), evidence);
+    // The entry's own text only (REVIEW pass 3 I-1): a grouping heading's
+    // reference is not evidence for every entry under it.
+    const checked = checkEvidence(row.text, legacyOf(file, row), evidence);
     const said = `Its wording says ${m.markers.map((x) => quote(clip(printable(x.text)))).join(', ')}`;
     if (checked.found.length === 0) {
       let why;

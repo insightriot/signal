@@ -643,6 +643,21 @@ const UNDOING_RE = new RegExp('\\?|-ish\\b|\\b(?:'
   + 'tbd|todo|theory|maybe|probably|unclear|unknown|unverified|'
   + 'reopen(?:ed|s|ing)?|revert(?:ed|s|ing)?|rolled\\s+back|undone'
   + ')\\b', 'i');
+// A question's own plain heading, read when the entry carries a finish marker
+// (REVIEW pass 3 I-1): words that say the state was undone or is still open.
+// Narrower than UNDOING_RE on purpose — a question heading ends with `?` and
+// uses "when", "will", "no" as ordinary words, so those are not here.
+const STATE_UNDOING_RE = new RegExp('\\b(?:'
+  + 're-?open(?:ed|s|ing)?|revert(?:ed|s|ing)?|rolled[\\s-]+back|un-?done|un-?fixed|un-?resolved|unanswered|'
+  + 'regress(?:ed|es|ing|ion)?|still|blocked|blocking|pending|open\\s+again|'
+  + 'not\\s+(?:yet\\s+)?(?:resolved|answered|done|fixed|closed|settled|decided)'
+  + ')\\b|n[\'’]t\\b', 'i');
+
+export function headingUndoes(text) {
+  const plain = String(text).replace(/[*_~`]/g, ' ');
+  return STATE_UNDOING_RE.test(plain) || finishedLead(plain).unclear;
+}
+
 // The steps rule 5 allows right after the finish word, and how what is left
 // may start.
 const DATE_STEP_RE = /^\s{0,3},?\s{0,3}(?:on\s{1,3})?\d{4}-\d{2}-\d{2}\b/i;
