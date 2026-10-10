@@ -17,17 +17,22 @@
 // changes staged and not committed, and prints the undo line. Refusals come
 // first and write nothing, in a dry run or an apply:
 //
+//   - list copies in the archive with no MANIFEST.json → an earlier run was
+//     interrupted; names the pre-work-store tag to reset to (checked first);
 //   - `WORK.md` exists, whatever it holds → "already on the store"
 //     (D-M6E11-21; `isStoreOn` throws on a broken one, so this checks the file
 //     exists rather than asking it);
 //   - a path the run reads or writes runs through a symbolic link, or
 //     `.planning/` resolves outside the repository (M6.E14's linked-`.planning`
-//     class); a list that is a link or not a regular file is never read;
+//     class); a list, STATE.md or a lock file (`.planning/work/.lock`,
+//     `.planning/.add.lock`) that is a link is never read; a
+//     `.planning/work/.lock` with no store is refused as left over;
 //   - layout below v3, or no STATE.md → names the plain command (D-M6E15-8);
 //   - a `--key` that `STORE_KEY_RE` rejects, or no key to propose → the rule;
 //   - a store file or archive copy already at a path the run would write;
 //   - the plan fails its checks (a source byte unaccounted for, an invalid
-//     record) — the whole apply is refused (D-M6E15-9).
+//     record) — the whole apply is refused (D-M6E15-9);
+//   - an apply without the dry run's `inputHash` as `expectedHash`.
 // A sensitive-data hit in a planned record (scrub.js; Signal's own dedupe-key
 // comments excepted, D-M6E15-23) is listed by the dry run and stops the apply
 // (`aborted: 'sensitive-data-pending'`) until the caller passes
@@ -38,6 +43,10 @@
 //
 // The input hash covers STATE.md and the four lists (AC6.4): a change to any of
 // them between the dry run and the apply aborts the apply before any write.
+// The apply holds the store's `work` lock and `/sig:add`'s `.add.lock` (with no
+// WORK.md, `/sig:add` writes to the lists under that lock only), and re-reads
+// each list just before the archive step and the archived copies after it: a
+// list changed while the apply ran undoes the swap and refuses (REVIEW I1).
 //
 // Dates (D-M6E15-19): each list's first and last commit dates from git,
 // following renames; outside git, or for a file git has no history for, the
@@ -56,7 +65,8 @@
 // and the built store moves in. On any failure after the first move the
 // project is put back: each generated view is deleted, then its archive copy
 // is renamed back — never written over a view (`atomicWrite` refuses a
-// generated file). The snapshotter is not used.
+// generated file). WORK.md and the views are never moved in over a file that
+// appeared at their path (`moveInNew`). The snapshotter is not used.
 //
 // No v2 store module may import this one (`tests/legacy-lists.test.js`
 // V2_MODULES): it reaches the list parsers.

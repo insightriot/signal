@@ -96,7 +96,7 @@ From `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-migrate-lists.js`. It never calls `se
 
 1. **Dry run** — `const dry = await runWorkStoreMigrate(baseDir, {apply: false, key})`. If `dry.refused`, print `dry.reason` and stop. Otherwise print `dry.report` — the key, each list's counts and dates, every planned item and its flag, any sensitive-data hits — and hold `dry.inputHash`.
 2. **Confirm** — the user confirms the key (or re-runs with `--key KEY`) and has seen the counts and the flagged items. If `dry.sensitiveHits` is not empty, ask: **keep** the text as it is, or **abort** and edit the list first. No confirmation → stop, having written nothing.
-3. **Apply** (`--apply` only) — `await runWorkStoreMigrate(baseDir, {apply: true, force, key: dry.key, expectedHash: dry.inputHash, acknowledgeSensitive})`, with `acknowledgeSensitive: true` only when the user chose keep. A `refused` result (dirty tree, `STATE.md` or a list changed since the dry run) or `aborted: 'sensitive-data-pending'` → print `reason` and stop. Otherwise print `result.report`, which ends with the pre-apply tag and `result.revertLine`.
+3. **Apply** (`--apply` only) — `await runWorkStoreMigrate(baseDir, {apply: true, force, key: dry.key, expectedHash: dry.inputHash, acknowledgeSensitive})`, with `acknowledgeSensitive: true` only when the user chose keep. A `refused` result (dirty tree, `STATE.md` or a list changed since the dry run or while the apply ran, an earlier run interrupted part-way) or `aborted: 'sensitive-data-pending'` → print `reason` and stop. Otherwise print `result.report`, which ends with the pre-apply tag and `result.revertLine`.
 
 ## Lib symbols this command calls
 
