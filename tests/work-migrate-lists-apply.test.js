@@ -540,22 +540,71 @@ describe('I5 — the lock paths are confined; a leftover work lock is refused (N
   });
 });
 
-describe('S4 — a run killed part-way is refused, never re-applied as an empty store', () => {
-  it('archive copies with no MANIFEST.json and no lists → refused, naming the pre-work-store tag reset', async () => {
+// The "stopped part-way" refusal fires only on evidence this tool leaves (REVIEW
+// pass 2 I-A): a list missing beside its manifest-less archive copy, or a
+// `pre-work-store-*` tag. "Already on the store" (AC1.5) wins whenever WORK.md
+// exists. No refusal ever tells a person to remove `.planning/work/`, and a
+// reset is offered only with "check the tag is yours and the tree is clean".
+const NOTHING_DESTRUCTIVE = (reason) => {
+  expect(reason).not.toMatch(/remove \.planning\/work|rm -rf/);
+};
+
+describe('S4 / I-A — a run stopped part-way is refused, never re-applied as an empty store', () => {
+  it('archive copies with no MANIFEST.json and the lists gone → refused; the reset is offered with the checks first', async () => {
     corpusProject();
     mkdirSync(join(base, ARCHIVE), { recursive: true });
     for (const f of LISTS) git(base, ['mv', `.planning/${f}`, `${ARCHIVE}/${f}`]);
     commitAll(base, '2026-02-21');
-    await refusedEither(/interrupted[\s\S]*git tag -l 'pre-work-store-\*'[\s\S]*git reset --hard/);
+    await refusedEither(/stops part-way[\s\S]*git tag -l 'pre-work-store-\*'[\s\S]*one this tool made[\s\S]*git status[\s\S]*clean[\s\S]*git reset --hard/);
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.reason).not.toMatch(/interrupted/);
+    NOTHING_DESTRUCTIVE(r.reason);
   });
 
-  it('the same with WORK.md already in place (killed after it moved) → the interrupted refusal, not "already on the store"', async () => {
+  it('a pre-work-store tag beside manifest-less copies (lists present) → the same refusal, naming the tag', async () => {
+    corpusProject();
+    mkdirSync(join(base, ARCHIVE), { recursive: true });
+    for (const f of LISTS) write(`${ARCHIVE}/${f}`, fixture(f));
+    commitAll(base, '2026-02-21');
+    git(base, ['tag', 'pre-work-store-T0']);
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/pre-work-store-T0[\s\S]*one this tool made[\s\S]*git reset --hard/);
+    NOTHING_DESTRUCTIVE(r.reason);
+  });
+
+  it('copies with no MANIFEST.json, every list present, no tag → only the never-overwrite refusal (no reset offered)', async () => {
+    corpusProject();
+    mkdirSync(join(base, ARCHIVE), { recursive: true });
+    for (const f of LISTS) write(`${ARCHIVE}/${f}`, fixture(f));
+    commitAll(base, '2026-02-21');
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/already exist; this run never overwrites one/);
+    expect(r.reason).not.toMatch(/reset|part-way|interrupted/);
+  });
+
+  it('WORK.md in place (stopped after it moved in) → "already on the store", which wins', async () => {
     corpusProject();
     mkdirSync(join(base, ARCHIVE), { recursive: true });
     git(base, ['mv', '.planning/BUGS.md', `${ARCHIVE}/BUGS.md`]);
     write('.planning/work/WORK.md', '---\nkey: LF\nschema_version: 2\n---\n');
     commitAll(base, '2026-02-21');
-    await refusedEither(/interrupted/);
+    await refusedEither(/already on the store/);
+    NOTHING_DESTRUCTIVE((await runWorkStoreMigrate(base, { key: 'LF' })).reason);
+  });
+
+  it('a project already on the store with archived lists and no tag (this repository\'s shape) → "already on the store", nothing destructive suggested (AC1.5)', async () => {
+    corpusProject();
+    mkdirSync(join(base, ARCHIVE), { recursive: true });
+    for (const f of LISTS) write(`${ARCHIVE}/${f}`, fixture(f));
+    write('.planning/work/WORK.md', '---\nkey: LF\nschema_version: 2\n---\n');
+    commitAll(base, '2026-02-21');
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/already on the store/);
+    expect(r.reason).not.toMatch(/reset|interrupted|part-way/);
+    NOTHING_DESTRUCTIVE(r.reason);
   });
 });
 

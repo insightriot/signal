@@ -17,11 +17,13 @@
 // changes staged and not committed, and prints the undo line. Refusals come
 // first and write nothing, in a dry run or an apply:
 //
-//   - list copies in the archive with no MANIFEST.json → an earlier run was
-//     interrupted; names the pre-work-store tag to reset to (checked first);
-//   - `WORK.md` exists, whatever it holds → "already on the store"
-//     (D-M6E11-21; `isStoreOn` throws on a broken one, so this checks the file
-//     exists rather than asking it);
+//   - `WORK.md` exists, whatever it holds → "already on the store", checked
+//     first (AC1.5; D-M6E11-21; `isStoreOn` throws on a broken one, so this
+//     checks the file exists rather than asking it);
+//   - list copies in the archive with no MANIFEST.json AND evidence this
+//     tool left them (a list gone from .planning/, or a `pre-work-store-*`
+//     tag) → the shape of an apply stopped part-way; the reset to the tag is
+//     offered only after "check it is this tool's, and the tree is clean";
 //   - a path the run reads or writes runs through a symbolic link, or
 //     `.planning/` resolves outside the repository (M6.E14's linked-`.planning`
 //     class); a list, STATE.md or a lock file (`.planning/work/.lock`,
@@ -208,21 +210,36 @@ function inputHashOf(stateText, texts) {
 function assess(baseDir, opts) {
   const refuse = (reason) => ({ refusal: reason });
 
-  // A run killed after it moved a list but before it wrote MANIFEST.json (the
-  // last step that matters) left the lists half-moved: re-running would plan
-  // what is left — an empty store over archived lists (REVIEW S4). Checked
-  // first, since the kill may have come after WORK.md moved in.
-  const stranded = GENERATED_FILES.filter((n) => onDisk(baseDir, archiveRel(n)));
-  if (stranded.length > 0 && !onDisk(baseDir, MANIFEST_REL)) {
-    return refuse(`An earlier run was interrupted: ${stranded.map(archiveRel).join(', ')} ${stranded.length === 1 ? 'is' : 'are'} in the archive with no `
-      + `${MANIFEST_REL}, so nothing was written. Put the project back first — in git, find the pre-apply tag with `
-      + "`git tag -l 'pre-work-store-*'` and run `git reset --hard <that tag>`; outside git, move each archived list back to "
-      + '.planning/ and remove .planning/work/ — then re-run.');
+  // "Already on the store" wins whenever WORK.md exists (AC1.5): a project on
+  // the store may well keep its old lists in the archive (REVIEW pass 2 I-A).
+  if (existsSync(join(baseDir, WORK_MD_REL))) {
+    const items = onDisk(baseDir, ITEMS_REL);
+    return refuse(`This project is already on the store: ${WORK_MD_REL} exists, so nothing was written.`
+      + (items ? '' : ` It has no ${ITEMS_REL}/ — if ${WORK_MD_REL} was made by hand in a project that was never migrated, `
+        + 'move that one file aside and re-run.'));
   }
 
-  if (existsSync(join(baseDir, WORK_MD_REL))) {
-    return refuse(`This project is already on the store: ${WORK_MD_REL} exists, so nothing was written. `
-      + `If that file was made by hand in a project that was never migrated, delete it and re-run.`);
+  // A run stopped after it moved a list but before it wrote MANIFEST.json left
+  // the lists half-moved: re-running would plan what is left — an empty store
+  // over archived lists (REVIEW S4). Said only on evidence THIS tool leaves
+  // (REVIEW pass 2 I-A): a list missing beside its manifest-less archive copy,
+  // or a `pre-work-store-*` tag. Copies with every list present and no tag are
+  // left to the never-overwrite refusal below, which offers no reset.
+  const copies = GENERATED_FILES.filter((n) => onDisk(baseDir, archiveRel(n)));
+  if (copies.length > 0 && !onDisk(baseDir, MANIFEST_REL)) {
+    const gone = copies.filter((n) => !onDisk(baseDir, `.planning/${n}`));
+    const tags = preStoreTags(baseDir, opts.execFn);
+    if (gone.length > 0 || tags.length > 0) {
+      const found = [
+        ...(gone.length > 0 ? [`${gone.join(', ')} ${gone.length === 1 ? 'is' : 'are'} no longer in .planning/`] : []),
+        ...(tags.length > 0 ? [`this repository has ${tags.length === 1 ? 'the tag' : 'the tags'} ${tags.join(', ')}`] : []),
+      ].join(', and ');
+      return refuse(`${copies.map(archiveRel).join(', ')} ${copies.length === 1 ? 'is' : 'are'} in the archive with no ${MANIFEST_REL}, and ${found} — `
+        + 'the shape this tool leaves when an apply stops part-way. Nothing was written. To put the project back in git: find the '
+        + "pre-apply tag with `git tag -l 'pre-work-store-*'`, check it is one this tool made (`git show <tag>`) and that "
+        + '`git status` is clean — a reset discards uncommitted work — then run `git reset --hard <tag>`. Outside git, move each '
+        + 'archived list back to .planning/. Then re-run.');
+    }
   }
 
   // Before any read: no store path through a link, `.planning/` inside the
@@ -329,6 +346,17 @@ function assess(baseDir, opts) {
     return { file: `.planning/${name}`, items: f.items, open: f.open, closed: f.closed, flagged: f.flagged, regions: f.regions.map((r) => r.name) };
   });
   return { key, keySource, folder, files, archived, dates, texts, plan, sensitiveHits, evidence, inputHash: inputHashOf(stateText, texts) };
+}
+
+// The `pre-work-store-*` tags this tool's apply makes, from a fixed-argument
+// `git tag -l`; none outside git.
+function preStoreTags(baseDir, execFn = execFileSync) {
+  try {
+    return String(execFn('git', ['tag', '-l', 'pre-work-store-*'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }))
+      .split('\n').map((t) => t.trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 // Anything at `rel`, a link (even a dangling one) included.
