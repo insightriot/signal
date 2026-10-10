@@ -360,3 +360,57 @@ describe('I-3 — no readable history: no evidence at all, retrospectives includ
     expect(p.records[0].record.migration_note).toMatch(/could not read this repository's history/);
   });
 });
+
+describe('C1 (pass 3) — after the finish word only a date, `in <ref>`, a reference or a slice tag may follow', async () => {
+  const { finishedLead } = await import('../plugin/tools/lib/work-migrate.js');
+  // REVIEW pass 3's probe phrases (code-reviewer, security-auditor, test-engineer)
+  // and the brief's own list.
+  const UNCLEAR = [
+    'Fixed — regressed in v3',
+    'Done — needs QA',
+    'Fixed in PR #12 — doesn\'t work on Windows',
+    'Fixed (regressed in v3)',
+    'Closed — cannot reproduce',
+    'Closed — duplicate',
+    'Resolved — open again since M9.E1',
+    'Fixed in staging',
+    'Fixed in prod only',
+    'Fixed — re-opened',
+    'Fixed — rolled-back',
+    'Fixed — un-fixed by M9.E2',
+    'Done — isn\'t shipped',
+    'Fixed. Regressed in v3.',
+    'Closed. Nothing to do.',
+    'Fixed — rows are kept now.',
+    'not-a-bug (closed 2026-03-02) — works as designed.',
+    'Fixed — see [the change](https://example.com/acme/ledger/pull/12)',
+    'Fixed — [the change](https://example.com/acme/ledger/pull/12)',
+    'Fixed in M9.E2 — but only the CSV path',
+  ];
+  for (const t of UNCLEAR) {
+    it(`"${t}" → unclear`, () => {
+      const c = finishedLead(t);
+      expect(c.unclear).toBe(true);
+      expect(c.reasons.size).toBe(0);
+    });
+  }
+  const PROPOSABLE = [
+    ['DONE — M2.10.E2, 2026-10-08', 'fixed'],
+    ['Done in M2.10.E2 (S5) — [PR #157](https://example.com/acme/ledger/pull/157).', 'fixed'],
+    ['fixed in PR #12', 'fixed'],
+    ['`fixed`', 'fixed'],
+    ['Fixed.', 'fixed'],
+    ['fixed 2026-02-04', 'fixed'],
+    ['Closed — superseded', 'stale'],
+    ['not-a-bug (closed 2026-03-02)', 'rejected'],
+    ['Fixed — PR #12, e41d30e', 'fixed'],
+    ['Resolved in v2 (S4)', 'fixed'],
+  ];
+  for (const [t, reason] of PROPOSABLE) {
+    it(`"${t}" → ${reason}`, () => {
+      const c = finishedLead(t);
+      expect(c.unclear).toBe(false);
+      expect([...c.reasons]).toEqual([reason]);
+    });
+  }
+});

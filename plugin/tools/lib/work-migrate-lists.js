@@ -999,8 +999,9 @@ function titleOf(file, row) {
 // Whether one of those texts is a marker, and which reason, is ONE rule:
 // `finishedLead` in work-migrate.js (REVIEW C1, D-M6E15-24) — an allowed-
 // continuation grammar: the finish word leads, and only a date, `in <ref>`, a
-// sentence end, a dash and a note, or `(` may follow it; anything else, or an
-// undoing word anywhere, is `unclear`; "done when" / "… of done" are never
+// reference or a slice tag may follow it (after a dash, `(` or a sentence end
+// too — no free text); anything else, or an undoing word anywhere, is
+// `unclear`; "done when" / "… of done" are never
 // markers. Wording that passes still closes only on evidence (below). Within ONE marker a specific
 // word wins over a generic one (`Closed — superseded` is `stale`). ACROSS
 // markers, two reasons — or a marker beside a status that is not one — is a
@@ -1327,7 +1328,7 @@ function decide(file, folded, evidence, { bareHash = true } = {}) {
   const m = readMarkers(file, row);
   const reasons = new Set(m.markers.map((x) => x.reason));
   if (m.unclear.length > 0) {
-    return { flag: 'unclear', note: `Its wording ${m.unclear.map((x) => quote(clip(printable(x)))).join(', ')} does not read as plainly finished — a qualifier, or words after the finish word other than a date, \`in <ref>\`, a dash and a note, or \`(\` — so it was left open rather than closed by inference.` };
+    return { flag: 'unclear', note: `Its wording ${m.unclear.map((x) => quote(clip(printable(x)))).join(', ')} does not read as plainly finished — a qualifier, or words after the finish word other than a date, \`in <ref>\`, a reference or a slice tag — so it was left open rather than closed by inference.` };
   }
   if (reasons.size > 1 || (reasons.size === 1 && (m.statuses.length > 0 || m.unmappedFinish.length > 0))) {
     const said = [

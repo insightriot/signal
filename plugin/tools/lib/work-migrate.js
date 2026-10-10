@@ -606,10 +606,10 @@ const GROUP_WORDS = new Set(['resolved', 'done', 'closed']);
 //      `**Definition of done:**` — a criterion, not a verdict).
 //   2. No finish word anywhere → not a marker.
 //   3. Unclear: a `?`, `-ish`, or a word that undoes or qualifies a finish
-//      (not, no, yet, until, but, still, reverted, reopened, TBD, wrong, in
-//      theory, …) ANYWHERE in the text — the note after a dash or inside `(`
-//      included. The three specific markers are masked first, so `not-a-bug`
-//      is not a negation. This is the backstop for the notes rule 5 lets in.
+//      (not, no, yet, until, but, still, reverted, reopened / re-opened,
+//      rolled-back, regressed, cannot, any `n't`, TBD, wrong, in theory, …)
+//      ANYWHERE in the text. The three specific markers are masked first, so
+//      `not-a-bug` is not a negation.
 //   4. The finish word must LEAD, after at most one affirming word (`Fully
 //      resolved.`): done / resolved / answered / fixed / closed / shipped →
 //      `fixed`; not-a-bug → `rejected`; won't-fix → `wontdo`; superseded →
@@ -619,8 +619,15 @@ const GROUP_WORDS = new Set(['resolved', 'done', 'closed']);
 //      `, 2026-03-02`) or `in <ref>` (a token with a digit: `in M9.E2`,
 //      `in PR #12`, `in v2`), any number of times; then the end of the text,
 //      a sentence end (`.` before a space or the end), an em/en dash or
-//      ` - ` and a note, or `(`. Anything else — `:`, `,` then words, `by …`,
-//      `at …`, `during …`, a bare version — is unclear: open and flagged.
+//      ` - `, or `(`. Anything else — `:`, `,` then words, `by …`, `at …`,
+//      `during …`, a bare version — is unclear: open and flagged.
+//   6. After that start, NO free text (REVIEW pass 3 C1, D-M6E15-25):
+//      only dates, references (a token with a digit: `#157`, `PR #12`,
+//      `M9.E1`, a slice tag `(S5)`, `v2`, a commit), `[<reference>](url)`
+//      links, bare URLs, finish words, and `in`/`on`. "Fixed — regressed in
+//      v3", "Done — needs QA", "Closed. Nothing to do." are unclear. An
+//      allow-list: three review passes each found a new phrasing a deny-list
+//      let through.
 //
 // A generic lead refined by a specific word that opens a later ` — ` part
 // (`Closed — superseded`) is that specific reason.
@@ -640,9 +647,9 @@ const NEVER_MARKER_RE = /\bdone\s+when\b|\bof\s+done\b/i;
 const UNDOING_RE = new RegExp('\\?|-ish\\b|\\b(?:'
   + 'not|no|never|yet|until|when|once|pending|blocked|waiting|will|to\\s+be|'
   + 'partially|partly|mostly|largely|but|though|although|except|still|broken|wrong|'
-  + 'tbd|todo|theory|maybe|probably|unclear|unknown|unverified|'
-  + 'reopen(?:ed|s|ing)?|revert(?:ed|s|ing)?|rolled\\s+back|undone'
-  + ')\\b', 'i');
+  + 'tbd|todo|theory|maybe|probably|unclear|unknown|unverified|cannot|'
+  + 're-?open(?:ed|s|ing)?|revert(?:ed|s|ing)?|rolled[\\s-]+back|un-?done|un-?fixed|un-?resolved|regress(?:ed|es|ing|ion)?'
+  + ')\\b|n[\'’]t\\b', 'i');
 // A question's own plain heading, read when the entry carries a finish marker
 // (REVIEW pass 3 I-1): words that say the state was undone or is still open.
 // Narrower than UNDOING_RE on purpose — a question heading ends with `?` and
@@ -663,6 +670,23 @@ export function headingUndoes(text) {
 const DATE_STEP_RE = /^\s{0,3},?\s{0,3}(?:on\s{1,3})?\d{4}-\d{2}-\d{2}\b/i;
 const IN_REF_STEP_RE = /^\s{1,3}in\s{1,3}(?:(?:PR|pull\s{1,3}request)\s{1,3})?#?(?=[\w.#/-]{0,60}\d)[\w#][\w.#/-]{0,60}/i;
 const NOTE_START_RE = /^(?:\s*$|\.(?:\s|$)|\s{0,3}[(—–]|\s{1,3}-\s)/;
+// What may follow a note start (REVIEW pass 3 C1, D-M6E15-25): no free text.
+// The tail is split on separators — whitespace, dashes, `,`, `;`, `(`, `)`,
+// a `.` that ends a sentence — after markdown links lose their URL (the link
+// text is read) and bare URLs go (a URL is a reference). Every token left
+// must be a date, a reference (a token with a digit: `#157`, `M9.E1`, `S5`,
+// `v2`, a commit hash), a finish word, or `in`/`on`/`PR`/`pull request`.
+const TAIL_LINK_G = /\[([^\][]{0,200})\]\([^()\s]{0,500}\)/g;
+const TAIL_URL_G = /\bhttps?:\/\/[^\s()<>\]]{1,500}/gi;
+const TAIL_SPECIFIC_G = /\bnot[- ]a[- ]bug\b|\bwon['’]?t[- ]?fix\b/gi;
+const TAIL_SPLIT_RE = /[\s—–,;()]+|\.(?=\s|$)|(?<=\s)-(?=\s)/;
+const TAIL_REF_RE = /^#?[A-Za-z]{0,12}[\w.#/-]{0,60}\d[\w.#/-]{0,60}$/;
+const TAIL_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TAIL_WORD_RE = new RegExp(`^(?:${FINISH_WORDS}|superseded|in|on|pr|pull|request|\u0001)$`, 'i');
+function tailIsPlain(rest) {
+  const t = rest.replace(TAIL_LINK_G, ' $1 ').replace(TAIL_URL_G, ' ').replace(TAIL_SPECIFIC_G, ' \u0001 ');
+  return t.split(TAIL_SPLIT_RE).every((tok) => tok === '' || tok === '-' || TAIL_DATE_RE.test(tok) || TAIL_REF_RE.test(tok) || TAIL_WORD_RE.test(tok));
+}
 
 export function finishedLead(text) {
   const none = { reasons: new Set(), unclear: false, word: null };
@@ -693,6 +717,7 @@ export function finishedLead(text) {
     rest = rest.slice(m[0].length);
   }
   if (!NOTE_START_RE.test(rest)) return unclear;
+  if (!tailIsPlain(rest)) return unclear;
 
   if (sp) return { ...none, reasons: new Set([sp.reason]) };
   const refined = new Set(lead.split(/\s[—–-]\s/).slice(1).map((part) => specificAt(part.replace(/^[\s(]+/, ''))?.reason).filter(Boolean));

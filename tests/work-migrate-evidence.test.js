@@ -99,16 +99,10 @@ describe('C1 (a) — the allowed-continuation grammar (D-M6E15-24)', () => {
     ['Resolved in PR #12', 'fixed'],
     ['Done in v2', 'fixed'],
     ['DONE — M9.E1, 2026-03-08', 'fixed'],
-    ['fixed 2026-02-04 — rows are kept now.', 'fixed'],
-    ['shipped - in the March build', 'fixed'],
-    ['fixed in M9.E2 (S4) — empty slots are passed over.', 'fixed'],
-    ['Closed. Nothing to do.', 'fixed'],
-    // "again" is not an undoing word: a button label ("Try again") is common in
-    // a fix note (measured on a corpus scratch run, fix loop 2).
-    ['fixed in M9.E2 (S4) — the Try again button re-runs the open.', 'fixed'],
+    ['fixed in M9.E2 (S4) — PR #157.', 'fixed'],
     ['Closed — superseded', 'stale'],
-    ['not-a-bug (closed 2026-03-02) — works as designed.', 'rejected'],
-    ["won't-fix — the old exporter is going away.", 'wontdo'],
+    ['not-a-bug (closed 2026-03-02)', 'rejected'],
+    ["won't-fix — M9.E2", 'wontdo'],
     ['wontfix', 'wontdo'],
     ['superseded', 'stale'],
   ];
@@ -130,6 +124,16 @@ describe('C1 (a) — the allowed-continuation grammar (D-M6E15-24)', () => {
     'Fixed 3 of 5',
     'Fixed. Then reverted.',
     'Fixed: see below',
+    // Free text after a note start reads unclear since REVIEW pass 3 (C1,
+    // D-M6E15-25) — these passed under D-M6E15-24 and are flipped on purpose.
+    // Nothing closes unseen any more, so an over-flag costs a person's look.
+    'fixed 2026-02-04 — rows are kept now.',
+    'shipped - in the March build',
+    'fixed in M9.E2 (S4) — empty slots are passed over.',
+    'Closed. Nothing to do.',
+    'fixed in M9.E2 (S4) — the Try again button re-runs the open.',
+    'not-a-bug (closed 2026-03-02) — works as designed.',
+    "won't-fix — the old exporter is going away.",
   ];
   for (const text of UNCLEAR) {
     it(`"${text}" → unclear`, () => {
@@ -155,13 +159,15 @@ describe('C1 (a) — the allowed-continuation grammar (D-M6E15-24)', () => {
       const c = finishedLead(t);
       return c.unclear ? 'unclear' : c.reasons.size ? [...c.reasons].join(',') : 'none';
     };
+    // Since REVIEW pass 3 (C1) a sentence or a note of words after the finish
+    // word reads unclear: the four Status lines that carry one flipped.
     expect(Object.fromEntries([...statuses, ...groups].map((t) => [t.slice(0, 41), verdict(t)]))).toEqual({
-      'not-a-bug (closed 2026-03-02 during M9.E1': 'rejected',
-      'fixed in M9.E2 (S4) — empty slots are now': 'fixed',
+      'not-a-bug (closed 2026-03-02 during M9.E1': 'unclear',
+      'fixed in M9.E2 (S4) — empty slots are now': 'unclear',
       'needs-triage': 'none',
       'scoped into M9.E3 (FR-02), 2026-03-09': 'none',
-      'Fully resolved. Logged as Issue #12 on 20': 'fixed',
-      'Resolved. The warning came from a check t': 'fixed',
+      'Fully resolved. Logged as Issue #12 on 20': 'unclear',
+      'Resolved. The warning came from a check t': 'unclear',
       'Resolved at REVIEW. The worker now logs a': 'unclear',
       // BUGS.md's `##` entry headings
       'Meal snapshot load uses the strict check ': 'none',
@@ -328,7 +334,9 @@ describe('C1 (b) — a finished entry closes only on a reference that resolves (
   });
 
   it('a proof carries no control characters and is bounded', () => {
-    const r = one('BUGS.md', bugEntry(`fixed — ${'x'.repeat(600)}\u0007\u009b`, 'PR #157.'));
+    // Long wording that passes the grammar (references only), control
+    // characters inside a link's URL.
+    const r = one('BUGS.md', bugEntry(`fixed — ${'v1 '.repeat(200)}[PR #157](x\u0007\u009b)`, 'PR #157.'));
     const { proof } = closedEvent(r);
     expect(proof.length).toBeLessThanOrEqual(400);
     // eslint-disable-next-line no-control-regex

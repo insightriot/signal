@@ -184,7 +184,9 @@ describe('OPEN-QUESTIONS.md — `##` groupings over `###` items', () => {
       expect(r.groupHeading).toBe('Resolved during v4.1 (kept for reference)');
       expect(r.groupWord).toBeNull();
     }
-    const passing = segmentQuestions(text.replace('Resolved during v4.1 (kept for reference)', 'Resolved in v4.1 (kept for reference)'));
+    // A note of free text after it would read unclear too (REVIEW pass 3 C1):
+    // "(kept for reference)" is words, not a reference.
+    const passing = segmentQuestions(text.replace('Resolved during v4.1 (kept for reference)', 'Resolved in v4.1'));
     for (const r of passing.rows) expect(r.groupWord).toBe('resolved');
   });
 

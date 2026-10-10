@@ -45,8 +45,8 @@ committed, an undo line printed.
   numbered `KEY-1` upward in the order BUGS, BACKLOG, ISSUES-INBOX, OPEN-QUESTIONS. An old ID (`B1`,
   `#99`, `R3`) is kept in `legacy_id` and on the body's first line. **The migration never closes an
   entry on its own** (`D-M6E15-25`): an entry is *proposed* for closing only when its wording says so plainly — struck through, or DONE / RESOLVED / ANSWERED / FIXED /
-  CLOSED / SHIPPED, not-a-bug, won't-fix, superseded, followed by nothing but a date, `in <ref>`, a dash
-  and a note, or `(` — **and** a commit, PR (`#N` in a commit subject) or Epic (with a retrospective)
+  CLOSED / SHIPPED, not-a-bug, won't-fix, superseded, followed by nothing but dates, `in <ref>`,
+  references or a slice tag like `(S5)` — no note of words (`Fixed — needs QA` is unclear) — **and** a commit, PR (`#N` in a commit subject) or Epic (with a retrospective)
   it cites is found in this repository; the dry run lists each proposal with its wording and evidence,
   and you confirm the list with one yes (each then closes as a legacy close whose proof names both) or
   say no (each stays open, flagged `looks-finished`). Anything else stays open and **flagged**,

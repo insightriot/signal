@@ -208,23 +208,25 @@ const question = (heading, status, group = null) => [
 ].join('\n');
 
 // The proof is the wording, then the evidence that resolved (D-M6E15-24).
+// Wordings carry no free-text note since REVIEW pass 3 (C1): a note of words
+// reads unclear (pinned in work-migrate-evidence / -propose tests).
 describe('t3.2 — finished markers close as legacy, the wording and the evidence as proof (AC4.1, D-M6E15-10, -18, -24)', () => {
   const cases = [
     ['DONE in a backlog heading', 'BACKLOG.md', backlogRow('#12 — Export to CSV · **roadmap** · small · **DONE — M9.E1**'), 'fixed', `DONE — M9.E1; M9.E1 → .planning/M9.E1-RETROSPECTIVE.md; ${PR7}`],
     ['a struck-through heading alone', 'BACKLOG.md', backlogRow('~~#13 — Export to PDF · **roadmap** · small~~'), 'fixed', `~~#13 — Export to PDF · **roadmap** · small~~; ${PR7}`],
-    ['RESOLVED on a Status line', 'OPEN-QUESTIONS.md', question('Q4 — Which date format?', 'RESOLVED — ISO dates everywhere.'), 'fixed', `RESOLVED — ISO dates everywhere.; ${PR7}`],
+    ['RESOLVED on a Status line', 'OPEN-QUESTIONS.md', question('Q4 — Which date format?', 'RESOLVED in v2.'), 'fixed', `RESOLVED in v2.; ${PR7}`],
     ['ANSWERED in a heading', 'OPEN-QUESTIONS.md', question('Q5 — Which units? · **ANSWERED**', null), 'fixed', `ANSWERED; ${PR7}`],
     ['fixed in a bug table cell', 'BUGS.md', bugTable('B3', '`fixed`'), 'fixed', `\`fixed\`; ${PR7}`],
     ['closed in a bug table cell', 'BUGS.md', bugTable('B4', '`closed`'), 'fixed', `\`closed\`; ${PR7}`],
-    ['fixed on a Status line', 'BUGS.md', bugEntry('fixed in M9.E2 — rows are kept now.'), 'fixed', `fixed in M9.E2 — rows are kept now.; M9.E2 → .planning/archive/M9.E2-RETROSPECTIVE.md; ${PR7}`],
-    ['closed on a Status line', 'BUGS.md', bugEntry('Closed. Nothing to do.'), 'fixed', `Closed. Nothing to do.; ${PR7}`],
+    ['fixed on a Status line', 'BUGS.md', bugEntry('fixed in M9.E2.'), 'fixed', `fixed in M9.E2.; M9.E2 → .planning/archive/M9.E2-RETROSPECTIVE.md; ${PR7}`],
+    ['closed on a Status line', 'BUGS.md', bugEntry('Closed.'), 'fixed', `Closed.; ${PR7}`],
     ['DONE (lower case) on a Status line', 'BUGS.md', bugEntry('done'), 'fixed', `done; ${PR7}`],
-    ['not-a-bug → rejected', 'BUGS.md', bugEntry('not-a-bug (closed 2026-03-02) — works as designed.'), 'rejected', `not-a-bug (closed 2026-03-02) — works as designed.; ${PR7}`],
-    ['won\'t-fix → wontdo', 'BUGS.md', bugEntry("won't-fix — the old exporter is going away."), 'wontdo', `won't-fix — the old exporter is going away.; ${PR7}`],
+    ['not-a-bug → rejected', 'BUGS.md', bugEntry('not-a-bug (closed 2026-03-02)'), 'rejected', `not-a-bug (closed 2026-03-02); ${PR7}`],
+    ['won\'t-fix → wontdo', 'BUGS.md', bugEntry("won't-fix."), 'wontdo', `won't-fix.; ${PR7}`],
     ['wontfix in a table cell → wontdo', 'BUGS.md', bugTable('B5', '`wontfix`'), 'wontdo', `\`wontfix\`; ${PR7}`],
     // `superseded by #20` is not an allowed continuation (D-M6E15-24): a dash note is.
-    ['superseded (lower case) → stale', 'BACKLOG.md', backlogRow('#14 — Old importer · **hygiene** · small · **superseded — see #30**'), 'stale', `superseded — see #30; ${PR7}`],
-    ['SUPERSEDED (upper case) → stale', 'BUGS.md', bugEntry('SUPERSEDED — the new exporter replaced it.'), 'stale', `SUPERSEDED — the new exporter replaced it.; ${PR7}`],
+    ['superseded (lower case) → stale', 'BACKLOG.md', backlogRow('#14 — Old importer · **hygiene** · small · **superseded — #30**'), 'stale', `superseded — #30; ${PR7}`],
+    ['SUPERSEDED (upper case) → stale', 'BUGS.md', bugEntry('SUPERSEDED in v3.'), 'stale', `SUPERSEDED in v3.; ${PR7}`],
     ['an entry under a Resolved/Done/Closed section heading', 'OPEN-QUESTIONS.md', question('Q6 — Which currency?', null, 'Done in v2'), 'fixed', `Done in v2; ${PR7}`],
   ];
   for (const [name, file, text, reason, proof] of cases) {
@@ -238,13 +240,14 @@ describe('t3.2 — finished markers close as legacy, the wording and the evidenc
     });
   }
 
-  it('the corpus: B1, the not-a-bug and the fixed entries and the DONE rows close on their cited PRs and Epics; the rest stay open', () => {
+  it('the corpus: B1 and the DONE row close on their cited PRs and Epics; the rest stay open', () => {
     const p = byId(plan(corpus()));
     const closes = Object.fromEntries([...p].filter(([, r]) => status(r.record) === 'C').map(([id, r]) => [id, closedEvent(r).reason]));
-    expect(closes).toEqual({
-      'LF-1': 'fixed', 'LF-4': 'rejected', 'LF-5': 'fixed',
-      'LF-11': 'fixed',
-    });
+    expect(closes).toEqual({ 'LF-1': 'fixed', 'LF-11': 'fixed' });
+    // The not-a-bug and the fixed Status lines carry a note of words after
+    // the finish word ("… during M9.E1", "— empty slots are now …"): unclear
+    // since REVIEW pass 3 (C1), flipped on purpose.
+    for (const id of ['LF-4', 'LF-5']) expect(p.get(id).flagged, id).toBe('unclear');
     expect(closedEvent(p.get('LF-1')).proof).toBe('`fixed`; M9.E1 → .planning/M9.E1-RETROSPECTIVE.md; PR #44 → e41d30e');
     // #279's body line is read whole (a bold lead that speaks of finishing):
     // "**Done** in M9.E2 (S6): … still not built — file it again …" admits the
@@ -264,13 +267,22 @@ describe('t3.2 — finished markers close as legacy, the wording and the evidenc
   it('the corpus with no evidence index: nothing closes (fail closed)', () => {
     const p = plan(corpus(), { evidence: undefined });
     expect(p.records.filter((r) => status(r.record) === 'C')).toEqual([]);
-    expect(p.records.filter((r) => r.flagged === 'no-evidence').map((r) => r.record.id)).toEqual(['LF-1', 'LF-4', 'LF-5', 'LF-11']);
+    expect(p.records.filter((r) => r.flagged === 'no-evidence').map((r) => r.record.id)).toEqual(['LF-1', 'LF-11']);
   });
 });
 
 describe('t3.2 — no marker, an unknown word, or markers that disagree: open and flagged, never thrown (AC4.2, AC3.4)', () => {
-  it('a heading DONE with a body “Closed — superseded” disagree (fixed vs stale) → open, flagged conflict (corpus #271)', () => {
+  // Since REVIEW pass 3 (C1) the body line's note of words ("(M9.E2): an
+  // earlier change removed …") reads unclear, and unclear is checked before a
+  // conflict: still open, still flagged, never closed.
+  it('a heading DONE with a body “Closed — superseded (M9.E2): …” → open, flagged unclear (corpus #271)', () => {
     const r = byId(plan(corpus())).get('LF-12');
+    expect(status(r.record)).toBe('T');
+    expect(r.flagged).toBe('unclear');
+  });
+
+  it('a heading DONE with a body “**Closed — superseded**” and nothing else → open, flagged conflict (fixed vs stale)', () => {
+    const r = one('BACKLOG.md', backlogRow('~~#3 — A wait · **hygiene** · small~~ · **DONE — M9.E2, 2026-03-08**', '**Closed — superseded**\nPR #7.'));
     expect(status(r.record)).toBe('T');
     expect(r.flagged).toBe('conflict');
     expect(r.record.migration_note).toMatch(/disagree/);
@@ -343,10 +355,12 @@ describe('t3.2 — no marker, an unknown word, or markers that disagree: open an
     expect(r.record.migration_note).toContain('ABANDONED');
   });
 
-  it('an unmapped finished word inside a marker that also maps (**DONE — CUT half**) → open, flagged conflict', () => {
+  // Was `conflict`; since REVIEW pass 3 (C1) "CUT half" after the dash is a
+  // note of words, so it reads unclear first. Never closed either way.
+  it('an unmapped finished word inside a marker that also maps (**DONE — CUT half**) → open, flagged unclear', () => {
     const r = one('BACKLOG.md', backlogRow('#6 — Two halves · **roadmap** · small · **DONE — CUT half**'));
     expect(status(r.record)).toBe('T');
-    expect(r.flagged).toBe('conflict');
+    expect(r.flagged).toBe('unclear');
   });
 
   it('a title that merely contains a marker word is not a marker', () => {
@@ -384,7 +398,9 @@ describe('t3.3 — dates come from the entry, else from the file’s history; ne
 
   it('the corpus: a dated marker gives its date; an undated one, or one naming two dates, falls back to the file’s last date', () => {
     const p = byId(plan(corpus()));
-    expect(closedEvent(p.get('LF-4')).at).toBe('2026-03-02'); // not-a-bug (closed 2026-03-02 …)
+    // LF-4 (not-a-bug (closed 2026-03-02 during …)) no longer closes (REVIEW
+    // pass 3 C1); its date case is pinned on a plain wording below.
+    expect(closedEvent(one('BUGS.md', bugEntry('not-a-bug (closed 2026-03-02)'))).at).toBe('2026-03-02');
     expect(closedEvent(p.get('LF-11')).at).toBe('2026-03-08'); // DONE — M9.E2, 2026-03-08
     expect(closedEvent(p.get('LF-1')).at).toBe(DATES['BUGS.md'].last); // `fixed`, no date
     // (The resolved questions no longer close — D-M6E15-24 — so the "date not
@@ -392,7 +408,7 @@ describe('t3.3 — dates come from the entry, else from the file’s history; ne
   });
 
   it('a marker date before the file’s first date moves created back to it, and says so in the manifest — a close never precedes its creation', () => {
-    const p = plan({ 'BUGS.md': bugEntry('fixed 2025-12-01 — rows are kept now.') }, { dates: { 'BUGS.md': { first: '2026-01-05', last: '2026-03-09' } } });
+    const p = plan({ 'BUGS.md': bugEntry('fixed 2025-12-01.') }, { dates: { 'BUGS.md': { first: '2026-01-05', last: '2026-03-09' } } });
     expect(p.errors).toEqual([]);
     const r = p.records[0];
     expect(closedEvent(r).at).toBe('2025-12-01');

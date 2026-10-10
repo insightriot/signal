@@ -82,15 +82,19 @@ describe('C1 — an open entry is never closed by inference (AC4.2)', () => {
 });
 
 describe('S1 — a close date comes only from a date beside the finish marker (D-M6E15-19)', () => {
-  it('"fixed — regression from the 2025-11-01 release" → the file’s last date, not 2025-11-01', () => {
-    const r = one('BUGS.md', bugEntry('fixed — regression from the 2025-11-01 release'));
+  // The pass-1 wording ("fixed — regression from the 2025-11-01 release")
+  // reads unclear since REVIEW pass 3 (C1: a note of words); the property —
+  // a date not beside the finish word is not the close date — is pinned with
+  // references between them instead.
+  it('"fixed — M9.E1 PR #7 2025-11-01" → the file’s last date, not 2025-11-01', () => {
+    const r = one('BUGS.md', bugEntry('fixed — M9.E1 PR #7 2025-11-01'));
     expect(status(r)).toBe('C');
     expect(closedEvent(r).at).toBe(DATES['BUGS.md'].last);
     expect(r.record.events[0].at).toBe(DATES['BUGS.md'].first);
   });
 
-  it('"fixed 2026-02-04 — …" and "DONE — M9.E1, 2026-02-08" keep their dates', () => {
-    expect(closedEvent(one('BUGS.md', bugEntry('fixed 2026-02-04 — rows are kept now.'))).at).toBe('2026-02-04');
+  it('"fixed 2026-02-04 — PR #7." and "DONE — M9.E1, 2026-02-08" keep their dates', () => {
+    expect(closedEvent(one('BUGS.md', bugEntry('fixed 2026-02-04 — PR #7.'))).at).toBe('2026-02-04');
     expect(closedEvent(one('BACKLOG.md', backlogRow('#12 — Export · **roadmap** · small · **DONE — M9.E1, 2026-02-08**', 'Body, PR #7.'))).at).toBe('2026-02-08');
   });
 });
