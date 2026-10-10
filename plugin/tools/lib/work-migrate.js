@@ -625,15 +625,15 @@ const GROUP_WORDS = new Set(['resolved', 'done', 'closed']);
 //      `stale`. A finish word later in the text ("Half are fixed") is not a
 //      marker.
 //   5. After the finish word, only: a date (`2026-03-02`, `on 2026-03-02`,
-//      `, 2026-03-02`) or `in <ref>` (a token with a digit: `in M9.E2`,
+//      `, 2026-03-02`) or `in <ref>` (a reference shape, rule 6: `in M9.E2`,
 //      `in PR #12`, `in v2`), any number of times; then the end of the text,
 //      a sentence end (`.` before a space or the end), an em/en dash or
 //      ` - `, or `(`. Anything else — `:`, `,` then words, `by …`, `at …`,
 //      `during …`, a bare version — is unclear: open and flagged.
 //   6. After that start, NO free text (REVIEW pass 3 C1, D-M6E15-25):
-//      only dates, references (a token with a digit: `#157`, `PR #12`,
+//      only dates, references (`TAIL_REF_RE`'s shapes: `#157`, `PR #12`,
 //      `M9.E1`, a slice tag `(S5)`, `v2`, a commit), `[<reference>](url)`
-//      links, bare URLs, finish words, and `in`/`on`. "Fixed — regressed in
+//      links, `/pull/N` or `/commit/<hex>` URLs, finish words, and `in`/`on`. "Fixed — regressed in
 //      v3", "Done — needs QA", "Closed. Nothing to do." are unclear. An
 //      allow-list: three review passes each found a new phrasing a deny-list
 //      let through.
@@ -677,23 +677,22 @@ export function headingUndoes(text) {
 // The steps rule 5 allows right after the finish word, and how what is left
 // may start.
 const DATE_STEP_RE = /^\s{0,3},?\s{0,3}(?:on\s{1,3})?\d{4}-\d{2}-\d{2}\b/i;
-const IN_REF_STEP_RE = /^\s{1,3}in\s{1,3}(?:(?:PR|pull\s{1,3}request)\s{1,3})?#?(?=[\w.#/-]{0,60}\d)[\w#][\w.#/-]{0,60}/i;
 const NOTE_START_RE = /^(?:\s*$|\.(?:\s|$)|\s{0,3}[(—–]|\s{1,3}-\s)/;
 // What may follow a note start (REVIEW pass 3 C1, D-M6E15-25): no free text.
 // The tail is split on separators — whitespace, dashes, `,`, `;`, `(`, `)`,
 // a `.` that ends a sentence — after markdown links lose their URL (the link
-// text is read) and bare URLs go (a URL is a reference). Every token left
-// must be a date, a reference (a token with a digit: `#157`, `M9.E1`, `S5`,
+// text is read) and `/pull/N` or `/commit/<hex>` URLs go. Every token left must be a date, a reference (`TAIL_REF_RE`: `#157`, `M9.E1`, `S5`,
 // `v2`, a commit hash) — `in`/`on`/`PR`/`pull request` only right before one
 // — or a finish word.
 const TAIL_LINK_G = /\[([^\][]{0,200})\]\([^()\s]{0,500}\)/g;
-const TAIL_URL_G = /\bhttps?:\/\/[^\s()<>\]]{1,500}/gi;
+const TAIL_URL_G = /\bhttps?:\/\/[^\s()<>\]]{1,500}?\/(?:pull\/\d{1,7}|commit\/[0-9a-f]{7,40})(?=[.,;]?(?:[\s)]|$))/gi;
 const TAIL_SPECIFIC_G = /\bnot[- ]a[- ]bug\b|\bwon['’]?t[- ]?fix\b/gi;
 // "Resolved — PR" alone is a word, not a reference: the lead-ins go only when
 // a token with a digit follows.
 const TAIL_LEAD_IN_G = /\b(?:PR|pull\s{1,3}request|in|on)\s{1,3}(?=#?[\w.#/-]{0,60}\d)/gi;
 const TAIL_SPLIT_RE = /[\s—–,;()]+|\.(?=\s|$)|(?<=\s)-(?=\s)/;
-const TAIL_REF_RE = /^#?[A-Za-z]{0,12}[\w.#/-]{0,60}\d[\w.#/-]{0,60}$/;
+const TAIL_REF_RE = /^(?:(?:PR\s{0,3})?#\d{1,7}|(?=[0-9a-f]{0,39}[a-f])(?=[0-9a-f]{0,39}\d)[0-9a-f]{7,40}|M\d{1,4}(?:\.\d{1,4}){0,4}\.E\d{1,4}|S\d{1,4}|v\d{1,4}(?:\.\d{1,4}){0,4}|\d{4}-\d{2}-\d{2}|[A-Z]{1,5}-?\d{1,7})$/;
+const IN_REF_STEP_RE = new RegExp(`^\\s{1,3}(?:in|In|IN)\\s{1,3}(?:(?:PR|pull\\s{1,3}request)\\s{1,3})?${TAIL_REF_RE.source.slice(1, -1)}(?![\\w#/-]|\\.\\w)`);
 const TAIL_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TAIL_WORD_RE = new RegExp(`^(?:${FINISH_WORDS}|superseded|\u0001)$`, 'i');
 function tailIsPlain(rest) {

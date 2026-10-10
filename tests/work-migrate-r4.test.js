@@ -355,3 +355,22 @@ describe('every migration_note is bounded and printable, whatever the branch (RE
     });
   }
 });
+
+// ── F7: the no-free-text tail allows reference SHAPES, not any token with a digit ──
+describe('finished wording: references are explicit shapes (REVIEW pass 4)', async () => {
+  const { finishedLead } = await import('../plugin/tools/lib/work-migrate.js');
+  const unclear = ['Fixed — crashes-on-win10', 'Fixed in PR #12 — fails-on-iOS17', 'Done — needs-QA-v2', 'Fixed in v2 — then-broke-in-v3',
+    'Fixed — crash/win10', 'Fixed — crashes_on_win10', 'Resolved — on hold2', 'Fixed in prod2', 'Fixed — iOS17-only',
+    'Fixed — 2x-slower PR #1', 'Fixed — https://x.y/needs-QA PR #1', 'Fixed — https://github.com/o/r/pull/1/needs-more-work'];
+  const plain = ['DONE — M2.10.E2, 2026-10-08', '**Done** in M2.10.E2 (S5) — [PR #157](https://github.com/o/r/pull/157).', 'fixed in PR #12',
+    'Fixed in v2.1', 'Closed — not a bug', 'Closed — won\'t fix', 'Fixed — https://github.com/o/r/pull/157', 'Fixed in e41d30e.',
+    'Fixed — BUG-7, SIG-12', 'Fixed in v2.'];
+  it.each(unclear)('"%s" → unclear', (text) => {
+    expect(finishedLead(text).unclear).toBe(true);
+  });
+  it.each(plain)('"%s" → a finished marker', (text) => {
+    const c = finishedLead(text);
+    expect(c.unclear).toBe(false);
+    expect(c.reasons.size).toBeGreaterThan(0);
+  });
+});

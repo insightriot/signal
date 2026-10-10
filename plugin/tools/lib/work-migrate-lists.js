@@ -419,7 +419,7 @@ const masked = (m) => (m.length > 8 ? `${m.slice(0, 6)}…` : m);
 // another order than it is stored. Applied per line, so the report's own line
 // breaks stay. Also the marks that move or hide text without showing (REVIEW
 // pass 3 suggestion): LRM, RLM, ALM, the line and paragraph separators, and
-// the zero-width characters: every Cc and Cf character (tag characters too), and the variation selectors (REVIEW pass 4).
+// the zero-width characters.
 const printable = (s) => String(s).replace(/[\p{Cc}\p{Cf}\u2028\u2029\p{Variation_Selector}]/gu, '');
 
 function dryRunReport(a) {
@@ -730,8 +730,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   const a = assess(baseDir, { ...opts, execFn });
   if (a.refusal) return refused(a.refusal);
   if (!apply) {
-    // What a person reads: three pieces of evidence per proposal at most (the hash, already taken, keeps every one).
-    for (const c of a.shown.proposedCloses) if (c.evidence.length > 3) c.evidence = [...c.evidence.slice(0, 3), `… and ${c.evidence.length - 3} more`];
+    for (const c of a.shown.proposedCloses) if (c.evidence.length > 3) c.evidence = [...c.evidence.slice(0, 3), `… and ${c.evidence.length - 3} more`]; // shown capped; the hash, taken, keeps all
     return {
       applied: false, dryRun: true, key: a.key, files: a.files, items: a.shown.manifest.items, dates: a.dates,
       proposedCloses: a.shown.proposedCloses, sensitiveHits: maskHits(a.sensitiveHits), inputHash: a.inputHash, report: dryRunReport(a),
