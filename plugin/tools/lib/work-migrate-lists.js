@@ -39,9 +39,9 @@
 // The input hash covers STATE.md and the four lists (AC6.4): a change to any of
 // them between the dry run and the apply aborts the apply before any write.
 //
-// Dates (D-M6E15-19): each list's first and last commit dates from git; outside
-// git, or for a file git has no history for, the file's modification date —
-// the manifest says which.
+// Dates (D-M6E15-19): each list's first and last commit dates from git,
+// following renames; outside git, or for a file git has no history for, the
+// file's modification date — the manifest says which.
 //
 // The apply builds aside, then swaps (D-M6E15-20): the records, WORK.md and the
 // views are written and verified in a sibling folder under `.planning/` (same
@@ -153,11 +153,13 @@ The store was turned on by \`/sig:docs-migrate --work-store\`. ${before}
 
 // A list's first and last dates (D-M6E15-19): its first and last commit from
 // git, else — outside git, or a file git has no history for — the file's
-// modification date. `source` says which.
+// modification date. `source` says which. `--follow`, so a list the layout
+// migration renamed (`FUTURE-IDEAS.md` → `ISSUES-INBOX.md`) dates from its
+// original first commit, not from the rename (t4.8).
 function listDates(baseDir, rel, execFn) {
   let out = '';
   try {
-    out = String(execFn('git', ['log', '--format=%ad', '--date=short', '--', rel], {
+    out = String(execFn('git', ['log', '--follow', '--format=%ad', '--date=short', '--', rel], {
       cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 16 * 1024 * 1024,
     })).trim();
   } catch {

@@ -221,6 +221,20 @@ describe('t4.4 — dates from git, else the file’s mtime, stated in the manife
     expect(b1.record.events.at(-1).at.slice(0, 10)).toBe('2026-02-20');
   });
 
+  it('a list renamed by the layout migration dates from its original first commit, not the rename (t4.8)', async () => {
+    base = join(root, 'leaf-notes');
+    mkdirSync(join(base, '.planning'), { recursive: true });
+    initRepo(base);
+    write('.planning/STATE.md', STATE);
+    write('.planning/FUTURE-IDEAS.md', fixture('ISSUES-INBOX.md'));
+    commitAll(base, '2025-11-02');
+    git(base, ['mv', '.planning/FUTURE-IDEAS.md', '.planning/ISSUES-INBOX.md']);
+    commitAll(base, '2026-02-20', 'layout migration: rename');
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.dryRun).toBe(true);
+    expect(r.dates['ISSUES-INBOX.md']).toEqual({ first: '2025-11-02', last: '2026-02-20', source: 'git' });
+  });
+
   it('no git: each file’s mtime, and the manifest says so', async () => {
     base = join(root, 'leaf-notes');
     mkdirSync(join(base, '.planning'), { recursive: true });
