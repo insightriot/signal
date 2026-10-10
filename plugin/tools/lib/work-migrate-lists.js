@@ -397,15 +397,18 @@ function revertLineFor(probe, force, tag, created, archived, indexRegenerated) {
   return `git reset --hard ${tag ?? '<pre-apply-commit>'}   # discards the staged work-store changes`;
 }
 
-// Why a store at `root` is not the `count` records the plan made, or [].
-function builtErrors(root, count) {
+// The store at `root`, checked: `errors` says why it is not the `count`
+// records the plan made ([] when it is); `records` and `checks` are what was
+// measured (the record count read, `checkRecords`' findings).
+function verifyBuilt(root, count) {
   const errors = [];
   const listed = listRecords(root);
+  const checks = checkRecords(root);
   if (listed.version !== 2) errors.push(`the store reads as v${listed.version}, not v2`);
   if (listed.records.length !== count) errors.push(`the store holds ${listed.records.length} records, not ${count}`);
   for (const b of listed.broken) errors.push(`record ${b.id ?? b.path} is broken: ${b.error}`);
-  for (const f of checkRecords(root)) errors.push(`checkRecords ${f.code}${f.id ? ` ${f.id}` : ''}: ${f.message}`);
-  return errors;
+  for (const f of checks) errors.push(`checkRecords ${f.code}${f.id ? ` ${f.id}` : ''}: ${f.message}`);
+  return { errors, records: listed.records.length, checks };
 }
 
 // Write WORK.md and every planned record and body under `aside` — a folder
@@ -493,7 +496,7 @@ async function buildAndSwap(baseDir, a, ctx) {
   const records = a.plan.records;
   await buildAside(aside, records, workMd(a.key, a.archived));
   const { written } = await regenerateViews(aside);
-  const built = builtErrors(aside, records.length);
+  const built = verifyBuilt(aside, records.length).errors;
   if (built.length > 0) {
     throw new WorkStoreError('SCHEMA', `the store built aside did not verify, so the project was not changed:\n  ${built.join('\n  ')}`);
   }
@@ -533,8 +536,8 @@ async function buildAndSwap(baseDir, a, ctx) {
       done.views.push(rel);
     }
     step('verify');
-    const after = builtErrors(baseDir, records.length);
-    if (after.length > 0) throw new WorkStoreError('SCHEMA', `the migrated store did not verify:\n  ${after.join('\n  ')}`);
+    const after = verifyBuilt(baseDir, records.length);
+    if (after.errors.length > 0) throw new WorkStoreError('SCHEMA', `the migrated store did not verify:\n  ${after.errors.join('\n  ')}`);
     if (a.archived.length > 0) {
       const manifest = {
         migration: '/sig:docs-migrate --work-store',
@@ -545,11 +548,16 @@ async function buildAndSwap(baseDir, a, ctx) {
           + '`source: git` — first and last commit; `source: mtime` — the file’s modification date (no git history).',
         files: a.plan.manifest.files,
         items: a.plan.manifest.items,
+        // What the checks measured (REVIEW I2): the moved-in store, and the
+        // plan's conservation check — each list's lines all in one record or
+        // region, and the faults it found.
         verification: {
-          ok: true,
-          conservation: 'every byte of each list is in exactly one record body or one named non-item region (files.*.verified)',
-          records: records.length,
-          checkRecords: [],
+          ok: after.errors.length === 0 && a.plan.errors.length === 0,
+          records: after.records,
+          checkRecords: after.checks,
+          conservation: Object.fromEntries(Object.entries(a.plan.manifest.files)
+            .map(([f, v]) => [f, { lines: v.lines, verified: v.verified === true }])),
+          unaccounted: a.plan.errors,
         },
         ...(a.sensitiveHits.length > 0
           ? { sensitive: { acknowledged: true, hits: a.sensitiveHits.map((h) => ({ id: h.id, file: h.file, type: h.type })) } }

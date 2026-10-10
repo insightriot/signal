@@ -140,7 +140,21 @@ describe('t4.1 — apply: originals archived byte-for-byte, records + views writ
     expect(manifest.items).toHaveLength(23);
     expect(manifest.items[0].ranges[0]).toEqual({ line: expect.any(Number), endLine: expect.any(Number) });
     for (const f of LISTS) expect(manifest.files[f].verified, f).toBe(true);
-    expect(manifest.verification).toMatchObject({ ok: true, checkRecords: [] });
+    // The measured results, not literals (REVIEW I2): the post-swap check, and
+    // the conservation check per file.
+    expect(manifest.verification).toEqual({
+      ok: true,
+      records: 23,
+      checkRecords: JSON.parse(JSON.stringify(checkRecords(base))),
+      conservation: Object.fromEntries(LISTS.map((f) => [f, { lines: fixture(f).split('\n').length, verified: true }])),
+      unaccounted: [],
+    });
+    // One item's ranges are its source lines: B1's lines in the fixture are its body.
+    const b1Item = manifest.items.find((i) => i.legacy_id === 'B1');
+    const [range] = b1Item.ranges;
+    const src = fixture('BUGS.md').split('\n').slice(range.line - 1, range.endLine).join('\n');
+    expect(src).toMatch(/^\| B1 \|/);
+    expect(read(`.planning/work/items/00/${b1Item.id}.md`)).toBe(`Old ID: B1\n\n${src}`);
     expect(manifest.dates['BUGS.md']).toEqual({ first: '2026-01-05', last: '2026-02-20', source: 'git' });
 
     const listed = listRecords(base);
