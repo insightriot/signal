@@ -194,7 +194,7 @@ describe('AC1.3 / AC1.4 / AC7.3 — apply turns the store on', () => {
     p.commit();
     const skeleton = read('.planning/BACKLOG.md');
     const { runWorkStoreMigrate } = await lists();
-    const r = await runWorkStoreMigrate(base, { apply: true, stamp: 'T1' });
+    const r = await runWorkStoreMigrate(base, { apply: true, stamp: 'T1', expectedHash: (await runWorkStoreMigrate(base, {})).inputHash });
     expect(r.applied).toBe(true);
     expect(read(ARCHIVED_BACKLOG)).toBe(skeleton);
     expect(read('.planning/BACKLOG.md').split('\n')[0]).toBe(GENERATED_MARKER);
@@ -219,7 +219,7 @@ describe('AC1.3 / AC1.4 / AC7.3 — apply turns the store on', () => {
     const p = project();
     p.commit();
     const { runWorkStoreMigrate } = await lists();
-    const r = await runWorkStoreMigrate(base, { apply: true, key: 'ACN', stamp: 'T1' });
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'ACN', stamp: 'T1', expectedHash: (await runWorkStoreMigrate(base, { key: 'ACN' })).inputHash });
     expect(r.key).toBe('ACN');
     expect(read(WORK_MD)).toMatch(/^---\nkey: ACN\n/);
   });
@@ -230,7 +230,7 @@ describe('AC1.3 / AC1.4 / AC7.3 — apply turns the store on', () => {
     writeFileSync(join(base, 'notes.txt'), 'uncommitted\n');
     const { runWorkStoreMigrate } = await lists();
     const before = snapshot(base);
-    const r = await runWorkStoreMigrate(base, { apply: true, stamp: 'T1' });
+    const r = await runWorkStoreMigrate(base, { apply: true, stamp: 'T1', expectedHash: (await runWorkStoreMigrate(base, {})).inputHash });
     expect(r.refused).toBe(true);
     expect(r.reason).toMatch(/dirty/i);
     expect(snapshot(base)).toEqual(before);
@@ -243,7 +243,7 @@ describe('AC1.3 / AC1.4 / AC7.3 — apply turns the store on', () => {
     p.commit();
     writeFileSync(join(base, 'notes.txt'), 'uncommitted\n');
     const { runWorkStoreMigrate } = await lists();
-    const r = await runWorkStoreMigrate(base, { apply: true, force: true, stamp: 'T1' });
+    const r = await runWorkStoreMigrate(base, { apply: true, force: true, stamp: 'T1', expectedHash: (await runWorkStoreMigrate(base, {})).inputHash });
     expect(r.applied).toBe(true);
     expect(r.revertLine).not.toMatch(/^git reset --hard/);
     expect(r.revertLine).toContain('do NOT');
@@ -256,7 +256,7 @@ describe('AC1.3 / AC1.4 / AC7.3 — apply turns the store on', () => {
     project({ gitRepo: false });
     await createBacklogIfMissing(base, { today: '2026-01-02' });
     const { runWorkStoreMigrate } = await lists();
-    const r = await runWorkStoreMigrate(base, { apply: true, stamp: 'T1' });
+    const r = await runWorkStoreMigrate(base, { apply: true, stamp: 'T1', expectedHash: (await runWorkStoreMigrate(base, {})).inputHash });
     expect(r.applied).toBe(true);
     expect(r.mode).toBe('fs-backup');
     expect(r.tag).toBeNull();

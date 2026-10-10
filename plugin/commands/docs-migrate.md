@@ -109,7 +109,7 @@ From `${CLAUDE_PLUGIN_ROOT}/tools/lib/migrate-memory.js`:
 - `relocateFaithful(...)` / `verifyFaithful(...)` / `conserves(...)` — the faithfulness gate (S1.t3): WORD conservation is the vector-1 gate; `verifyFaithful` is the ID/date/status-token backstop.
 
 From `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-migrate-lists.js` (`--work-store` only):
-- `runWorkStoreMigrate(baseDir, {apply, force, key, expectedHash, acknowledgeSensitive})` — refusals, a sensitive-data stop (`{aborted, hits}`), dry run (`{key, files, items, dates, sensitiveHits, inputHash, report}`) or apply (`{tag, revertLine, written, archived, records, flagged, report}`).
+- `runWorkStoreMigrate(baseDir, {apply, force, key, expectedHash, acknowledgeSensitive})` — `expectedHash` (the dry run's `inputHash`) is required with `apply`: without it the apply is refused. Returns refusals, a sensitive-data stop (`{aborted, hits}`), dry run (`{key, files, items, dates, sensitiveHits, inputHash, report}`) or apply (`{tag, revertLine, written, archived, records, flagged, report}`).
 - `proposeKey(folderName)` → a valid key or `null` — what the dry run proposes.
 
 Supporting (pure cores + read-only sensing helpers the command uses; the mutating cores compose under the ONE coarse lock inside `runMigrate`/`applyMigrate`): `senseState`/`senseProject` (auto-sense), `deproseFrontmatter`/`locateFrontmatterProse` (vector-1), `planVector2` (vector-2), `stampOnConformance` (the stamp), `scanDanglingLinks`/`computeDanglingDelta` (dangling baseline). Vector-3 evict + archive-tree + link-rewrite + the full-corpus brain land in **S2**; the FR7.2 upgrade banner + SessionStart hook in **S3**.

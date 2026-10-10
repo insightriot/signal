@@ -93,6 +93,9 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
+// The dry run's token, which every apply needs (AC6.4).
+const tokenFor = async (key = 'LF') => (await runWorkStoreMigrate(base, { key })).inputHash;
+
 const asideLeft = () => readdirSync(join(base, '.planning')).filter((n) => n.startsWith('.work-store-'));
 
 describe('t4.1 — the dry run lists every planned item and writes nothing (AC1.2)', () => {
@@ -191,7 +194,7 @@ describe('t4.8 — a project with an INDEX.md: the apply regenerates it, stages 
 
   it('after the apply, /sig:docs-sweep reports no stale INDEX.md and no orphan item files', async () => {
     const before = await withIndex();
-    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
     expect(r.applied).toBe(true);
     expect(read('.planning/INDEX.md')).not.toBe(before);
     expect(git(base, ['diff', '--cached', '--name-only']).trim().split('\n')).toContain('.planning/INDEX.md');
@@ -205,7 +208,7 @@ describe('t4.8 — a project with an INDEX.md: the apply regenerates it, stages 
     const fail = (s) => {
       if (s === 'index') throw new Error('injected failure at index');
     };
-    await expect(runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', onSwapStep: fail })).rejects.toThrow(/injected failure/);
+    await expect(runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', onSwapStep: fail, expectedHash: await tokenFor() })).rejects.toThrow(/injected failure/);
     expect(read('.planning/INDEX.md')).toBe(before);
     for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
     expect(existsSync(join(base, '.planning/work'))).toBe(false);
@@ -214,7 +217,7 @@ describe('t4.8 — a project with an INDEX.md: the apply regenerates it, stages 
 
   it('a project with no INDEX.md does not get one', async () => {
     corpusProject();
-    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
     expect(r.applied).toBe(true);
     expect(existsSync(join(base, '.planning/INDEX.md'))).toBe(false);
   });
@@ -223,7 +226,7 @@ describe('t4.8 — a project with an INDEX.md: the apply regenerates it, stages 
     corpusProject();
     write('.planning/INDEX.md', '# Our own index\n\nWritten by hand.\n');
     commitAll(base, '2026-02-21');
-    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
     expect(r.applied).toBe(true);
     expect(read('.planning/INDEX.md')).toBe('# Our own index\n\nWritten by hand.\n');
     expect(r.report).toMatch(/INDEX\.md.*left as it is/);
@@ -236,7 +239,7 @@ describe('t4.8 — a project with an INDEX.md: the apply regenerates it, stages 
     corpusProject();
     symlinkSync(join(outside, 'INDEX.md'), join(base, '.planning/INDEX.md'));
     commitAll(base, '2026-02-21');
-    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
     expect(r.applied).toBe(true);
     expect(readFileSync(join(outside, 'INDEX.md'), 'utf-8')).toBe('outside\n');
     expect(r.report).toMatch(/INDEX\.md is a symbolic link or not a regular file/);
@@ -250,7 +253,7 @@ describe('t4.2 — built aside, then swapped; a failure mid-swap puts the projec
     const fail = (s) => {
       if (s === step) throw new Error(`injected failure at ${s}`);
     };
-    await expect(runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', onSwapStep: fail })).rejects.toThrow(/injected failure/);
+    await expect(runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', onSwapStep: fail, expectedHash: await tokenFor() })).rejects.toThrow(/injected failure/);
     for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
     expect(existsSync(join(base, '.planning/work'))).toBe(false);
     expect(existsSync(join(base, '.planning/archive'))).toBe(false);
@@ -290,7 +293,7 @@ describe('t4.3 — the input hash covers STATE.md and the four lists (AC6.4)', (
 describe('t4.4 — dates from git, else the file’s mtime, stated in the manifest (D-M6E15-19)', () => {
   it('git: created at each file’s first commit; an undated close at its last commit', async () => {
     corpusProject();
-    await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
     const { records } = listRecords(base);
     const bugs = records.filter((x) => x.record.source === 'migration:BUGS.md');
     for (const b of bugs) expect(b.record.events[0].at.slice(0, 10) <= '2026-01-05', b.id).toBe(true);
@@ -323,7 +326,7 @@ describe('t4.4 — dates from git, else the file’s mtime, stated in the manife
       write(`.planning/${f}`, fixture(f));
       utimesSync(join(base, '.planning', f), when, when);
     }
-    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
     expect(r.applied).toBe(true);
     expect(r.mode).toBe('fs-backup');
     const manifest = JSON.parse(read(`${ARCHIVE}/MANIFEST.json`));
@@ -371,7 +374,7 @@ describe('t4.6 — a hostile repository: links are text, linked paths are refuse
     mkdirSync(outside);
     writeFileSync(join(outside, 'secret.txt'), 'TOPSECRET-CONTENT\n');
     corpusProject({ texts: { 'BUGS.md': `${fixture('BUGS.md')}\n## Reads a file it should not\n\n**Status:** confirmed\n\nSee [the file](../../outside/secret.txt).\n` } });
-    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
     expect(r.applied).toBe(true);
     const { records } = listRecords(base, { bodies: true });
     const hit = records.find((x) => x.record.title.includes('Reads a file'));
@@ -642,5 +645,33 @@ describe('I6 — the moved-in store failing its own verification puts the projec
     expect(existsSync(join(base, '.planning/archive'))).toBe(false);
     expect(git(base, ['tag', '-l']).trim()).toBe('');
     expect(git(base, ['status', '--porcelain']).trim()).toBe('');
+  });
+});
+
+describe('the apply needs the dry run’s token (AC6.4)', () => {
+  it('apply with no expectedHash → refused, nothing written, no tag', async () => {
+    corpusProject();
+    const before = snapshot(base);
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/expectedHash/);
+    expect(r.reason).toMatch(/dry run/);
+    expect(snapshot(base)).toEqual(before);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+  });
+});
+
+describe('a sensitive-data hit is masked wherever it is returned', () => {
+  const SECRET = `AKIA${'Q'.repeat(16)}`;
+  it('the dry run’s sensitiveHits, its report and the apply’s stop carry only the start of the match', async () => {
+    corpusProject({ texts: { 'BUGS.md': fixture('BUGS.md').replace('not reproduced.', `not reproduced. Logs show ${SECRET}.`) } });
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(dry.sensitiveHits).toHaveLength(1);
+    expect(dry.report).not.toContain(SECRET);
+    expect(JSON.stringify(dry.sensitiveHits)).not.toContain(SECRET);
+    expect(dry.sensitiveHits[0].match).toBe('AKIAQQ…');
+    const stop = await runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1' });
+    expect(stop.aborted).toBe('sensitive-data-pending');
+    expect(JSON.stringify(stop)).not.toContain(SECRET);
   });
 });

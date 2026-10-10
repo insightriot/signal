@@ -596,7 +596,8 @@ async function buildAndSwap(baseDir, a, ctx) {
  *          acknowledgeSensitive?: boolean, stamp?: string, execFn?: typeof execFileSync,
  *          onSwapStep?: (step: string) => void,
  *          segmenters?: Record<string, (text: string) => object>}} [opts]
- *   `acknowledgeSensitive`: go ahead past the sensitive-data hits the dry run
+ *   `expectedHash`: the dry run's `inputHash` — required with `apply` (refused
+ *   without it). `acknowledgeSensitive`: go ahead past the sensitive-data hits the dry run
  *   listed, after a person has read them (the text is kept as it is).
  *   `onSwapStep`: TEST SEAM ONLY — called with `archive`, `work`, `views` and
  *   `verify` before those steps of the swap, with `archive:<list>` before each
@@ -619,10 +620,12 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   const stamp = opts.stamp ?? new Date().toISOString().replace(/[:.]/g, '-');
   const refused = (reason, extra = {}) => ({ applied: false, refused: true, reason, ...extra });
+  // A hit leaves this function masked, like the report shows it.
+  const maskHits = (hits) => hits.map((h) => ({ ...h, match: masked(h.match) }));
   const sensitiveStop = (hits) => ({
     applied: false,
     aborted: 'sensitive-data-pending',
-    hits,
+    hits: maskHits(hits),
     reason: `${hits.length} sensitive-data hit${hits.length === 1 ? '' : 's'} in the lists (see the dry run); nothing was written. `
       + 'Keep the text as it is (re-run the apply with acknowledgeSensitive), or abort and edit the list first.',
   });
@@ -632,8 +635,14 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   if (!apply) {
     return {
       applied: false, dryRun: true, key: a.key, files: a.files, items: a.plan.manifest.items, dates: a.dates,
-      sensitiveHits: a.sensitiveHits, inputHash: a.inputHash, report: dryRunReport(a),
+      sensitiveHits: maskHits(a.sensitiveHits), inputHash: a.inputHash, report: dryRunReport(a),
     };
+  }
+  // The apply is bound to what a person read in the dry run (AC6.4): without
+  // its token there is nothing to bind to.
+  if (typeof opts.expectedHash !== 'string' || opts.expectedHash === '') {
+    return refused('An apply needs the dry run\'s inputHash as expectedHash, so nothing was written. Run the dry run, read it, '
+      + 'then apply with {expectedHash: dry.inputHash}.');
   }
   if (a.sensitiveHits.length > 0 && !opts.acknowledgeSensitive) return sensitiveStop(a.sensitiveHits);
 
@@ -677,7 +686,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
     // STATE.md or a list may have changed since the dry run.
     b = assess(baseDir, { ...opts, execFn, underLock: true });
     if (b.refusal) stop = refused(b.refusal);
-    else if (opts.expectedHash && opts.expectedHash !== b.inputHash) {
+    else if (opts.expectedHash !== b.inputHash) {
       stop = refused(`${STATE_REL} or a list (${GENERATED_FILES.join(', ')}) changed since the dry run, so nothing was written. `
         + 'Re-run the dry run.');
     } else if (b.sensitiveHits.length > 0 && !opts.acknowledgeSensitive) stop = sensitiveStop(b.sensitiveHits);
@@ -959,6 +968,10 @@ const quote = (s) => `“${s}”`;
 // The `<!-- backlog-key: … -->` / `<!-- bugs-key: … -->` comments Signal's own
 // promote writes (`backlog.js`, a sha1 of the block), exactly: lowercase hex,
 // 40 digits, single spaces. Any other spelling is scanned as usual.
+// The limit of this exemption (REVIEW, accepted): ANY 40-hex value written
+// inside that exact comment is skipped, a real secret too — the scanner cannot
+// tell a sha1 from a 40-hex token. It hides only a value already committed in
+// the list, inside a comment shaped like Signal's own.
 const DEDUPE_KEY_COMMENT_G = /<!-- (?:backlog|bugs)-key: [0-9a-f]{40} -->/g;
 
 // `scrubSensitive`'s hits for `text`, minus any lying wholly inside one of
