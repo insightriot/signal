@@ -274,3 +274,25 @@ describe('only a literal true applies or confirms (REVIEW pass 4)', async () => 
     expect(listRecords(base).records.filter((x) => x.record.events.some((e) => e.type === 'closed')).map((x) => x.record.legacy_id)).toEqual(['B1']);
   });
 });
+
+// ── F5: printable strips every control and format character ───────────────────
+describe('printable: Cc, Cf (tag characters too) and variation selectors (REVIEW pass 4)', () => {
+  let root;
+  let base;
+  const HIDDEN = '\u{E0001}\u{E0041}\u{E0042}\u{E007F}️\u{E0100}\u{E01EF}­⁯';
+  beforeEach(() => {
+    ({ root, base } = repo('r4-printable-'));
+    writeFileSync(join(base, '.planning', 'BUGS.md'), ['# Bugs', '', '| ID | Status | Pri | What |', '|---|---|---|---|',
+      `| B1 | fixed | P2 | Rows${HIDDEN} vanish — PR #7. |`, `| B2 | open${HIDDEN} | P2 | Totals${HIDDEN} wrong. |`, ''].join('\n'));
+    git(base, ['add', '-A']);
+    git(base, ['commit', '-q', '-m', 'Add the exporter (#7)'], at('2026-01-05'));
+  });
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+  it('no Unicode tag character or variation selector reaches the dry-run report', async () => {
+    const dry = await runWorkStoreMigrate(base, { key: 'LN' });
+    expect(dry.report).toMatch(/Rows vanish/);
+    expect(dry.report).toMatch(/Totals wrong/);
+    expect(dry.report).not.toMatch(/[\u{E0000}-\u{E007F}︀-️\u{E0100}-\u{E01EF}­⁯]/u);
+  });
+});

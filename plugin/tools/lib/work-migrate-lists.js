@@ -419,9 +419,8 @@ const masked = (m) => (m.length > 8 ? `${m.slice(0, 6)}…` : m);
 // another order than it is stored. Applied per line, so the report's own line
 // breaks stay. Also the marks that move or hide text without showing (REVIEW
 // pass 3 suggestion): LRM, RLM, ALM, the line and paragraph separators, and
-// the zero-width characters.
-// eslint-disable-next-line no-control-regex
-const printable = (s) => String(s).replace(/[\u0000-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060\u2066-\u2069\ufeff]/g, '');
+// the zero-width characters: every Cc and Cf character (tag characters too), and the variation selectors (REVIEW pass 4).
+const printable = (s) => String(s).replace(/[\p{Cc}\p{Cf}\u2028\u2029\p{Variation_Selector}]/gu, '');
 
 function dryRunReport(a) {
   const lines = ['/sig:docs-migrate --work-store — dry run (nothing written)', ''];
