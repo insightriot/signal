@@ -109,14 +109,20 @@ const EXEMPTIONS = [
   },
   {
     file: 'plugin/tools/lib/work-migrate-lists.js',
+    fn: 'buildAside',
     writes: [
-      'renameSync(join(baseDir, x.from), join(baseDir, x.to))',
-      'atomicWrite(join(baseDir, WORK_MD_REL), workMd(a.key, archived))',
       'renameSync(join(baseDir, x.to), join(baseDir, x.from))',
+      'renameSync(join(baseDir, x.from), join(baseDir, x.to))',
+      'renameSync(join(aside, WORK_MD_REL), join(baseDir, WORK_MD_REL))',
+      'renameSync(join(aside, ITEMS_REL), join(baseDir, ITEMS_REL))',
+      'renameSync(join(aside, rel), join(baseDir, rel))',
+      'atomicWrite(join(baseDir, MANIFEST_REL)',
     ],
-    reason: '`/sig:docs-migrate --work-store` (M6.E15): its writes are the list moves to the pre-store archive, WORK.md '
-      + 'and their undo. It names `recordPath(` only in `planListsToRecords`, which is pure and returns the planned '
-      + 'paths; no record is written here yet (writing them is S4, which must re-review this entry)',
+    reason: '`/sig:docs-migrate --work-store` (M6.E15 S4) is a migration INTO an empty store: every record is born from a '
+      + 'hand-kept list with its full planned event log (created, and triaged or a legacy close), validated by '
+      + '`validateRecord`/`checkEvents` before any write — there is no store yet for work-records.js to write through. '
+      + '`buildAside` writes records only into a fresh build folder; outside it the project sees renames (lists to the '
+      + 'archive, the built store and views in, and the restore that moves an archive copy back) and the MANIFEST.json',
   },
   {
     file: 'plugin/tools/lib/work-views.js',

@@ -7,7 +7,7 @@
 //   (B) only the skeleton `BACKLOG.md` a layout migration leaves
 //       (`backlog.js` `backlogSkeleton`).
 // A third repo WITH lists pins that a plain `/sig:docs-migrate` never touches
-// them (AC1.1). Lists with items are S3/S4's: here they are refused.
+// them (AC1.1). Lists with items are S4's (work-migrate-lists-apply.test.js).
 //
 // Folder names and keys are invented (`tests/private-name-guard.test.js`).
 
@@ -334,19 +334,33 @@ describe('refusals — nothing written, in a dry run or an apply', () => {
     await refuses({}, /--key/);
   });
 
-  it('a list with items → lists with items are migrated by a later slice', async () => {
+});
+
+// S1 refused these with "lists with items are migrated by a later slice"; S4
+// plans them (tests/work-migrate-lists-apply.test.js covers the apply).
+describe('a list with items is planned, not refused (S4)', () => {
+  it('a list with items → its entries are planned as items by the dry run, nothing written', async () => {
     const p = project();
     writeFileSync(join(base, '.planning', 'BUGS.md'), '# Bugs\n\n## a crash\n');
     p.commit();
-    await refuses({}, /lists with items are migrated by a later slice/);
+    const { runWorkStoreMigrate } = await lists();
+    const before = snapshot(base);
+    const r = await runWorkStoreMigrate(base, { apply: false });
+    expect(r.refused).toBeUndefined();
+    expect(r.files).toMatchObject([{ file: '.planning/BUGS.md', items: 1 }]);
+    expect(snapshot(base)).toEqual(before);
   });
 
-  it('a skeleton BACKLOG.md with anything added → the same refusal (not the skeleton)', async () => {
+  it('a skeleton BACKLOG.md with anything added is not the skeleton: its row is an item', async () => {
     const p = project();
     await createBacklogIfMissing(base, { today: '2026-01-02' });
     writeFileSync(join(base, '.planning', 'BACKLOG.md'), `${read('.planning/BACKLOG.md')}\n### #1 — an idea\n`);
     p.commit();
-    await refuses({}, /lists with items are migrated by a later slice/);
+    const { runWorkStoreMigrate } = await lists();
+    const r = await runWorkStoreMigrate(base, { apply: false });
+    expect(r.refused).toBeUndefined();
+    expect(r.files[0].regions).not.toContain('backlog skeleton');
+    expect(r.items.filter((i) => i.legacy_id === '#1')).toHaveLength(1);
   });
 });
 

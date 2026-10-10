@@ -1,19 +1,16 @@
 // `/sig:docs-migrate --work-store` — turn the work store on for a project
-// (M6.E15, FR1, FR2, AC7.3; SIG-274).
+// (M6.E15, FR1, FR2, FR6, AC7.3; SIG-274).
 //
 // A project's hand-kept lists (`BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md`,
 // `OPEN-QUESTIONS.md`) become records, and the lists become generated views.
 // One path for a project with lists and a project without (D-M6E15-6): with no
 // lists, the apply just writes `WORK.md` and the empty views.
 //
-// What S1 handles: no lists at all (the `/sig:init` / `/sig:new-project`
-// shape — stamped layout v3 at birth, lists created lazily), and a `BACKLOG.md`
-// that is exactly the skeleton a layout migration leaves (`backlog.js`
-// `backlogSkeleton`). The skeleton is a named non-item region, never an item:
-// it is moved to `.planning/archive/pre-work-store/` before the views are
-// written, because `regenerateViews` refuses a list without the generated
-// marker. `planListsToRecords` below plans lists with items as records (S3,
-// pure); `runWorkStoreMigrate` still refuses them until S4 wires that plan in.
+// The lists are planned as records by `planListsToRecords` below (pure). The
+// exact `BACKLOG.md` skeleton a layout migration leaves is one named non-item
+// region, never an item. Every list present is moved, byte for byte, to
+// `.planning/archive/pre-work-store/` with a `MANIFEST.json` (counts, per-item
+// source line ranges, the verification result, where the dates came from).
 //
 // The command's contract is kept (D-M6E15-5): dry run by default; `--apply`
 // refuses a dirty tree without `--force`, tags the pre-apply HEAD, leaves the
@@ -23,21 +20,42 @@
 //   - `WORK.md` exists, whatever it holds → "already on the store"
 //     (D-M6E11-21; `isStoreOn` throws on a broken one, so this checks the file
 //     exists rather than asking it);
+//   - a path the run reads or writes runs through a symbolic link, or
+//     `.planning/` resolves outside the repository (M6.E14's linked-`.planning`
+//     class); a list that is a link or not a regular file is never read;
 //   - layout below v3, or no STATE.md → names the plain command (D-M6E15-8);
 //   - a `--key` that `STORE_KEY_RE` rejects, or no key to propose → the rule;
-//   - a list with anything but the skeleton → the later-slice refusal.
+//   - a store file or archive copy already at a path the run would write;
+//   - the plan fails its checks (a source byte unaccounted for, an invalid
+//     record) — the whole apply is refused (D-M6E15-9).
+// A sensitive-data hit in a planned record (scrub.js; Signal's own dedupe-key
+// comments excepted, D-M6E15-23) is listed by the dry run and stops the apply
+// (`aborted: 'sensitive-data-pending'`) until the caller passes
+// `acknowledgeSensitive` after a person has read the hits.
 //
 // The key: `--key` if given, else proposed from the folder name (D-M6E15-7).
 // The dry run prints it; `--apply` without `--key` uses the same proposal.
 //
-// The input-hash guard covers STATE.md only, as `runMigrate`'s does; covering
-// the lists is S4's (AC6.4).
+// The input hash covers STATE.md and the four lists (AC6.4): a change to any of
+// them between the dry run and the apply aborts the apply before any write.
+//
+// Dates (D-M6E15-19): each list's first and last commit dates from git; outside
+// git, or for a file git has no history for, the file's modification date —
+// the manifest says which.
+//
+// The apply builds aside, then swaps (D-M6E15-20): the records, WORK.md and the
+// views are written and verified in a sibling folder under `.planning/` (same
+// filesystem, so every move is a rename), then the lists move to the archive
+// and the built store moves in. On any failure after the first move the
+// project is put back: each generated view is deleted, then its archive copy
+// is renamed back — never written over a view (`atomicWrite` refuses a
+// generated file). The snapshotter is not used.
 //
 // No v2 store module may import this one (`tests/legacy-lists.test.js`
-// V2_MODULES): it will reach the list parsers.
+// V2_MODULES): it reaches the list parsers.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
@@ -50,6 +68,7 @@ import {
   stagePaths,
   tagPreApply,
 } from './migrate-memory.js';
+import { readRegularFile, regularFileRefusal } from './path-confine.js';
 import { bodyDirFor } from './work-convert.js';
 import { lockFailure, WorkStoreError } from './work-errors.js';
 import { GENERATED_FILES } from './work-generate.js';
@@ -65,21 +84,23 @@ import {
   SOURCES,
   TAG_TYPES,
 } from './work-migrate.js';
-import { checkEvents, validateRecord } from './work-record.js';
-import { bodyPath, recordPath } from './work-records.js';
+import { checkEvents, serializeRecord, validateRecord } from './work-record.js';
+import { bodyPath, checkRecords, listRecords, recordPath } from './work-records.js';
 import { scrubSensitive } from './scrub.js';
 import { isGeneratedFile } from './work-marker.js';
 import { STORE_KEY_RE, WORK_DIR, WORK_FILE, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
 import { confineView, regenerateViews, VIEW_PATHS } from './work-views.js';
 
 const WORK_MD_REL = `.planning/${WORK_DIR}/${WORK_FILE}`;
+const ITEMS_REL = `.planning/${WORK_DIR}/items`;
+const HISTORY_REL = `.planning/${WORK_DIR}/history`;
 const STATE_REL = '.planning/STATE.md';
 // Where a list goes when the store takes its path (the same folder Signal's own
 // lists went to at M6.E11).
 export const PRE_STORE_ARCHIVE_REL = '.planning/archive/pre-work-store';
+export const MANIFEST_REL = `${PRE_STORE_ARCHIVE_REL}/MANIFEST.json`;
 
 const KEY_RULE = 'a project key is an uppercase letter, then 1–9 uppercase letters or digits (2–10 characters in all)';
-export const LATER_SLICE_REFUSAL = 'lists with items are migrated by a later slice';
 
 // `backlog.js` `backlogSkeleton` (:57), line for line: title, purpose line, an
 // optional pointer to a backlog-review snapshot, the `*Last updated:*` footer.
@@ -107,7 +128,7 @@ export function proposeKey(folderName) {
 // maintainer script and no other project's history (AC7.3).
 function workMd(key, archived) {
   const before = archived.length > 0
-    ? `The lists kept by hand before then are kept, byte for byte, in \`${PRE_STORE_ARCHIVE_REL}/\`: ${archived.map((a) => `\`${basename(a.from)}\``).join(', ')}.`
+    ? `The lists kept by hand before then are kept, byte for byte, in \`${PRE_STORE_ARCHIVE_REL}/\`: ${archived.map((a) => `\`${basename(a.from)}\``).join(', ')}, with \`MANIFEST.json\` saying where each entry went.`
     : 'This project had no lists when the store was turned on.';
   return `---
 key: ${key}
@@ -130,14 +151,65 @@ The store was turned on by \`/sig:docs-migrate --work-store\`. ${before}
 `;
 }
 
-// Everything both modes decide before writing: the refusals, the key, and what
-// each list present is. Reads only.
+// A list's first and last dates (D-M6E15-19): its first and last commit from
+// git, else — outside git, or a file git has no history for — the file's
+// modification date. `source` says which.
+function listDates(baseDir, rel, execFn) {
+  let out = '';
+  try {
+    out = String(execFn('git', ['log', '--format=%ad', '--date=short', '--', rel], {
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 16 * 1024 * 1024,
+    })).trim();
+  } catch {
+    out = '';
+  }
+  if (out !== '') {
+    const days = out.split('\n');
+    return { first: days.at(-1), last: days[0], source: 'git' };
+  }
+  const day = statSync(join(baseDir, rel)).mtime.toISOString().slice(0, 10);
+  return { first: day, last: day, source: 'mtime' };
+}
+
+// The token the dry run hands the apply: STATE.md and every list, each named,
+// an absent list distinct from an empty one (AC6.4).
+function inputHashOf(stateText, texts) {
+  const parts = [['STATE.md', stateText], ...GENERATED_FILES.map((n) => [n, texts[n] ?? null])];
+  return hashState(parts.map(([n, t]) => `${n}\0${t === null ? '\u0001absent' : t}\0`).join(''));
+}
+
+// Everything both modes decide before writing: the refusals, the key, the
+// lists' texts and dates, and the plan. Reads only.
 function assess(baseDir, opts) {
   const refuse = (reason) => ({ refusal: reason });
 
   if (existsSync(join(baseDir, WORK_MD_REL))) {
     return refuse(`This project is already on the store: ${WORK_MD_REL} exists, so nothing was written. `
       + `If that file was made by hand in a project that was never migrated, delete it and re-run.`);
+  }
+
+  // Before any read: no store path through a link, `.planning/` inside the
+  // repository, and every list a regular file (t4.6).
+  for (const rel of [WORK_MD_REL, `${ITEMS_REL}/x`, `${HISTORY_REL}/x`, MANIFEST_REL]) {
+    try {
+      confineView(baseDir, rel);
+    } catch (err) {
+      return refuse(String(err.message));
+    }
+  }
+  for (const name of GENERATED_FILES) {
+    const why = regularFileRefusal(baseDir, `.planning/${name}`);
+    if (why !== null) {
+      return refuse(`${why}. Nothing was read or written: a list is migrated only from a regular file inside the project. `
+        + 'Replace the link with the file it points at (or remove it), commit, then re-run.');
+    }
+  }
+  for (const rel of Object.values(VIEW_PATHS)) {
+    try {
+      confineView(baseDir, rel);
+    } catch (err) {
+      return refuse(String(err.message));
+    }
   }
 
   const statePath = join(baseDir, STATE_REL);
@@ -168,24 +240,59 @@ function assess(baseDir, opts) {
     keySource = 'folder';
   }
 
-  const files = [];
+  const texts = {};
+  const dates = {};
+  const present = [];
   for (const name of GENERATED_FILES) {
     const rel = `.planning/${name}`;
-    const abs = join(baseDir, rel);
-    if (!existsSync(abs)) continue;
-    const text = readFileSync(abs, 'utf-8');
-    if (name === 'BACKLOG.md' && BACKLOG_SKELETON_RE.test(text)) {
-      files.push({ file: rel, items: 0, open: 0, closed: 0, flagged: 0, regions: ['backlog skeleton'] });
-      continue;
-    }
-    return refuse(`${rel} holds entries (it is not the empty BACKLOG.md skeleton): ${LATER_SLICE_REFUSAL}. `
-      + 'Nothing was written.');
+    if (!existsSync(join(baseDir, rel))) continue;
+    texts[name] = readRegularFile(baseDir, rel);
+    dates[name] = listDates(baseDir, rel, opts.execFn);
+    present.push(name);
+  }
+  const archived = present.map((name) => ({ from: `.planning/${name}`, to: archiveRel(name) }));
+
+  // Never overwrite: a store file or an archive copy already where this run
+  // would put one.
+  const taken = [ITEMS_REL, HISTORY_REL, VIEW_PATHS.epics, MANIFEST_REL, ...archived.map((x) => x.to)]
+    .filter((rel) => existsSync(join(baseDir, rel)));
+  if (taken.length > 0) {
+    return refuse(`${taken.join(', ')} already exist${taken.length === 1 ? 's' : ''}; this run never overwrites one, so nothing was written. `
+      + 'Move it aside (or remove it), commit, then re-run.');
   }
 
-  return { key, keySource, folder, files, inputHash: hashState(stateText) };
+  let plan = planListsToRecords(texts, { key, dates });
+  let sensitiveHits = [];
+  if (plan.aborted === 'sensitive-data-pending') {
+    sensitiveHits = plan.hits;
+    plan = planListsToRecords(texts, { key, dates, acknowledgeSensitive: true });
+  }
+  if (plan.errors.length > 0) {
+    return refuse(`The lists could not be planned as records, so nothing was written:\n  ${plan.errors.join('\n  ')}`);
+  }
+
+  const files = present.map((name) => {
+    const f = plan.manifest.files[name] ?? { items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
+    return { file: `.planning/${name}`, items: f.items, open: f.open, closed: f.closed, flagged: f.flagged, regions: f.regions.map((r) => r.name) };
+  });
+  return { key, keySource, folder, files, archived, dates, plan, sensitiveHits, inputHash: inputHashOf(stateText, texts) };
 }
 
-const archiveRel = (file) => `${PRE_STORE_ARCHIVE_REL}/${basename(file)}`;
+function archiveRel(file) {
+  return `${PRE_STORE_ARCHIVE_REL}/${basename(file)}`;
+}
+
+// "blank ×12, separator ×3" — a file's region names, counted.
+function regionSummary(names) {
+  const counts = new Map();
+  for (const n of names) counts.set(n, (counts.get(n) ?? 0) + 1);
+  return [...counts].map(([n, c]) => (c === 1 ? n : `${n} ×${c}`)).join(', ');
+}
+
+const DATE_SOURCE = { git: 'git history', mtime: 'file modification date — no git history' };
+
+// A hit's match, shown only by its start: enough to find it in the file.
+const masked = (m) => (m.length > 8 ? `${m.slice(0, 6)}…` : m);
 
 function dryRunReport(a) {
   const lines = ['/sig:docs-migrate --work-store — dry run (nothing written)', ''];
@@ -196,22 +303,42 @@ function dryRunReport(a) {
     lines.push('Lists: none — the store starts empty.');
   } else {
     for (const f of a.files) {
+      const n = f.regions.length;
       lines.push(`${f.file}: ${f.items} items (${f.open} open, ${f.closed} closed, ${f.flagged} flagged), `
-        + `${f.regions.length} non-item region (${f.regions.join(', ')}) — moved to ${archiveRel(f.file)}`);
+        + `${n} non-item region${n === 1 ? '' : 's'}${n > 0 ? ` (${regionSummary(f.regions)})` : ''} — moved to ${archiveRel(f.file)}`);
+      const d = a.dates[basename(f.file)];
+      if (f.items > 0 && d) lines.push(`  dates: first ${d.first}, last ${d.last} (${DATE_SOURCE[d.source]})`);
     }
   }
-  lines.push('', `--apply writes ${WORK_MD_REL} and the generated views (${Object.values(VIEW_PATHS).join(', ')}), `
-    + 'and leaves them staged, not committed.');
+  const items = a.plan.manifest.items;
+  if (items.length > 0) {
+    lines.push('', 'Items — new ID, old ID, status (N new, T open, C closed), title:');
+    for (const it of items) {
+      lines.push(`  ${it.id}  ${it.legacy_id ?? '—'}  ${it.status}  ${it.title}${it.flag ? `  [flagged: ${it.flag}]` : ''}`);
+    }
+    const flagged = items.filter((it) => it.flag).length;
+    if (flagged > 0) {
+      lines.push('', `${flagged} item${flagged === 1 ? ' is' : 's are'} flagged: left open for a person's look, each with a migration_note saying why. `
+        + 'Triage them with /sig:item after the apply.');
+    }
+  }
+  if (a.sensitiveHits.length > 0) {
+    lines.push('', `Sensitive data found — the apply stops here until you decide (keep the text as it is, or abort and edit the list first):`);
+    for (const h of a.sensitiveHits) lines.push(`  ${h.id} (${h.file}): ${h.type} "${masked(h.match)}"`);
+  }
+  lines.push('', `--apply moves ${a.files.length > 0 ? 'each list' : 'nothing'}${a.files.length > 0 ? ` to ${PRE_STORE_ARCHIVE_REL}/ (with MANIFEST.json)` : ''}, `
+    + `writes ${items.length} record${items.length === 1 ? '' : 's'}, ${WORK_MD_REL} and the generated views `
+    + `(${Object.values(VIEW_PATHS).join(', ')}), and leaves them staged, not committed.`);
   return lines.join('\n');
 }
 
 // The undo line, worded for this migration. Clean git: reset to the tag. With
 // --force on a dirty tree, or outside git, only this migration's files are
-// undone: the files it created are removed, then each archived list is moved
-// back to its path. `fs-backup` is outside git, an unborn HEAD, or an ignored
+// undone: the files and folders it created are removed, then each archived
+// list is moved back. `fs-backup` is outside git, an unborn HEAD, or an ignored
 // `.planning/` (`probeGitState`); none can be reset to a commit.
 function revertLineFor(probe, force, tag, created, archived) {
-  const fileUndo = [`rm -f -- ${created.join(' ')}`, ...archived.map((a) => `mv -- ${a.to} ${a.from}`)].join(' && ');
+  const fileUndo = [`rm -rf -- ${created.join(' ')}`, ...archived.map((a) => `mv -- ${a.to} ${a.from}`)].join(' && ');
   if (probe.mode !== 'git') return `# nothing staged (.planning/ is not under git): undo with ${fileUndo}`;
   if (probe.dirty && force) {
     const staged = [...created, ...archived.map((a) => a.to)];
@@ -221,17 +348,156 @@ function revertLineFor(probe, force, tag, created, archived) {
   return `git reset --hard ${tag ?? '<pre-apply-commit>'}   # discards the staged work-store changes`;
 }
 
+// Why a store at `root` is not the `count` records the plan made, or [].
+function builtErrors(root, count) {
+  const errors = [];
+  const listed = listRecords(root);
+  if (listed.version !== 2) errors.push(`the store reads as v${listed.version}, not v2`);
+  if (listed.records.length !== count) errors.push(`the store holds ${listed.records.length} records, not ${count}`);
+  for (const b of listed.broken) errors.push(`record ${b.id ?? b.path} is broken: ${b.error}`);
+  for (const f of checkRecords(root)) errors.push(`checkRecords ${f.code}${f.id ? ` ${f.id}` : ''}: ${f.message}`);
+  return errors;
+}
+
+// Write WORK.md and every planned record and body under `aside` — a folder
+// that mirrors the project root and holds nothing else. The project itself is
+// not touched here.
+async function buildAside(aside, records, workMdText) {
+  const workMdAbs = join(aside, WORK_MD_REL);
+  mkdirSync(dirname(workMdAbs), { recursive: true });
+  await atomicWrite(workMdAbs, workMdText);
+  for (const r of records) {
+    const rec = join(aside, r.recordPath);
+    mkdirSync(dirname(rec), { recursive: true });
+    await atomicWrite(rec, serializeRecord(r.record));
+    await atomicWrite(join(aside, r.bodyPath), r.body);
+  }
+}
+
+// `mkdir -p`, remembering each folder it created (deepest last) so a restore
+// can remove exactly those.
+function mkdirTracked(dir, made) {
+  const missing = [];
+  for (let d = dir; !existsSync(d); d = dirname(d)) missing.unshift(d);
+  mkdirSync(dir, { recursive: true });
+  made.push(...missing);
+}
+
+// Put the project back after a failure part-way through the swap. Each view
+// the swap moved in is deleted (a generated file at a view path is ours —
+// anything hand-kept there was moved to the archive first), then each list's
+// archive copy is renamed back; a view is never written over. Folders the swap
+// created are removed only when empty, so an archive copy that could not be
+// moved back is never lost. Best-effort, so the original error is the one
+// reported.
+function restore(baseDir, done) {
+  const quietly = (fn) => {
+    try {
+      fn();
+    } catch {
+      /* best-effort */
+    }
+  };
+  for (const rel of done.views) quietly(() => { if (isGeneratedFile(join(baseDir, rel))) unlinkSync(join(baseDir, rel)); });
+  if (done.items) quietly(() => rmSync(join(baseDir, ITEMS_REL), { recursive: true, force: true }));
+  if (done.workMd) quietly(() => unlinkSync(join(baseDir, WORK_MD_REL)));
+  if (done.manifest) quietly(() => unlinkSync(join(baseDir, MANIFEST_REL)));
+  for (const x of [...done.archived].reverse()) {
+    quietly(() => {
+      if (!existsSync(join(baseDir, x.from))) renameSync(join(baseDir, x.to), join(baseDir, x.from));
+    });
+  }
+  for (const d of [...done.made].reverse()) quietly(() => rmdirSync(d));
+}
+
+// Build the store aside, verify it, then swap it in and verify again. Throws
+// (after `restore`) on any failure; the project is unchanged until the swap.
+async function buildAndSwap(baseDir, a, ctx) {
+  const aside = join(baseDir, ctx.asideRel);
+  const records = a.plan.records;
+  await buildAside(aside, records, workMd(a.key, a.archived));
+  const { written } = await regenerateViews(aside);
+  const built = builtErrors(aside, records.length);
+  if (built.length > 0) {
+    throw new WorkStoreError('SCHEMA', `the store built aside did not verify, so the project was not changed:\n  ${built.join('\n  ')}`);
+  }
+
+  const step = (name) => ctx.onSwapStep?.(name);
+  const done = { archived: [], views: [], made: [], items: false, workMd: false, manifest: false };
+  try {
+    step('archive');
+    if (a.archived.length > 0) mkdirTracked(join(baseDir, PRE_STORE_ARCHIVE_REL), done.made);
+    for (const x of a.archived) {
+      renameSync(join(baseDir, x.from), join(baseDir, x.to)); // the same bytes, by construction
+      done.archived.push(x);
+    }
+    step('work');
+    mkdirTracked(join(baseDir, '.planning', WORK_DIR), done.made);
+    renameSync(join(aside, WORK_MD_REL), join(baseDir, WORK_MD_REL));
+    done.workMd = true;
+    if (existsSync(join(aside, ITEMS_REL))) {
+      renameSync(join(aside, ITEMS_REL), join(baseDir, ITEMS_REL));
+      done.items = true;
+    }
+    step('views');
+    for (const rel of written) {
+      confineView(baseDir, rel);
+      mkdirTracked(dirname(join(baseDir, rel)), done.made);
+      renameSync(join(aside, rel), join(baseDir, rel));
+      done.views.push(rel);
+    }
+    step('verify');
+    const after = builtErrors(baseDir, records.length);
+    if (after.length > 0) throw new WorkStoreError('SCHEMA', `the migrated store did not verify:\n  ${after.join('\n  ')}`);
+    if (a.archived.length > 0) {
+      const manifest = {
+        migration: '/sig:docs-migrate --work-store',
+        key: a.key,
+        archived: a.archived,
+        dates: a.dates,
+        datesNote: 'created.at is each list’s first date; a close is at the date its marker writes, else the list’s last date. '
+          + '`source: git` — first and last commit; `source: mtime` — the file’s modification date (no git history).',
+        files: a.plan.manifest.files,
+        items: a.plan.manifest.items,
+        verification: {
+          ok: true,
+          conservation: 'every byte of each list is in exactly one record body or one named non-item region (files.*.verified)',
+          records: records.length,
+          checkRecords: [],
+        },
+        ...(a.sensitiveHits.length > 0
+          ? { sensitive: { acknowledged: true, hits: a.sensitiveHits.map((h) => ({ id: h.id, file: h.file, type: h.type })) } }
+          : {}),
+      };
+      done.manifest = true;
+      await atomicWrite(join(baseDir, MANIFEST_REL), `${JSON.stringify(manifest, null, 2)}\n`);
+    }
+  } catch (err) {
+    restore(baseDir, done);
+    throw err;
+  }
+  return { written, items: records.length > 0, manifest: a.archived.length > 0 };
+}
+
 /**
  * Run `/sig:docs-migrate --work-store`. Dry run unless `apply`.
  *
  * @param {string} baseDir — project root
  * @param {{apply?: boolean, force?: boolean, key?: string, expectedHash?: string,
- *          stamp?: string, execFn?: typeof execFileSync}} [opts]
- * @returns {Promise<object>} a refusal `{applied: false, refused: true, reason}`; a dry run
- *   `{applied: false, dryRun: true, key, files, inputHash, report}`; or an apply
- *   `{applied: true, key, mode, tag, revertLine, written, archived, warnings, report}`
+ *          acknowledgeSensitive?: boolean, stamp?: string, execFn?: typeof execFileSync,
+ *          onSwapStep?: (step: 'archive'|'work'|'views'|'verify') => void}} [opts]
+ *   `acknowledgeSensitive`: go ahead past the sensitive-data hits the dry run
+ *   listed, after a person has read them (the text is kept as it is).
+ *   `onSwapStep`: TEST SEAM ONLY — called before each step of the swap, so a
+ *   test can fail one and prove the project is put back. Production callers
+ *   never pass it.
+ * @returns {Promise<object>} a refusal `{applied: false, refused: true, reason}`; a
+ *   sensitive-data stop `{applied: false, aborted: 'sensitive-data-pending', hits, reason}`;
+ *   a dry run `{applied: false, dryRun: true, key, files, items, dates, sensitiveHits,
+ *   inputHash, report}`; or an apply `{applied: true, key, mode, tag, revertLine, written,
+ *   archived, records, flagged, warnings, report}`
  * @throws {WorkStoreError} LOCKED / IO when the `work` lock cannot be taken; whatever
- *   the write threw, after this migration's files are undone
+ *   the build or the swap threw, after the project is put back and the tag removed
  */
 export async function runWorkStoreMigrate(baseDir, opts = {}) {
   const apply = opts.apply ?? false;
@@ -239,22 +505,35 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   const stamp = opts.stamp ?? new Date().toISOString().replace(/[:.]/g, '-');
   const refused = (reason, extra = {}) => ({ applied: false, refused: true, reason, ...extra });
+  const sensitiveStop = (hits) => ({
+    applied: false,
+    aborted: 'sensitive-data-pending',
+    hits,
+    reason: `${hits.length} sensitive-data hit${hits.length === 1 ? '' : 's'} in the lists (see the dry run); nothing was written. `
+      + 'Keep the text as it is (re-run the apply with acknowledgeSensitive), or abort and edit the list first.',
+  });
 
-  const a = assess(baseDir, opts);
+  const a = assess(baseDir, { ...opts, execFn });
   if (a.refusal) return refused(a.refusal);
   if (!apply) {
-    return { applied: false, dryRun: true, key: a.key, files: a.files, inputHash: a.inputHash, report: dryRunReport(a) };
+    return {
+      applied: false, dryRun: true, key: a.key, files: a.files, items: a.plan.manifest.items, dates: a.dates,
+      sensitiveHits: a.sensitiveHits, inputHash: a.inputHash, report: dryRunReport(a),
+    };
   }
+  if (a.sensitiveHits.length > 0 && !opts.acknowledgeSensitive) return sensitiveStop(a.sensitiveHits);
 
   const probe = probeGitState(baseDir, { execFn, force });
   if (!probe.proceed) return refused(probe.reason, { warnings: probe.warnings });
 
-  const archived = a.files.map((f) => ({ from: f.file, to: archiveRel(f.file) }));
-  // Nothing is ever written through a link, and an archive copy is never overwritten.
-  for (const rel of [WORK_MD_REL, ...Object.values(VIEW_PATHS), ...archived.map((x) => x.to)]) confineView(baseDir, rel);
-  const taken = archived.filter((x) => existsSync(join(baseDir, x.to)));
-  if (taken.length > 0) {
-    return refused(`${taken.map((x) => x.to).join(', ')} already exists; it is never overwritten. Nothing was written.`);
+  const asideRel = `.planning/.work-store-build-${stamp}`;
+  try {
+    confineView(baseDir, `${asideRel}/x`);
+  } catch (err) {
+    return refused(String(err.message));
+  }
+  if (existsSync(join(baseDir, asideRel))) {
+    return refused(`${asideRel} already exists (left by an interrupted run?); nothing was written. Remove it, then re-run.`);
   }
 
   const workDir = join(baseDir, '.planning', WORK_DIR);
@@ -266,27 +545,25 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
     throw lockFailure(err);
   }
   let tag = null;
-  let written = [];
-  let refusal = null;
+  let swapped = null;
+  let stop = null; // a refusal or a sensitive-data stop found under the lock
+  let failed = false;
+  let b = null;
   try {
     // Again under the lock: another writer may have turned the store on, or
-    // STATE.md may have changed since the dry run.
-    const again = assess(baseDir, opts);
-    if (again.refusal) refusal = again.refusal;
-    else if (opts.expectedHash && opts.expectedHash !== again.inputHash) {
-      refusal = `${STATE_REL} changed since the dry run, so nothing was written. Re-run the dry run.`;
-    }
-    if (refusal === null) {
+    // STATE.md or a list may have changed since the dry run.
+    b = assess(baseDir, { ...opts, execFn });
+    if (b.refusal) stop = refused(b.refusal);
+    else if (opts.expectedHash && opts.expectedHash !== b.inputHash) {
+      stop = refused(`${STATE_REL} or a list (${GENERATED_FILES.join(', ')}) changed since the dry run, so nothing was written. `
+        + 'Re-run the dry run.');
+    } else if (b.sensitiveHits.length > 0 && !opts.acknowledgeSensitive) stop = sensitiveStop(b.sensitiveHits);
+    if (stop === null) {
       if (probe.mode === 'git') tag = tagPreApply(baseDir, `pre-work-store-${stamp}`, execFn);
       try {
-        for (const x of archived) {
-          mkdirSync(dirname(join(baseDir, x.to)), { recursive: true });
-          renameSync(join(baseDir, x.from), join(baseDir, x.to)); // the same bytes, by construction
-        }
-        await atomicWrite(join(baseDir, WORK_MD_REL), workMd(a.key, archived));
-        ({ written } = await regenerateViews(baseDir));
+        swapped = await buildAndSwap(baseDir, b, { asideRel, onSwapStep: opts.onSwapStep });
       } catch (err) {
-        undo(baseDir, archived);
+        failed = true;
         if (tag) {
           try {
             execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
@@ -298,9 +575,14 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
       }
     }
   } finally {
+    try {
+      rmSync(join(baseDir, asideRel), { recursive: true, force: true });
+    } catch {
+      /* best-effort */
+    }
     await lock.released();
-    // A refusal under the lock leaves no empty folder behind the lock.
-    if (refusal !== null && !workDirExisted) {
+    // A refusal or a failure leaves no empty folder behind the lock.
+    if ((stop !== null || failed) && !workDirExisted) {
       try {
         rmdirSync(workDir);
       } catch {
@@ -308,48 +590,29 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
       }
     }
   }
-  if (refusal !== null) return refused(refusal);
+  if (stop !== null) return stop;
 
-  const created = [WORK_MD_REL, ...written];
-  if (probe.mode === 'git') stagePaths(baseDir, [...created, ...archived.map((x) => x.to)], execFn);
-  const revertLine = revertLineFor(probe, force, tag, created, archived);
+  const { written } = swapped;
+  const created = [WORK_MD_REL, ...(swapped.items ? [ITEMS_REL] : []), ...written, ...(swapped.manifest ? [MANIFEST_REL] : [])];
+  if (probe.mode === 'git') stagePaths(baseDir, [...created, ...b.archived.map((x) => x.to)], execFn);
+  const revertLine = revertLineFor(probe, force, tag, created, b.archived);
+  const items = b.plan.manifest.items;
+  const flagged = items.filter((it) => it.flag).length;
   const report = [
-    `/sig:docs-migrate --work-store — the work store is on (key ${a.key})`,
+    `/sig:docs-migrate --work-store — the work store is on (key ${b.key})`,
     '',
-    `Wrote ${WORK_MD_REL} and the generated views: ${written.join(', ')}.`,
-    ...archived.map((x) => `Moved ${x.from} (the empty skeleton, no items) to ${x.to}, byte for byte.`),
+    `Wrote ${items.length} record${items.length === 1 ? '' : 's'} under ${ITEMS_REL}/, ${WORK_MD_REL} and the generated views: ${written.join(', ')}.`,
+    ...b.files.map((f) => `Moved ${f.file} to ${archiveRel(f.file)}, byte for byte (${f.items} items, ${f.regions.length} non-item region${f.regions.length === 1 ? '' : 's'}).`),
+    ...(swapped.manifest ? [`Manifest: ${MANIFEST_REL} — where every entry went, the verification result, and where the dates came from.`] : []),
+    ...(flagged > 0 ? [`${flagged} item${flagged === 1 ? ' is' : 's are'} flagged for a person's look (each carries a migration_note saying why): triage with /sig:item.`] : []),
     probe.mode === 'git' ? 'Staged, not committed — review with `git diff --cached`, then commit.' : 'Not a git checkout: nothing staged.',
     ...(tag ? [`Pre-apply tag: ${tag}`] : []),
     `Undo: ${revertLine}`,
   ].join('\n');
-  return { applied: true, key: a.key, mode: probe.mode, tag, revertLine, written, archived, warnings: probe.warnings, report };
-}
-
-// Put the project back after a failed write: remove WORK.md and every view this
-// run wrote (a generated file at a view path is ours — anything hand-kept was
-// refused before a write), then move each archived list back. Best-effort, so
-// the original error is the one reported.
-function undo(baseDir, archived) {
-  for (const rel of Object.values(VIEW_PATHS)) {
-    const abs = join(baseDir, rel);
-    try {
-      if (isGeneratedFile(abs)) unlinkSync(abs);
-    } catch {
-      /* best-effort */
-    }
-  }
-  try {
-    unlinkSync(join(baseDir, WORK_MD_REL));
-  } catch {
-    /* best-effort */
-  }
-  for (const x of archived) {
-    try {
-      if (!existsSync(join(baseDir, x.from))) renameSync(join(baseDir, x.to), join(baseDir, x.from));
-    } catch {
-      /* best-effort */
-    }
-  }
+  return {
+    applied: true, key: b.key, mode: probe.mode, tag, revertLine, written, archived: b.archived,
+    records: items.length, flagged, warnings: probe.warnings, report,
+  };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
