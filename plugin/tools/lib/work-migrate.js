@@ -687,12 +687,12 @@ export function finishedLead(text) {
 // The dates a marker writes BESIDE a finish word (REVIEW S1; D-M6E15-19):
 // `fixed 2026-10-04`, `DONE — M9.E1, 2026-10-08`, `closed on 2026-03-02`. Only
 // punctuation, an optional `on`/`in`, and at most one ID-like token (letters,
-// digits and dots, with a digit: `M9.E1`, `v2.6`) may come between the word and
-// the date. Any other date in the text ("a regression from the 2025-11-01
+// digits and dots, with a digit: `M9.E1`, `v2.6`; or a PR reference: `#23`,
+// `PR #23`) may come between the word and the date. Any other date in the text ("a regression from the 2025-11-01
 // release") is not the close date. Returns the distinct dates, in order.
 const MARKER_DATE_G = new RegExp(
   `\\b(?:${FINISH_WORDS}|not[- ]a[- ]bug|won['’]?t[- ]?fix|superseded)\\b[\\s*_~\`—–:,(-]{0,12}(?:(?:on|in)\\s{1,3})?`
-    + `(?:[A-Za-z][\\w.]{0,20}\\d[\\w.]{0,20}[\\s*_~\`,;)—–:-]{1,12})?(\\d{4}-\\d{2}-\\d{2})\\b`,
+    + `(?:(?:(?:PR\\s{0,3})?#\\d{1,7}|[A-Za-z][\\w.]{0,20}\\d[\\w.]{0,20})[\\s*_~\`,;)—–:-]{1,12})?(\\d{4}-\\d{2}-\\d{2})\\b`,
   'gi'
 );
 

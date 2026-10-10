@@ -841,6 +841,10 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
 
 const PLAN_BY = 'migration';
 const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const isCalendarDay = (s) => {
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+};
 const OLD_ID_PREFIX = 'Old ID: ';
 
 const SEGMENTERS = Object.freeze({
@@ -922,6 +926,9 @@ function titleOf(file, row) {
   if (file === 'BUGS.md') t = row.kind === 'table' ? bugTitle(row.summary) : clip(withoutLegacyId(row.heading.replace(/~~/g, ''), legacy));
   else if (file === 'BACKLOG.md') t = clip(withoutLegacyId(row.title, legacy));
   else t = clip(withoutLegacyId(String(row.heading).replace(/~~/g, ''), legacy));
+  // No control or bidi characters in a title (REVIEW pass 2 suggestion): the
+  // dry run prints it for a person to read before they confirm.
+  t = printable(t).replace(/ {2,}/g, ' ').trim();
   return /\S/.test(t) ? t : `Untitled entry at ${file}:${row.line}`;
 }
 
@@ -1374,7 +1381,9 @@ export function planListsToRecords(texts, opts = {}) {
         // A date the marker writes beside its finish word wins, when there is
         // exactly one (`markerDates`, REVIEW S1); any other date in the proof is
         // not the close date, and two do not say which is.
-        const written = markerDates(outcome.close.wording);
+        // An impossible calendar date (2026-02-30) is not a date (REVIEW pass 2
+        // suggestion): it never becomes closed.at.
+        const written = markerDates(outcome.close.wording).filter(isCalendarDay);
         const at = written.length === 1 ? written[0] : d.last;
         if (at < created) {
           events[0].at = at;
