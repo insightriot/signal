@@ -696,6 +696,7 @@
 - [archive/M6/E13/STATE-NARRATIVE.md](archive/M6/E13/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E14/STATE-NARRATIVE.md](archive/M6/E14/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E15/STATE-NARRATIVE.md](archive/M6/E15/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M6/E16/CONTEXT-2026-08-28.md](archive/M6/E16/CONTEXT-2026-08-28.md) — `other` — _(note pending)_
 - [archive/M6/E2/STATE-NARRATIVE.md](archive/M6/E2/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-PLAN.md](archive/M6/E3/AUGUST-PLAN.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-RESEARCH.md](archive/M6/E3/AUGUST-RESEARCH.md) — `other` — _(note pending)_
