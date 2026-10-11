@@ -122,10 +122,11 @@ describe('closeEpic with unit records — the close is requested on the unit (AC
       U.opened,
       { type: 'close_requested', at: AT, by, proof: head, pr: '#412', release: 'v9.9.9' },
     ]);
-    // Only the unit's record changed: no folder moved, no README, no view rewritten.
+    // Only the unit's record changed, and EPICS.md, which shows it closing since
+    // S5 (t5.1): no folder moved, no README, no other view rewritten.
     const after = snapshotTree(root);
-    expect([...new Set([...before.keys(), ...after.keys()])].filter((k) => before.get(k) !== after.get(k)))
-      .toEqual([`${UNITS}/${EPIC}.json`]);
+    expect([...new Set([...before.keys(), ...after.keys()])].filter((k) => before.get(k) !== after.get(k)).sort())
+      .toEqual(['.planning/work/EPICS.md', `${UNITS}/${EPIC}.json`]);
     expect(existsSync(join(root, '.planning/archive'))).toBe(false);
     expect(records.checkRecords(root)).toEqual([]);
   });

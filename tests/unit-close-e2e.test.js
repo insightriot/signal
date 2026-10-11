@@ -114,8 +114,8 @@ describe('an Epic is closed through its unit record, end to end (real git)', () 
     expect(unitClosure(work, EPIC)).toBe('closed');
     expect(checkUnits(work)).toEqual([]);
     expect(records.checkRecords(work)).toEqual([]);
-    // Only the unit's record is left to commit.
-    expect(g(work, 'status', '--porcelain')).toBe(`M ${UNIT_REL}`);
+    // The unit's record is left to commit — and, since S5 (t5.1), EPICS.md, which now shows it closed.
+    expect(g(work, 'status', '--porcelain')).toBe(`M .planning/work/EPICS.md\n M ${UNIT_REL}`);
 
     // A third run has nothing to do, and a closed unit is not closed twice.
     const third = await runConfirmCloses(work);

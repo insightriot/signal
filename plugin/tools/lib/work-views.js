@@ -34,6 +34,10 @@ import { dirname, join, posix } from 'node:path';
 import { atomicWrite } from './atomic-write.js';
 import { assertRealInsidePlanning, linkedComponent, readRegularFile, regularFileRefusal } from './path-confine.js';
 import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, PLANNING_DIR, StateSchemaError } from './state.js';
+import { compareUnitIds } from './unit-record.js';
+// A cycle, by design: unit-records.js regenerates the views after a write.
+// Neither module uses the other's bindings while it is being evaluated.
+import { hasUnitsSafe, listUnits, UNITS_REL } from './unit-records.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { bodyDirFor } from './work-convert.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -282,6 +286,68 @@ function renderEpics(items, epics) {
   return parts.join('\n');
 }
 
+// ── work/EPICS.md, from unit records (M6.E16 t5.1, AC7.1) ───────────────────
+
+// A unit's close as its heading says it: the date and the reason, then the PR
+// and the release when recorded, then the words (a dropped close has them).
+function unitCloseLine(close) {
+  const parts = [`closed ${String(close.at).slice(0, 10)} (${close.reason})`];
+  if (close.pr) parts.push(`PR ${oneLine(close.pr)}`);
+  if (close.release) parts.push(oneLine(close.release));
+  return parts.join(' · ') + (close.words ? ` — ${oneLine(close.words)}` : '');
+}
+
+function unitStateLine(unit) {
+  let state = 'open';
+  if (unit.status === 'closing') state = `closing · proof ${unit.closing_proof}`;
+  if (unit.status === 'closed') state = unitCloseLine(unit.close);
+  return unit.held ? `${state} · held: ${oneLine(unit.hold_reason)}` : state;
+}
+
+// With unit records: EVERY unit record, with its folded state. Three sections
+// — open (a requested close reads closing, with its proof), held (closed, and
+// held), closed (newest first) — then any unit an item's events name that has
+// no record, said as that. Under each, its items. A section with nothing in
+// it is not printed. The Epic folders are not read on this path.
+function renderEpicsFromUnits(items, units) {
+  const byUnitId = (a, b) => compareUnitIds(a.id, b.id);
+  const open = units.filter((u) => u.status !== 'closed').sort(byUnitId);
+  const held = units.filter((u) => u.status === 'closed' && u.held).sort(byUnitId);
+  const closed = units
+    .filter((u) => u.status === 'closed' && !u.held)
+    .sort((a, b) => time(b.close.at) - time(a.close.at) || byUnitId(a, b));
+  const recorded = new Set(units.map((u) => u.id));
+  const unrecorded = [...new Set(items.map((it) => it.epic).filter((id) => id && !recorded.has(id)))].sort(compareUnitIds);
+
+  const parts = [GENERATED_MARKER, '# Epics', ''];
+  const itemsOf = (id) => {
+    const mine = items.filter((it) => it.epic === id);
+    if (mine.length === 0) parts.push('_no items_');
+    for (const it of mine) parts.push(`- ${it.id} · ${it.record.type} · ${it.status} — ${titleOf(it)}`);
+    parts.push('');
+  };
+  const section = (title, list) => {
+    if (list.length === 0) return;
+    parts.push(`## ${title}`, '');
+    for (const unit of list) {
+      parts.push(`### ${unit.id} — ${unitStateLine(unit)}`, '');
+      itemsOf(unit.id);
+    }
+  };
+  if (units.length === 0 && unrecorded.length === 0) parts.push('_no Epics_', '');
+  section('Open', open);
+  section('Held', held);
+  section('Closed', closed);
+  if (unrecorded.length > 0) {
+    parts.push('## No unit record', '', `Named by an item, with no record under \`${UNITS_REL}/\`.`, '');
+    for (const id of unrecorded) {
+      parts.push(`### ${id}`, '');
+      itemsOf(id);
+    }
+  }
+  return parts.join('\n');
+}
+
 // ── renderViews ─────────────────────────────────────────────────────────────
 
 /**
@@ -290,9 +356,12 @@ function renderEpics(items, epics) {
  *
  * @param {Array<{record: object, body?: string|null}>} records — `listRecords`
  *   entries (with `{bodies: true}` for bodies); status and Epic are folded here
- * @param {{watchlistText?: string|null, epics?: Array<{id: string, archived: boolean, close?: object|null}>}} [opts]
+ * @param {{watchlistText?: string|null, epics?: Array<{id: string, archived: boolean, close?: object|null}>,
+ *   units?: Array<{id: string, status: string, held: boolean, hold_reason: string|null, close: object|null, closing_proof: string|null}>}} [opts]
  *   `watchlistText`: `work/WATCHLIST.md`, printed first in the inbox;
- *   `epics`: the Epic folders, live and archived (`readEpicFolders`)
+ *   `epics`: the Epic folders, live and archived (`readEpicFolders`);
+ *   `units`: the unit records (`listUnits(...).units`) — when passed, even
+ *   empty, `EPICS.md` is rendered from them and `epics` is not used (M6.E16 t5.1)
  * @returns {Record<string, string>} repo-root-relative path → text: the five
  *   views, and `work/history/YYYY.md` for each year with a close outside the window
  * @throws {WorkStoreError} SCHEMA when a record's events do not fold
@@ -316,7 +385,7 @@ export function renderViews(records, opts = {}) {
     [VIEW_PATHS.backlog]: renderBacklog(lists.backlog),
     [VIEW_PATHS.inbox]: renderInbox(lists.inbox, opts.watchlistText ?? null),
     [VIEW_PATHS.questions]: renderQuestions(lists.questions),
-    [VIEW_PATHS.epics]: renderEpics(items, opts.epics ?? []),
+    [VIEW_PATHS.epics]: Array.isArray(opts.units) ? renderEpicsFromUnits(items, opts.units) : renderEpics(items, opts.epics ?? []),
   };
   for (const year of [...history.keys()].sort()) out[`${HISTORY_DIR}/${year}.md`] = renderHistory(year, history.get(year));
   return out;
@@ -369,7 +438,24 @@ function renderStore(baseDir) {
     err.broken = broken.map((b) => b.id ?? b.path); // as `refuseBroken`'s, so a caller can name the remedy
     throw err;
   }
-  return renderViews(records, { watchlistText: readWatchlist(baseDir), epics: readEpicFolders(baseDir) });
+  const watchlistText = readWatchlist(baseDir);
+  // With unit records (`D-M6E16-16`: the folder exists) the Epic index is
+  // rendered from them, and the Epic folders are not read (M6.E16 t5.1).
+  if (hasUnitsSafe(baseDir).has) return renderViews(records, { watchlistText, units: readUnits(baseDir) });
+  return renderViews(records, { watchlistText, epics: readEpicFolders(baseDir) });
+}
+
+// Every unit record, or a refusal naming each broken one — as for a broken
+// item record, a view of part of the store would silently drop them.
+function readUnits(baseDir) {
+  const { units, broken } = listUnits(baseDir);
+  if (broken.length > 0) {
+    const err = new WorkStoreError('SCHEMA', 'cannot generate the views — a view of part of the store would silently '
+      + `drop the broken unit records. Fix these first:\n${broken.map((b) => `  ${b.error}`).join('\n')}`);
+    err.broken = broken.map((b) => b.id ?? b.path);
+    throw err;
+  }
+  return units;
 }
 
 // `work/WATCHLIST.md`, read only as a regular, unlinked file inside the

@@ -249,3 +249,50 @@ export function foldUnit(record) {
   const { status, held, hold_reason, close, closing_proof } = UNIT_KIND.folded(record, 'status');
   return { status, held, hold_reason, close, closing_proof };
 }
+
+// ── Order ───────────────────────────────────────────────────────────────────
+
+const EPIC_ID_PARTS_RE = /^M(\d+(?:\.\d+)*)\.E(\d+)$/;
+
+/**
+ * An Epic ID taken apart: `M6.5.E12` → `{milestone: '6.5', parts: [6, 5], number: 12}`.
+ * null for any other unit name (`phase-11`, `v0.1.6`).
+ *
+ * @param {unknown} id
+ * @returns {{milestone: string, parts: number[], number: number}|null}
+ */
+export function epicIdParts(id) {
+  const m = typeof id === 'string' ? id.match(EPIC_ID_PARTS_RE) : null;
+  return m ? { milestone: m[1], parts: m[1].split('.').map(Number), number: Number(m[2]) } : null;
+}
+
+/**
+ * The order units are listed in (M6.E16 t5.1): Epic IDs first, by milestone
+ * and then by Epic number, both as numbers — `M6.E30` before `M6.5.E2` before
+ * `M7.E9` before `M7.E10`; every other unit name after them, alphabetically
+ * without regard to case.
+ *
+ * Not `compareEpicIds` (`state.js`): that compares every run of digits in
+ * turn, so it puts milestone 6.5's Epics before `M6.E30` (5 < 30).
+ *
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+export function compareUnitIds(a, b) {
+  const pa = epicIdParts(a);
+  const pb = epicIdParts(b);
+  if (pa && pb) {
+    for (let i = 0; i < Math.max(pa.parts.length, pb.parts.length); i += 1) {
+      const d = (pa.parts[i] ?? -1) - (pb.parts[i] ?? -1);
+      if (d !== 0) return d;
+    }
+    if (pa.number !== pb.number) return pa.number - pb.number;
+  } else if (pa || pb) {
+    return pa ? -1 : 1;
+  }
+  const la = a.toLowerCase();
+  const lb = b.toLowerCase();
+  if (la !== lb) return la < lb ? -1 : 1;
+  return a < b ? -1 : a > b ? 1 : 0;
+}

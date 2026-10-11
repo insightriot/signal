@@ -132,7 +132,13 @@ describe('checkWorkStore carries the unit-record findings (AC1.5)', () => {
 
     const got = checkWorkStore(base);
     expect(got.every((f) => f.check === 'work-store' && f.severity === 'advisory')).toBe(true);
-    expect(got.map((f) => [f.file, f.message])).toEqual(found.map((f) => [f.path, f.message]));
+    // Since S5 (t5.1) the views render the unit records, so `checkRecords` adds
+    // what it adds for a broken item record: one `view-stale` finding saying
+    // the views could not be regenerated to compare. The unit findings follow.
+    const views = checkRecords(base);
+    expect(views.map((f) => f.code)).toEqual(['view-stale']);
+    expect(views[0].message).toMatch(/could not be regenerated to compare.*M6\.E30/s);
+    expect(got.map((f) => [f.file, f.message])).toEqual([...views, ...found].map((f) => [f.path, f.message]));
     for (const id of ['M6.E30', 'M6.E31', 'M6.E32']) {
       const f = got.find((g) => g.file === `${UNITS_REL}/${id}.json`);
       expect(f.message).toContain(`${UNITS_REL}/${id}.json`); // the ID and the path, in the message too
@@ -152,7 +158,8 @@ describe('checkWorkStore carries the unit-record findings (AC1.5)', () => {
     await cleanStore();
     await put(`${UNITS_REL}/M6.E30.json`, '{ not json\n');
     const res = await runSweep(base);
-    const ours = res.findings.filter((f) => f.check === 'work-store');
+    // The unit's own finding; the `view-stale` one beside it (t5.1) is at `.planning/work`.
+    const ours = res.findings.filter((f) => f.check === 'work-store' && f.file.startsWith(UNITS_REL));
     expect(ours).toHaveLength(1);
     expect(ours[0].severity).toBe('advisory');
     expect(renderSweepReport(res)).toContain(`- [work-store] ${UNITS_REL}/M6.E30.json — `);
@@ -164,6 +171,9 @@ describe('checkWorkStore carries the unit-record findings (AC1.5)', () => {
     await mkdir(join(base, UNITS_REL));
     expect(checkWorkStore(base)).toEqual([]);
     await put(`${UNITS_REL}/M6.E34.json`, unit('M6.E34'));
+    // EPICS.md lists every unit record since S5 (t5.1): a record planted by
+    // hand leaves it stale until the views are regenerated (AC7.4).
+    await regenerateViews(base);
     expect(checkWorkStore(base)).toEqual([]);
   });
 
