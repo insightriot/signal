@@ -139,8 +139,9 @@ const EXEMPTIONS = [
   },
   {
     file: 'plugin/tools/lib/work-views.js',
-    writes: ['atomicWrite(abs, views[rel], { generated: true })'],
-    reason: 'regenerates the views from the records it reads; it writes views, never a record',
+    writes: ['atomicWrite(abs, views[rel], { generated: true })', 'atomicWrite(join(baseDir, rel), next)'],
+    reason: 'regenerates the views from the records it reads; it writes views, never a record. The second write is the '
+      + 'current milestone file\'s Epic table, between its markers (M6.E16 t5.2) — `rel` is `.planning/MILESTONE-<n>.md`',
   },
 ];
 
