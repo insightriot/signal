@@ -252,6 +252,14 @@ describe('closeEpic with unit records — refusals write nothing (AC4.3, NFR fai
     await refused(() => closeEpic(root, EPIC, { by, commit, at: AT }), 'SCHEMA', /commit hash/);
   });
 
+  // Mutation pass (t4.5): without closeEpic's own check the proof is refused
+  // only by requestUnitClose — after a missing record has been created.
+  it('a unit with no record and a `commit` that is not a bare hash: SCHEMA, and no record is created', async () => {
+    await project({ unit: null });
+    await refused(() => closeEpic(root, EPIC, { by, commit: 'main', at: AT }), 'SCHEMA', /commit hash/);
+    expect(existsSync(join(root, `${UNITS}/${EPIC}.json`))).toBe(false);
+  });
+
   it('the lock is held: LOCKED, nothing written', async () => {
     await project();
     const lock = await acquireLock(join(root, WORK_LOCK_REL), { label: 'test' });
