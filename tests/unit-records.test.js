@@ -116,6 +116,23 @@ describe('unitPath / hasUnits (AC1.1)', () => {
     expect(existsSync(join(bare, '.planning'))).toBe(false);
   });
 
+  it('hasUnitsSafe gives hasUnits\' answer with no problem on a sound layout, and never throws (t2.5)', async () => {
+    expect(units.hasUnitsSafe(base)).toEqual({ has: true, problem: null });
+    const bare = await tmp('sig-units-bare-');
+    expect(units.hasUnitsSafe(bare)).toEqual({ has: false, problem: null });
+    const broken = await tmp('sig-units-broken-');
+    await put(broken, `${UNITS}/M6.E40.json`, '{');
+    expect(units.hasUnitsSafe(broken)).toEqual({ has: true, problem: null });
+    // units is a file, not a folder: hasUnits throws, the safe form answers.
+    const file = await tmp('sig-units-file-');
+    await put(file, UNITS, 'not a folder\n');
+    expect(() => units.hasUnits(file)).toThrow(expect.objectContaining({ code: 'CONFLICT' }));
+    expect(units.hasUnitsSafe(file)).toEqual({ has: false, problem: expect.stringMatching(/is not a folder/) });
+    for (const bad of [undefined, null, 7, {}]) {
+      expect(units.hasUnitsSafe(bad)).toEqual({ has: false, problem: expect.any(String) });
+    }
+  });
+
   it('hasUnits is true for a folder whose only record is broken: the project has unit records, and one is wrong', async () => {
     const dir = await tmp('sig-units-broken-');
     await put(dir, `${UNITS}/M1.E1.json`, '{');
@@ -724,6 +741,11 @@ describe('a symlinked units folder is refused, read and write', () => {
     ]) expect(read).toThrow(expect.objectContaining({ code: 'CONFLICT', message: expect.stringMatching(/symbolic link/) }));
   });
 
+  it('hasUnitsSafe answers false and states the problem; hasUnits still throws (t2.5)', () => {
+    expect(units.hasUnitsSafe(base)).toEqual({ has: false, problem: expect.stringMatching(/units is a symbolic link/) });
+    expect(() => units.hasUnits(base)).toThrow(expect.objectContaining({ code: 'CONFLICT' }));
+  });
+
   it('checkUnits reports it as one link finding and does not read through it', () => {
     expect(units.checkUnits(base)).toEqual([
       { code: 'link', id: null, path: UNITS, message: expect.stringMatching(/symbolic link/) },
@@ -782,6 +804,7 @@ describe('a work folder linked outside the project is refused', () => {
     const before = snapshotTree(outside);
     expect(() => units.listUnits(dir)).toThrow(expect.objectContaining({ code: 'CONFLICT' }));
     expect(() => units.hasUnits(dir)).toThrow(expect.objectContaining({ code: 'CONFLICT' }));
+    expect(units.hasUnitsSafe(dir)).toEqual({ has: false, problem: expect.stringMatching(/resolves outside the project/) });
     await expect(units.holdUnit(dir, 'M6.E70', { reason: 'r', by })).rejects.toMatchObject({ name: 'WorkStoreError' });
     await expect(units.openUnit(dir, 'M6.E71', { by })).rejects.toMatchObject({ name: 'WorkStoreError' });
     const after = snapshotTree(outside);

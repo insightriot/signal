@@ -313,6 +313,25 @@ export function hasUnits(baseDir) {
 }
 
 /**
+ * `hasUnits` for a reader that must never throw (a closure check, a view, a
+ * status line). On a layout `hasUnits` refuses — `units/` a link or not a
+ * folder, `work/` resolving outside the project, a folder that cannot be read
+ * — the answer is `has: false` with the refusal's message in `problem`, so the
+ * caller reads as it did before unit records; `checkUnits` reports the same
+ * layout to `/sig:docs-sweep`.
+ *
+ * @param {string} baseDir
+ * @returns {{has: boolean, problem: string|null}} `problem` is null whenever `hasUnits` answered
+ */
+export function hasUnitsSafe(baseDir) {
+  try {
+    return { has: hasUnits(baseDir), problem: null };
+  } catch (err) {
+    return { has: false, problem: err?.message ?? String(err) };
+  }
+}
+
+/**
  * Every unit record, each with its folded state.
  *
  * One broken record never stops the others: it is reported in `broken` by ID
