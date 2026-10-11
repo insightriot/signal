@@ -149,16 +149,30 @@ const nothingReported = () => ({ ran: false, ready: [], stillClosing: [], stale:
  * say. It names what is ready and where it gets confirmed, and never claims
  * anything was written.
  *
- * @param {{ready: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}|null} result
+ * When a unit has something to say (`result.units`, M6.E16 t5.0c) the line
+ * names the two kinds separately: `Closes: items — … · units — …`, or
+ * `Closes: units — …` when no item is. With no unit involved it is what it was.
+ *
+ * @param {{ready: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[],
+ *   units?: {ready: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}|null} result
  * @returns {string|null}
  */
 export function formatCloseReportLine(result) {
   if (!result) return null;
-  const { ready = [], stale = [] } = result;
-  const parts = [];
-  if (ready.length > 0) parts.push(`${ready.length} ready to close (${list(ready)}) — run /sig:docs-sweep or /sig:ship to confirm`);
-  if (stale.length > 0) parts.push(`${stale.length} closing over 14 days (${list(stale)}) — see /sig:docs-sweep`);
-  return parts.length === 0 ? null : `Closes: ${parts.join(' · ')}`;
+  const partsOf = ({ ready = [], stale = [] }) => {
+    const parts = [];
+    if (ready.length > 0) parts.push(`${ready.length} ready to close (${list(ready)}) — run /sig:docs-sweep or /sig:ship to confirm`);
+    if (stale.length > 0) parts.push(`${stale.length} closing over 14 days (${list(stale)}) — see /sig:docs-sweep`);
+    return parts;
+  };
+  const parts = partsOf(result);
+  // Units (M6.E16 t5.0c), named separately, as `formatConfirmClosesLine` does.
+  const unitParts = result.units ? partsOf(result.units) : [];
+  if (unitParts.length === 0) return parts.length === 0 ? null : `Closes: ${parts.join(' · ')}`;
+  const groups = [];
+  if (parts.length > 0) groups.push(`items — ${parts.join(' · ')}`);
+  groups.push(`units — ${unitParts.join(' · ')}`);
+  return `Closes: ${groups.join(' · ')}`;
 }
 
 /**
@@ -175,7 +189,9 @@ export function formatCloseReportLine(result) {
  * @param {string} baseDir
  * @param {{now?: Date|string, execFn?: Function}} [opts]
  * @returns {{ran: boolean, ready: string[], stillClosing: Array<{id: string, reason: string}>,
- *   stale: string[], error: string|null, line: string|null}}
+ *   stale: string[], error: string|null, line: string|null,
+ *   units?: {ready: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}}
+ *   `units`: the same three for unit records — present only on a project with unit records
  */
 export function reportCloses(baseDir, opts = {}) {
   let probe;
@@ -189,5 +205,6 @@ export function reportCloses(baseDir, opts = {}) {
     return { ...nothingReported(), error: err.message, line: `Closes not checked — ${err.message}` };
   }
   const result = { ready: probe.confirmable, stillClosing: probe.stillClosing, stale: probe.stale };
+  if (probe.units) result.units = { ready: probe.units.confirmable, stillClosing: probe.units.stillClosing, stale: probe.units.stale };
   return { ran: true, ...result, error: null, line: formatCloseReportLine(result) };
 }

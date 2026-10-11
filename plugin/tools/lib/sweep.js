@@ -427,7 +427,8 @@ export function checkWorkStore(baseDir) {
 }
 
 /**
- * Items left *closing* too long (portable, advisory — M6.E13 t4.4, PLAN risk 3).
+ * Items — and, with unit records, units (M6.E16 t5.0c) — left *closing* too
+ * long (portable, advisory — M6.E13 t4.4, PLAN risk 3).
  *
  * A fixed close is requested with a commit and stays *closing* until
  * `confirmCloses` finds that commit on the default branch. One that has waited
@@ -452,7 +453,7 @@ export function checkClosingTooLong(baseDir, opts = {}) {
   } catch (err) {
     return [mkFinding('closing-too-long', 'advisory', WORK_MD_REL, `closing items could not be checked — ${err.message}`)];
   }
-  return listed.closing
+  const items = listed.closing
     .filter((c) => c.stale)
     .map((c) =>
       mkFinding(
@@ -462,6 +463,19 @@ export function checkClosingTooLong(baseDir, opts = {}) {
         `${c.id} has been closing for ${c.days} days — its fix commit ${c.proof} is not confirmed on the default branch. ` +
           `Merge it, or reopen the item (\`/sig:item reopen ${c.id} "<reason>"\`) if the fix did not land.`
       ));
+  // A unit (an Epic) left closing (M6.E16 t5.0c): `listed.units` is there only
+  // on a project with unit records.
+  const units = (listed.units ?? [])
+    .filter((u) => u.stale)
+    .map((u) =>
+      mkFinding(
+        'closing-too-long',
+        'advisory',
+        u.path,
+        `${u.id} has been closing for ${u.days} days — the commit its close was requested with, ${u.proof}, is not confirmed on the default branch. ` +
+          'Merge it; or, if the work moved on to other commits, re-run /sig:ship, which requests the close again with the new one.'
+      ));
+  return [...items, ...units];
 }
 
 /**

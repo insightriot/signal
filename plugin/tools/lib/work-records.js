@@ -45,6 +45,12 @@ import {
   WORK_FILE,
 } from './work-store.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter } from './state.js';
+// A cycle, by design, as with work-views.js: unit-records.js imports this
+// module's store check. Neither uses the other's bindings while it is being
+// evaluated. (The sync readers below — `listClosing`, `probeCloses` — need it
+// without an `await`.)
+import * as unitLib from './unit-records.js';
+import { hasUnitsSafe, listUnits } from './unit-records.js';
 // The write helpers every record kind shares. `regenerateAfter` comes in under
 // another name because this module keeps its own, which names the views.
 import {
@@ -945,10 +951,8 @@ function epicEvent(type, move) {
 // The unit-record library, when this project has unit records (M6.E16 t3.3);
 // null when it has none, or `units/` is a layout the library refuses
 // (`hasUnitsSafe`) — the caller then does what it did before unit records.
-// Imported here, not at the top: unit-records.js imports this module.
 async function unitRecords(baseDir) {
-  const lib = await import('./unit-records.js');
-  return lib.hasUnitsSafe(baseDir).has ? lib : null;
+  return hasUnitsSafe(baseDir).has ? unitLib : null;
 }
 
 // An archived Epic is finished: nothing is queued or started in it, as
@@ -1527,9 +1531,9 @@ function classifyClosing(baseDir, execFn, { writing = true, onDefaultBranch = an
 // `classifyClosing` for unit records (M6.E16 t4.2): every unit reading
 // *closing*, split the same way, by the same rule and against the same ref.
 // A broken unit record refuses the run, as a broken item record does.
-function classifyClosingUnits(units, baseDir, onDefaultBranch) {
+function classifyClosingUnits(units, baseDir, onDefaultBranch, { writing = true } = {}) {
   const listed = units.listUnits(baseDir);
-  refuseBroken(listed);
+  refuseBroken(listed, { writing });
   const still = new Map();
   const candidates = [];
   for (const u of listed.units.filter((x) => x.status === 'closing')) {
@@ -1578,8 +1582,10 @@ function stillAndStale(still, now, order = (a, b) => numberOf(a) - numberOf(b)) 
  *
  * @param {string} baseDir
  * @param {{now?: Date|string, execFn?: Function}} [opts]
- * @returns {{confirmable: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}
- *   `confirmable` by ID number; the other two as `confirmCloses` returns them
+ * @returns {{confirmable: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[],
+ *   units?: {confirmable: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}}
+ *   `confirmable` by ID number; the other two as `confirmCloses` returns them;
+ *   `units`: the same three for unit records, by unit ID — present only on a project with unit records
  * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (`now` is not a date, or a broken record)
  */
 export function probeCloses(baseDir, opts = {}) {
@@ -1587,11 +1593,33 @@ export function probeCloses(baseDir, opts = {}) {
   const now = opts.now === undefined ? new Date() : new Date(opts.now);
   if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `probeCloses: now ${JSON.stringify(opts.now)} is not a date`);
   assertWritable(baseDir);
-  const { still, ok } = classifyClosing(baseDir, execFn, { writing: false });
-  return { confirmable: ok.map((c) => c.id).sort((a, b) => numberOf(a) - numberOf(b)), ...stillAndStale(still, now) };
+  const onDefaultBranch = ancestrySplit(baseDir, execFn);
+  const { still, ok } = classifyClosing(baseDir, execFn, { writing: false, onDefaultBranch });
+  const out = { confirmable: ok.map((c) => c.id).sort((a, b) => numberOf(a) - numberOf(b)), ...stillAndStale(still, now) };
+  // Unit closes, by the same rule and against the same ref (M6.E16 t5.0c).
+  if (hasUnitsSafe(baseDir).has) {
+    const unitSide = classifyClosingUnits(unitLib, baseDir, onDefaultBranch, { writing: false });
+    out.units = { confirmable: unitSide.ok.map((c) => c.id).sort(byText), ...stillAndStale(unitSide.still, now, byText) };
+  }
+  return out;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+// One *closing* record — an item or a unit — as `listClosing` lists it.
+function closingRow(r, now) {
+  const req = latestRequest(r.record);
+  const t = Date.parse(req?.at);
+  const known = Number.isFinite(t);
+  return {
+    id: r.id,
+    path: r.path,
+    proof: typeof req?.proof === 'string' ? req.proof : null,
+    requestedAt: known ? req.at : null,
+    days: known ? Math.floor((now.getTime() - t) / DAY_MS) : null,
+    stale: known && now.getTime() - t > STALE_CLOSING_MS,
+  };
+}
 
 /**
  * Every item deriving *closing*, with when its fix was requested and whether
@@ -1607,29 +1635,25 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * @param {string} baseDir
  * @param {{now?: Date|string, execFn?: Function}} [opts]
  * @returns {{version: 1|2, closing: Array<{id: string, path: string, proof: string|null,
- *   requestedAt: string|null, days: number|null, stale: boolean}>, broken: Array}}
+ *   requestedAt: string|null, days: number|null, stale: boolean}>, broken: Array,
+ *   units?: Array<{id: string, path: string, proof: string|null, requestedAt: string|null, days: number|null, stale: boolean}>}}
+ *   `units`: every unit record reading *closing*, in the same form — present only on a project with unit records
  * @throws {WorkStoreError} CONFIG (store off, or a broken WORK.md), SCHEMA (`now` is not a date)
  */
 export function listClosing(baseDir, opts = {}) {
   const now = opts.now === undefined ? new Date() : new Date(opts.now);
   if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `listClosing: now ${JSON.stringify(opts.now)} is not a date`);
   const { version, records, broken } = listRecords(baseDir, opts.execFn ? { execFn: opts.execFn } : {});
-  const closing = records
-    .filter((r) => r.status === 'closing')
-    .map((r) => {
-      const req = latestRequest(r.record);
-      const t = Date.parse(req?.at);
-      const known = Number.isFinite(t);
-      return {
-        id: r.id,
-        path: r.path,
-        proof: typeof req?.proof === 'string' ? req.proof : null,
-        requestedAt: known ? req.at : null,
-        days: known ? Math.floor((now.getTime() - t) / DAY_MS) : null,
-        stale: known && now.getTime() - t > STALE_CLOSING_MS,
-      };
-    });
-  return { version, closing, broken };
+  const closing = records.filter((r) => r.status === 'closing').map((r) => closingRow(r, now));
+  const out = { version, closing, broken };
+  // Units too, on a project with unit records (M6.E16 t5.0c): the same
+  // fields, from the unit's latest close request. Without unit records the
+  // result has no `units` key. A broken unit record is not listed here;
+  // `checkUnits` reports it.
+  if (hasUnitsSafe(baseDir).has) {
+    out.units = listUnits(baseDir).units.filter((u) => u.status === 'closing').map((u) => closingRow(u, now));
+  }
+  return out;
 }
 
 // ── Triage proposals, read from records (M6.E13 t7.3 prep) ─────────────────
