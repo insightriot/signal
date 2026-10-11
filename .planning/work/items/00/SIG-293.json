@@ -29,6 +29,13 @@
           "to": "P3"
         }
       }
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-11T00:09:49.401Z",
+      "by": "M6.E15 SHIP",
+      "reason": "fixed",
+      "proof": "8ee8172e78fa45106130ccdd8af3d1bcfdcea5f4"
     }
   ]
 }

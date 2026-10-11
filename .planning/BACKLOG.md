@@ -2405,9 +2405,9 @@ Brett's caution, recorded: if Jev disagrees often, the fault is upstream (the ru
 
 Trigger: Brett's triage after the first real migration (corpus project 1) finds at least one entry the rule closed that was not finished. If triage finds none, close this as wontdo.
 
-### Two speed tests use a 4× size step with an 8× ratio limit, which CI timing noise can cross · SIG-293
+### Two speed tests use a 4× size step with an 8× ratio limit, which CI timing noise can cross · SIG-293 · closing
 
-**Status:** triaged (T)
+**Status:** closing — a fixed close waiting for its commit on the default branch
 
 On PR #296 the M6.E15 REVIEW pass 4 test "segmentQuestions stays linear with a ## group every 5 entries" failed on CI at ratio 8.25 against a limit of 8 (one of two runs; the other passed). It was rewritten to a 16× size step (2000 → 32000) with a 64× limit: this code measures 19–20×, the pre-fix code 195×.
 
