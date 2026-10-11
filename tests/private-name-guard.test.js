@@ -189,7 +189,11 @@ describe('private project names do not spread to new files', () => {
     // A failure here is not "someone did something wrong" — it is a new file
     // naming a private project, in a public repo. Use the anonymous label.
     expect(offenders).toEqual([]);
-  });
+    // Its own timeout (SIG-266): this reads every file a commit would carry —
+    // 3.6 s alone, 15.05 s once under a full parallel run against the suite's
+    // 15 s default. A guard that goes red and then green on re-run teaches
+    // people to re-run past it.
+  }, 60_000);
 
   it('the inventory is honest: every path in it still exists and still carries a name', async () => {
     // Vacuously true while the list is empty, and kept anyway: it is what stops
