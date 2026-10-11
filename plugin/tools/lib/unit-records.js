@@ -10,7 +10,9 @@
 // Every change to a unit record goes through a writer here and appends
 // exactly one event (AC2.1; `tests/unit-records-inventory.test.js` runs each
 // one) — except `rerequestUnitClose`, which appends two real events in one
-// write. Writers take the store's ONE lock through the shared helpers in
+// write. `importUnit` and `importUnits` (t7.1) create records, each with its
+// one first event: a unit recorded as already over, or as open, by the
+// migration. Writers take the store's ONE lock through the shared helpers in
 // `work-write.js` — the same lock item writers take, so a unit write and an
 // item write exclude each other.
 //
@@ -34,10 +36,11 @@
 // argument from the caller is that hash, already matched as lowercase hex.
 
 import { execFileSync } from 'node:child_process';
-import { lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync } from 'node:fs';
+import { lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
+import { cut, printable as printableText } from './printable-text.js';
 import { PHASES } from './state.js';
 import { isSafeUnitName } from './unit-name.js';
 import { UNIT_KIND, UNIT_SCHEMA, foldUnit } from './unit-record.js';
@@ -45,7 +48,7 @@ import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { assertWritable } from './work-records.js';
 // A cycle, by design: work-views.js renders these records (`listUnits`).
 // Neither module uses the other's bindings while it is being evaluated.
-import { assertViewsWritable, regenerateViews, viewsNotRegenerated } from './work-views.js';
+import { assertViewsWritable, regenerateToMemory, regenerateViews, viewsNotRegenerated } from './work-views.js';
 import { isStoreOn, WORK_DIR } from './work-store.js';
 import {
   commitsStartingWith,
@@ -608,46 +611,50 @@ const NO_UNITS_DIR = (id) => `${id}: this project has no unit records (${UNITS_R
  */
 export async function ensureUnitsDir(baseDir, opts = {}) {
   assertWritable(baseDir);
-  return withUnitLock(baseDir, async (handle) => {
-    const abs = join(handle.baseDir, UNITS_REL);
-    const keepRel = `${UNITS_REL}/${KEEP_FILE}`;
-    const keepAbs = join(abs, KEEP_FILE);
-    let created = false;
-    if (confinedUnitsDir(handle.baseDir) === null) {
-      confine(handle.baseDir, abs);
-      try {
-        mkdirSync(abs);
-      } catch (err) {
-        throw asWorkStoreError(err, 'IO');
-      }
-      created = true;
-      confinedUnitsDir(handle.baseDir); // refuses a `work/` that resolves outside the project
-    }
-    let st = null;
+  return withUnitLock(baseDir, async (handle) => makeUnitsDir(handle, opts));
+}
+
+// `ensureUnitsDir`'s body, under a lock the caller already holds (`importUnits`
+// turns unit records on and writes the first records in one take).
+async function makeUnitsDir(handle, opts) {
+  const abs = join(handle.baseDir, UNITS_REL);
+  const keepRel = `${UNITS_REL}/${KEEP_FILE}`;
+  const keepAbs = join(abs, KEEP_FILE);
+  let created = false;
+  if (confinedUnitsDir(handle.baseDir) === null) {
+    confine(handle.baseDir, abs);
     try {
-      st = lstatSync(keepAbs);
+      mkdirSync(abs);
     } catch (err) {
-      if (err.code !== 'ENOENT') throw asWorkStoreError(err, 'IO');
-    }
-    if (st !== null) {
-      if (!st.isFile()) throw new WorkStoreError('CONFLICT', `${keepRel} is not a regular file — nothing was written.`);
-      return { path: UNITS_REL, created, keep: false };
-    }
-    try {
-      await atomicWrite(keepAbs, '', { renameFn: opts.renameFn });
-    } catch (err) {
-      // The folder, when this call made it: removed again, so a failed call leaves the switch off.
-      if (created) {
-        try {
-          rmdirSync(abs);
-        } catch {
-          // not empty, or already gone: leave it
-        }
-      }
       throw asWorkStoreError(err, 'IO');
     }
-    return { path: UNITS_REL, created, keep: true };
-  });
+    created = true;
+    confinedUnitsDir(handle.baseDir); // refuses a `work/` that resolves outside the project
+  }
+  let st = null;
+  try {
+    st = lstatSync(keepAbs);
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw asWorkStoreError(err, 'IO');
+  }
+  if (st !== null) {
+    if (!st.isFile()) throw new WorkStoreError('CONFLICT', `${keepRel} is not a regular file — nothing was written.`);
+    return { path: UNITS_REL, created, keep: false };
+  }
+  try {
+    await atomicWrite(keepAbs, '', { renameFn: opts.renameFn });
+  } catch (err) {
+    // The folder, when this call made it: removed again, so a failed call leaves the switch off.
+    if (created) {
+      try {
+        rmdirSync(abs);
+      } catch {
+        // not empty, or already gone: leave it
+      }
+    }
+    throw asWorkStoreError(err, 'IO');
+  }
+  return { path: UNITS_REL, created, keep: true };
 }
 
 /**
@@ -697,6 +704,218 @@ export async function openUnit(baseDir, id, fields = {}, opts = {}) {
       throw asWorkStoreError(err, 'IO');
     }
     return landed(handle, entryOf(record), `${id} was opened`, opts);
+  });
+}
+
+// ── Importing units that predate their records (t7.1) ───────────────────────
+
+/** The longest a `legacy_row` cell is kept; a longer one is cut and ends in `…`. */
+export const LEGACY_CELL_MAX = 8000;
+/** The longest an imported close's `words` are kept. */
+export const CLOSE_WORDS_MAX = 2000;
+
+const SHIPPED_NOT_DIRECT = (id) => `${id}: a shipped close goes through requestUnitClose (with the commit) and is `
+  + 'confirmed by confirmUnitClose — it cannot be recorded directly';
+
+// Text copied from a hand-written source: no control or invisible characters
+// (`printable-text.js`), and cut at `max`. Whitespace is not folded: a cell
+// under the limit is kept as it was written.
+const kept = (text, max) => cut(printableText(text), max);
+
+// One entry of an import list → its record (not yet validated). Throws for
+// what can be refused before the store is read: the ID's shape, the close.
+function importedRecord(entry) {
+  const raw = entry !== null && typeof entry === 'object' ? entry : {};
+  const { id, title, summary, legacy_row: legacyRow, migration_note: migrationNote, close, opened } = raw;
+  assertShape(id);
+  if ((close === undefined) === (opened === undefined)) {
+    throw new WorkStoreError('SCHEMA', `${id}: an imported unit is either closed (close: {reason, at, by}) or open `
+      + '(opened: {at, by}) — exactly one. Nothing was written.');
+  }
+  if (legacyRow !== undefined && (!Array.isArray(legacyRow) || legacyRow.some((c) => typeof c !== 'string'))) {
+    throw new WorkStoreError('SCHEMA', `${id}: legacy_row is a list of strings — the cells of the unit's old row. Nothing was written.`);
+  }
+  const cells = legacyRow?.map((c) => kept(c, LEGACY_CELL_MAX));
+  let event;
+  if (opened !== undefined) {
+    event = { type: 'opened', at: opened?.at ?? nowIso(), by: opened?.by };
+  } else {
+    const { reason, pr, release, by, at = nowIso() } = close ?? {};
+    if (reason === 'shipped') throw new WorkStoreError('SCHEMA', `${SHIPPED_NOT_DIRECT(id)}, and it cannot be imported. Nothing was written.`);
+    if (!DIRECT_CLOSE_REASONS.includes(reason)) {
+      throw new WorkStoreError('SCHEMA', `${id}: an imported close's reason must be one of ${DIRECT_CLOSE_REASONS.join(', ')} `
+        + `(got ${shown(reason)}) — nothing was written.`);
+    }
+    const said = typeof close.words === 'string' ? kept(close.words, CLOSE_WORDS_MAX) : close.words;
+    const words = typeof said === 'string' && isBlank(said) ? undefined : said;
+    if (reason === 'dropped' && words === undefined) {
+      throw new WorkStoreError('SCHEMA', `${id}: a dropped close needs words — where the work went, or why it stopped. `
+        + 'Nothing was written.');
+    }
+    event = { type: 'closed', at, by, reason, pr, release, words };
+  }
+  return pruneUndefined({
+    id, title, summary, legacy_row: cells, migration_note: migrationNote, events: [pruneUndefined(event)],
+  });
+}
+
+// Every free-text field of the records an import would write.
+const importedTexts = (records) => records.flatMap((r) => [
+  r.title, r.summary, r.migration_note, ...(r.legacy_row ?? []), r.events[0].words, r.events[0].pr, r.events[0].release,
+]);
+
+// A file's bytes, or null when nothing is there. Read for the put-back only.
+function bytesOrNull(abs) {
+  try {
+    return readFileSync(abs);
+  } catch (err) {
+    if (err.code === 'ENOENT') return null;
+    throw asWorkStoreError(err, 'IO');
+  }
+}
+
+/**
+ * Create a unit's record already closed (t7.1): its first and only event is
+ * the `closed`. For a unit that was over before unit records existed
+ * (`legacy`), or that never ran (`dropped`, with `words`). `importUnits` with
+ * one entry; see it for the rules.
+ *
+ * An open unit is not created here: `openUnit` does that (or `importUnits`,
+ * beside the closed ones).
+ *
+ * @param {string} baseDir
+ * @param {{id: string, title?: string, summary?: string, legacy_row?: string[], migration_note?: string,
+ *   close: {reason: 'legacy'|'dropped', words?: string, pr?: string, release?: string, at?: string, by: string}}} unit
+ * @param {object} [opts] — `importUnits`'s
+ * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
+ */
+export async function importUnit(baseDir, unit, opts = {}) {
+  if (unit === null || typeof unit !== 'object' || unit.close === undefined) {
+    assertShape(unit?.id);
+    throw new WorkStoreError('SCHEMA', `${unit.id}: importUnit records a unit that starts out closed (close: {reason, at, by}). `
+      + 'An open unit is created with openUnit. Nothing was written.');
+  }
+  const out = await importUnits(baseDir, [unit], opts);
+  return Array.isArray(out) ? out[0] : out;
+}
+
+/**
+ * Create many unit records in one write (t7.1) — the migration's writer. Each
+ * entry becomes a NEW record with exactly one event: `closed` (`close`, reason
+ * `legacy` or `dropped`) or `opened` (`opened`). One take of the store's lock,
+ * all or nothing, and ONE regeneration of the views.
+ *
+ * Refused, with nothing written: a list that is not a list; an entry with
+ * both or neither of `close` and `opened`; a `shipped` close (it comes only
+ * through `requestUnitClose` and its confirmation); a `dropped` close with no
+ * words; an ID `assertUnitId` refuses; an ID listed twice, or two that differ
+ * only by case (in the list, or against a record that exists); a record that
+ * already exists; no `units/` folder, unless `opts.ensureDir`.
+ *
+ * Kept text: each `legacy_row` cell and a close's `words` lose control and
+ * invisible characters (`printable-text.js`) and are cut at `LEGACY_CELL_MAX`
+ * and `CLOSE_WORDS_MAX`. Nothing else about a cell changes.
+ *
+ * Sensitive data: every text field of every entry runs through the gate; with
+ * a hit and no `opts.acknowledgeSensitive` nothing is written.
+ *
+ * All or nothing: when a record cannot be written, the views cannot be
+ * regenerated, or `opts.verify` throws, every record this call wrote is
+ * removed, the folder and `.keep` it made are removed, and every view is put
+ * back to the bytes it had. The error says nothing was imported; `leftChanged`
+ * lists any path that could not be put back.
+ *
+ * @param {string} baseDir
+ * @param {Array<{id: string, title?: string, summary?: string, legacy_row?: string[], migration_note?: string,
+ *   close?: {reason: 'legacy'|'dropped', words?: string, pr?: string, release?: string, at?: string, by: string},
+ *   opened?: {at?: string, by: string}}>} list
+ * @param {{ensureDir?: boolean, renameFn?: Function, acknowledgeSensitive?: boolean, regenerate?: Function,
+ *   gate?: (handle: {baseDir: string, key: string}) => void|Promise<void>,
+ *   verify?: (handle: {baseDir: string, key: string}) => void|Promise<void>}} [opts]
+ *   `ensureDir`: create `units/` and its `.keep` when missing, in the same take of the lock (the migration
+ *   turns unit records on and writes the first records together); `gate`: the caller's own condition, run
+ *   under the lock before anything is read or written — a throw is the refusal; `verify`: run under the
+ *   lock after the records and the views are written — a throw undoes the import
+ * @returns {Promise<object[]>} the entries, in list order — or `{aborted, sensitiveHits}`
+ * @throws {WorkStoreError} CONFIG (store off, v1, or no `units/` folder), SCHEMA, CONFLICT, LOCKED, IO
+ */
+export async function importUnits(baseDir, list, opts = {}) {
+  if (!Array.isArray(list)) {
+    throw new WorkStoreError('SCHEMA', `importUnits takes a list of units (got ${shown(list)}) — nothing was written.`);
+  }
+  const records = list.map(importedRecord);
+  const ids = records.map((r) => r.id);
+  const twice = ids.find((id, i) => ids.indexOf(id) !== i);
+  if (twice !== undefined) throw new WorkStoreError('CONFLICT', `${twice} is listed twice — nothing was written.`);
+  assertWritable(baseDir);
+  const pending = sensitivePending(importedTexts(records), opts);
+  if (pending) return pending;
+  return withUnitLock(baseDir, async (handle) => {
+    if (typeof opts.gate === 'function') await opts.gate(handle);
+    const hadDir = confinedUnitsDir(handle.baseDir) !== null;
+    if (!hadDir && opts.ensureDir !== true) throw new WorkStoreError('CONFIG', NO_UNITS_DIR(ids[0] ?? 'importUnits'));
+    if (!hadDir) confine(handle.baseDir, join(handle.baseDir, UNITS_REL));
+
+    // The ID rule (`assertUnitId`), with the folder listed once for the list.
+    const existing = unitFileIds(handle.baseDir);
+    const taken = new Set(existing);
+    for (const id of ids) {
+      const collision = idCollision(id, handle.key);
+      if (collision) throw new WorkStoreError('SCHEMA', `${collision}. Nothing was written.`);
+      if (taken.has(id)) throw new WorkStoreError('CONFLICT', `${relOf(id)} already exists — nothing was written.`);
+    }
+    const twins = caseTwins([...existing, ...ids])[0];
+    if (twins !== undefined) {
+      throw new WorkStoreError('CONFLICT', `${twins.join(' and ')} differ only by letter case — two IDs that differ only by `
+        + 'case cannot both be units. Nothing was written.');
+    }
+    const planned = records.map((record) => ({ record, text: recordText(record), abs: join(handle.baseDir, relOf(record.id)) }));
+    viewsWritableOrRefuse(handle, opts);
+
+    const written = [];
+    let dir = { created: false, keep: false };
+    let views = [];
+    try {
+      if (opts.ensureDir === true) dir = await makeUnitsDir(handle, opts);
+      for (const p of planned) {
+        confine(handle.baseDir, p.abs);
+        if (existsNoFollow(p.abs)) throw new WorkStoreError('CONFLICT', `${relOf(p.record.id)} already exists`);
+        written.push(p);
+        await atomicWrite(p.abs, p.text, { renameFn: opts.renameFn });
+      }
+      if (planned.length > 0 || dir.created) {
+        // What the views hold now, for the put-back: every path the regeneration may write.
+        views = Object.keys(regenerateToMemory(handle.baseDir) ?? {}).map((rel) => ({ rel, was: bytesOrNull(join(handle.baseDir, rel)) }));
+        await (opts.regenerate ?? regenerateViews)(handle.baseDir);
+      }
+      if (typeof opts.verify === 'function') await opts.verify(handle);
+    } catch (err) {
+      const left = [];
+      const undo = (rel, fn) => {
+        try {
+          fn();
+        } catch (e) {
+          if (e.code !== 'ENOENT') left.push(rel);
+        }
+      };
+      for (const v of views) {
+        const abs = join(handle.baseDir, v.rel);
+        undo(v.rel, () => {
+          if (v.was === null) unlinkSync(abs);
+          else if (!v.was.equals(bytesOrNull(abs) ?? Buffer.alloc(0))) writeFileSync(abs, v.was);
+        });
+      }
+      for (const p of written.reverse()) undo(relOf(p.record.id), () => unlinkSync(p.abs));
+      if (dir.keep) undo(`${UNITS_REL}/${KEEP_FILE}`, () => unlinkSync(join(handle.baseDir, UNITS_REL, KEEP_FILE)));
+      if (dir.created) undo(UNITS_REL, () => rmdirSync(join(handle.baseDir, UNITS_REL)));
+      const code = err instanceof WorkStoreError ? err.code : 'IO';
+      const wrapped = new WorkStoreError(code, `nothing was imported — ${err?.message ?? String(err)}`
+        + (left.length > 0 ? ` — and these could not be put back: ${left.join(', ')}` : ''));
+      wrapped.cause = err;
+      wrapped.leftChanged = left;
+      throw wrapped;
+    }
+    return planned.map((p) => entryOf(p.record));
   });
 }
 

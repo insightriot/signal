@@ -92,6 +92,7 @@ import {
 } from './migrate-memory.js';
 import { isForeignIndexFormat, regeneratePlanningIndexCore } from './planning-index.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
+import { printable } from './printable-text.js';
 import { bodyDirFor } from './work-convert.js';
 import { lockFailure, WorkStoreError } from './work-errors.js';
 import { GENERATED_FILES } from './work-generate.js';
@@ -423,7 +424,7 @@ const masked = (m) => (m.length > 8 ? `${m.slice(0, 6)}…` : m);
 // the invisible tag characters that could carry text a model reads and a
 // person does not (REVIEW pass 4); plus the line and paragraph separators and
 // the variation selectors.
-const printable = (s) => String(s).replace(/[\p{Cc}\p{Cf}\u2028\u2029\p{Variation_Selector}]/gu, '');
+// (`printable`, `printable-text.js`).
 
 function dryRunReport(a) {
   const lines = ['/sig:docs-migrate --work-store — dry run (nothing written)', ''];

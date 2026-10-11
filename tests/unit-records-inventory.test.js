@@ -90,6 +90,16 @@ const WRITERS = {
   holdUnit: { run: (base) => units.holdUnit(base, 'M6.E22', { reason: 'keep', by }) },
   releaseUnit: { run: (base) => units.releaseUnit(base, 'M6.E23', { by }) },
   editUnit: { run: (base) => units.editUnit(base, 'M6.E20', { changes: { title: 'edited' }, by }) },
+  // New records only, each with its one first event (t7.1): a unit recorded as already over.
+  importUnit: { run: (base) => units.importUnit(base, { id: 'M5.E1', close: { reason: 'legacy', at: AT, by } }) },
+  // Many new records in one write; one starts closed, one never ran, one is open.
+  importUnits: {
+    run: (base) => units.importUnits(base, [
+      { id: 'M5.E2', close: { reason: 'legacy', at: AT, by } },
+      { id: 'M5.E3', close: { reason: 'dropped', words: 'moved', at: AT, by } },
+      { id: 'M6.E31', opened: { at: AT, by } },
+    ]),
+  },
 };
 
 const EXEMPT = {
