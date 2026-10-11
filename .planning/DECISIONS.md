@@ -4257,3 +4257,19 @@ stays readable.
 Makes AC8.2 testable. The migration uses "an Epic with a retrospective" as evidence that a list entry
 is finished (`buildEvidenceIndex`). With unit records that becomes "the unit's record is closed", and
 a `legacy` or `dropped` close does not count there.
+
+### D-M6E16-16 — "Unit records are on" means the `work/units/` folder exists (Claude, EXECUTE)
+Not "at least one record". With the at-least-one rule a new project never gets its first record:
+`openEpic` creates none while there are none, and the migration has no Epic to propose. The folder is
+the switch, as `WORK.md` is for items; whoever creates it writes a `.keep` file inside so git carries
+an empty one. Signal's cutover creates it full, a first-time `--work-store` creates it empty, and
+`openEpic` writes the first record. A unit with no record still falls back per unit.
+
+### D-M6E16-17 — A closed Epic is reopened by confirming, not by naming it (Claude, EXECUTE)
+Settles AC3.3. `--epic <ID>` on `/sig:discuss` names an Epic; it does not force past a close. A closed
+unit is refused with its close line, and reopened only when the person then confirms. The other
+reading made the refusal unreachable from the only command that opens Epics.
+
+### D-M6E16-18 — The next Epic ID is the higher of the records and the filenames (Claude, EXECUTE)
+Amends AC3.2. Records decide; filenames are a floor, so a project part-way through adopting records is
+never handed an ID already in use.
