@@ -37,15 +37,16 @@ last_updated: 2026-10-10T23:43:52.020Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-10-10)
 
-**`M6.E15` — *"move other projects onto the work store"* — at SHIP: PR #296 open, waiting for Brett's
-merge (`--merge`; it releases `v0.1.50`).** `/sig:docs-migrate --work-store` moves a project's hand-kept
+**`M6.E15` — *"move other projects onto the work store"* — SHIPPED in `v0.1.50`: PR #296 merged
+2026-10-10 with `--merge` (merge commit `3524cd2`), tagged and released.** `/sig:docs-migrate --work-store` moves a project's hand-kept
 lists onto the store: old IDs kept, originals archived byte-for-byte, nothing closed on its own —
 entries that look finished, with evidence from the default branch, are proposed and one yes closes
 them (`D-M6E15-25`, Brett's call at the REVIEW loop ceiling). REVIEW passes 1–3 failed on a wording
 rule closing open entries; pass 4 found 0 Critical. Tests 5426 → 5968. Retro:
-[`M6.E15-RETROSPECTIVE.md`](M6.E15-RETROSPECTIVE.md). Decisions `D-M6E15-1` … `-25`. `SIG-274` and
-`SIG-286` read *closing* until the merge. **After the merge:** update and restart, then Brett runs it on
-corpus project 1 at an Epic boundary, on its default branch.
+[`M6.E15-RETROSPECTIVE.md`](M6.E15-RETROSPECTIVE.md). Decisions `D-M6E15-1` … `-25`. `SIG-274`,
+`SIG-286`, `SIG-292` and `SIG-293` were confirmed closed against `main` after the merge. `v0.1.50` is
+installed and loaded. **Next:** Brett runs it on corpus project 1 at an Epic boundary, on its default
+branch.
 
 ### Previously (2026-10-07)
 

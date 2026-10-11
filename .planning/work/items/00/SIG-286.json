@@ -42,6 +42,13 @@
       "by": "M6.E15",
       "reason": "fixed",
       "proof": "13c8ed4934cd97eaa82c212e88171c99df9f1c8a"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-11T02:21:50.843Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "13c8ed4934cd97eaa82c212e88171c99df9f1c8a"
     }
   ]
 }
