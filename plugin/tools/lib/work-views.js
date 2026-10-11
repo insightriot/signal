@@ -28,13 +28,14 @@
 // parser, so `work-generate.js`, `backlog.js` and `bugs-tally.js` are not
 // imported; the small text helpers below are this module's own.
 
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
+import { epicMarkers, renderEpicTable, upsertEpicTable } from './milestone-table.js';
 import { assertRealInsidePlanning, linkedComponent, readRegularFile, regularFileRefusal } from './path-confine.js';
 import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, PLANNING_DIR, StateSchemaError } from './state.js';
-import { compareUnitIds } from './unit-record.js';
+import { compareUnitIds, epicIdParts } from './unit-record.js';
 // A cycle, by design: unit-records.js regenerates the views after a write.
 // Neither module uses the other's bindings while it is being evaluated.
 import { hasUnitsSafe, listUnits, UNITS_REL } from './unit-records.js';
@@ -430,6 +431,10 @@ function readEpicFolders(baseDir) {
   return out;
 }
 
+// Everything a regeneration renders: `views` (path → text), and on a project
+// with unit records `milestone` (the current milestone file's Epic table,
+// when that file carries the markers — its whole text is then one of the
+// `views`) and `notes` (why a table was not written; never a failure).
 function renderStore(baseDir) {
   const { records, broken } = listRecords(baseDir, { bodies: true });
   if (broken.length > 0) {
@@ -441,8 +446,14 @@ function renderStore(baseDir) {
   const watchlistText = readWatchlist(baseDir);
   // With unit records (`D-M6E16-16`: the folder exists) the Epic index is
   // rendered from them, and the Epic folders are not read (M6.E16 t5.1).
-  if (hasUnitsSafe(baseDir).has) return renderViews(records, { watchlistText, units: readUnits(baseDir) });
-  return renderViews(records, { watchlistText, epics: readEpicFolders(baseDir) });
+  if (!hasUnitsSafe(baseDir).has) {
+    return { views: renderViews(records, { watchlistText, epics: readEpicFolders(baseDir) }), milestone: null, notes: [] };
+  }
+  const units = readUnits(baseDir);
+  const views = renderViews(records, { watchlistText, units });
+  const table = milestoneTable(baseDir, units);
+  if (table.milestone) views[table.milestone.rel] = table.milestone.text;
+  return { views, milestone: table.milestone, notes: table.notes };
 }
 
 // Every unit record, or a refusal naming each broken one — as for a broken
@@ -456,6 +467,72 @@ function readUnits(baseDir) {
     throw err;
   }
   return units;
+}
+
+// ── The live milestone file's Epic table (M6.E16 t5.2, AC7.2) ───────────────
+
+const STATE_REL = `${PLANNING_DIR}/STATE.md`;
+
+// The milestone file of the Epic `STATE.md` names as current, or null: no
+// STATE.md, no `current_epic`, or one that is not an Epic of a milestone file
+// (`MILESTONE-6.md`, `MILESTONE-4.5.md`). `milestones.js` `currentMilestone`'s
+// rule, read without `readState`: this runs inside every store write and in
+// the synchronous store check, and must neither wait nor migrate a STATE.md.
+// STATE.md is read only as a regular file; one that cannot be read or parsed
+// names no milestone.
+function currentMilestoneOf(baseDir) {
+  let state;
+  try {
+    if (regularFileRefusal(baseDir, STATE_REL) !== null) return null;
+    state = parseFrontmatter(readRegularFile(baseDir, STATE_REL)).data;
+  } catch {
+    return null;
+  }
+  const parts = epicIdParts(state?.current_epic);
+  if (parts === null || parts.parts.length > 2) return null;
+  return { milestone: parts.milestone, rel: `${PLANNING_DIR}/MILESTONE-${parts.milestone}.md` };
+}
+
+// The current milestone file with its Epic table rendered from `units`:
+// `{milestone: {rel, table, text}, notes}`. Only the CURRENT milestone's file
+// (`D-M6E16-12`), and only when it carries the markers. Everything else is a
+// note and no write — a project that has not marked its table is unaffected:
+// no file, a file that is a link or not a regular file (never read through),
+// no markers. Markers that are there but broken (one missing, one repeated,
+// out of order) are a refusal: the person asked for a generated table and it
+// cannot be written.
+function milestoneTable(baseDir, units) {
+  const none = (note) => ({ milestone: null, notes: note ? [note] : [] });
+  const current = currentMilestoneOf(baseDir);
+  if (current === null) return none(null);
+  const { rel, milestone } = current;
+  const NOT_WRITTEN = 'its Epic table was not written';
+  try {
+    lstatSync(join(baseDir, rel));
+  } catch (err) {
+    if (err.code === 'ENOENT' || err.code === 'ENOTDIR') return none(`${rel} does not exist — ${NOT_WRITTEN}.`);
+    return none(`${rel} could not be inspected (${err.code ?? err.message}) — ${NOT_WRITTEN}.`);
+  }
+  const refusal = regularFileRefusal(baseDir, rel);
+  if (refusal !== null) return none(`${refusal}; ${NOT_WRITTEN}.`);
+  let content;
+  try {
+    content = readRegularFile(baseDir, rel);
+  } catch (err) {
+    return none(`${rel} could not be read (${err.code ?? err.message}) — ${NOT_WRITTEN}.`);
+  }
+  const at = epicMarkers(content);
+  if (at.state === 'none') {
+    return none(`${rel} has no \`<!-- signal:epics:begin -->\` … \`<!-- signal:epics:end -->\` markers — ${NOT_WRITTEN}. `
+      + 'Put the two markers around its Epic table, once, and the rows are generated from the unit records.');
+  }
+  const table = renderEpicTable(units, { milestone });
+  try {
+    return { milestone: { rel, table, text: upsertEpicTable(content, table) }, notes: [] };
+  } catch (err) {
+    if (!(err instanceof WorkStoreError)) throw err;
+    throw new WorkStoreError(err.code, `${rel}: ${err.message}`);
+  }
 }
 
 // `work/WATCHLIST.md`, read only as a regular, unlinked file inside the
@@ -478,12 +555,14 @@ function readWatchlist(baseDir) {
  * (its default `regenerateToMemory`).
  *
  * @param {string} baseDir
- * @returns {Record<string, string>|null} null when the store is off
- * @throws {WorkStoreError} SCHEMA when any record is broken; CONFIG when WORK.md is
+ * @returns {Record<string, string>|null} null when the store is off. With unit records and a current
+ *   milestone file that carries the `signal:epics` markers, that file is one more entry: its whole
+ *   text with the Epic table set between the markers (so a stale table is a stale view, AC7.4)
+ * @throws {WorkStoreError} SCHEMA when any record is broken; CONFIG when WORK.md is, or the markers are broken
  */
 export function regenerateToMemory(baseDir) {
   if (storeVersion(baseDir) === null) return null;
-  return renderStore(baseDir);
+  return renderStore(baseDir).views;
 }
 
 // A view is written only to a real file in real folders inside `.planning/`
@@ -516,8 +595,9 @@ function handKept(baseDir, rels) {
 
 // Everything `regenerateViews` checks before its first write: the store's
 // version, every record reading (`renderStore`), WATCHLIST.md and the archived
-// Epic READMEs, no link on any view's path, no hand-kept view. Returns the
-// rendered views, or null with the store off. Writes nothing.
+// Epic READMEs (or, with unit records, every unit record and the current
+// milestone file's markers), no link on any view's path, no hand-kept view.
+// Returns `renderStore`'s result, or null with the store off. Writes nothing.
 function prepareViews(baseDir) {
   const version = storeVersion(baseDir);
   if (version === null) return null;
@@ -526,10 +606,13 @@ function prepareViews(baseDir) {
     err.version = version;
     throw err;
   }
-  const views = renderStore(baseDir);
+  const rendered = renderStore(baseDir);
+  const { views } = rendered;
   const rels = Object.keys(views);
   for (const rel of rels) confineView(baseDir, rel);
-  const kept = handKept(baseDir, rels);
+  // The milestone file is a person's document with one generated region: it
+  // carries no generated marker, and is not a hand-kept view.
+  const kept = handKept(baseDir, rels.filter((rel) => rel !== rendered.milestone?.rel));
   if (kept.length > 0) {
     throw new WorkStoreError('CONFIG', `${kept.join(', ')} ${kept.length === 1 ? 'is' : 'are'} hand-kept, not generated `
       + '(the first line is not the generated marker). Regenerating would overwrite '
@@ -538,7 +621,7 @@ function prepareViews(baseDir) {
       + '`/sig:docs-migrate --work-store`, which moves the lists into records. If it was edited by hand, restore '
       + 'it from git (`git checkout -- <file>`) and make the change with /sig:item.');
   }
-  return views;
+  return rendered;
 }
 
 /**
@@ -635,23 +718,57 @@ export function viewsNotRegenerated(done, err) {
  * - A history file whose year no longer has a close outside the window is
  *   left as it is, never deleted.
  *
+ * **With unit records** (M6.E16 t5.2) the current milestone's file —
+ * `MILESTONE-<n>.md` for the Epic `STATE.md` names — gets its Epic table
+ * written between its `signal:epics` markers (`milestone-table.js`); no other
+ * byte of it changes, and it is not rewritten when nothing would change. A
+ * file without the markers (or absent, or a link) is left alone: that is a
+ * line in `notes`, not a failure. Markers that are there but broken refuse
+ * the whole regeneration (CONFIG, naming the file), before anything is written.
+ *
  * @param {string} baseDir
- * @returns {Promise<{written: string[]}>} repo-root-relative paths
+ * @returns {Promise<{written: string[], notes?: string[]}>} `written`: repo-root-relative paths;
+ *   `notes`: present only when there is something to say — why a milestone's Epic table was not written
  * @throws {WorkStoreError}
  */
 export async function regenerateViews(baseDir) {
-  const views = prepareViews(baseDir);
-  if (views === null) return { written: [] };
-  const rels = Object.keys(views);
-  for (const rel of rels) {
+  const rendered = prepareViews(baseDir);
+  if (rendered === null) return { written: [] };
+  const { views, milestone, notes } = rendered;
+  const written = [];
+  for (const rel of Object.keys(views)) {
     const abs = join(baseDir, rel);
     confineView(baseDir, rel); // again before the mkdir: a link made after the check is still refused
+    if (rel === milestone?.rel) {
+      if (await writeMilestoneTable(baseDir, milestone)) written.push(rel);
+      continue;
+    }
     mkdirSync(dirname(abs), { recursive: true });
     // Re-checked per file: a list hand-written after the check is still not overwritten.
     if (handKept(baseDir, [rel]).length > 0) {
       throw new WorkStoreError('CONFIG', `${rel} is hand-kept, not generated — it was not overwritten.`);
     }
     await atomicWrite(abs, views[rel], { generated: true });
+    written.push(rel);
   }
-  return { written: rels };
+  return notes.length > 0 ? { written, notes } : { written };
+}
+
+// Write the milestone file's Epic table. The file is read AGAIN here and the
+// table set into what it holds now, so text a person changed outside the
+// markers since the check is kept, not written over with what was read then.
+// Nothing is written when the bytes would be the same. Returns whether it wrote.
+async function writeMilestoneTable(baseDir, { rel, table }) {
+  let now;
+  let next;
+  try {
+    now = readRegularFile(baseDir, rel);
+    next = upsertEpicTable(now, table);
+  } catch (err) {
+    const why = err instanceof WorkStoreError ? err.message : `it could not be read (${err.code ?? err.message})`;
+    throw new WorkStoreError('CONFIG', `${rel}: ${why} It changed while the views were being regenerated; its Epic table was not written.`);
+  }
+  if (next === now) return false;
+  await atomicWrite(join(baseDir, rel), next);
+  return true;
 }
