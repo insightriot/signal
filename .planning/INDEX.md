@@ -19,6 +19,7 @@
 - [BACKLOG-REVIEW-2026-09-14.md](BACKLOG-REVIEW-2026-09-14.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-10-01.md](BACKLOG-REVIEW-2026-10-01.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-10-06.md](BACKLOG-REVIEW-2026-10-06.md) — `other` — _(note pending)_
+- [BACKLOG-REVIEW-2026-10-10.md](BACKLOG-REVIEW-2026-10-10.md) — `other` — _(note pending)_
 - [BACKLOG.md](BACKLOG.md) — `other` — The sequenced roadmap, promoted from `ISSUES-INBOX.md`; every entry tagged `roadmap` or `hygiene`. Supersedes the point-in-time `BACKLOG-REVIEW-2026-07-04` snapshot (folded in + archived under `archive/`).
 - [BUGS.md](BUGS.md) — `other` — Bugs & verified-findings catalog — where findings get logged (catalog → triage → confirm / dismiss / fixed). GitHub Issues deferred until Signal has live users.
 - [CONTEXT.md](CONTEXT.md) — `other` — Locked + deferred decisions for the *current* work — what DISCUSS settled for the active Epic.
@@ -465,6 +466,7 @@
 - [work/items/00/SIG-290.md](work/items/00/SIG-290.md) — `other` — _(note pending)_
 - [work/items/00/SIG-291.md](work/items/00/SIG-291.md) — `other` — _(note pending)_
 - [work/items/00/SIG-292.md](work/items/00/SIG-292.md) — `other` — _(note pending)_
+- [work/items/00/SIG-293.md](work/items/00/SIG-293.md) — `other` — _(note pending)_
 - [work/items/00/SIG-3.md](work/items/00/SIG-3.md) — `other` — _(note pending)_
 - [work/items/00/SIG-30.md](work/items/00/SIG-30.md) — `other` — _(note pending)_
 - [work/items/00/SIG-31.md](work/items/00/SIG-31.md) — `other` — _(note pending)_
