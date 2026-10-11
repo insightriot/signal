@@ -28,7 +28,9 @@ import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, setCurrentEpic, StateSchemaError, stringifyFrontmatter } from './state.js';
-import { assertUnitId, getUnit, hasUnitsSafe, openUnit, reopenUnit, unitClosure } from './unit-records.js';
+import { deriveRetroPath } from './retrospective.js';
+import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
+import { assertUnitId, getUnit, hasUnitsSafe, openUnit, reopenUnit, requestUnitClose, unitClosure } from './unit-records.js';
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
 import { assertNoHandKeptLists, EPIC_README } from './work-generate.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -270,20 +272,45 @@ function removeEmptyTree(dir) {
  * files of the folder, which move together. A failure before the regeneration
  * puts every file back where it was, byte-for-byte.
  *
+ * **On a project with unit records** (`hasUnitsSafe(baseDir).has`; M6.E16
+ * t4.1, `D-M6E16-2`, `-14`) none of the folder work above happens. The close
+ * is a `close_requested` event on the Epic's unit record, with a commit as
+ * proof — `close.commit`, or the branch HEAD — and `pr` and `release` beside
+ * it. The unit then reads *closing*; `confirmCloses` (`work-records.js`)
+ * closes it once that commit is on the default branch. Order: the arguments,
+ * the store, the sensitive-data gate, the proof; then, under the store's lock
+ * (`requestUnitClose`'s `gate`), `closeEpicCheck` and the retrospective —
+ * `.planning/<EpicID>-RETROSPECTIVE.md` must be a regular file that
+ * `retroStatusFromContent` reads complete (missing, empty or holding a
+ * `[FILL IN]` placeholder refuses, CONFLICT, with `err.retro = {path,
+ * status}`) — then the one event. Every refusal writes nothing. A unit with no
+ * record (unit records turned on while the Epic was open) gets one first,
+ * after the same checks have passed once (`created: true`).
+ *
  * @param {string} baseDir
  * @param {string} epicId
- * @param {{by: string, pr?: string|number, release?: string, at?: string}} close — `at` defaults to now
- * @param {{execFn?: Function, renameFn?: Function}} [opts]
+ * @param {{by: string, pr?: string|number, release?: string, at?: string, commit?: string}} close — `at` defaults to now;
+ *   `commit` (unit records only) is the proof, default the branch HEAD
+ * @param {{execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean}} [opts]
  * @returns {Promise<{status: 'no-folder'} | {status: 'already-archived', path: string}
- *   | {status: 'closed', from: string, to: string, moved: string[], rewritten: string[], close: object}>}
+ *   | {status: 'closed', from: string, to: string, moved: string[], rewritten: string[], close: object}
+ *   | {status: 'close-requested', epic: string, commit: string, created: boolean, retro: string, items: string[],
+ *       closingOnBranch: string[], unit: {id, path, status: 'closing', held, closing_proof, close: null}}
+ *   | {status: 'already-requested', epic: string, commit: string, unit: object}
+ *   | {status: 'already-closed', epic: string, unit: object}>}
  *   `rewritten` — live files outside the folder whose links into it were
- *   retargeted at the archive, relative to `baseDir` — or `{aborted, sensitiveHits}` (the sensitive-data rule, over pr/release)
+ *   retargeted at the archive, relative to `baseDir` — or `{aborted, sensitiveHits}` (the sensitive-data rule, over pr/release).
+ *   The last three are the unit-records answers: the close was requested;
+ *   it had already been requested with this commit (nothing written); the
+ *   unit is already closed (nothing written)
  * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (bad ID, no `by`,
  *   a broken record or README),
  *   OPEN_ITEMS (each open item named), CONFLICT (archive folder exists, the
  *   folder holds something that is not a file or folder, or the Epic has
  *   `{EpicID}-*.md` artifacts at the `.planning/` root — each named; the
- *   retrospective and profile are expected there and do not count)
+ *   retrospective and profile are expected there and do not count; with unit
+ *   records: the retrospective is missing or a stub, or a close was already
+ *   requested with another commit), LOCKED, IO
  */
 export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
   assertEpicId(epicId);
@@ -296,6 +323,10 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
   }
   const execFn = opts.execFn ?? execFileSync;
   assertWritable(baseDir);
+  // With unit records the close is an event on the unit's record (M6.E16 t4.1).
+  if (hasUnitsSafe(baseDir).has) {
+    return closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit: close.commit }, opts, execFn);
+  }
   const pending = sensitivePending([pr, release], opts);
   if (pending) return pending;
   return withWorkLock(baseDir, async () => {
@@ -448,6 +479,141 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     await regenerate(baseDir, `${epicId} closed and moved ${fromRel}/ → ${toRel}/`);
     return { status: 'closed', from: fromRel, to: toRel, moved: moved.map((m) => m.to), rewritten, close: record };
   });
+}
+
+// ── Closing an Epic on a project with unit records (M6.E16 t4.1, FR4) ───────
+//
+// The close is a `close_requested` event on the unit's record, with the Epic's
+// commit as proof (`D-M6E16-2`). No folder is looked for and nothing moves
+// (`D-M6E16-14`). The unit reads *closing* until `confirmCloses`
+// (`work-records.js`) finds that commit on the default branch.
+
+const COMMIT_SHAPE_RE = /^[0-9a-f]{7,64}$/;
+
+// The branch HEAD's full hash, or null (not a repository, or no commit yet) —
+// what `dischargeBacklogRows` (`backlog.js`) records for the same SHIP.
+function headCommit(baseDir, execFn) {
+  try {
+    return String(execFn('git', ['rev-parse', '--verify', '--quiet', 'HEAD'], {
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+    })).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+// The Epic's retrospective must exist and be filled in (AC4.3): a file that is
+// missing, or still holds a `[FILL IN]` placeholder, refuses the close. Read
+// only as a regular file. The refusal names the file and carries
+// `err.retro = {path, status}`.
+function assertRetroComplete(baseDir, epicId) {
+  const rel = deriveRetroPath(epicId);
+  const abs = join(baseDir, rel);
+  const refuse = (status, why) => {
+    const err = new WorkStoreError('CONFLICT', `${epicId} cannot be closed: ${why}. Nothing was written. `
+      + 'Write the retrospective (references/retrospective-template.md), then re-run.');
+    err.retro = { path: rel, status };
+    return err;
+  };
+  let st = null;
+  try {
+    st = lstatSync(abs);
+  } catch (err) {
+    if (err.code !== 'ENOENT' && err.code !== 'ENOTDIR') throw asWorkStoreError(err, 'IO');
+  }
+  if (st === null) throw refuse(RETRO_STATUS.ABSENT, `its retrospective ${rel} does not exist`);
+  if (!st.isFile()) throw refuse(RETRO_STATUS.ABSENT, `its retrospective ${rel} is not a regular file (a link or a folder)`);
+  let content;
+  try {
+    content = readFileSync(abs, 'utf-8');
+  } catch (err) {
+    throw asWorkStoreError(err, 'IO');
+  }
+  const status = retroStatusFromContent(content);
+  if (status === RETRO_STATUS.ABSENT) throw refuse(status, `its retrospective ${rel} is empty`);
+  if (status !== RETRO_STATUS.COMPLETE) {
+    throw refuse(status, `its retrospective ${rel} is still a stub — it holds \`[FILL IN]\` placeholders`);
+  }
+  return rel;
+}
+
+const unitView = (unit) => ({
+  id: unit.id, path: unit.path, status: unit.status, held: unit.held, closing_proof: unit.closing_proof, close: unit.close,
+});
+
+async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, opts, execFn) {
+  // A record's `pr` and `release` are text; a PR number is written as its digits.
+  const text = (v) => (v === undefined || v === null ? undefined : String(v));
+  const prText = text(pr);
+  const releaseText = text(release);
+  const pending = sensitivePending([prText, releaseText], opts);
+  if (pending) return pending;
+
+  const proof = commit ?? headCommit(baseDir, execFn);
+  if (proof === null) {
+    throw new WorkStoreError('CONFIG', `${epicId}: the close records the Epic's commit as its proof, and this is not a git `
+      + 'repository with a commit — pass `commit`. Nothing was written.');
+  }
+  if (typeof proof !== 'string' || !COMMIT_SHAPE_RE.test(proof)) {
+    throw new WorkStoreError('SCHEMA', `${epicId}: the close's proof is a commit hash — lowercase hex, 7 to 64 characters `
+      + `(got ${JSON.stringify(String(proof).slice(0, 80))}). Nothing was written.`);
+  }
+
+  // What the Epic owes before it may close: every item closed, or closing with
+  // its fix in HEAD (`closeEpicCheck` throws OPEN_ITEMS or SCHEMA itself), and
+  // a complete retrospective. Run again under the lock by `requestUnitClose`.
+  let checked;
+  let retro;
+  const gate = () => {
+    checked = closeEpicCheck(baseDir, epicId, { execFn });
+    retro = assertRetroComplete(baseDir, epicId);
+  };
+
+  let created = false;
+  if (unitClosure(baseDir, epicId) === 'no-record') {
+    // Unit records were turned on while this Epic was open: its record is
+    // created here, after everything that can refuse has been checked once.
+    gate();
+    assertUnitId(baseDir, epicId);
+    const opened = await openUnit(baseDir, epicId, { by, at });
+    if (opened?.aborted) return opened;
+    created = true;
+  } else {
+    const unit = getUnit(baseDir, epicId);
+    if (unit.status === 'closed') return { status: 'already-closed', epic: epicId, unit: unitView(unit) };
+    if (unit.status === 'closing') {
+      if (unit.closing_proof === proof) return { status: 'already-requested', epic: epicId, commit: proof, unit: unitView(unit) };
+      throw new WorkStoreError('CONFLICT', `${epicId}: a close was already requested with the commit ${unit.closing_proof}, `
+        + `not ${proof} — nothing was written. Reopen the unit (reopenUnit, with a reason), then re-run to request the close again.`);
+    }
+  }
+
+  let out;
+  try {
+    out = await requestUnitClose(baseDir, epicId, { proof, pr: prText, release: releaseText, by, at }, {
+      execFn, renameFn: opts.renameFn, acknowledgeSensitive: opts.acknowledgeSensitive, gate,
+    });
+  } catch (err) {
+    if (!created) throw err;
+    // "Nothing was written" would be false: the record was created above.
+    const wrapped = new WorkStoreError(
+      err instanceof WorkStoreError ? err.code : 'IO',
+      `${epicId}: its unit record was created (opened), but the close was not requested — ${err?.message ?? String(err)}`,
+    );
+    wrapped.cause = err;
+    if (err?.retro) wrapped.retro = err.retro;
+    throw wrapped;
+  }
+  return {
+    status: 'close-requested',
+    epic: epicId,
+    commit: proof,
+    created,
+    retro,
+    items: checked.items,
+    closingOnBranch: checked.closingOnBranch,
+    unit: unitView(out),
+  };
 }
 
 // ── Opening an Epic (M6.E16 t3.1, AC3.1, AC3.3) ─────────────────────────────

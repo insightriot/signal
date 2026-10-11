@@ -662,10 +662,16 @@ export async function openUnit(baseDir, id, fields = {}, opts = {}) {
  * after the merge, does not. `confirmUnitClose` copies them into the `closed`
  * event. Sensitive data: both run through the gate.
  *
+ * `opts.gate` (t4.1) is a caller's own condition for the close — `closeEpic`
+ * passes the Epic's (its items, its retrospective). It runs under the store's
+ * lock, before the record is read or written; when it throws, nothing is
+ * written and its error is the refusal.
+ *
  * @param {string} baseDir
  * @param {string} id
  * @param {{proof: string, pr?: string, release?: string, by: string, at?: string}} request
- * @param {{renameFn?: Function, execFn?: Function, acknowledgeSensitive?: boolean}} [opts]
+ * @param {{renameFn?: Function, execFn?: Function, acknowledgeSensitive?: boolean,
+ *   gate?: (handle: {baseDir: string, key: string}) => void|Promise<void>}} [opts]
  * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
  */
 export async function requestUnitClose(baseDir, id, request = {}, opts = {}) {
@@ -682,9 +688,10 @@ export async function requestUnitClose(baseDir, id, request = {}, opts = {}) {
   }
   const pending = sensitivePending([pr, release], opts);
   if (pending) return pending;
-  return withUnitLock(baseDir, async (handle) => (
-    appendEvent(handle, id, { type: 'close_requested', at, by, proof, pr, release }, opts)
-  ));
+  return withUnitLock(baseDir, async (handle) => {
+    if (typeof opts.gate === 'function') await opts.gate(handle);
+    return appendEvent(handle, id, { type: 'close_requested', at, by, proof, pr, release }, opts);
+  });
 }
 
 /**

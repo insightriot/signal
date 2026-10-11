@@ -458,6 +458,18 @@ describe('requestUnitClose / confirmUnitClose (AC2.1)', () => {
     expect(out).toMatchObject({ status: 'closing' });
   });
 
+  // t4.1: the caller's own condition for the close, run under the store's lock.
+  it('a request\'s gate runs under the lock before the write; when it throws nothing is written', async () => {
+    let held = null;
+    const gate = async (handle) => {
+      held = await acquireLock(join(handle.baseDir, WORK_LOCK_REL), { label: 'test' }).then((l) => l.released().then(() => false), () => true);
+    };
+    expect(await units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, by }, { gate })).toMatchObject({ status: 'closing' });
+    expect(held).toBe(true);
+    const err = Object.assign(new Error('the Epic is not ready'), { code: 'OPEN_ITEMS' });
+    await refused(() => units.requestUnitClose(base, 'phase-11', { proof: OTHER_SHA, by }, { gate: () => { throw err; } }), 'OPEN_ITEMS', /not ready/);
+  });
+
   it('a request refuses a blank or non-text pr or release: SCHEMA, nothing written', async () => {
     await refused(() => units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, pr: '  ', by }), 'SCHEMA');
     await refused(() => units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, release: 301, by }), 'SCHEMA');
