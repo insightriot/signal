@@ -161,6 +161,11 @@ describe('unit fold — closing and closed', () => {
     expect(error.message).toContain(OTHER_SHA);
   });
 
+  it('a shipped close with no request outstanding is refused for that, not for its proof', () => {
+    expect(checkEvents(rec([E.opened, E.closed_shipped]))).toEqual([{ index: 1, message: 'events[1]: closed is not legal from open' }]);
+    expect(checkEvents(rec([E.opened, E.closed_dropped, E.closed_shipped]))).toEqual([{ index: 2, message: 'events[2]: closed is not legal from closed' }]);
+  });
+
   it('a shipped close confirms the LATEST request: an earlier request\'s proof does not do', () => {
     const second = { ...E.close_requested, proof: OTHER_SHA };
     const history = [E.opened, E.close_requested, E.reopened, second];

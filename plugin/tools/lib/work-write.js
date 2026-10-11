@@ -20,6 +20,7 @@ import { atomicWrite } from './atomic-write.js';
 import { hasRemote, resolveDefaultBranch } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
 import { assertRealInsidePlanning } from './path-confine.js';
+import { scrubSensitive } from './scrub.js';
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
 import { isGitRepo, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
 
@@ -90,6 +91,29 @@ export function existsNoFollow(abs) {
     if (err.code === 'ENOENT') return false;
     throw asWorkStoreError(err, 'IO');
   }
+}
+
+// ── Free text ───────────────────────────────────────────────────────────────
+
+// Every sensitive-data hit in `texts`, each field scanned on its own (v1
+// `work-ops.js` `scrubTexts`). Non-strings and empty strings are skipped.
+function scrubTexts(texts) {
+  const hits = [];
+  for (const text of texts) {
+    if (typeof text === 'string' && text !== '') hits.push(...scrubSensitive(text).hits);
+  }
+  return hits;
+}
+
+// The sensitive-data gate (v1 `sensitivePending`, unchanged): with a hit and no
+// `acknowledgeSensitive`, nothing is written and the caller must ask. Moved
+// here from `work-records.js` when units needed the same gate (M6.E16.S2).
+export function sensitivePending(texts, opts) {
+  const sensitiveHits = scrubTexts(texts);
+  if (sensitiveHits.length > 0 && !opts.acknowledgeSensitive) {
+    return { aborted: 'sensitive-data-pending', sensitiveHits };
+  }
+  return null;
 }
 
 // ── Records ─────────────────────────────────────────────────────────────────

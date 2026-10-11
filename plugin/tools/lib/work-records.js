@@ -27,7 +27,6 @@ import { readFileSync, readdirSync, realpathSync, existsSync, lstatSync, mkdirSy
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { scrubSensitive } from './scrub.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { ITEM_KIND, RECORD_SCHEMA, parseRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
 import { bodyDirFor, convertV1Item } from './work-convert.js';
@@ -57,6 +56,7 @@ import {
   recordWriter,
   regenerateAfter as regenerateWith,
   runGit,
+  sensitivePending,
   shallowProbe,
   withEvent,
   withWorkLock,
@@ -687,26 +687,6 @@ function viewsWritableOrRefuse(baseDir, opts = {}) {
 
 async function regenerateAfter(handle, done, opts) {
   return regenerateWith(handle, done, opts.regenerate ?? regenerateViews, viewsNotRegenerated);
-}
-
-// Every sensitive-data hit in `texts`, each field scanned on its own (v1
-// `work-ops.js` `scrubTexts`). Non-strings and empty strings are skipped.
-function scrubTexts(texts) {
-  const hits = [];
-  for (const text of texts) {
-    if (typeof text === 'string' && text !== '') hits.push(...scrubSensitive(text).hits);
-  }
-  return hits;
-}
-
-// The sensitive-data gate (v1 `sensitivePending`, unchanged): with a hit and no
-// `acknowledgeSensitive`, nothing is written and the caller must ask.
-function sensitivePending(texts, opts) {
-  const sensitiveHits = scrubTexts(texts);
-  if (sensitiveHits.length > 0 && !opts.acknowledgeSensitive) {
-    return { aborted: 'sensitive-data-pending', sensitiveHits };
-  }
-  return null;
 }
 
 const nowIso = () => new Date().toISOString();
