@@ -13,7 +13,7 @@ import { resolveMigrateClosedUnits, senseVector3, runMigrate, renderDryRun } fro
 import { runDriftChecks, checkEpicWithoutRetro, STATUS } from '../plugin/tools/lib/state-drift.js';
 import { snapshotTree } from './helpers/write-inventory.js';
 import {
-  cleanupUnitProjects, contradiction, HOLD_REASON, NARRATIVE, plant, plantBroken, put, retroFor, state, unitsOn,
+  AT, by, cleanupUnitProjects, contradiction, E, HOLD_REASON, NARRATIVE, plant, plantBroken, put, retroFor, state, unitsOn,
 } from './helpers/unit-fixture.js';
 
 afterEach(cleanupUnitProjects);
@@ -200,5 +200,28 @@ describe('checkEpicWithoutRetro with unit records (t6.3)', () => {
     const base = contradiction({ units: true });
     plantBroken(base, 'M7.E2');
     expect((await found(base)).units).toEqual(['M7.E4']);
+  });
+
+  // M6.E16 t7.0. A legacy close says the unit was over before unit records
+  // existed; it says nothing about a retrospective. Without this, a cutover
+  // turns every old stub retrospective into a finding it is not today.
+  it('a unit closed as legacy is not checked, with a stub retrospective or with none', async () => {
+    const base = contradiction({ units: true });
+    plant(base, 'M7.E5', 'legacy');
+    plant(base, 'M7.E6', 'legacy');
+    put(base, '.planning/M7.E6-RETROSPECTIVE.md', '# M7.E6 Retrospective\n\n[FILL IN]\n');
+    expect((await found(base)).units).toEqual(['M7.E2', 'M7.E4']);
+  });
+
+  it('a legacy unit that left files in .planning/ is not found from those files either', async () => {
+    const base = contradiction({ units: true });
+    plant(base, 'M7.E3', 'legacy'); // M7.E3 has a PLAN on disk and no retrospective
+    expect((await found(base)).units).toEqual(['M7.E2', 'M7.E4']);
+  });
+
+  it('a legacy unit that was reopened is checked again: only a standing legacy close is skipped', async () => {
+    const base = contradiction({ units: true });
+    plant(base, 'M7.E5', [E.legacy, { type: 'reopened', at: AT, by, reason: 'it came back' }]);
+    expect((await found(base)).units).toEqual(['M7.E2', 'M7.E4', 'M7.E5']);
   });
 });

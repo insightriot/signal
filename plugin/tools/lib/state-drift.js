@@ -579,7 +579,9 @@ export const checkEpicWithoutRetro = defineCheck({
     // With unit records (M6.E16 t6.3) which units were worked comes from the
     // records: every unit that has one, with or without a file left in
     // `.planning/` — except one closed as `dropped`, whose record says the
-    // work never ran here. A unit whose record does not read is passed over:
+    // work never ran here, and one closed as `legacy` (t7.0): that close says
+    // the unit was over before unit records existed and asserts nothing about
+    // a retrospective. A unit whose record does not read is passed over:
     // `/sig:docs-sweep` reports the record. A unit with no record is still
     // found from its files, as above.
     const unitRecords = readUnitRecords(dirname(planningDir));
@@ -587,7 +589,7 @@ export const checkEpicWithoutRetro = defineCheck({
     if (unitRecords !== null) {
       for (const id of unitRecords.broken.keys()) worked.delete(id);
       for (const [id, u] of unitRecords.byId) {
-        if (u.status === 'closed' && u.close?.reason === 'dropped') worked.delete(id);
+        if (u.status === 'closed' && (u.close?.reason === 'dropped' || u.close?.reason === 'legacy')) worked.delete(id);
         else {
           worked.add(id);
           byRecord.set(id, u.status);
