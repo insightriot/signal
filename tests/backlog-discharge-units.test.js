@@ -70,8 +70,10 @@ describe('storeDischargeStatus with unit records (t6.0)', () => {
   });
 
   it('a closing unit is not finished: nothing is discharged on a requested close', async () => {
-    const base = store(['M7.E2']);
-    plant(base, 'M7.E2', 'closing');
+    const base = contradiction({ store: true }); // M7.E1's files say closed
+    unitsOn(base);
+    plant(base, 'M7.E1', 'closing');
+    plant(base, 'M7.E2', 'open');
     const res = await storeDischargeStatus(base);
     expect(res.outcome).toBe(BACKLOG_DISCHARGE.CLEAN);
     expect(res.stale).toEqual([]);

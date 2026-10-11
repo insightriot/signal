@@ -152,10 +152,10 @@ describe('isEpicDone with unit records (t6.1)', () => {
   it('held is done; closing is not-done', () => {
     const base = contradiction();
     unitsOn(base);
-    plant(base, 'M7.E1', 'held');
-    plant(base, 'M7.E2', 'closing');
-    expect(isEpicDone(base, 'M7.E1').status).toBe('done');
-    expect(isEpicDone(base, 'M7.E2').status).toBe('not-done');
+    plant(base, 'M7.E1', 'closing'); // its retrospective is filled
+    plant(base, 'M7.E2', 'held'); // it has no retrospective
+    expect(isEpicDone(base, 'M7.E1').status).toBe('not-done');
+    expect(isEpicDone(base, 'M7.E2').status).toBe('done');
   });
 
   it('no record: the retrospective decides, with its three answers', () => {
