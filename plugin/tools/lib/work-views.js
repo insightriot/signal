@@ -24,6 +24,13 @@
 //
 // IDs are SIG-n only (AC6.1): a record's `legacy_id` is never printed.
 //
+// With unit records (`.planning/work/units/` exists; M6.E16 S5) two views are
+// of the UNIT records: `work/EPICS.md` lists every unit with its folded state,
+// and the current milestone file's Epic table is written between its
+// `signal:epics` markers (`milestone-table.js`) — the one view that is a
+// region of a person's file, not a whole generated file. Without unit records
+// `EPICS.md` is the Epic-folder view it was and no milestone file is touched.
+//
 // Import graph (PLAN Decision 12): nothing here may reach a Markdown list
 // parser, so `work-generate.js`, `backlog.js` and `bugs-tally.js` are not
 // imported; the small text helpers below are this module's own.
