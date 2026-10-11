@@ -79,8 +79,12 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   `.planning`, it lazy-loads `tools/lib/work-write-guard.js`. That **blocks** a
   hand edit of `.planning/work/items/**/*.json`, `BUGS.md`, `BACKLOG.md`,
   `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `work/EPICS.md`, `work/history/*.md`
+  and (M6.E16/t2.5) a unit record, `.planning/work/units/*.json`
   — **only** when `.planning/work/WORK.md` reads `schema_version: 2` — naming
-  `/sig:item`. Item bodies (`items/**/*.md`) are allowed. On `work/WORK.md` itself
+  `/sig:item`; for a unit record the message adds that `/sig:item` does not
+  change one and that unit records change only through Signal's own commands
+  (`/sig:discuss --epic` opens one, `/sig:ship` closes one). Item bodies
+  (`items/**/*.md`) are allowed. On `work/WORK.md` itself
   it blocks only an edit that would change or remove `schema_version: 2` or the
   `key:` line (the key prefixes every item ID, so changing it orphans every
   record; the proposed content is computed for Write, Edit and MultiEdit),
@@ -97,18 +101,20 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
 
 The guard is a `PreToolUse` hook on `Edit|Write|MultiEdit`, so it sees those
 three tools and nothing else. **An edit made through Bash** — `sed -i`, a shell
-redirect, a script, `git checkout` of an old file — reaches a record, a view or
-`WORK.md` without the hook running. That is the spirit of AC5.1 (*records
+redirect, a script, `git checkout` of an old file — reaches a record (an item's
+or a unit's), a view or `WORK.md` without the hook running. That is the spirit of AC5.1 (*records
 change only through `/sig:item`*) held by convention, not enforcement, on that
 route.
 
 The backstop is `checkRecords` (`work-records.js`), run by `/sig:docs-sweep`
 (`checkWorkStore`) and by the AC5.2 tests: it reports a record that is invalid,
 whose events do not fold, or a duplicate ID, and any view that differs from a
-regeneration. **Its limit:** a record rewritten by hand into another *valid*
+regeneration. Unit records have the same backstop in `checkUnits`
+(`unit-records.js`), which `checkWorkStore` reports beside it. **Its limit:** a record rewritten by hand into another *valid*
 record — a field changed with no event, its events still folding — passes it.
 Nothing in Signal can detect that edit after the fact; `git diff` of
-`.planning/work/items/` at review is the only place it shows.
+`.planning/work/items/` (and `.planning/work/units/`) at review is the only
+place it shows.
 
 ## The cwd-vs-stdin asymmetry (read this before editing a hook)
 

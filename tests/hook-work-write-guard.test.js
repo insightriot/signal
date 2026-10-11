@@ -46,7 +46,10 @@ const PROTECTED = [
   '.planning/OPEN-QUESTIONS.md',
   '.planning/work/EPICS.md',
   '.planning/work/history/2026-10.md',
+  // M6.E16/t2.5 (AC2.2): a unit record, as an item record.
+  '.planning/work/units/M6.E16.json',
 ];
+const isUnit = (rel) => rel.startsWith('.planning/work/units/');
 // Never protected.
 const ALLOWED = [
   '.planning/work/items/00/SIG-1.md',
@@ -54,6 +57,8 @@ const ALLOWED = [
   '.planning/DECISIONS.md',
   '.planning/archive/pre-work-store-v2/BUGS.md',
   '.planning/work/history/sub/x.md',
+  '.planning/work/units/M6.E16.md',
+  '.planning/work/unit-notes/M6.E16.json',
   'src/BUGS.md',
   'README.md',
 ];
@@ -70,6 +75,8 @@ function makeProject(store) {
   }
   writeFileSync(join(dir, '.planning', 'work', 'items', '00', 'SIG-1.json'), '{}\n');
   writeFileSync(join(dir, '.planning', 'work', 'items', '00', 'SIG-1.md'), 'body\n');
+  mkdirSync(join(dir, '.planning', 'work', 'units'), { recursive: true });
+  writeFileSync(join(dir, '.planning', 'work', 'units', 'M6.E16.json'), '{}\n');
   if (store === 'v1') writeFileSync(join(dir, '.planning', 'work', 'WORK.md'), '---\nkey: SIG\n---\n');
   if (store === 'v1-explicit') writeFileSync(join(dir, '.planning', 'work', 'WORK.md'), '---\nkey: SIG\nschema_version: 1\n---\n');
   if (store === 'v2') writeFileSync(join(dir, '.planning', 'work', 'WORK.md'), '---\nkey: SIG\nschema_version: 2\n---\n');
@@ -117,7 +124,25 @@ describe('work write guard — v2 store', () => {
       // A record is not generated: it is written through /sig:item (VERIFY loop 1).
       expect(stderr).toContain('written only through /sig:item');
       expect(stderr).not.toContain(`${rel} is generated`);
+      // A unit record is not changed with /sig:item, and has no body file
+      // (M6.E16/t2.5): the message says which commands write one.
+      expect(stderr.includes('.planning/work/units/*.json')).toBe(isUnit(rel));
+      if (isUnit(rel)) {
+        expect(stderr).toContain('/sig:discuss --epic');
+        expect(stderr).toContain('/sig:ship');
+        expect(stderr).toContain('A unit record has no body file');
+      }
     }
+  });
+
+  it('blocks a unit record that does not exist yet, through .., through a relative path, and through an alias', () => {
+    expect(runHook(write(join(dir, '.planning/work/units/M6.E99.json'))).status).toBe(2);
+    expect(runHook(edit(join(dir, '.planning/work/items/../units/M6.E16.json'))).status).toBe(2);
+    expect(runHook(edit('work/units/M6.E16.json', join(dir, '.planning'))).status).toBe(2);
+    symlinkSync(join(dir, '.planning', 'work', 'units'), join(dir, 'epics'));
+    expect(runHook(edit(join(dir, 'epics', 'M6.E16.json'))).status).toBe(2);
+    expect(runHook(write(join(dir, 'epics', 'M6.E98.json'))).status).toBe(2); // not there yet
+    expect(runHook(edit(join(dir, 'epics', 'M6.E16.md'))).status).toBe(0);
   });
 
   it.each(ALLOWED)('allows %s', (rel) => {
@@ -228,6 +253,7 @@ describe('work write guard — v2 store', () => {
     }
     expect(runHook(edit(join(dir, '.Planning/Work/Items/00/SIG-1.JSON'))).status).toBe(2);
     expect(runHook(edit(join(dir, '.PLANNING/bugs.md'))).status).toBe(2);
+    expect(runHook(edit(join(dir, '.Planning/Work/Units/M6.E16.JSON'))).status).toBe(2);
     expect(runHook(edit(join(dir, '.Planning/Work/Items/00/SIG-1.MD'))).status).toBe(0);
   });
 
@@ -237,6 +263,8 @@ describe('work write guard — v2 store', () => {
     expect(protectedTarget(join(dir, '.Planning/Work/Items/00/SIG-1.JSON'))).toMatchObject({ blocked: true });
     expect(protectedTarget(join(dir, '.PLANNING/bugs.md'))).toMatchObject({ blocked: true });
     expect(protectedTarget(join(dir, '.PLANNING/Work/WORK.MD'))).toMatchObject({ blocked: true });
+    expect(protectedTarget(join(dir, '.Planning/WORK/Units/M6.E16.JSON'))).toMatchObject({ blocked: true });
+    expect(protectedTarget(join(dir, '.Planning/WORK/Units/M6.E16.MD'))).toMatchObject({ blocked: false });
     expect(protectedTarget(join(dir, '.Planning/Work/Items/00/SIG-1.MD'))).toMatchObject({ blocked: false });
   });
 
@@ -284,6 +312,13 @@ describe('hooks-api.md states what the guard cannot see (REVIEW I7)', () => {
     expect(section).toMatch(/through Bash/);
     expect(section).toContain('checkRecords');
     expect(section).toMatch(/valid\*?\s+record/);
+    expect(section).toContain('checkUnits');
+  });
+  it('the guard description lists unit records among the blocked paths (M6.E16/t2.5)', () => {
+    const at = doc.indexOf('**Work-store guard (M6.E13/t5.1):**');
+    const desc = doc.slice(at, doc.indexOf('- **exit:**', at));
+    expect(desc).toContain('`.planning/work/units/*.json`');
+    expect(desc).toMatch(/\/sig:discuss --epic/);
   });
   it('the guard description says a WORK.md edit changing `key` is blocked', () => {
     const at = doc.indexOf('**Work-store guard (M6.E13/t5.1):**');

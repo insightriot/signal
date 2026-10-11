@@ -6,6 +6,8 @@
 // code (`/sig:item` → work-records.js → work-views.js). A hand edit to one of
 // them is either overwritten at the next regeneration or, for a record, an
 // edit the event log never saw. Bodies (`items/**/*.md`) stay editable.
+// Unit records (`work/units/**/*.json`, M6.E16/t2.5, AC2.2) are guarded as
+// item records are; they are written by unit-records.js, not by `/sig:item`.
 // `work/WORK.md` is guarded too, with its own message (REVIEW I7), but only
 // against the two edits that matter: one that would change or remove
 // `schema_version: 2`, which would switch this guard off, and one that would
@@ -44,7 +46,12 @@ export const BLOCK_MESSAGE = (rel) =>
   + '(.planning/work/WORK.md has `schema_version: 2`), so a hand edit would be lost or bypass the record. '
   + 'Records (.planning/work/items/**/*.json) are written only through /sig:item; the views and history '
   + 'files are generated from the records and regenerate after every change. '
-  + 'For prose, edit the item\'s body file (.planning/work/items/NN/KEY-n.md), which is not blocked.';
+  + 'For prose, edit the item\'s body file (.planning/work/items/NN/KEY-n.md), which is not blocked.'
+  + (isUnitRecord(rel)
+    ? ' This file is a unit record (.planning/work/units/*.json), and /sig:item does not change one: unit '
+      + 'records change only through Signal\'s own commands — /sig:discuss --epic opens one, /sig:ship closes '
+      + 'one. A unit record has no body file.'
+    : '');
 
 export const WORK_MD_MESSAGE = (rel) =>
   `${rel} switches this project's v2 work store on (\`schema_version: 2\`) and names its \`key\`, which `
@@ -53,6 +60,7 @@ export const WORK_MD_MESSAGE = (rel) =>
   + 'may be edited. Items are changed with /sig:item; the store\'s version is changed only by the migration '
   + 'tool, `node tools/work-migrate-v2.mjs`.';
 
+const isUnitRecord = (rel) => rel.toLowerCase().startsWith('.planning/work/units/');
 const isWorkMd = (rel) => rel.toLowerCase() === '.planning/work/work.md';
 
 // Is `segs` (lower-cased, after `.planning/`) a protected target?
@@ -61,7 +69,7 @@ function isTarget(segs) {
   if (segs[0] !== 'work') return false;
   if (segs.length === 2) return segs[1] === 'epics.md' || segs[1] === 'work.md';
   if (segs[1] === 'history') return segs.length === 3 && segs[2].endsWith('.md');
-  if (segs[1] === 'items') return segs[segs.length - 1].endsWith('.json');
+  if (segs[1] === 'items' || segs[1] === 'units') return segs[segs.length - 1].endsWith('.json');
   return false;
 }
 
