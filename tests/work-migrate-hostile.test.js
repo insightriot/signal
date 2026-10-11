@@ -67,19 +67,19 @@ describe('I-D — hostile list text stays linear in the dry run', () => {
 
   // REVIEW pass 3 I-5: a fixed budget at 8000 left a ~1.3× margin, which a
   // fast machine could pass with the quadratic version. A doubling ratio is
-  // machine-independent: at four times the entries linear work costs ~4×,
-  // quadratic ~16×; the line is drawn at 8× so a busy machine (the suite runs
-  // files in parallel) does not fail the linear version. Best of five runs
-  // per size, to keep a GC pause out of it.
-  it('inbox segmentation is linear: 5 000 → 20 000 entries costs well under 8× (quadratic would be ~16×)', () => {
+  // machine-independent: at sixteen times the entries linear work costs ~16×,
+  // quadratic ~256×; the line is drawn at 64× (measured: this code ~22×, the
+  // pre-fix code ~497×). A 4× step with an 8× line failed on CI at 9.4 from
+  // timing noise alone (SIG-293). Best of five runs per size.
+  it('inbox segmentation is linear: 2 000 → 32 000 entries costs well under 64× (linear ~16×, quadratic ~256×)', () => {
     const inbox = (n) => `# Issues Inbox\n\n${Array.from({ length: n }, (_, i) => `## Capture ${i + 1}\nSomething to look at.\n`).join('\n')}`;
     const best = (text) => Math.min(...[0, 1, 2, 3, 4].map(() => timed(() => segmentInbox(text)).ms));
-    const small = inbox(5000);
-    const large = inbox(20000);
+    const small = inbox(2000);
+    const large = inbox(32000);
     best(small); // warm up
     const ratio = best(large) / best(small);
-    expect(segmentInbox(large).rows).toHaveLength(20000);
-    expect(ratio).toBeLessThan(8);
+    expect(segmentInbox(large).rows).toHaveLength(32000);
+    expect(ratio).toBeLessThan(64);
   });
 
   it('8000 inbox entries: segmented and planned in under 2 s, one row each', () => {

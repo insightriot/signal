@@ -503,17 +503,18 @@ describe('segmentQuestions is linear in the number of `###` entries (REVIEW pass
     segmentQuestions(text);
     return performance.now() - t0;
   }));
-  // Four times the entries: linear ~4×, quadratic ~16×; the line at 8× leaves
-  // room for a busy machine.
-  it('4000 → 16 000 entries costs well under 8× (quadratic would be ~16×), groups still right', () => {
-    const small = doc(4000);
-    const large = doc(16000);
+  // Sixteen times the entries: linear ~16×, quadratic ~256×; the line at 64×
+  // (measured: this code ~21×, the pre-fix code ~145×). A 4× step with an 8×
+  // line is within reach of CI timing noise (SIG-293).
+  it('2000 → 32 000 entries costs well under 64× (linear ~16×, quadratic ~256×), groups still right', () => {
+    const small = doc(2000);
+    const large = doc(32000);
     best(small);
     const ratio = best(large) / best(small);
     const rows = segmentQuestions(large).rows;
-    expect(rows).toHaveLength(16000);
+    expect(rows).toHaveLength(32000);
     expect(rows[51].groupHeading).toBe('Group 50');
     expect(rows[49].groupHeading).toBe('Group 0');
-    expect(ratio).toBeLessThan(8);
+    expect(ratio).toBeLessThan(64);
   });
 });
