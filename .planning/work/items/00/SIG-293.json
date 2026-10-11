@@ -36,6 +36,13 @@
       "by": "M6.E15 SHIP",
       "reason": "fixed",
       "proof": "8ee8172e78fa45106130ccdd8af3d1bcfdcea5f4"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-11T02:21:50.843Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "8ee8172e78fa45106130ccdd8af3d1bcfdcea5f4"
     }
   ]
 }

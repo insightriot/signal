@@ -2365,9 +2365,9 @@ Seen 2026-10-01 during M6.E12 EXECUTE. plugin/references/anti-rationalization-fo
 
 Found 2026-10-03 on the second outside-Signal /sig:advise run (eval-project, run 1). The maintainer picked priority 1 AND a four-step order (1, then a polish batch, then versioning work, then a DISCUSS). recordChoice can record one pick only, so the agent recorded it as "Something else" with its own summary of the order — the advisory now reads as a miss although priority 1 was picked. For the outcome oracle (D-M6E12-12) count that run as priority 1. Fix: an optional `order` recorded alongside the pick.
 
-### No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13) · SIG-274 · closing
+### No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13) · SIG-274 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-11 (fixed)
 
 Found 2026-10-04 at M6.E13 t6.2. The only path that turns a store on is node tools/work-migrate.mjs (v1, maintainer script). After M6.E13 the v2 library refuses writes on a v1 store, so a project that enables the store gets one it cannot use until it runs tools/work-migrate-v2.mjs too. Belongs with the other-projects Epic (/sig:docs-migrate), but the gap is real from this release.
 
@@ -2405,9 +2405,9 @@ Brett's caution, recorded: if Jev disagrees often, the fault is upstream (the ru
 
 Trigger: Brett's triage after the first real migration (corpus project 1) finds at least one entry the rule closed that was not finished. If triage finds none, close this as wontdo.
 
-### Two speed tests use a 4× size step with an 8× ratio limit, which CI timing noise can cross · SIG-293 · closing
+### Two speed tests use a 4× size step with an 8× ratio limit, which CI timing noise can cross · SIG-293 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-11 (fixed)
 
 On PR #296 the M6.E15 REVIEW pass 4 test "segmentQuestions stays linear with a ## group every 5 entries" failed on CI at ratio 8.25 against a limit of 8 (one of two runs; the other passed). It was rewritten to a 16× size step (2000 → 32000) with a 64× limit: this code measures 19–20×, the pre-fix code 195×.
 
