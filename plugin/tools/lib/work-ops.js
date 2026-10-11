@@ -453,12 +453,12 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
 // ── Opening an Epic (M6.E16 t3.1, AC3.1, AC3.3) ─────────────────────────────
 
 // A unit's close as one line: the reason and date, then the PR, the release
-// and the words, each when recorded.
-function closeLine(close) {
+// and (unless `words` is false) the words, each when recorded.
+function closeLine(close, { words = true } = {}) {
   const parts = [`${close.reason}, ${String(close.at).slice(0, 10)}`];
   if (close.pr) parts.push(`PR ${close.pr}`);
   if (close.release) parts.push(`release ${close.release}`);
-  if (close.words) parts.push(close.words);
+  if (words && close.words) parts.push(close.words);
   return parts.join('; ');
 }
 
@@ -528,7 +528,10 @@ export async function openEpic(baseDir, epicId, open = {}) {
         throw new WorkStoreError('CONFLICT', `${epicId} is closed (${line})${unit.held ? ', and held' : ''} — nothing was opened. `
           + 'To open it again, call openEpic with `force: true` (the `--epic` override): that records a reopen on its unit record.');
       }
-      const reason = `opened again with the --epic override (openEpic, force) — it was closed: ${line}`;
+      // Without the close's words: they stay in the close event, and free
+      // text copied here would be put through the sensitive-data gate again,
+      // after `current_epic` was set.
+      const reason = `opened again with the --epic override (openEpic, force) — it was closed: ${closeLine(unit.close, { words: false })}`;
       step = { unit: 'reopened', did: 'its unit record is still closed', write: () => reopenUnit(baseDir, epicId, { by, reason }) };
     }
   }

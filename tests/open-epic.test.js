@@ -118,6 +118,15 @@ describe('openEpic — a project with unit records (AC3.1)', () => {
     expect((await readState(base)).current_epic).toBe('M7.E3');
   });
 
+  it('force on a closed, held unit: reopened; the reason carries the close\'s reason and date, not its words', async () => {
+    expect(await openEpic(base, 'M7.E4', { by, force: true })).toEqual({ epic: 'M7.E4', unit: 'reopened' });
+    const unit = getUnit(base, 'M7.E4');
+    expect(unit).toMatchObject({ status: 'open', held: true });
+    const { reason } = unit.record.events.at(-1);
+    expect(reason).toMatch(/dropped, 2026-10-11/);
+    expect(reason).not.toMatch(/the work moved to another unit/);
+  });
+
   it('force on an open unit changes nothing in the record', async () => {
     const before = await unitBytes('M7.E1');
     expect(await openEpic(base, 'M7.E1', { by, force: true })).toEqual({ epic: 'M7.E1', unit: 'existing' });
