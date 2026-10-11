@@ -1,0 +1,1307 @@
+{
+  "units": [
+    {
+      "id": "M4.5.E1",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-4.5.md",
+        "line": 35,
+        "cells": [
+          "E1 — Stranger-install path bulletproof",
+          "S1 shipped 2026-05-15 (v0.1.1); **S2 Phase A shipped 2026-05-19 (outcome a — Phase B not needed)**; **S3–S5 ⏸ shelved 2026-05-24**",
+          "F2 resolved as outcome (a); R1 row of install-verification matrix complete. S3–S5 (R2/R3/R5 + versioning policy + validator hardening) paused pending Linux/WSL tester volunteers — see M4.5.E3-REQUIREMENTS.md § D-E3-12 for unshelf trigger."
+        ]
+      },
+      "retro": "stub",
+      "retro_path": ".planning/M4.5.E1-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M4.5/E1"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M4.5.E2",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-4.5.md",
+        "line": 36,
+        "cells": [
+          "**E2 — `/sig:add` capture-and-route**",
+          "**✓ shipped 2026-05-31 (in v0.1.3)**",
+          "Full 5-slice Epic: hot path (S1) + force-route flags & `--file` (S2) + naked-invocation interview (S3, heuristics cut per Decision 5) + stranger-safety & vocab lint (S4) + `/sig:plan` advisory FUTURE-IDEAS drain (S5). Q2 dispositioned-rule refined in-loop at REVIEW. 183 Epic-owned tests. See `M4.5.E2-RETROSPECTIVE.md`."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M4.5.E2-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M4.5/E2"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M4.5.E3",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-4.5.md",
+        "line": 37,
+        "cells": [
+          "**E3 — Public-facing docs rewrite**",
+          "**✓ shipped 2026-05-24 (released in v0.1.3 on 2026-05-31)**",
+          "Audience reframe to self + peers (D-E3-11). 2 slices, 10 tasks. New: tools/audit-network-calls.js + README Privacy section + Compat table + docs/map link + README Open Source Origins rewrite + SECURITY.md + references/facts.md + tests/cross-file-consistency.test.js. 384 → 397 tests. CONTRIBUTING.md + issue templates + docs/compatibility.md deferred per D-E3-11 (see FUTURE-IDEAS.md \"E3 contribution scaffolding — deferred\")."
+        ]
+      },
+      "retro": "stub",
+      "retro_path": ".planning/M4.5.E3-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M4.5/E3"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M4.5.E4",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-4.5.md",
+        "line": 38,
+        "cells": [
+          "**E4 — Worked example + comparison page**",
+          "**✓ shipped 2026-06-03 (closed lightweight; `[Unreleased]` — batches with E5)**",
+          "`examples/url-shortener/` (runnable, zero runtime deps, annotated tour, currency guard) + `docs/vs.md` (toolbox-framed prose guide). 3 slices, 10 tasks. `node:sqlite`→JSON-store pivot; AC-count reconciled (24 = 17+7); `vs.md` tone reframe. Root suite 762 → 764; validator green. See `M4.5.E4-RETROSPECTIVE.md`."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M4.5.E4-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M4.5/E4"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M4.5.E5",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-4.5.md",
+        "line": 39,
+        "cells": [
+          "**E5 — External validation + launch**",
+          "**✓ shipped 2026-06-06 (v0.1.4)**",
+          "All 4 slices / 9 tasks (launch post, demo script, tester brief + friction log, launch kit, CHANGELOG). v0.1.4 tagged + first GitHub Release; E4's `[Unreleased]` block shipped with it. The outward tester loop (voice pass, recruit ≥3, record demo) remains open — tracked in `M4.5.E5-LAUNCH-KIT.md` §3."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M4.5.E5-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M4.5/E5"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M4.5.E6",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-4.5.md",
+        "line": 42,
+        "cells": [
+          "**E6 — Resume reliability (STATE.md schema + auto-update + `/sig:checkpoint`)**",
+          "**✓ shipped 2026-05-18 (v0.1.2)**",
+          "All 5 slices + S6 REVIEW loop-back (5 IMPORTANT findings resolved pre-publish). YAML-frontmatter STATE.md + auto-state-protocol + new `/sig:checkpoint` + staleness banner + orphan UI in `/sig:resume`. 225 → 366 tests; no new runtime deps."
+        ]
+      },
+      "retro": "stub",
+      "retro_path": ".planning/M4.5.E6-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M4.5/E6"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M4.5.E7",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-4.5.md",
+        "line": 43,
+        "cells": [
+          "**E7 — Synthesizer prose-quality + install-UX hardening**",
+          "**✓ shipped 2026-05-23 (released in v0.1.3 on 2026-05-31)**",
+          "DISCUSS + PLAN closed 2026-05-21 (commit `015525e`); EXECUTE 2026-05-22 → 2026-05-23 (per-task atomic commits S1.t1 → S2.t8). Two-layer synthesizer fix: new `embedSection` helper in `tools/lib/landscape.js` (eliminates LLM verbatim-copy as failure mode) + `commands/init.md` long-line splits (reduces dense-prose generation pressure). `docs/install-troubleshooting.md` with 5 symptom sections + Quick Triage + Canonical Clean Reinstall. R1+ rerun on Mac Studio 2026-05-23 verified clean (`docs/install-verification.md` § R1+). Tests 366 → 384; validator green. CHANGELOG [0.1.3] section. See § E7 below + `docs/install-verification.md` R1 for original motivation."
+        ]
+      },
+      "retro": "stub",
+      "retro_path": ".planning/M4.5.E7-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M4.5/E7"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M4.5.E8",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-4.5.md",
+        "line": 44,
+        "cells": [
+          "**E8 — `/sig:doctor` install-state diagnostician + reframe**",
+          "**✓ shipped 2026-05-30 (in v0.1.3)**",
+          "Scoped after E7 surfaced that 3 of 5 install failure modes (P1/P2/P3) are upstream Claude Code plugin-host bugs, not Signal bugs, but the 280-line troubleshooting doc reads as Signal's shame. E8 ships a single command users run to get diagnosis + the exact remediation commands, reframes the troubleshooting doc to name upstream-vs-Signal ownership, and adds auto-version-check to `/sig:status` so staleness gets surfaced before strangers hit weird behavior. Sequenced before E5 launch — launching without it ships the current install dance to strangers. See § E8 below."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M4.5.E8-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M4.5/E8"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M4.5.E9",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-4.5.md",
+        "line": 45,
+        "cells": [
+          "**E9 — Retro Foundations (SHIP enforcement + RETROSPECTIVES.md index)**",
+          "**✓ shipped 2026-05-26 (released in v0.1.3 on 2026-05-31)**",
+          "DISCUSS + PLAN closed 2026-05-25; EXECUTE 2026-05-26 (Waves 1-5, 19/19 tasks); VERIFY PASS 23/23 ACs; REVIEW PASS-WITH-FIXES (1 Important + 3 Suggestions fixed in-phase). Layered enforcement per D-E9-8 (command-internal + PreToolUse + SessionStart-resume hooks). 5 backfilled stub retros (E1, E2, E3, E6, E7) + E9 own substantive retro + RETROSPECTIVES.md index live. Tests 397 → 535 (+138). 24 atomic commits. See § E9 below."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M4.5.E9-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M4.5/E9"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M4.5.E10",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-4.5.md",
+        "line": 40,
+        "cells": [
+          "**E10 — Resume trust & capture integrity**",
+          "**✓ shipped 2026-07-05 (v0.1.5)**",
+          "6 items → 5 slices, 13 tasks (`0c0ca54..dfc4bf7`): FR2 origin-drift (`isStaleVsOrigin`) + FR3 STATE freshness · FR1 Epic-prefix resolver · FR4 capture-pipe guards · FR5 schema-drift banner (status/resume, AD2) · FR6 hook harness + `references/hooks-api.md` + SD3 privacy fix. DISCUSS→SHIP at FULL/strict; VERIFY 31/31 ACs; REVIEW PASS-WITH-FIXES (2 agents caught the F1 crash — staleness checks threw on a schema-drifted STATE.md; 7 findings fixed). 777 → 854 tests, no new deps. See `M4.5.E10-RETROSPECTIVE.md`."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M4.5.E10-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M4.5/E10"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M4.5.E11",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-4.5.md",
+        "line": 41,
+        "cells": [
+          "**E11 — Epic-native flow**",
+          "**✓ shipped 2026-07-15 (v0.1.7)**",
+          "Makes Epic mode first-class over a byte-identical linear default. 4 slices: S1 (`current_epic` write-half + `detectMode` + retro-gate hook fail-open + linear golden fixture), S2 (`artifactName` + thread into 6 commands + Epic golden fixture), S3 (`readEffectiveProfile` + `formatTierLine` + 6-command gate-read retrofit + calibrate/escalate targeting), S4 (bootstrap dogfood + e2e fixture + docs). FR1 `current_epic` write-half (`setCurrentEpic`/`deriveNextEpicId`), FR2 Epic-scoped artifact naming, FR3 per-Epic `{EpicID}-PROFILE.md` calibration, FR4 mode detection. DISCUSS→SHIP at FULL/strict; VERIFY PASS (no unmapped AC); REVIEW PASS-WITH-FIXES (2 agents, 1 Important fixed, 1 Suggestion rejected-with-reason — narrowing the read regex would break `v0.1.6-*` back-compat). 894 → 999 tests, no new deps. `references/epic-native-flow.md`. See `M4.5.E11-RETROSPECTIVE.md`."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M4.5.E11-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M4.5/E11"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M5.E1",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 30,
+        "cells": [
+          "**E1**",
+          "✅ shipped 2026-07-16",
+          "**Doc-runtime & memory hygiene** — canonical doc-model (FR1) + STATE/FUTURE-IDEAS eviction (FR2/FR3) + dogfood. Retro: [`M5.E1-RETROSPECTIVE.md`](M5.E1-RETROSPECTIVE.md)."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E1-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M5/E1"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M5.E2",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 31,
+        "cells": [
+          "**E2**",
+          "✅ shipped 2026-07-18 (unreleased)",
+          "**Auto-sensing migrate command + doc-layout stamp/banner** (FR6, FR7) — *pulled forward*. `/sig:migrate-memory`: relocate-never-delete, dry-run-default, git-reversible, all 3 bloat vectors + archive-tree + FR7 stamp/hook/banner. Un-sticks live bloated projects (B8 auto-remediation; eval-project-A 546 KB→1.3 KB, 0 words dropped). REVIEW PASS-WITH-FIXES (3-specialist panel; SHIP-blocking rollback gap caught + fixed). ≈1071→1300 tests. Retro: [`M5.E2-RETROSPECTIVE.md`](M5.E2-RETROSPECTIVE.md). Landed on `main` unreleased — release batched with E3 (D-M5E2-6)."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E2-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M5/E2"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M5.E3",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 32,
+        "cells": [
+          "**E3**",
+          "✅ **SHIPPED as v0.1.8** (2026-07-20, combined E1+E2+E3)",
+          "**All-docs hygiene runtime + living `BACKLOG.md` + append-log eviction** (FR4, FR5, +FR1/2/3/6) — *deferred from E2*, **folded into the release** (D-M5E2-6): the doc-runtime ships as ONE `0.1.x` = E1+E2+E3. 7 slices / 5 waves at FULL/strict. Shipped: `ISSUES-INBOX.md` rename + `--bug` (FR1), auto-`/sig:index` + D-ID map (FR3), living `BACKLOG.md` + drain classify (FR2), all-docs hygiene guard (FR4), append-log evict-with-anchors (FR5), v2→v3 migrate + born-on-v3 + Curator retired (FR6). **Signal dogfooded to v3** (DECISIONS 178 KB→33 KB, 0 dropped). Stamp-null rollout fix (existing projects converge). 1300→**1492 tests** (through SHIP). VERIFY 28/28 ACs; REVIEW PASS-WITH-FIXES (3-specialist panel, 4 Important fixed in-phase); findings B18–B23. Retro: [`M5.E3-RETROSPECTIVE.md`](M5.E3-RETROSPECTIVE.md). **Released as v0.1.8 (2026-07-20).**"
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E3-RETROSPECTIVE.md",
+      "archive_dirs": [],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M5.E3-VERIFICATION.md records a PASS, and M5.E3 is not the current unit"
+      }
+    },
+    {
+      "id": "M5.E4",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 33,
+        "cells": [
+          "**E4**",
+          "✅ shipped as **v0.1.9** (2026-07-21)",
+          "**Bug & doc-runtime hygiene close-out** — 12 confirmed `BUGS.md` items cleared + FR5 concurrency-lock; 1492→1529 tests; REVIEW PASS-WITH-FIXES (evict.js false-green security bypass caught + fixed in-phase). Retro: [`M5.E4-RETROSPECTIVE.md`](M5.E4-RETROSPECTIVE.md). *(Interleaved bug-squash Epic — not doc-runtime-flagship; listed here for a complete Epic status.)*"
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E4-RETROSPECTIVE.md",
+      "archive_dirs": [],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M5.E4-VERIFICATION.md records a PASS, and M5.E4 is not the current unit"
+      }
+    },
+    {
+      "id": "M5.E5",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 34,
+        "cells": [
+          "**E5**",
+          "✅ shipped as **v0.1.10** (2026-07-21)",
+          "**Carry-over bug squash** — B24/B25/B26 + B6 refinement; 1529→1561 tests; REVIEW PASS (3-specialist panel, 0 false-greens). Retro: [`M5.E5-RETROSPECTIVE.md`](M5.E5-RETROSPECTIVE.md). New carry-overs B27–B30 → M5.E6."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E5-RETROSPECTIVE.md",
+      "archive_dirs": [],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M5.E5-VERIFICATION.md records a PASS, and M5.E5 is not the current unit"
+      }
+    },
+    {
+      "id": "M5.E6",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 35,
+        "cells": [
+          "**E6**",
+          "✅ shipped as **v0.1.11** (2026-07-25)",
+          "**Doc-runtime close-out — the maintenance-command half.** `/sig:sweep` (read-only invoking-project hygiene) + roster 17→18 + `docs/map` ship line + FR7 close-out & **B31** (add-vs-drain cross-lock) + cleared the four M5.E5 carry-overs (B27/B28 flag-not-abort, B29 `_afterRead` guard, B30 retro-gate timing). **Finishes the doc-runtime so its self-maintenance is locked before the re-audit (BR-8).** 1561→1623 tests; VERIFY PASS (strict, mutation proof-of-fail); REVIEW PASS (3-specialist panel, 0 false-greens). Retro: [`M5.E6-RETROSPECTIVE.md`](M5.E6-RETROSPECTIVE.md). Decisions D-M5E6-1…5; new carry-overs B32–B36 → `needs-triage` (incl. **B36** — the FR1 gate's own stale-row skip, surfaced dogfooding this SHIP)."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E6-RETROSPECTIVE.md",
+      "archive_dirs": [],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M5.E6-VERIFICATION.md records a PASS, and M5.E6 is not the current unit"
+      }
+    },
+    {
+      "id": "M5.E7",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 36,
+        "cells": [
+          "**E7**",
+          "✅ shipped 2026-07-26 (**no version cut — no code**)",
+          "**The v2 direction audit (BR-8).** Deliverable is a decision: [`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md) — **45 candidates verbed (11 builds / 16 continue / 19 abandon)**, sequenced **M5.E8–M5.E12** and landed in [`BACKLOG.md`](BACKLOG.md) with triggers + first slices (the enforcement half — D-M5E7-8b). Ran under Signal's **first Epic-scoped PROFILE** (`M5.E7-PROFILE.md` — *\"strict thinking, zero test theater\"*). **Headline: Signal cannot detect whether its own interventions work** — no test asserts a prompt instruction was obeyed, against 7-of-12 adherence and a 7.12× output spread on byte-identical code; **M5.E8 is unconditional-next.** **Not one straight port survived** — COMPOUND cut on a falsified premise, `<HARD-GATE>` cut because it isn't a mechanism (**C3**), and **C6** found a locked decision resting on a ~4.5×-wrong date. Suite unchanged at **1623** (correctly — no code). VERIFY PASS (30 ACs, 22 re-derived); REVIEW **PASS-WITH-FIXES** (repurposed per AC7.4 to attack the reasoning — cut §6.1's self-defence from three arguments to one, dated the falsifier, caught **B41**). Retro: [`M5.E7-RETROSPECTIVE.md`](M5.E7-RETROSPECTIVE.md). Decisions D-M5E7-1…12; **§ \"Candidate v2 feature-port scope\" below is SUPERSEDED by this Epic.** New carry-over **B41** (P2) → M5.E9."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E7-RETROSPECTIVE.md",
+      "archive_dirs": [],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M5.E7-VERIFICATION.md records a PASS, and M5.E7 is not the current unit"
+      }
+    },
+    {
+      "id": "M5.E8",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 39,
+        "cells": [
+          "**E8**",
+          "✅ shipped as **v0.1.13** (2026-07-28)",
+          "**The measurement foundation.** Signal can now measure whether one of its own instructions changes what an agent does. **The ceiling, published first (FR5):** of **407 directive lines** across 18 `commands/*.md`, **91 (22.4%) are trace-measurable, 316 (77.6%) are not** — and the log states the remainder is *unmeasured, not passing*, pinned by a wording test. This **corrects R1's estimate** (22/202 = 10.9%) and **falsifies its inference** that `execute`/`verify`/`review`/`calibrate` name zero library calls — they name **4/3/3/0**, including this Epic's own canary. **The verdict:** `B41-phase-entry` → **3/3 as-written, 0/3 deleted, OBEYED** — ***this verdict was withdrawn and later re-earned; see the note*** (added 2026-08-09, backlog-review finding `S4`): `M5.E13` found the control arm was never isolated across files (`B55`), and the re-run returned **`INDETERMINATE`**, so *this* run's `OBEYED` was clean by luck rather than by construction. `M5.E15` (v0.1.19) rebuilt the control arm and **re-ran `B41-phase-entry` to `OBEYED` for real** — treatment 3/3, control 0/3, seam PASS. **The conclusion below stands; the provenance does not** — the standing verdict belongs to `M5.E15`'s run, not this one. The retraction is placed on this line deliberately, because a correction three paragraphs away leaves the claim's own line reading as live to a `grep` (`M5.E10`'s correction-protocol corollary). M5.E9's phase-entry fix works; it shipped unverified in v0.1.12 and is the first thing the harness measured. **Every defect found was in the instrument, and each produced a plausible result rather than an error** — an unreachable fixture (`ABSENT`), a broken seam, a control arm that deleted one line from a section restating the instruction three more times (near-miss `INERT`), and a commit captured post-run that defeated `--combine`'s pairing guard. The near-miss `INERT` is the one that matters: **the plan had pre-authorised `inert` in writing** so a null result would not be tuned away, and that guardrail is exactly what would have carried a broken control into the published log. 1652 → **1736 tests**. VERIFY PASS (28 ACs). REVIEW **PASS-WITH-FIXES** (1 Critical, 3 Important, all fixed in-phase; the four-verdict impostor analysis is the artifact worth re-reading). New: **`B48`** (P2, live in v0.1.12 — an agent *correctly refuses* an unconditional Signal instruction), **`B49`** (P3, fixed here). Decisions D-M5E8-1…6. Retro: [`M5.E8-RETROSPECTIVE.md`](M5.E8-RETROSPECTIVE.md)."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E8-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M5/E8"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M5.E8-VERIFICATION.md records a PASS, and M5.E8 is not the current unit"
+      }
+    },
+    {
+      "id": "M5.E9",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 37,
+        "cells": [
+          "**E9**",
+          "✅ shipped as **v0.1.12** (2026-07-27) — **ran ahead of E8** (D-M5E9-2)",
+          "**Linear mode can ship; the phase ledger becomes an honest log.** Closed `B41`–`B45` — all four of the originating bugs reported from **outside** Signal's own use, not found by its suite. **`B42` (P1):** a project with no Epics could not run `/sig:ship` **at all** — live since v0.1.3 across nine releases, invisible because Signal-on-Signal has been Epic-mode since M4.5.E11. Retro gate is now **Epic-only** (D-M5E9-1). **`B43`/`B44`/`B45`:** three defects stacked in `state.js:388-395` — a SHIP date was unrecordable (SHIP is terminal), set semantics collapsed a multi-run ledger silently, and unvalidated entries became permanent phantom phases. **`B41`:** the four middle commands now transition at entry. **`[BREAKING]`** `completed_phases` is an append-only log of the current run that **trims** (linear → `STATE-HISTORY.md`; Epic → archive on roll, before the reset). 1623 → **1652 tests**; proof-of-fail by baseline replay (**16 of 22 new tests fail on the pre-Epic code**). REVIEW **PASS-WITH-FIXES** — 1 **Critical fixed in-phase**: the new sweep check told *every healthy project* its history had been destroyed; removed rather than re-tuned, because a past collapse **is not detectable from the file**. New: `B46`, `B47`. Decisions D-M5E9-1…7. Retro: [`M5.E9-RETROSPECTIVE.md`](M5.E9-RETROSPECTIVE.md)."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E9-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M5/E9"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M5.E9-VERIFICATION.md records a PASS, and M5.E9 is not the current unit"
+      }
+    },
+    {
+      "id": "M5.E10",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 45,
+        "cells": [
+          "**E10**",
+          "✅ shipped as **v0.1.25** (2026-08-13) — **the Epic that closed this milestone**",
+          "**Claim integrity: the checks, and what they cannot see.** Seven deterministic checks for one defect class — **completeness claims written from the shape of the work rather than from the artifact**. **The count is not the honest summary; the reach is:** measured read-only across twelve real local projects, one check evaluates **12 of 12**, one **10 of 12**, and **five apply to between 1 and 5 of twelve** — `B94`'s detector cannot see the project the bug was filed from. **The Epic's own VERIFICATION failed the coverage check it was verifying** (asserted *\"56 of 56, none missing\"*; the check returned **six missing**, every one an id written only inside an en-dash range) and the refutation ships as a boxed note rather than being tidied away. ⚠ **The semantic half is deliberately NOT built** (`AC0.1`, `D-M5E10-1`): everything shipped compares **tokens**, so a report naming every requirement, carrying a denominator, and simply wrong about what its evidence asserts passes all seven — a live `BACKLOG.md` row and a test keep that absence visible. Closed `B94`–`B98` plus five defects from an independent `/code-review` pass; **`B97` was the serious one** — this repository is public and **8 of 13 eval-corpus projects were named in it** while the guard covered only 5 (113 replacements across 30 files; all 13 names denied in two match modes, all 13 labels pinned by hash via `B98`). 2410 → **2602 tests** at merge *(the retro records 2590, the count when it was written, before the last review fixes landed)*. Decisions `D-M5E10-1…5`. Retro: [`M5.E10-RETROSPECTIVE.md`](M5.E10-RETROSPECTIVE.md)."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E10-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M5/E10"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "cannotDetermine",
+        "reason": "M5.E10 has 1 terminal artifact(s) but none states a readable verdict (M5.E10-VERIFICATION.md)"
+      }
+    },
+    {
+      "id": "M5.E13",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 38,
+        "cells": [
+          "**E13**",
+          "✅ shipped as **v0.1.14** (2026-07-30) — **ran ahead of E10–E12** (D-M5E13-1; ID-is-identity makes out-of-order legal)",
+          "**Guards that don't guard.** Four defects, one shape: *something was built to catch a mistake and does not catch it.* Closed `B48` (the phase-entry instruction was **unconditional**, and an agent **correctly refused it** — fixed in both the text and the code beneath it, D-M5E13-4), `B53` (a non-strict `current_epic` split artifact **write**-naming from **read**-resolution; the resolver's first candidate is now `artifactName`'s own output, making `epic-native-flow.md`'s guarantee true **by construction**), `B39` (a watchlist nothing walked — **run for the first time: 11 rows, all unevaluated, two already fired**), `B36` (the retro gate's stale-row skip is now loud), `B49`-remainder + `B51` + `I2`. **New `B54` found at PLAN:** `checkGateArtifacts` was the class's **fourth** instance and the only one **wrong if wired up** — executed against Signal it returned `missing:['REQUIREMENTS.md']`, so switching it on would have blocked PLAN for every Epic-mode project; **deleted**. 1736 → **1806 tests**; **CI added** (Signal had none — its first run caught a latent git-history dependency). VERIFY **20/21** — AC2.2 documented NOT MET, because `B46`'s premise does not survive measurement (**0 of 48** inbox candidates map to any disposition row). REVIEW **PASS-WITH-FIXES** — 1 Critical + 1 Important, **both re-creations of this Epic's own defect classes one layer down**: an unconditional guard replacing an unconditional instruction, and two implementations of one rule under a comment denying it. **Headline finding: the adherence control arm was never isolated across files** (`B55`) — v0.1.13's `OBEYED` was clean by luck, not construction; the re-run returned **INDETERMINATE** and was deliberately not re-rolled. Decisions D-M5E13-1…8. Retro: [`M5.E13-RETROSPECTIVE.md`](M5.E13-RETROSPECTIVE.md). Carry-overs → **M5.E15** (`B55`), **M5.E16** (the class's document- and data-shaped halves)."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E13-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M5/E13"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M5.E13-VERIFICATION.md records a PASS, and M5.E13 is not the current unit"
+      }
+    },
+    {
+      "id": "M5.E15",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 43,
+        "cells": [
+          "**E15**",
+          "✅ shipped as **v0.1.19** (2026-08-06)",
+          "**The control arm, made real (`B55`).** The adherence harness deleted the measured instruction from **one** command file while four others still ordered the same call — so the arm labelled *\"instruction deleted\"* contained it four more times, and no run could distinguish *\"the instruction works\"* from *\"the agent found it elsewhere.\"* The canary now declares all five directive sites and the control arm deletes every one; an **independent leak walk** verifies the tree **without consulting `canary.deletions`**, because a check that reads the deletion list can only find sites the list already knows. `B41-phase-entry` re-ran **`OBEYED`** — treatment 3/3, control 0/3, seam PASS — **the first verdict this harness has produced that means what it says**, and the one that re-earns the provenance `E8`'s row withdrew. Six criteria were verified by **mutation** rather than RED-first and are recorded as a *declared deviation*, never counted as strict-Nyquist compliance. Closed `B55`, `B80`, `B83`. Retro: [`M5.E15-RETROSPECTIVE.md`](M5.E15-RETROSPECTIVE.md)."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E15-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M5/E15"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "cannotDetermine",
+        "reason": "M5.E15 has 1 terminal artifact(s) but none states a readable verdict (M5.E15-VERIFICATION.md)"
+      }
+    },
+    {
+      "id": "M5.E16",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 41,
+        "cells": [
+          "**E16**",
+          "✅ shipped as **v0.1.16** (2026-08-02)",
+          "**STATE-vs-world drift detection.** `/sig:sweep` gains six deterministic checks comparing what a project's `.planning/` **asserts** against what is on disk and in git; each declares whether it **needs a person** or **clears itself**, and the report distinguishes **\"checked and clean\"** from **\"could not check.\"** *That distinction is the release:* measured across **13 real projects**, the two checks aimed at the originating incident can evaluate **2 of them** — Signal's hand-maintained, Epic-mode, `schema_version: 1` shape is the **minority** shape (4 of 12 Epic-mode; 7 of 12 with a canonical `phase`; `readState` **throws** on one). Also shipped: **`INDEX.md` regenerates at every phase transition** (was: ship only) and **`/sig:update`** (installed vs. available **plus the CHANGELOG delta** — the half `/plugin` cannot show you); roster **18 → 19 commands**. 1836 → **1938 tests**. **Two defects found in the Epic's own work, both by reading documents against each other:** **`B59`** — `M5.E16-PROFILE.md` carried **two** out-of-enum values, so `readEffectiveProfile` threw and **the Epic declaring FEATURE ran its whole DISCUSS at the project's FULL**, caught at its own PLAN preamble the first time any code read the file; and at REVIEW, **check `(c)` reported \"clean\" on a project it could not see** (`eval-project-C`: 19 phase artifacts, 0 retrospectives). **REVIEW returned FAIL and the Epic looped back to EXECUTE** rather than take the small-diff exit `D-M5E17-1` warns about — and check `(a)` then fired in the field for the first time, *caused by that loop-back*. Decisions D-M5E16-1…5. Retro: [`M5.E16-RETROSPECTIVE.md`](M5.E16-RETROSPECTIVE.md)."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E16-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M5/E16"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M5.E16-VERIFICATION.md records a PASS, and M5.E16 is not the current unit"
+      }
+    },
+    {
+      "id": "M5.E17",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 40,
+        "cells": [
+          "**E17**",
+          "✅ shipped as **v0.1.15** (2026-08-01) — **ran ahead of E10–E12, E14–E16**",
+          "**Instructions that contradict other instructions.** Three Signal instructions disagreed with another Signal instruction, or with ratified practice; nothing compares one instruction against another, so two documents can give an agent conflicting orders indefinitely and only a live run reveals it. Fixed: **`ship.md` referenced a commit that no step created** (four steps staged \"into the SHIP commit\"; `markFresh` sat at §5.3 ahead of all four, so it stamped a pre-commit HEAD **by construction** — observed live during M5.E13's own ship); **`verify.md`/`review.md` stated no `markFresh` ordering at all** (silent, so the agent picks); **`review.md`'s verdict table contradicted two shipped Epics** (*\"FAIL \\| Any Critical\"* in three places while M5.E9 and M5.E13 both shipped PASS-WITH-FIXES with a Critical closed in-phase — the rule was miscalibrated, not the practice, **D-M5E17-1**). Added: **`plan.md` now schedules first-use in wave 1** — *\"shipped but never run\"* is Signal's best defect predictor (`B54`, `B39`, `B42`/`B53`, `B48`, `B55` all surfaced on a first execution, all late). **`ship.md`'s direct-to-main self-exemption removed** — it was written 2026-05-26 and **thirteen releases shipped under it with exactly one PR in that span**; the gate now lives in a GitHub ruleset (`D-M5E17-4`, `D-M5E17-5`). 1806 → **1822 tests**. **Two of this Epic's own ACs were satisfiable by a no-op and were re-executed in corrected forms** — recorded openly. New `B56` (P3). Deferred: the 48-entry inbox triage → **M5.E14** (`D-M5E17-3`). Decisions D-M5E17-1…5. Retro: [`M5.E17-RETROSPECTIVE.md`](M5.E17-RETROSPECTIVE.md) — **backfilled 2026-08-03 from commit messages, the CHANGELOG and `B71`, not written at close**; `/sig:ship` was never invoked for this Epic and no `PROGRESS`/`VERIFICATION`/`REVIEW` exists. See the note below the table."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E17-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M5/E17"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 4,
+      "resolver": {
+        "answer": "open",
+        "reason": "M5.E17 has no terminal artifact — nothing claims it finished"
+      }
+    },
+    {
+      "id": "M5.E18",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 42,
+        "cells": [
+          "**E18**",
+          "✅ shipped as **v0.1.18** (2026-08-04)",
+          "**The archive half, for the projects Epic-gating does not reach.** Both archive paths are Epic-gated **by construction** (`planArchiveMoves` filters through `EPIC_ID_STRICT_RE`; `deriveEpicArchiveDir` **throws** on a non-strict ID), so the halves that stop `.planning/` growing forever reach **4 of 12** readable projects. DISCUSS walked three real trees rather than quoting the backlog, and two findings reshaped the scope: **there is no single \"prefix\" to read** (eval-project-A has **10+ unit names**, some beginning with the word `PLAN`, so a declared-prefix field cannot express the shape), and **the retro requirement, not the prefix, is the harder blocker** (**none of the three projects has a single retrospective file**, so closure-by-retro returns *nothing is closed* everywhere). Confirmed by execution: `eval-project-C` carries `current_epic: PHASE12` while `detectMode` reports **linear**, so a not-current guard routed through any strict-gated helper receives `null`, **silently never fires**, and the unit being edited today becomes archivable — `B53`'s seam one field over. Requirements: [`M5.E18-REQUIREMENTS.md`](M5.E18-REQUIREMENTS.md) (FR1–FR6). Decisions D-M5E18-1…5. `B70` shipped **fix-lane** ahead of the build work. | **Shipped end-to-end: `/sig:migrate-memory` went from archiving 67 files across 1 of 12 real projects — all 67 Signal's own — to **114 across 6**.** `eval-project-C` 0 → 26. Seven slices: units derived from filenames (`work-units.js`), verdicts read as values (`verdict.js`), **three-outcome closure** (`closure.js` — `cannotDetermine` is a value, not a rendering decision), a stub retro is not closure, a non-Epic unit archives to `.planning/archive/{unit}/` (path-confined, 12 adversarial fixtures), and four statuses so `0` stops meaning both *could not look* and *checked and clean* (`B63`). **The closed-set is a UNION, measured in both directions:** retro-only sees 67 and is blind to 8 projects; verdict-only sees 110 but **loses 4** (`M5.E17` has a retro and no VERIFICATION, so the verdict rule reads a shipped Epic as running); either counts → 114, nothing lost. A **stub retro vetoes** closure regardless of verdict, or the union silently undoes `B64`. **S5 was planned as 2 sites and shipped as 5** — the sibling sweep, run FIRST rather than last, found `isStubRetro` had existed since M4.5.E9 and was consumed in **exactly one place**; every caller making a *decision* threw it away, including `checkEpicWithoutRetro`, **the check M5.E16 shipped eight days earlier to catch this**. **REVIEW returned FAIL** (a 112-LOC in-phase fix against a ≤ 50 cap — the *\"71 are deletions\"* argument rejected on the record) and the Epic looped back; the second VERIFY then found `AC4.5`'s half unreachable. **Three separate \"correct library code, no command path\" gaps, none caught by the same mechanism twice** — the Epic's most useful finding about itself. 1994 → **2168 tests**. Decisions D-M5E18-1…6. Bugs closed: `B64`, `B70`, `B72`, `B78`. Retro: [`M5.E18-RETROSPECTIVE.md`](M5.E18-RETROSPECTIVE.md)."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E18-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M5/E18"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M5.E18-VERIFICATION.md records a PASS, and M5.E18 is not the current unit"
+      }
+    },
+    {
+      "id": "M5.E19",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-5.md",
+        "line": 44,
+        "cells": [
+          "**E19**",
+          "✅ shipped as **v0.1.22** (2026-08-07) — Epic-scoped **FEATURE** against the project's FULL",
+          "**`/sig:archive` — file finished work away, and say why you didn't.** Signal could already archive closed units but had **no command whose job that was**; it happened inside `/sig:migrate-memory`, a command about document *layout*. Closure is a **gate** (a unit not provably closed is not moved), dry-run by default. **The release's content is the report:** the pre-existing helpers named what *would* move and what *could not be evaluated*, and said **nothing** about units considered and **refused** — three of six vanished, the stub-retrospective veto among them, the most surprising thing the tool does and the least explained. Every refusal now carries its reason, and *\"checked and clean\"* never renders as *\"could not check.\"* **The Epic's premise was false and running it is what proved so** (`D-M5E19-6`): the backlog's *\"built the engine and wired none of it\"* quoted M5.E18's **mid-Epic** finding as an end state. A **safety bug** was caught by the Epic's own acceptance test — the report took its plan from the half that cannot see an unreadable `STATE.md` and its refusals from the half that can. Also shipped `references/command-taxonomy.md` and `examples/sandbox/` (**production repos are not test beds**). Filed `B87`. 2284 → **2300 tests**, **20 commands**. Decisions `D-M5E19-1…9`. Retro: [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md)."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M5.E19-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M5/E19"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M5.E19-VERIFICATION.md records a PASS, and M5.E19 is not the current unit"
+      }
+    },
+    {
+      "id": "M6.E1",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 23,
+        "cells": [
+          "`M6.E1`",
+          "**shipped** — `v0.1.26`, 2026-08-17",
+          "The plugin payload: what an install actually copies."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E1-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M6/E1"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "cannotDetermine",
+        "reason": "M6.E1 has 1 terminal artifact(s) but none states a readable verdict (M6.E1-VERIFICATION.md)"
+      }
+    },
+    {
+      "id": "M6.E2",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 24,
+        "cells": [
+          "`M6.E2`",
+          "**shipped** — `v0.1.29`, 2026-08-18",
+          "The facts Signal publishes about itself, and what re-derives them."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E2-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M6/E2"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "cannotDetermine",
+        "reason": "M6.E2 has 1 terminal artifact(s) but none states a readable verdict (M6.E2-VERIFICATION.md)"
+      }
+    },
+    {
+      "id": "M6.E3",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 25,
+        "cells": [
+          "`M6.E3`",
+          "**shipped** — `v0.1.42`, 2026-09-27 (parked 2026-08-20, reopened around Jev 2026-09-26)",
+          "The claims-audit backstop, rebuilt around TypeSafe's Jev: advice with receipts, never a refusal. 3447 → 3602 tests. August material in [`archive/M6/E3/`](archive/M6/E3/)."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E3-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M6/E3"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "cannotDetermine",
+        "reason": "M6.E3 has 1 terminal artifact(s) but none states a readable verdict (M6.E3-VERIFICATION.md)"
+      }
+    },
+    {
+      "id": "M6.E4",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 26,
+        "cells": [
+          "`M6.E4`",
+          "**shipped** — `v0.1.33`, 2026-08-24",
+          "What PLAN reads and writes; first Epic run at a per-unit tier."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E4-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M6/E4"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "cannotDetermine",
+        "reason": "M6.E4 has 1 terminal artifact(s) but none states a readable verdict (M6.E4-VERIFICATION.md)"
+      }
+    },
+    {
+      "id": "M6.E5",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 27,
+        "cells": [
+          "`M6.E5`",
+          "**shipped** — `v0.1.34`, merged 2026-08-28 (PR #211)",
+          "`/sig:permissions`, the 22nd command."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E5-RETROSPECTIVE.md",
+      "archive_dirs": [],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "cannotDetermine",
+        "reason": "M6.E5 has 1 terminal artifact(s) but none states a readable verdict (M6.E5-VERIFICATION.md)"
+      }
+    },
+    {
+      "id": "M6.E6",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 28,
+        "cells": [
+          "`M6.E6`",
+          "**shipped** — 2026-09-04; core in `v0.1.37`, REVIEW fixes in PR #236",
+          "The decision queue gets a writer: `routeDecision` + `/sig:drive` as its first caller."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E6-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M6/E6"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 4,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M6.E6-VERIFICATION.md records a PASS, and M6.E6 is not the current unit"
+      }
+    },
+    {
+      "id": "M6.E7",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 29,
+        "cells": [
+          "`M6.E7`",
+          "**shipped** — merged 2026-09-06 (PR #239, ⚠ squashed; anchors repaired by PR #240)",
+          "`/sig:advise`, the 23rd command: the Roadmap Advisor, with citations that mechanically resolve. 2979 → 3304 tests."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E7-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M6/E7"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 5,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M6.E7-VERIFICATION.md records a PASS, and M6.E7 is not the current unit"
+      }
+    },
+    {
+      "id": "M6.E8",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 30,
+        "cells": [
+          "`M6.E8`",
+          "**shipped** — `v0.1.41`, 2026-09-25",
+          "`/sig:advise` ranks on the sources it reads and says which it consulted; retrospectives dropped as a source."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E8-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M6/E8"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "cannotDetermine",
+        "reason": "M6.E8 has 1 terminal artifact(s) but none states a readable verdict (M6.E8-VERIFICATION.md)"
+      }
+    },
+    {
+      "id": "M6.E9",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 31,
+        "cells": [
+          "`M6.E9`",
+          "**shipped** — `v0.1.40`, 2026-09-10",
+          "Every agent carries a determination: 7 dispatched, 19 dormant; `plan.md` stopped naming agents that did not exist."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E9-RETROSPECTIVE.md",
+      "archive_dirs": [],
+      "item_count": 0,
+      "root_artifact_count": 3,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M6.E9-VERIFICATION.md records a PASS, and M6.E9 is not the current unit"
+      }
+    },
+    {
+      "id": "M6.E10",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 32,
+        "cells": [
+          "`M6.E10`",
+          "**shipped** — `v0.1.40`, 2026-09-10",
+          "`/sig:drive` can take a step: it asks how to run, and floors fire on conditions, not phase names."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E10-RETROSPECTIVE.md",
+      "archive_dirs": [],
+      "item_count": 0,
+      "root_artifact_count": 3,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M6.E10-VERIFICATION.md records a PASS, and M6.E10 is not the current unit"
+      }
+    },
+    {
+      "id": "M6.E11",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "items"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 33,
+        "cells": [
+          "`M6.E11`",
+          "**shipped** — `v0.1.43`, 2026-09-30 (PR #263)",
+          "The work-item store, step 1: one file per thing, moved through folders by `/sig:item` (24th command); Epic folders; Signal's own 248 records migrated. 3602 → 4237 tests."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E11-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M6/E11",
+        ".planning/archive/epics/M6.E11"
+      ],
+      "item_count": 1,
+      "root_artifact_count": 0,
+      "resolver": {
+        "answer": null,
+        "reason": null
+      }
+    },
+    {
+      "id": "M6.E12",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 34,
+        "cells": [
+          "`M6.E12`",
+          "**shipped** — `v0.1.45`, 2026-10-02",
+          "`/sig:advise` and `/sig:drive`'s pick step propose 3–5 big-picture priorities from a cited digest and ask; age removed."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E12-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M6/E12"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "cannotDetermine",
+        "reason": "M6.E12 has 1 terminal artifact(s) but none states a readable verdict (M6.E12-VERIFICATION.md)"
+      }
+    },
+    {
+      "id": "M6.E13",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 35,
+        "cells": [
+          "`M6.E13`",
+          "**shipped** — `v0.1.48`, 2026-10-05 (PR #280)",
+          "Work items are JSON records that never move; status comes from recorded events; one write library and a hook blocking hand edits. Signal's own store cut over."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E13-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M6/E13"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "cannotDetermine",
+        "reason": "M6.E13 has 1 terminal artifact(s) but none states a readable verdict (M6.E13-VERIFICATION.md)"
+      }
+    },
+    {
+      "id": "M6.E14",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "items",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 36,
+        "cells": [
+          "`M6.E14`",
+          "**shipped** — 2026-10-07, PR #292",
+          "The work store hardened before other projects use it: eight defects (`SIG-251`, `-252`, `-276` … `-280`). First `/sig:drive` run from DISCUSS. 5362 → 5425 tests."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E14-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M6/E14"
+      ],
+      "item_count": 7,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "cannotDetermine",
+        "reason": "M6.E14 has 1 terminal artifact(s) but none states a readable verdict (M6.E14-VERIFICATION.md)"
+      }
+    },
+    {
+      "id": "M6.E15",
+      "sources": [
+        "milestone-row",
+        "retrospective",
+        "archive-folder",
+        "items",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 37,
+        "cells": [
+          "`M6.E15`",
+          "**shipped** — `v0.1.50`, 2026-10-10 (PR #296)",
+          "Other projects move onto the work store with `/sig:docs-migrate --work-store`: old IDs kept, originals archived, nothing closed on its own — finished-looking entries are proposed and one yes closes them. 5426 → 5968 tests."
+        ]
+      },
+      "retro": "complete",
+      "retro_path": ".planning/M6.E15-RETROSPECTIVE.md",
+      "archive_dirs": [
+        ".planning/archive/M6/E15"
+      ],
+      "item_count": 2,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "M6.E15-VERIFICATION.md records a PASS, and M6.E15 is not the current unit"
+      }
+    },
+    {
+      "id": "M6.E16",
+      "sources": [
+        "milestone-row",
+        "archive-folder",
+        "root-artifacts"
+      ],
+      "milestone_row": {
+        "file": ".planning/MILESTONE-6.md",
+        "line": 38,
+        "cells": [
+          "`M6.E16`",
+          "**in flight** — PLAN done 2026-10-11",
+          "Epics and units become records: existence, membership, close with proof, and a hold. Phase progress stays in `STATE.md`."
+        ]
+      },
+      "retro": "none",
+      "retro_path": null,
+      "archive_dirs": [
+        ".planning/archive/M6/E16"
+      ],
+      "item_count": 0,
+      "root_artifact_count": 5,
+      "resolver": {
+        "answer": "open",
+        "reason": "M6.E16 is the current unit — mid-flight, not closed"
+      }
+    },
+    {
+      "id": "v0.1.6",
+      "sources": [
+        "retrospective",
+        "root-artifacts"
+      ],
+      "milestone_row": null,
+      "retro": "complete",
+      "retro_path": ".planning/v0.1.6-RETROSPECTIVE.md",
+      "archive_dirs": [],
+      "item_count": 0,
+      "root_artifact_count": 7,
+      "resolver": {
+        "answer": "closed",
+        "reason": "v0.1.6-VERIFICATION.md records a PASS, and v0.1.6 is not the current unit"
+      }
+    }
+  ],
+  "counts": {
+    "units": 44,
+    "epic_units": 43,
+    "other_units": 1,
+    "milestone_rows": 43,
+    "shipped_rows": 42,
+    "extra_milestone_rows": [],
+    "retro": {
+      "complete": 39,
+      "stub": 4,
+      "none": 1
+    },
+    "resolver": {
+      "closed": 17,
+      "open": 2,
+      "cannotDetermine": 11,
+      "not_seen": 14
+    },
+    "resolver_state_readable": true,
+    "items": {
+      "readable": true,
+      "total": 293,
+      "with_unit": 10,
+      "broken": 0
+    },
+    "by_source": {
+      "milestone-row": 43,
+      "retrospective": 43,
+      "archive-folder": 35,
+      "items": 3,
+      "root-artifacts": 30
+    }
+  },
+  "contradictions": {
+    "shipped_row_resolver_not_closed": [
+      "M5.E10",
+      "M5.E15",
+      "M5.E17",
+      "M6.E1",
+      "M6.E2",
+      "M6.E3",
+      "M6.E4",
+      "M6.E5",
+      "M6.E8",
+      "M6.E12",
+      "M6.E13",
+      "M6.E14"
+    ],
+    "shipped_row_resolver_never_saw": [
+      "M4.5.E1",
+      "M4.5.E2",
+      "M4.5.E3",
+      "M4.5.E4",
+      "M4.5.E5",
+      "M4.5.E6",
+      "M4.5.E7",
+      "M4.5.E8",
+      "M4.5.E9",
+      "M4.5.E10",
+      "M4.5.E11",
+      "M5.E1",
+      "M5.E2",
+      "M6.E11"
+    ],
+    "row_without_complete_retro": [
+      "M4.5.E1",
+      "M4.5.E3",
+      "M4.5.E6",
+      "M4.5.E7",
+      "M6.E16"
+    ],
+    "named_by_one_source": [],
+    "named_but_never_run": []
+  }
+}
