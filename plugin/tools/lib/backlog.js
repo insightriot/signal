@@ -31,6 +31,8 @@ import { createHash } from 'node:crypto';
 import { atomicWrite } from './atomic-write.js';
 import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd, scrubSensitive } from './add.js';
 import { DONE_WORD_RE, declaresBugDischarge, isBugId, parseBacklogRows } from './legacy-lists.js';
+import { EPIC_ID_STRICT_RE } from './state.js';
+import { hasUnitsSafe, unitClosure } from './unit-records.js';
 import { isStoreOn } from './work-store.js';
 import { assertWritable, isEpicArchived, listRecords, newItem, requestCloses } from './work-records.js';
 import { WorkStoreError } from './work-errors.js';
@@ -858,6 +860,13 @@ const storeCannot = (reason) => ({
  * whose own status says whether it is closed. A *closing* item is done (AC7.3)
  * and never reported.
  *
+ * On a project with unit records (`hasUnitsSafe`; M6.E16 t6.0) the unit's
+ * record is asked first (`unitClosure`): closed or held is closed here, open
+ * or *closing* is not, and the evidence names the record. A unit with no
+ * record is read as above, for that unit only; one whose record does not read
+ * is `blind` with source `unit record`. `isEpicArchived` is asked about Epic
+ * IDs only there — an item may sit in a unit with another name.
+ *
  * Shape: the store-off result's, with `line: null`, plus `epic` and `status`
  * on each stale and blind entry and `broken` (records that do not read, by ID).
  * `rows` and `liveRows` count the live items (T, Q, P); `resolvable` those in an
@@ -879,11 +888,38 @@ export async function storeDischargeStatus(baseDir) {
   }
   const live = store.records.filter((r) => ['T', 'Q', 'P'].includes(r.status));
   const inEpic = live.filter((r) => r.epic);
-  const archived = new Map(inEpic.map((r) => [r.epic, isEpicArchived(baseDir, r.epic)]));
+
+  // With unit records (M6.E16 t6.0) each unit's record is asked first: closed
+  // or held is finished, open (or closing) is not. A unit with no record is
+  // read as before unit records, for that unit only. A record that does not
+  // read has no answer, and its items are reported blind.
+  const unitsOn = hasUnitsSafe(baseDir).has;
+  const byRecord = new Map();
+  if (unitsOn) {
+    for (const epic of new Set(inEpic.map((r) => r.epic))) {
+      try {
+        byRecord.set(epic, { closure: unitClosure(baseDir, epic) });
+      } catch (err) {
+        byRecord.set(epic, { error: err.message });
+      }
+    }
+  }
+  const recordOf = (epic) => {
+    const r = byRecord.get(epic);
+    return r === undefined || r.closure === 'no-record' ? null : r;
+  };
+  const fromFiles = inEpic.filter((r) => recordOf(r.epic) === null);
+  // `isEpicArchived` throws on a name that is not an Epic ID. With unit records
+  // an item may name any unit, so the archive folder is looked up for Epic IDs
+  // only; without them every name here is an Epic ID, as before.
+  const archived = new Map(fromFiles.map((r) => [
+    r.epic,
+    (!unitsOn || EPIC_ID_STRICT_RE.test(r.epic)) && isEpicArchived(baseDir, r.epic),
+  ]));
 
   let units = null;
   let unitsBlind = null;
-  if (inEpic.some((r) => !archived.get(r.epic))) {
+  if (fromFiles.some((r) => !archived.get(r.epic))) {
     const closure = await readUnitClosure(baseDir);
     units = closure.units;
     unitsBlind = closure.blind[0] ?? null;
@@ -891,9 +927,19 @@ export async function storeDischargeStatus(baseDir) {
 
   const stale = [];
   const blind = [];
+  let recordsAnswered = false;
   for (const r of inEpic) {
     const at = { heading: String(r.record.title ?? r.id), line: null, id: r.id, epic: r.epic, status: r.status };
-    if (archived.get(r.epic)) stale.push({ ...at, evidence: `${r.epic} is archived` });
+    const record = recordOf(r.epic);
+    if (record !== null) {
+      if (record.error !== undefined) {
+        blind.push({ heading: at.heading, line: null, id: r.id, epic: r.epic, source: 'unit record' });
+        unitsBlind ??= record.error;
+      } else {
+        recordsAnswered = true;
+        if (record.closure !== 'open') stale.push({ ...at, evidence: `${r.epic}'s unit record is closed` });
+      }
+    } else if (archived.get(r.epic)) stale.push({ ...at, evidence: `${r.epic} is archived` });
     else if (units === null) blind.push({ heading: at.heading, line: null, id: r.id, epic: r.epic, source: 'unit closure' });
     else if (units.get(r.epic)?.closed) stale.push({ ...at, evidence: units.get(r.epic).reason });
   }
@@ -912,7 +958,7 @@ export async function storeDischargeStatus(baseDir) {
     blind,
     unitsBlind,
     broken: store.broken,
-    sources: { units: units !== null, bugs: false, records: true },
+    sources: { units: units !== null || recordsAnswered, bugs: false, records: true },
   };
 }
 
