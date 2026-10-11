@@ -97,6 +97,8 @@ const ALLOWED = [
     why: 'the digest\'s milestone lines without unit records; with them the lines are the unit records (t5.3)' },
   { file: 'plugin/tools/lib/advise-corpus.js', decl: 'readCorpus', name: 'parseEpicStatusRows',
     why: 'the `milestone rows` source without unit records; with them it carries the units and opens no milestone file (t5.3)' },
+  { file: 'plugin/tools/lib/work-migrate-units.js', decl: 'readMilestoneRows', name: 'parseEpicStatusRows',
+    why: 'the migration proposes unit records from the hand-kept rows; it returns no row once the project has unit records (t7.2)' },
   { file: 'tools/unit-baseline.mjs', decl: 'readMilestoneRows', name: 'parseEpicStatusRows', exempt: true,
     why: 'a development tool, not shipped in the plugin: it snapshots what the hand-kept tables said BEFORE the cutover (S0)' },
 ];

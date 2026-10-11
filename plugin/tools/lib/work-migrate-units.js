@@ -1,0 +1,601 @@
+// `/sig:docs-migrate --work-store` — the units half (M6.E16 S7, FR9).
+//
+// A project that worked before unit records has units named in several
+// places: milestone table rows, retrospectives, the files of `.planning/`,
+// archive folders, item events, and `STATE.md`. `planUnits` gathers the union
+// and proposes ONE thing for each:
+//
+//   open           the current unit, and any unit with no evidence it is over;
+//   legacy-close   a unit with evidence it is over — PROPOSED. Nothing closes
+//                  without the person's yes to the whole list (`D-M6E15-25`);
+//                  on no, each is created open with a note saying it looked
+//                  finished;
+//   dropped        a unit no source names, declared by the person (`--also`);
+//   refused        an ID that cannot be a unit, or one of two that differ only
+//                  by letter case — no record is created.
+//
+// What counts as evidence a unit is over (any one):
+//   - its milestone row's status cell says "shipped" as a word, and does not
+//     also say pending, in flight or parked, or "not/never shipped";
+//   - its retrospective is complete (a stub is not evidence);
+//   - today's closure check (`resolveClosures`) answers closed.
+// The current unit is open whatever the evidence says; when there is
+// evidence, that is flagged.
+//
+// Reads only. Nothing here writes: `unitImportList` turns a plan into the list
+// `importUnits` (`unit-records.js`) writes.
+//
+// Not read through: a milestone file, a retrospective or `STATE.md` that is a
+// symbolic link.
+//
+// The milestone rows are read here ONLY for a project that has no unit
+// records (AC7.3) — which is every project this plan is made for.
+
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { CLOSURE, resolveClosures } from './closure.js';
+import { hashState } from './migrate-memory.js';
+import { epicMarkers, EPICS_BEGIN, EPICS_END } from './milestone-table.js';
+import { parseEpicStatusRows } from './milestones.js';
+import { readRegularFile, regularFileRefusal } from './path-confine.js';
+import { cut, printable } from './printable-text.js';
+import { retroStatusFromContent, RETRO_STATUS } from './retro-index.js';
+import { parseFrontmatter } from './state.js';
+import { compareUnitIds, epicIdParts } from './unit-record.js';
+import { assertUnitId, caseTwins, hasUnitsSafe } from './unit-records.js';
+import { epicOf } from './work-record.js';
+import { listRecords, storeVersion } from './work-records.js';
+import { isStoreOn } from './work-store.js';
+import { currentUnit, deriveUnits } from './work-units.js';
+
+const PLANNING = '.planning';
+const ARCHIVE = `${PLANNING}/archive`;
+const STATE_REL = `${PLANNING}/STATE.md`;
+
+const MILESTONE_FILE_RE = /^MILESTONE-(\d+(?:\.\d+)?)\.md$/;
+const RETRO_FILE_RE = /^(.+)-RETROSPECTIVE\.md$/;
+const MILESTONE_DIR_RE = /^M\d+(?:\.\d+)?$/;
+const EPIC_DIR_RE = /^E\d+$/;
+const WALK_MAX = 50000;
+const WALK_DEPTH = 8;
+
+// The row rule. "shipped" as a word; a cell that also says one of these is
+// not evidence, and neither is one that says the unit did not ship.
+const SHIPPED_RE = /\bshipped\b/i;
+const NOT_OVER_RE = /\b(pending|in[ -]flight|parked)\b/i;
+const NOT_SHIPPED_RE = /\b(?:not|never)\s+(?:yet\s+)?shipped\b|\bunshipped\b/i;
+
+const SHOWN_MAX = 120; // a quoted cell in an evidence line
+const SUMMARY_MAX = 400;
+const NOTE_MAX = 2000;
+const ALSO_REASONS = ['dropped'];
+
+const byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+// Text quoted in a line a person reads: one line, no invisible characters, cut.
+const shownText = (text, max = SHOWN_MAX) => cut(printable(text).replace(/\s+/g, ' ').trim(), max);
+const quoted = (text) => `“${shownText(text)}”`;
+
+function entries(abs) {
+  try {
+    return readdirSync(abs, { withFileTypes: true }).sort((a, b) => byText(a.name, b.name));
+  } catch {
+    return [];
+  }
+}
+
+// A row's first three cells, split on a `|` that is not escaped: the first
+// cell, the status cell, and everything after as the third (so a pipe in the
+// notes survives). Each is kept as written apart from surrounding spaces.
+function rowCells(raw) {
+  const line = raw.trim().replace(/^\|/, '');
+  const cuts = [];
+  for (let i = 0; i < line.length && cuts.length < 2; i += 1) {
+    if (line[i] === '\\') i += 1;
+    else if (line[i] === '|') cuts.push(i);
+  }
+  if (cuts.length < 2) return [line.trim(), '', ''];
+  return [
+    line.slice(0, cuts[0]).trim(),
+    line.slice(cuts[0] + 1, cuts[1]).trim(),
+    line.slice(cuts[1] + 1).replace(/\|\s*$/, '').trim(),
+  ];
+}
+
+// Every Epic row of every top-level `MILESTONE-*.md`, in file then line order.
+function readMilestoneRows(baseDir, notes) {
+  // AC7.3: the rows are read only where there are no unit records.
+  if (hasUnitsSafe(baseDir).has) return [];
+  const rows = [];
+  const files = entries(join(baseDir, PLANNING))
+    .map((e) => ({ name: e.name, m: e.name.match(MILESTONE_FILE_RE) }))
+    .filter((f) => f.m)
+    .sort((a, b) => parseFloat(a.m[1]) - parseFloat(b.m[1]) || byText(a.name, b.name));
+  for (const { name, m } of files) {
+    const rel = `${PLANNING}/${name}`;
+    const refusal = regularFileRefusal(baseDir, rel);
+    if (refusal !== null) {
+      notes.push(`${refusal}; its rows name no unit here.`);
+      continue;
+    }
+    let content;
+    try {
+      content = readRegularFile(baseDir, rel);
+    } catch (err) {
+      notes.push(`${rel} could not be read (${err.code ?? err.message}); its rows name no unit here.`);
+      continue;
+    }
+    for (const row of parseEpicStatusRows(content, { milestone: m[1] })) {
+      if (row.id !== null) rows.push({ id: row.id, file: rel, line: row.line, cells: rowCells(row.raw) });
+    }
+  }
+  return rows;
+}
+
+// Every `<unit>-RETROSPECTIVE.md` in the planning root and under the archive.
+// A linked one names its unit and is not read.
+function readRetros(baseDir, notes) {
+  const found = [];
+  let seen = 0;
+  const stack = [[PLANNING, 0, false], [ARCHIVE, 0, true]];
+  while (stack.length > 0 && seen < WALK_MAX) {
+    const [rel, depth, recurse] = stack.pop();
+    for (const e of entries(join(baseDir, rel))) {
+      seen += 1;
+      if (seen > WALK_MAX) break;
+      if (e.isDirectory()) {
+        if (recurse && depth < WALK_DEPTH) stack.push([`${rel}/${e.name}`, depth + 1, true]);
+        continue;
+      }
+      const m = e.name.match(RETRO_FILE_RE);
+      if (!m) continue;
+      const path = `${rel}/${e.name}`;
+      if (e.isSymbolicLink()) {
+        found.push({ id: m[1], path, status: 'link' });
+        notes.push(`${path} is a symbolic link — not read.`);
+        continue;
+      }
+      if (!e.isFile()) continue;
+      let status = 'unreadable';
+      try {
+        const s = retroStatusFromContent(readFileSync(join(baseDir, path), 'utf-8'));
+        status = s === RETRO_STATUS.ABSENT ? 'empty' : s;
+      } catch {
+        notes.push(`${path} could not be read.`);
+      }
+      found.push({ id: m[1], path, status });
+    }
+  }
+  if (seen > WALK_MAX) notes.push(`More than ${WALK_MAX} files under ${PLANNING}/: the search for retrospectives stopped there.`);
+  // The planning root's copy wins over an archived one; then path order.
+  return found.sort((a, b) => a.path.split('/').length - b.path.split('/').length || byText(a.path, b.path));
+}
+
+// Both archive layouts: `archive/<M>/E<n>/` and `archive/epics/<ID>/`.
+function readArchiveDirs(baseDir) {
+  const found = [];
+  for (const m of entries(join(baseDir, ARCHIVE))) {
+    if (!m.isDirectory()) continue;
+    const kids = entries(join(baseDir, ARCHIVE, m.name)).filter((e) => e.isDirectory());
+    if (m.name === 'epics') {
+      for (const e of kids) found.push({ id: e.name, path: `${ARCHIVE}/epics/${e.name}` });
+    } else if (MILESTONE_DIR_RE.test(m.name)) {
+      for (const e of kids) if (EPIC_DIR_RE.test(e.name)) found.push({ id: `${m.name}.${e.name}`, path: `${ARCHIVE}/${m.name}/${e.name}` });
+    }
+  }
+  return found;
+}
+
+// Which unit each item is in, from its events — on a v2 store only.
+function readMembership(baseDir, notes) {
+  let listed;
+  try {
+    if (storeVersion(baseDir) !== 2) return [];
+    listed = listRecords(baseDir);
+  } catch (err) {
+    notes.push(`The work items could not be read (${err.message}); no unit is named by an item here.`);
+    return [];
+  }
+  const pairs = [];
+  for (const { record } of listed.records) {
+    let unit = null;
+    try {
+      unit = epicOf(record);
+    } catch {
+      unit = null;
+    }
+    if (typeof unit === 'string') pairs.push([record.id, unit]);
+  }
+  if (listed.broken.length > 0) notes.push(`${listed.broken.length} work item record(s) could not be read; a unit only they name is not listed.`);
+  return pairs.sort((a, b) => byText(a[0], b[0]));
+}
+
+// `STATE.md`'s current unit, read only as a regular file; null when there is none.
+function readCurrent(baseDir, notes) {
+  const refusal = regularFileRefusal(baseDir, STATE_REL);
+  if (refusal !== null) {
+    notes.push(`${refusal}; no unit is read as current.`);
+    return null;
+  }
+  let text;
+  try {
+    text = readRegularFile(baseDir, STATE_REL);
+  } catch {
+    return null; // no STATE.md
+  }
+  try {
+    return currentUnit(parseFrontmatter(text).data);
+  } catch {
+    notes.push(`${STATE_REL} could not be parsed; no unit is read as current.`);
+    return null;
+  }
+}
+
+// The current milestone's file and whether it carries the Epic-table markers.
+// The migration never adds them: it says what is there, and what to add.
+function milestoneMarkers(baseDir, current) {
+  const parts = epicIdParts(current);
+  if (parts === null || parts.parts.length > 2) return null;
+  const rel = `${PLANNING}/MILESTONE-${parts.milestone}.md`;
+  if (regularFileRefusal(baseDir, rel) !== null) return { rel, markers: 'absent' };
+  try {
+    const at = epicMarkers(readRegularFile(baseDir, rel));
+    return { rel, markers: at.state, ...(at.state === 'broken' ? { problem: at.problem } : {}) };
+  } catch {
+    return { rel, markers: 'absent' };
+  }
+}
+
+// Why an ID cannot be a unit here, or null.
+function idRefusal(baseDir, id, storeKey) {
+  try {
+    assertUnitId(baseDir, id, storeKey ? { storeKey } : {});
+    return null;
+  } catch (err) {
+    return String(err.message);
+  }
+}
+
+// The `--also` list, checked: {declared} or {refusal}.
+function readAlso(baseDir, also, named, storeKey) {
+  if (also === undefined || also === null) return { declared: [] };
+  if (!Array.isArray(also)) return { refusal: '--also could not be read: it takes <ID>:dropped:<words>, once per unit.' };
+  const declared = [];
+  const seen = new Set();
+  const namedLower = new Map([...named].map((id) => [id.toLowerCase(), id]));
+  for (const raw of also) {
+    const { id, reason, words } = raw ?? {};
+    const label = typeof id === 'string' ? shownText(id, 40) : '(no ID)';
+    if (typeof id !== 'string' || id === '') return { refusal: '--also needs an ID: <ID>:dropped:<words>. Nothing was written.' };
+    const why = idRefusal(baseDir, id, storeKey);
+    if (why !== null) return { refusal: `--also ${label}: ${why} Nothing was written.` };
+    if (!ALSO_REASONS.includes(reason)) {
+      return { refusal: `--also ${label}: only "dropped" can be declared (got ${JSON.stringify(shownText(String(reason ?? ''), 40))}) — `
+        + 'a unit that shipped is proposed from its own evidence, never declared. Nothing was written.' };
+    }
+    if (typeof words !== 'string' || shownText(words, NOTE_MAX) === '') {
+      return { refusal: `--also ${label}: a dropped unit needs words — where the work went, or why it stopped (<ID>:dropped:<words>). Nothing was written.` };
+    }
+    const twin = namedLower.get(id.toLowerCase());
+    if (twin !== undefined) {
+      return { refusal: twin === id
+        ? `--also ${label}: this project already names ${id} (it is in the list below), so it cannot be declared. Nothing was written.`
+        : `--also ${label}: it differs only by letter case from ${twin}, which this project names. Nothing was written.` };
+    }
+    if (seen.has(id.toLowerCase())) return { refusal: `--also ${label} is given twice (or twice differing only by case). Nothing was written.` };
+    seen.add(id.toLowerCase());
+    declared.push({ id, reason, words: shownText(words, NOTE_MAX) });
+  }
+  return { declared: declared.sort((a, b) => compareUnitIds(a.id, b.id)) };
+}
+
+/**
+ * Plan a unit record for every unit a project names. Reads only.
+ *
+ * @param {string} baseDir — project root
+ * @param {{also?: Array<{id: string, reason: 'dropped', words: string}>, storeKey?: string}} [opts]
+ *   `also`: units no source names, declared by the person (`--also <ID>:dropped:<words>`);
+ *   `storeKey`: the store's key, for the item-ID-shape rule (read from the project when not passed)
+ * @returns {Promise<{refusal: string} | {units: object[], proposedCloses: object[], flagged: object[],
+ *   refused: object[], declared: object[], notes: string[], current: string|null,
+ *   milestone: {rel: string, markers: 'ok'|'none'|'broken'|'absent'}|null, inputHash: string}>}
+ *   Each unit: `{id, proposal: 'open'|'legacy-close'|'dropped'|'refused', flag: string|null, evidence: string[],
+ *   against: string[], reason?: string, sources: string[], row: {file, line, cells}|null, retro: string,
+ *   retro_path: string|null}` — `evidence` and `against` are sentences; `reason` is why a refused ID is refused.
+ *   Deterministic: the same files give the same plan and the same `inputHash`, which covers every
+ *   input read and every proposal made.
+ */
+export async function planUnits(baseDir, opts = {}) {
+  const notes = [];
+  const units = new Map();
+  const unit = (id) => {
+    if (!units.has(id)) units.set(id, { id, named: new Set(), row: null, retro: null, archive: [], items: 0, files: [] });
+    return units.get(id);
+  };
+
+  const rows = readMilestoneRows(baseDir, notes);
+  const extraRows = [];
+  for (const row of rows) {
+    const u = unit(row.id);
+    u.named.add('milestone row');
+    if (u.row === null) u.row = { file: row.file, line: row.line, cells: row.cells };
+    else extraRows.push(row);
+  }
+  if (extraRows.length > 0) {
+    notes.push(`A unit with more than one milestone row keeps its first. Not used: ${extraRows.map((r) => `${r.id} at ${r.file}:${r.line}`).join(', ')}.`);
+  }
+
+  const retros = readRetros(baseDir, notes);
+  for (const retro of retros) {
+    const u = unit(retro.id);
+    u.named.add('retrospective');
+    if (u.retro === null) u.retro = retro;
+  }
+
+  const archiveDirs = readArchiveDirs(baseDir);
+  for (const dir of archiveDirs) {
+    const u = unit(dir.id);
+    u.named.add('archive folder');
+    u.archive.push(dir.path);
+  }
+
+  const membership = readMembership(baseDir, notes);
+  for (const [, id] of membership) {
+    const u = unit(id);
+    u.named.add('work items');
+    u.items += 1;
+  }
+
+  const rootFiles = entries(join(baseDir, PLANNING)).filter((e) => e.isFile()).map((e) => e.name);
+  const derived = [...deriveUnits(rootFiles).units].sort(([a], [b]) => byText(a, b));
+  for (const [id, files] of derived) {
+    const u = unit(id);
+    u.named.add('files in .planning/');
+    u.files = files;
+  }
+
+  const current = readCurrent(baseDir, notes);
+  if (current !== null) unit(current).named.add('STATE.md (current)');
+
+  const closures = await resolveClosures(baseDir);
+  const resolver = new Map(closures.units.map((c) => [c.unit, { status: c.status, reason: c.reason ?? null }]));
+
+  let storeKey = opts.storeKey;
+  if (storeKey === undefined) {
+    try {
+      const store = isStoreOn(baseDir);
+      storeKey = store.on ? store.key : undefined;
+    } catch {
+      storeKey = undefined;
+    }
+  }
+
+  // Which IDs cannot be units: an illegal one, then any that differ only by case.
+  const refusedWhy = new Map();
+  for (const id of units.keys()) {
+    const why = idRefusal(baseDir, id, storeKey);
+    if (why !== null) refusedWhy.set(id, why);
+  }
+  for (const group of caseTwins([...units.keys()].filter((id) => !refusedWhy.has(id)))) {
+    for (const id of group) {
+      const others = group.filter((o) => o !== id);
+      refusedWhy.set(id, `${id} differs only by letter case from ${others.join(', ')} — two units cannot differ only by case. `
+        + 'No record is created for either; rename one where it is named, then run this again.');
+    }
+  }
+
+  const also = readAlso(baseDir, opts.also, new Set(units.keys()), storeKey);
+  if (also.refusal) return { refusal: also.refusal };
+
+  const planned = [];
+  for (const u of [...units.values()].sort((a, b) => compareUnitIds(a.id, b.id))) {
+    const base = {
+      id: u.id,
+      sources: [...u.named],
+      row: u.row,
+      retro: u.retro ? u.retro.status : 'none',
+      retro_path: u.retro ? u.retro.path : null,
+    };
+    if (refusedWhy.has(u.id)) {
+      planned.push({ ...base, id: shownText(u.id, 100), proposal: 'refused', flag: null, evidence: [], against: [], reason: refusedWhy.get(u.id) });
+      continue;
+    }
+    const evidence = [];
+    const against = [];
+    let rowUnclear = false;
+    if (u.row !== null) {
+      const status = u.row.cells[1];
+      const where = `${u.row.file.replace(`${PLANNING}/`, '')}:${u.row.line}`;
+      if (SHIPPED_RE.test(status)) {
+        const also2 = status.match(NOT_OVER_RE);
+        if (also2) {
+          rowUnclear = true;
+          against.push(`its milestone row says shipped and also "${also2[1].toLowerCase()}", so the row is not counted (${where}: ${quoted(status)})`);
+        } else if (NOT_SHIPPED_RE.test(status)) {
+          against.push(`its milestone row says it did not ship (${where}: ${quoted(status)})`);
+        } else {
+          evidence.push(`its milestone row says shipped (${where}: ${quoted(status)})`);
+        }
+      } else {
+        against.push(`its milestone row does not say shipped (${where}: ${quoted(status)})`);
+      }
+    }
+    if (u.retro !== null) {
+      if (u.retro.status === RETRO_STATUS.COMPLETE) evidence.push(`its retrospective is complete (${u.retro.path})`);
+      else if (u.retro.status === RETRO_STATUS.STUB) against.push(`its retrospective is a stub (${u.retro.path})`);
+      else if (u.retro.status === 'link') against.push(`its retrospective is a symbolic link and was not read (${u.retro.path})`);
+      else against.push(`its retrospective is empty or could not be read (${u.retro.path})`);
+    }
+    const r = resolver.get(u.id);
+    if (r && u.id !== current) {
+      if (r.status === CLOSURE.CLOSED) evidence.push(`today's closure check reads it closed (${shownText(r.reason ?? '', 200)})`);
+      else against.push(`today's closure check reads it ${r.status === CLOSURE.OPEN ? 'open' : 'as one it cannot determine'} (${shownText(r.reason ?? '', 200)})`);
+    }
+
+    let proposal = 'open';
+    let flag = null;
+    if (u.id === current) {
+      if (evidence.length > 0) flag = 'current-but-looks-finished';
+    } else if (evidence.length > 0) {
+      proposal = 'legacy-close';
+    } else if (rowUnclear) {
+      flag = 'row-unclear';
+    }
+    planned.push({ ...base, proposal, flag, evidence, against, current: u.id === current });
+  }
+  for (const d of also.declared) {
+    planned.push({
+      id: d.id, sources: ['--also'], row: null, retro: 'none', retro_path: null,
+      proposal: 'dropped', flag: null, evidence: [`declared with --also: ${quoted(d.words)}`], against: [], words: d.words, current: false,
+    });
+  }
+  planned.sort((a, b) => compareUnitIds(a.id, b.id));
+
+  const milestone = milestoneMarkers(baseDir, current);
+  const inputHash = hashState(JSON.stringify({
+    v: 1,
+    files: derived,
+    rows: rows.map((r) => [r.file, r.line, r.id, r.cells]),
+    retros: retros.map((r) => [r.id, r.path, r.status]),
+    archive: archiveDirs.map((d) => [d.id, d.path]),
+    current,
+    items: membership,
+    also: also.declared.map((d) => [d.id, d.reason, d.words]),
+    proposals: planned.map((p) => [p.id, p.proposal, p.flag, p.evidence, p.against, p.reason ?? null]),
+    notes,
+    milestone,
+    storeKey: storeKey ?? null,
+  }));
+
+  return {
+    units: planned,
+    proposedCloses: planned.filter((p) => p.proposal === 'legacy-close'),
+    flagged: planned.filter((p) => p.flag !== null),
+    refused: planned.filter((p) => p.proposal === 'refused'),
+    declared: planned.filter((p) => p.proposal === 'dropped'),
+    notes,
+    current,
+    milestone,
+    inputHash,
+  };
+}
+
+const FLAG_WORDS = {
+  'current-but-looks-finished': 'it is the current unit (STATE.md) and there is evidence it is over — a unit being worked is open',
+  'row-unclear': 'its milestone row says shipped and something else, and nothing else says it is over',
+};
+
+const sentence = (parts) => parts.join('; ');
+
+/**
+ * The list `importUnits` writes for a plan (t7.1). A refused unit is not in
+ * it. A proposed legacy close is written closed only with `confirmCloses`;
+ * otherwise open, with a note saying it looked finished. A unit born closed as
+ * legacy carries its old row's cells (`legacy_row`); an open one carries the
+ * row's third cell as its `summary`, so the generated table can print a
+ * status of its own.
+ *
+ * @param {{units: object[]}} plan — `planUnits`'s
+ * @param {{confirmCloses?: boolean, at: string, by?: string}} opts — `at`: the day the records are written
+ * @returns {object[]}
+ */
+export function unitImportList(plan, { confirmCloses = false, at, by = 'migration' }) {
+  const out = [];
+  for (const u of plan.units) {
+    if (u.proposal === 'refused') continue;
+    if (u.proposal === 'dropped') {
+      out.push({ id: u.id, close: { reason: 'dropped', words: u.words, at, by } });
+      continue;
+    }
+    const found = u.evidence.length > 0 ? ` Found: ${sentence(u.evidence)}.` : '';
+    const but = u.against.length > 0 ? ` Also found: ${sentence(u.against)}.` : '';
+    const summary = u.row && /\S/.test(u.row.cells[2]) ? shownText(u.row.cells[2], SUMMARY_MAX) : undefined;
+    if (u.proposal === 'legacy-close' && confirmCloses === true) {
+      out.push({
+        id: u.id,
+        ...(u.row ? { legacy_row: u.row.cells } : {}),
+        migration_note: cut(`Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in.${found}${but}`, NOTE_MAX),
+        close: { reason: 'legacy', words: 'over before unit records existed; recorded when they were added', at, by },
+      });
+      continue;
+    }
+    let note;
+    if (u.proposal === 'legacy-close') note = `It looked finished when unit records were added, and the close was not confirmed, so it was left open.${found}${but}`;
+    else if (u.flag !== null) note = `Left open when unit records were added: ${FLAG_WORDS[u.flag]}.${found}${but}`;
+    out.push({
+      id: u.id,
+      ...(summary ? { summary } : {}),
+      ...(note ? { migration_note: cut(note, NOTE_MAX) } : {}),
+      opened: { at, by },
+    });
+  }
+  return out;
+}
+
+// Every text an import of this plan would write, for the sensitive-data scan.
+export function unitImportTexts(plan) {
+  return unitImportList(plan, { confirmCloses: true, at: '2000-01-01' }).flatMap((u) => [
+    { id: u.id, text: u.migration_note }, { id: u.id, text: u.summary }, { id: u.id, text: u.close?.words },
+    ...(u.legacy_row ?? []).map((text) => ({ id: u.id, text })),
+  ]).filter((t) => typeof t.text === 'string' && t.text !== '');
+}
+
+const PROPOSAL_WORDS = {
+  open: 'open',
+  'legacy-close': 'proposed: closed (legacy)',
+  dropped: 'closed (dropped) — declared',
+  refused: 'refused — no record',
+};
+
+/**
+ * The plan as a person reads it before they confirm: every unit with its
+ * proposal and why, then the proposed legacy closes as one list, the flagged
+ * units, the refused IDs, the declared ones, and what the current milestone
+ * file's markers say. Every line is printable and cut.
+ *
+ * @param {object} plan — `planUnits`'s
+ * @returns {string[]} lines
+ */
+export function unitsReportLines(plan) {
+  const lines = [];
+  const n = plan.units.length;
+  lines.push(`Unit records — one record per Epic or unit this project names (${n} named):`);
+  if (n === 0) lines.push('  none — the folder for unit records is created empty.');
+  for (const u of plan.units) {
+    const why = u.proposal === 'refused' ? u.reason
+      : sentence([...(u.current ? ['the current unit'] : []), ...u.evidence, ...(u.proposal === 'open' ? u.against : [])]) || `named by ${u.sources.join(', ')}; nothing says it is over`;
+    lines.push(`  ${u.id}  ${PROPOSAL_WORDS[u.proposal]}${u.flag ? `  [flagged: ${u.flag}]` : ''}  — ${shownText(why, 400)}`);
+  }
+  if (plan.proposedCloses.length > 0) {
+    lines.push('', `Proposed legacy closes (${plan.proposedCloses.length}) — confirm to record these units as closed; if you say no, each is created open, `
+      + 'with a note saying it looked finished. Unit, the evidence:');
+    for (const u of plan.proposedCloses) {
+      lines.push(`  ${u.id}  — ${shownText(sentence(u.evidence), 400)}${u.against.length > 0 ? `  (also: ${shownText(sentence(u.against), 300)})` : ''}`);
+    }
+  }
+  if (plan.flagged.length > 0) {
+    lines.push('', `Flagged (${plan.flagged.length}) — created open, each with a note; look at them after the apply:`);
+    for (const u of plan.flagged) lines.push(`  ${u.id}  — ${FLAG_WORDS[u.flag]}`);
+  }
+  if (plan.refused.length > 0) {
+    lines.push('', `Refused (${plan.refused.length}) — no record is created:`);
+    for (const u of plan.refused) lines.push(`  ${u.id}  — ${shownText(u.reason, 400)}`);
+  }
+  if (plan.declared.length > 0) {
+    lines.push('', `Declared with --also (${plan.declared.length}) — created closed as dropped:`);
+    for (const u of plan.declared) lines.push(`  ${u.id}  — ${quoted(u.words)}`);
+  }
+  if (plan.milestone !== null) {
+    const { rel, markers } = plan.milestone;
+    lines.push('', markers === 'ok'
+      ? `${rel} carries the Epic-table markers: its Epic rows are written from the unit records by the apply.`
+      : markers === 'none'
+        ? `${rel} has no Epic-table markers, so it is left exactly as it is. To have its Epic rows generated, put \`${EPICS_BEGIN}\` on the line before `
+          + `the table and \`${EPICS_END}\` on the line after it, by hand, after the apply. This command never adds them.`
+        : markers === 'broken'
+          ? `${rel}: its Epic-table markers are broken (${plan.milestone.problem}).`
+          : `${rel} is not there (or is not a regular file): no Epic table is written.`);
+  }
+  for (const note of plan.notes) lines.push('', `Note: ${shownText(note, 400)}`);
+  return lines.map(printable);
+}
