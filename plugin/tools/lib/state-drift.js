@@ -32,12 +32,13 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { readState, PHASES, EPIC_ID_STRICT_RE } from './state.js';
 import { readProfileIssues } from './profile.js';
 import { deriveUnits, WORKED_SUFFIXES } from './work-units.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
+import { readUnitRecords } from './closure.js';
 import { isReceipt, stripControl } from './receipt.js';
 
 const PLANNING_DIR = '.planning';
@@ -575,6 +576,24 @@ export const checkEpicWithoutRetro = defineCheck({
     // the Map itself yields [key, files] ENTRIES, which stringify into the
     // finding as "M5.E13,M5.E13-PLAN.md".
     const worked = new Set(deriveUnits(files, { suffixes: WORKED_SUFFIXES }).units.keys());
+    // With unit records (M6.E16 t6.3) which units were worked comes from the
+    // records: every unit that has one, with or without a file left in
+    // `.planning/` — except one closed as `dropped`, whose record says the
+    // work never ran here. A unit whose record does not read is passed over:
+    // `/sig:docs-sweep` reports the record. A unit with no record is still
+    // found from its files, as above.
+    const unitRecords = readUnitRecords(dirname(planningDir));
+    const byRecord = new Map();
+    if (unitRecords !== null) {
+      for (const id of unitRecords.broken.keys()) worked.delete(id);
+      for (const [id, u] of unitRecords.byId) {
+        if (u.status === 'closed' && u.close?.reason === 'dropped') worked.delete(id);
+        else {
+          worked.add(id);
+          byRecord.set(id, u.status);
+        }
+      }
+    }
     const findings = [];
     for (const unit of [...worked].sort()) {
       if (unit === state.current_epic) continue; // mid-flight, not abandoned
@@ -596,6 +615,21 @@ export const checkEpicWithoutRetro = defineCheck({
         }
       }
       if (status === RETRO_STATUS.COMPLETE) continue;
+
+      if (byRecord.has(unit)) {
+        const says = `${unit} has a unit record (${byRecord.get(unit)})`;
+        findings.push({
+          file: `${PLANNING_DIR}/${retroName}`,
+          message:
+            status === RETRO_STATUS.STUB
+              ? `${says} and a retrospective that is still a stub — the file exists but holds ` +
+                '`[FILL IN]` placeholders, so nothing records what happened. Fill it in, or ' +
+                'close the unit as dropped.'
+              : `${says} but no retrospective — it was either finished without one, or ` +
+                'abandoned. Only you know which.',
+        });
+        continue;
+      }
 
       findings.push({
         file: `${PLANNING_DIR}/${retroName}`,

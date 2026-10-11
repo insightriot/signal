@@ -35,7 +35,7 @@ import {
   deriveEpicArchiveDir,
 } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
-import { resolveClosures } from './closure.js';
+import { readUnitRecords, resolveClosures } from './closure.js';
 import { explainArchiveOutcome, renderMoveBreakdown } from './archive-report.js';
 import { checkStateFrontmatterShape } from './retrospective.js';
 import {
@@ -1008,8 +1008,11 @@ export function planVector3(stateText, cards) {
  * `closures` is the same `resolveClosures` result the dry run's explanation uses,
  * so the move list and the "could not evaluate" lines cannot disagree (AC8.3).
  *
+ * On a project with unit records the result also carries `held`: each closed
+ * unit that is held, with its hold reason. Those are not in `closedUnits`.
+ *
  * @param {string} baseDir
- * @returns {Promise<{closedUnits: string[], closures: object|null}>}
+ * @returns {Promise<{closedUnits: string[], closures: object|null, held?: Array<{unit: string, reason: string}>}>}
  */
 export async function resolveMigrateClosedUnits(baseDir) {
   let closures;
@@ -1021,10 +1024,17 @@ export async function resolveMigrateClosedUnits(baseDir) {
   if (!closures.stateReadable) return { closedUnits: [], closures };
   const retros = await enumerateRetros(baseDir);
   const stubbed = new Set(retros.filter((r) => r.isStub).map((r) => r.epicId));
+  // With unit records (M6.E16 t6.3) a unit answered from its record
+  // (`source: 'record'`) is closed because the record says so: a stub
+  // retrospective does not veto it, and a held one is left out — its files and
+  // its narrative stay — and returned in `held` with the reason.
   const closedUnits = closures.units
-    .filter((u) => u.status === 'closed' && !stubbed.has(u.unit))
+    .filter((u) => u.status === 'closed' && (u.source === 'record' ? u.held !== true : !stubbed.has(u.unit)))
     .map((u) => u.unit);
-  return { closedUnits, closures };
+  const held = closures.units
+    .filter((u) => u.source === 'record' && u.status === 'closed' && u.held === true)
+    .map((u) => ({ unit: u.unit, reason: u.hold_reason }));
+  return readUnitRecords(baseDir) === null ? { closedUnits, closures } : { closedUnits, closures, held };
 }
 
 /**
@@ -1070,12 +1080,22 @@ export async function senseVector3(baseDir, stateText, opts = {}) {
     cards.set(r.epicId, { path: r.path, content });
   }
   const plan = planVector3(stateText, cards);
+  // Why a unit with a retrospective is not closed. With unit records, and a
+  // record for it, the record is the reason (M6.E16 t6.3) — not a verdict.
+  const unitRecords = readUnitRecords(baseDir);
+  const whyNotClosed = (epicId) => {
+    const record = unitRecords?.byId.get(epicId);
+    if (unitRecords?.broken.has(epicId)) return 'whose unit record could not be read';
+    if (record?.status === 'closed' && record.held) return `whose unit record is closed and held (${record.hold_reason}), so its narrative stays`;
+    if (record !== undefined) return 'which has a retrospective, but its unit record is not closed (or it is the current unit)';
+    return `which has a retrospective but did not resolve as closed (closure needs a readable PASS verdict in ${PLANNING_DIR}/ and a unit that is not current)`;
+  };
   plan.flags = plan.flags.map((f) =>
     f.kind === 'no-retrospective' && retroNotClosed.has(f.epicId)
       ? {
           kind: 'not-closed',
           epicId: f.epicId,
-          reason: `live section for ${f.epicId}, which has a retrospective but did not resolve as closed (closure needs a readable PASS verdict in ${PLANNING_DIR}/ and a unit that is not current) — SKIPPED`,
+          reason: `live section for ${f.epicId}, ${whyNotClosed(f.epicId)} — SKIPPED`,
         }
       : f,
   );
@@ -2113,6 +2133,7 @@ export async function renderDryRun(baseDir, opts = {}) {
       for (const line of explainArchiveOutcome({
         closures: closures.units,
         dropped: archive.dropped,
+        held: archive.held,
         moveCount: archive.moves.length,
         stateReadable: closures.stateReadable,
         stateReason: closures.reason,

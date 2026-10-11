@@ -72,10 +72,11 @@ export function plantBroken(base, id) {
   put(base, `${UNITS}/${id}.json`, '{ not json');
 }
 
-export const state = ({ epic = 'M7.E9', phase = 'EXECUTE', completed = [], body = '' } = {}) =>
+export const state = ({ epic = 'M7.E9', phase = 'EXECUTE', completed = [], body = '', front = [] } = {}) =>
   [
     '---',
     'schema_version: 1',
+    ...front,
     `phase: ${phase}`,
     `current_epic: ${epic ?? 'null'}`,
     'current_wave: null',
@@ -89,7 +90,7 @@ export const state = ({ epic = 'M7.E9', phase = 'EXECUTE', completed = [], body 
     body,
   ].join('\n');
 
-const NARRATIVE =
+export const NARRATIVE =
   '## M7.E1 — lantern index\n\nShipped 2026-09-01. Decision D-M7E1-1 locked. FR1 delivered; AC1 verified.\n\n' +
   '## M7.E2 — harbour sync\n\nShipped 2026-09-02. Decision D-M7E2-1 locked. FR1 delivered; AC1 verified.\n\n' +
   '## Closed work\n\n- existing pointer\n';
