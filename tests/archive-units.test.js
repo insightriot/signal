@@ -152,10 +152,34 @@ describe('/sig:docs-archive report with unit records (t6.2, AC5.2)', () => {
     const report = await buildArchiveReport(base);
     expect(report.settled).toEqual(['M7.E5']);
     expect(refusal(report, 'M7.E5')).toBeUndefined();
-    expect(report.counts.units).toBe(report.plan.length + report.refusals.length);
+    expect(report.counts.settled).toBe(1);
+    expect(report.counts.units).toBe(report.plan.length + report.refusals.length + report.settled.length);
     const text = renderArchiveReport(report).join('\n');
     expect(text).toMatch(/nothing left to move \(1\).*M7\.E5/s);
     expect(text).not.toMatch(/stub/);
+  });
+
+  it('a project whose only unit is closed with nothing to move is not told "no units found"', async () => {
+    const base = tempProject();
+    put(base, '.planning/STATE.md', state());
+    unitsOn(base);
+    plant(base, 'M7.E5', 'legacy');
+    const report = await buildArchiveReport(base);
+    expect(report.counts).toEqual({ units: 1, archiving: 0, refused: 0, settled: 1, files: 0 });
+    const text = renderArchiveReport(report).join('\n');
+    expect(text).not.toMatch(/No units found/);
+    expect(text).not.toMatch(/none is finished/);
+    expect(text).toMatch(/all 1 unit\(s\) were checked, and each is closed with nothing left to move/);
+  });
+
+  it('nothing to archive, some settled and some declined: the line says both', async () => {
+    const base = contradiction({ units: true });
+    plant(base, 'M7.E2', 'open');
+    plant(base, 'M7.E3', 'open');
+    plant(base, 'M7.E5', 'legacy');
+    const text = renderArchiveReport(await buildArchiveReport(base)).join('\n');
+    expect(text).toMatch(/1 closed with nothing left to move, the rest declined/);
+    expect(text).not.toMatch(/none is finished/);
   });
 
   it('the current unit is declined as the current unit, whatever its record says', async () => {

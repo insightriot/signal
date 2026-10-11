@@ -48,14 +48,14 @@ import { deriveUnits } from './work-units.js';
  *   dropped: Array<{unit: string, reason: string}>,
  *   stateReadable: boolean,
  *   reason: string|null,
- *   counts: {units: number, archiving: number, refused: number, files: number},
+ *   counts: {units: number, archiving: number, refused: number, settled: number, files: number},
  * }>}
  */
 export async function buildArchiveReport(baseDir) {
   const empty = {
     plan: [], moves: [], refusals: [], settled: [], ungrouped: [], dropped: [],
     stateReadable: false, reason: null,
-    counts: { units: 0, archiving: 0, refused: 0, files: 0 },
+    counts: { units: 0, archiving: 0, refused: 0, settled: 0, files: 0 },
   };
 
   let names;
@@ -102,7 +102,7 @@ export async function buildArchiveReport(baseDir) {
       dropped: sense.dropped ?? [],
       stateReadable: false,
       reason: closures.reason,
-      counts: { units: closures.units.length, archiving: 0, refused: closures.units.length, files: 0 },
+      counts: { units: closures.units.length, archiving: 0, refused: closures.units.length, settled: 0, files: 0 },
     };
   }
 
@@ -148,7 +148,7 @@ export async function buildArchiveReport(baseDir) {
   // is not archiving. It is HELD — closed, and its files stay: a refusal, with
   // the hold reason (AC5.2). Or its record is closed and nothing of it is left
   // in `.planning/` to move: that is not a refusal — nothing was declined — so
-  // it is listed in `settled` and counted in neither bucket.
+  // it is listed in `settled`, a third bucket (`counts.settled`).
   const droppedReason = new Map((sense.dropped ?? []).map((d) => [d.unit, d.reason]));
   const heldReason = new Map((sense.held ?? []).map((h) => [h.unit, h.reason]));
   const refusals = [];
@@ -180,9 +180,10 @@ export async function buildArchiveReport(baseDir) {
     stateReadable: closures.stateReadable,
     reason: closures.reason,
     counts: {
-      units: closures.units.length - settled.length,
+      units: closures.units.length,
       archiving: plan.length,
       refused: refusals.length,
+      settled: settled.length,
       files: sense.moves.length,
     },
   };
@@ -246,6 +247,14 @@ export function renderArchiveReport(report, opts = {}) {
     // FR6.1 — say WHICH kind of nothing this is.
     if (counts.units === 0) {
       L.push('No units found in .planning/ — there is nothing here to archive.', '');
+    } else if (settled.length === counts.units) {
+      L.push(`Nothing to archive: all ${counts.units} unit(s) were checked, and each is closed with nothing left to move.`, '');
+    } else if (settled.length > 0) {
+      L.push(
+        `Nothing to archive: all ${counts.units} unit(s) were checked — ${settled.length} closed with nothing left to move, the rest declined.`,
+        '(This is a clean result, not a failed check — see the refusals below.)',
+        ''
+      );
     } else {
       L.push(
         `Nothing to archive: all ${counts.units} unit(s) were checked and none is finished.`,
