@@ -365,7 +365,10 @@ describe('openUnit', () => {
     await put(dir, '.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n');
     await units.ensureUnitsDir(dir);
     const before = snapshotTree(dir);
-    await units.openUnit(dir, 'phase-1', { by, at: AT });
+    // The views are regenerated after a unit write since S5 (t5.0b,
+    // tests/unit-views-regenerate.test.js); switched off here, so this still
+    // pins what the writer itself writes.
+    await units.openUnit(dir, 'phase-1', { by, at: AT }, { regenerate: async () => {} });
     const after = snapshotTree(dir);
     expect([...after.keys()].filter((k) => !before.has(k))).toEqual([`${UNITS}/phase-1.json`]);
     expect(after.get('.planning/work/WORK.md')).toBe(before.get('.planning/work/WORK.md'));
@@ -613,7 +616,9 @@ describe('every unit writer: one lock, the store check, atomic, nothing on a ref
   for (const [name, run] of Object.entries(MUTATIONS)) {
     it(`${name}: changes exactly one record file and no other file`, async () => {
       const before = snapshotTree(base);
-      const out = await run(base, {});
+      // Regeneration switched off (t5.0b: a unit write regenerates the views;
+      // tests/unit-views-regenerate.test.js covers that).
+      const out = await run(base, { regenerate: async () => {} });
       const after = snapshotTree(base);
       const changed = [...new Set([...before.keys(), ...after.keys()])].filter((k) => before.get(k) !== after.get(k));
       expect(changed).toEqual([out.path]);

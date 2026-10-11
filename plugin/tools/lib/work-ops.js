@@ -580,8 +580,14 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
     // created here, after everything that can refuse has been checked once.
     gate();
     assertUnitId(baseDir, epicId);
-    const opened = await openUnit(baseDir, epicId, { by, at });
-    if (opened?.aborted) return opened;
+    try {
+      const opened = await openUnit(baseDir, epicId, { by, at });
+      if (opened?.aborted) return opened;
+    } catch (err) {
+      // The record landed and only the views failed (t5.0b): go on to the
+      // request, which regenerates them again and reports it if they still fail.
+      if (err?.changeStands !== true) throw err;
+    }
     created = true;
   } else {
     const unit = getUnit(baseDir, epicId);
@@ -614,7 +620,9 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
       execFn, renameFn: opts.renameFn, acknowledgeSensitive: opts.acknowledgeSensitive, gate,
     });
   } catch (err) {
-    if (!created) throw err;
+    // `changeStands`: the request landed and only the views failed — the
+    // error already says so, and "was not requested" would be false.
+    if (!created || err?.changeStands === true) throw err;
     // "Nothing was written" would be false: the record was created above.
     const wrapped = new WorkStoreError(
       err instanceof WorkStoreError ? err.code : 'IO',
@@ -729,6 +737,9 @@ export async function openEpic(baseDir, epicId, open = {}) {
       const out = await step.write();
       if (out?.aborted) failure = new WorkStoreError('IO', `the write was stopped (${out.aborted})`);
     } catch (err) {
+      // The record landed and only the views failed (t5.0b): that error says
+      // what stands, and "{step.did}" below would be false.
+      if (err?.changeStands === true) throw err;
       failure = err;
     }
     if (failure) {
