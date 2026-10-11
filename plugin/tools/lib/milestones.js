@@ -27,6 +27,10 @@ const MILESTONE_FILE_RE = /^MILESTONE-(\d+(?:\.\d+)?)\.md$/;
 // milestone. `MILESTONE-4.5.md` etc. don't match (no digit right after `M`).
 const EPIC_ARTIFACT_RE = /^M(\d+(?:\.\d+)?)\.E(\d+)-/;
 
+// A unit record's ID, when it is an Epic of a milestone EPIC_ARTIFACT_RE can
+// name: the same two captures, over the whole ID.
+const UNIT_EPIC_RE = /^M(\d+(?:\.\d+)?)\.E(\d+)$/;
+
 /**
  * Resolve the milestone file that `--milestone` (no N) targets, derived from
  * STATE.md's `current_epic`. Returns the bare `MILESTONE-{n}.md` filename
@@ -88,6 +92,11 @@ export async function listMilestones(baseDir) {
  * `milestone` arg AND no strict `current_epic`) — the caller must then supply
  * an explicit `--milestone` or pass a literal Epic ID to `--epic`.
  *
+ * On a project with unit records (`hasUnitsSafe`, `unit-records.js`) the
+ * highest `E{N}` among that milestone's records, open or closed, counts as
+ * well, and the higher of the two is used (M6.E16 AC3.2). Without unit
+ * records only the filenames are read, as before.
+ *
  * @param {string} baseDir
  * @param {{milestone?: string}} [opts]
  * @returns {Promise<string|null>} next strict Epic ID, or null.
@@ -116,6 +125,24 @@ export async function deriveNextEpicId(baseDir, { milestone } = {}) {
     if (m && m[1] === ms) {
       const n = parseInt(m[2], 10);
       if (n > maxN) maxN = n;
+    }
+  }
+  // With unit records (M6.E16 t3.2, AC3.2): an Epic's record takes its
+  // number whether it is open or closed, and whether or not it has a file —
+  // a dropped Epic never had one. The filename number above still counts
+  // when it is higher, so a project part-way onto records is never handed an
+  // ID in use. A broken record takes its number too. Imported here, not at
+  // the top: unit-records.js reaches most of the store, and this module is
+  // read by code that needs none of it.
+  const { hasUnitsSafe, listUnits } = await import('./unit-records.js');
+  if (hasUnitsSafe(baseDir).has) {
+    const { units, broken } = listUnits(baseDir);
+    for (const { id } of [...units, ...broken]) {
+      const m = typeof id === 'string' ? id.match(UNIT_EPIC_RE) : null;
+      if (m && m[1] === ms) {
+        const n = parseInt(m[2], 10);
+        if (n > maxN) maxN = n;
+      }
     }
   }
   return `M${ms}.E${maxN + 1}`;

@@ -3,7 +3,7 @@
 // Grouped by slice/task. Each task's describe block is added RED-first.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, mkdir, symlink } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -21,6 +21,7 @@ import {
 } from '../plugin/tools/lib/state.js';
 import { deriveRetroPath, isEpicDone } from '../plugin/tools/lib/retrospective.js';
 import { currentMilestone, deriveNextEpicId } from '../plugin/tools/lib/milestones.js';
+import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
 import { resolveArtifactPath, artifactName } from '../plugin/tools/lib/resume.js';
 import { readProfile, readEffectiveProfile, ProfileSchemaError } from '../plugin/tools/lib/profile.js';
 import { formatTierLine } from '../plugin/tools/lib/status.js';
@@ -255,6 +256,95 @@ describe('S1.t7 deriveNextEpicId', () => {
     await touch('M4.5.E11-PLAN.md');
     const next = await deriveNextEpicId(baseDir);
     expect(EPIC_ID_STRICT_RE.test(next)).toBe(true);
+  });
+});
+
+// ---- M6.E16.S3.t3.2 — deriveNextEpicId reads unit records when the project has them ----
+// See .planning/M6.E16-VALIDATION.md row AC3.2. New cases; the block above is
+// the no-records path and is unchanged.
+describe('M6.E16 t3.2 deriveNextEpicId with unit records', () => {
+  const AT = '2026-10-11T10:00:00.000Z';
+  const opened = { type: 'opened', at: AT, by: 'claude' };
+  const dropped = { type: 'closed', at: AT, by: 'claude', reason: 'dropped', words: 'parked; the work went elsewhere' };
+  const UNITS = join('.planning', 'work', 'units');
+
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-e16-t32-'));
+    await mkdir(join(baseDir, UNITS), { recursive: true });
+    await writeFile(join(baseDir, '.planning', 'work', 'WORK.md'), '---\nkey: SIG\nschema_version: 2\n---\n', 'utf-8');
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  async function touch(...names) {
+    for (const n of names) await writeFile(join(baseDir, '.planning', n), 'x', 'utf-8');
+  }
+  async function unit(id, events = [opened]) {
+    await writeFile(join(baseDir, UNITS, `${id}.json`), UNIT_KIND.serializeRecord({ id, events }), 'utf-8');
+  }
+
+  it('a closed (dropped) E20 with no file of its own blocks E20: the next is E21', async () => {
+    await writeState(baseDir, { epic: 'M5.E19' });
+    await touch('M5.E18-PLAN.md', 'M5.E19-PLAN.md');
+    await unit('M5.E19');
+    await unit('M5.E20', [opened, dropped]);
+    expect(await deriveNextEpicId(baseDir)).toBe('M5.E21');
+  });
+
+  it('counts an open record that has no artifact yet', async () => {
+    await writeState(baseDir, { epic: 'M5.E3' });
+    await unit('M5.E3');
+    await unit('M5.E4');
+    expect(await deriveNextEpicId(baseDir)).toBe('M5.E5');
+  });
+
+  it('a filename higher than every record still counts (a project part-way onto records)', async () => {
+    await writeState(baseDir, { epic: 'M5.E3' });
+    await unit('M5.E3');
+    await touch('M5.E7-PLAN.md');
+    expect(await deriveNextEpicId(baseDir)).toBe('M5.E8');
+  });
+
+  it('reads only records of that milestone, compared as numbers', async () => {
+    await writeState(baseDir, { epic: 'M5.E2' });
+    await unit('M5.E2');
+    await unit('M5.E10');
+    await unit('M6.E40');
+    await unit('M4.5.E30');
+    await unit('phase-11');
+    await unit('v0.1.6');
+    expect(await deriveNextEpicId(baseDir)).toBe('M5.E11');
+    expect(await deriveNextEpicId(baseDir, { milestone: '4.5' })).toBe('M4.5.E31');
+    expect(await deriveNextEpicId(baseDir, { milestone: '7' })).toBe('M7.E1');
+  });
+
+  it('a broken record still takes its ID', async () => {
+    await writeState(baseDir, { epic: 'M5.E2' });
+    await unit('M5.E2');
+    await writeFile(join(baseDir, UNITS, 'M5.E9.json'), '{ not json', 'utf-8');
+    expect(await deriveNextEpicId(baseDir)).toBe('M5.E10');
+  });
+
+  it('no milestone context is still null', async () => {
+    await writeState(baseDir, { epic: null });
+    await unit('M5.E2');
+    expect(await deriveNextEpicId(baseDir)).toBeNull();
+  });
+
+  it('`units/` is a link (a hostile layout): the filename path answers, as with no records', async () => {
+    await rm(join(baseDir, UNITS), { recursive: true });
+    const outside = await mkdtemp(join(tmpdir(), 'signal-e16-t32-out-'));
+    try {
+      await writeFile(join(outside, 'M5.E50.json'), UNIT_KIND.serializeRecord({ id: 'M5.E50', events: [opened] }), 'utf-8');
+      await symlink(outside, join(baseDir, UNITS));
+      await writeState(baseDir, { epic: 'M5.E2' });
+      await touch('M5.E2-PLAN.md');
+      expect(await deriveNextEpicId(baseDir)).toBe('M5.E3');
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 });
 
