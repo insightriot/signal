@@ -404,7 +404,9 @@ export async function planUnits(baseDir, opts = {}) {
     const against = [];
     let rowUnclear = false;
     if (u.row !== null) {
-      const status = u.row.cells[1];
+      // The rule reads the cell as a person is shown it: an invisible
+      // character cannot hide "parked" from the rule and leave it on screen.
+      const status = printable(u.row.cells[1]);
       const where = `${u.row.file.replace(`${PLANNING}/`, '')}:${u.row.line}`;
       if (SHIPPED_RE.test(status)) {
         const also2 = status.match(NOT_OVER_RE);

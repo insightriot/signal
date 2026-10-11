@@ -333,6 +333,15 @@ describe('planUnits — hostile input (NFR input)', () => {
     expect(byId(plan)['M7.E1'].row.cells[2]).toHaveLength(10_000);
   });
 
+  it('the row rule reads the cell as it is shown: a hidden character cannot split "parked" out of sight', async () => {
+    const base = await unitsStore();
+    put(base, MILESTONE, milestone7(['| `M7.E1` | shipped (par\u200bked) | x |', '| `M7.E2` | ship\u200bped | x |']));
+    put(base, '.planning/M7.E1-RETROSPECTIVE.md', '# M7.E1\n\n[FILL IN]\n');
+    const u = byId(await planUnits(base));
+    expect(u['M7.E1']).toMatchObject({ proposal: 'open', flag: 'row-unclear' });
+    expect(u['M7.E2'].evidence).toEqual(['its milestone row says shipped (MILESTONE-7.md:8: “shipped”)']);
+  });
+
   it('a row with escaped pipes keeps its cells; an escaped pipe in the status cell does not hide what follows it', async () => {
     const base = await unitsStore();
     put(base, MILESTONE, milestone7([

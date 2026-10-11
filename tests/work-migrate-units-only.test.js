@@ -412,3 +412,55 @@ describe('--also on the command line', () => {
     expect(r.reason).toMatch(/only "dropped" can be declared/);
   });
 });
+
+// ── t7.5 — hostile input, end to end (NFR input) ────────────────────────────
+
+describe('hostile text and names, through the command (t7.5)', () => {
+  it('invisible characters and a 10 kB cell: the confirm text is printable and cut; the record keeps the cell, cut at its limit', async () => {
+    const base = await unitsStore({ repo: true });
+    const hidden = '**shipped**​ ‮now\u0007 \u{e0041}';
+    put(base, MILESTONE, milestone7([`| \`M7.E1\` | ${hidden} | ${'n'.repeat(10_000)} |`, ROWS['M7.E9']]));
+    commitAll(base);
+    const dry = await dryRun(base);
+    expect(dry.report).not.toMatch(/[​‮\u0007]|\u{e0041}/u);
+    expect(Math.max(...dry.report.split('\n').map((l) => l.length))).toBeLessThan(1200);
+    const r = await applyWith(base, dry, { confirmUnitCloses: true });
+    expect(r.report).not.toMatch(/[​‮\u0007]|\u{e0041}/u);
+    const row = getUnit(base, 'M7.E1').record.legacy_row;
+    expect(row[1]).toBe('**shipped** now ');
+    expect(row[2]).toHaveLength(8000);
+    expect(readFileSync(join(base, UNITS, 'M7.E1.json'), 'utf-8')).not.toMatch(/[​‮\u0007]|\u{e0041}/u);
+  });
+
+  it('no unit name reaches a git argument, in the dry run or the apply', async () => {
+    const base = await unitsStore({ repo: true });
+    const { execFileSync } = await import('node:child_process');
+    const seen = [];
+    const execFn = (cmd, args, o) => {
+      seen.push([cmd, ...args].join(' '));
+      return execFileSync(cmd, args, o);
+    };
+    const also = [{ id: 'M5.E11', reason: 'dropped', words: 'became M7.E1' }];
+    const dry = await dryRun(base, { execFn, also });
+    const r = await applyWith(base, dry, { execFn, also, confirmUnitCloses: true });
+    expect(r.applied).toBe(true);
+    expect(seen.length).toBeGreaterThan(3);
+    for (const id of [...dry.units.map((u) => u.id), 'M5.E11']) {
+      expect(seen.filter((line) => line.includes(id)), id).toEqual([]);
+    }
+    // What is staged is the folder and the views, by fixed paths.
+    expect(seen).toContain(`git add -- ${UNITS} ${EPICS}`);
+  });
+
+  it('5,000 rows: a dry run lists them all, and the apply writes them all', async () => {
+    const base = await unitsStore({ repo: true });
+    put(base, MILESTONE, milestone7(Array.from({ length: 5000 }, (_, i) => `| \`M7.E${i + 100}\` | **shipped** — 2026-01-01 | row ${i} |`)));
+    commitAll(base);
+    const dry = await dryRun(base);
+    expect(dry.proposedUnitCloses.filter((u) => /^M7\.E\d{3,4}$/.test(u.id))).toHaveLength(5000);
+    const r = await applyWith(base, dry, { confirmUnitCloses: true });
+    expect(r.units).toBeGreaterThan(5000);
+    expect(listUnits(base).units.filter((u) => u.close?.reason === 'legacy').length).toBeGreaterThanOrEqual(5000);
+    expect(checkUnits(base)).toEqual([]);
+  }, 120_000);
+});
