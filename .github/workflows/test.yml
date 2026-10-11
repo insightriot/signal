@@ -46,3 +46,8 @@ jobs:
       # is excluded from it by design, and a guard test asserts no test spawns
       # it. So this job needs no secrets and no network beyond the install.
       - run: npm test
+
+      # Lint is its own step (SIG-283): during M6.E14 a no-undef error was
+      # committed and VERIFY recorded lint as clean, read from an empty last
+      # line of output instead of the exit code. Nothing before `main` ran it.
+      - run: npm run lint
