@@ -32,11 +32,11 @@ Run **before any other Workflow step**, regardless of `gate_strictness`. This is
 **Steps:**
 
 1. Load STATE.md via `readState(baseDir)` — gives the `state` object.
-2. **Epic mode only** — `detectMode(state) === 'epic'` (`tools/lib/state.js`). Determine the current milestone file: parse `state.current_epic` (e.g., `M4.5.E9`), drop the trailing `.E{N}`, prefix with `MILESTONE-`, append `.md`. Load `.planning/MILESTONE-{n}.md` content; if file missing, halt with *"current_epic `{epicId}` points to a milestone whose MILESTONE-{n}.md does not exist. Set current_epic to a real Epic or create the milestone file."* **In linear mode, skip this step** and pass `milestoneContent: null` to step 3 — there is no Epic to derive a milestone file from, and halting on a file the mode cannot name is `B42`'s second gate (D-M5E9-1). *This halt remains correct for its real case: a **strict-shaped** `current_epic` whose milestone file genuinely does not exist.*
+2. **Epic mode only** — `detectMode(state) === 'epic'` (`tools/lib/state.js`). Determine the current milestone file: parse `state.current_epic` (e.g., `M4.5.E9`), drop the trailing `.E{N}`, prefix with `MILESTONE-`, append `.md`. Load `.planning/MILESTONE-{n}.md` content; if file missing, halt with *"current_epic `{epicId}` points to a milestone whose MILESTONE-{n}.md does not exist. Set current_epic to a real Epic or create the milestone file."* **In linear mode, skip this step** and pass `milestoneContent: null` to step 3 — there is no Epic to derive a milestone file from, and halting on a file the mode cannot name is `B42`'s second gate (D-M5E9-1). *This halt remains correct for its real case: a **strict-shaped** `current_epic` whose milestone file genuinely does not exist.* **With unit records** (`hasUnitsSafe(baseDir).has` from `tools/lib/unit-records.js` — `.planning/work/units/` exists), skip this step too and pass `milestoneContent: null`: `shipFR1Check` does not read it, and a missing milestone file is not a halt (`D-M6E16-10`).
 3. Call `shipFR1Check({state, profile, milestoneContent, baseDir})` from `tools/lib/retrospective.js`.
 4. Interpret the result:
    - `{halt: false, skipped: true, reason}` — **either** a per-Slice SHIP (not an Epic-close) **or** a linear-mode project, for which the FR1 retrospective gate is Epic-only (D-M5E9-1). Continue with normal Workflow. No retro enforcement. The `reason` string distinguishes the two.
-   - `{halt: false, skipped: true, unevaluated: true, cause: 'stale-milestone-row', rowStatus, reason}` — **the gate did not run, and that is worth saying out loud.** STATE.md shows this Epic at close, but its milestone row is stale, and a maintained row wins (D-E9-5) so the gate deferred to it. **Emit `reason` verbatim to the user before continuing** — do not fold it into a generic "skipped" line. This is `B36`, which shipped three Epics (M5.E6, M5.E9, M5.E8) with the gate silently inert; at M5.E8's own ship the retrospective existed only because someone wrote it before the gate ran. Continue with the Workflow — this reports, it does not block — but the user must see it, because the alternative is an Epic shipping with no retrospective and nothing saying so.
+   - `{halt: false, skipped: true, unevaluated: true, cause: 'stale-milestone-row', rowStatus, reason}` *(never returned with unit records: there `STATE.md` alone says whether this SHIP closes the Epic, and no milestone row is read)* — **the gate did not run, and that is worth saying out loud.** STATE.md shows this Epic at close, but its milestone row is stale, and a maintained row wins (D-E9-5) so the gate deferred to it. **Emit `reason` verbatim to the user before continuing** — do not fold it into a generic "skipped" line. This is `B36`, which shipped three Epics (M5.E6, M5.E9, M5.E8) with the gate silently inert; at M5.E8's own ship the retrospective existed only because someone wrote it before the gate ran. Continue with the Workflow — this reports, it does not block — but the user must see it, because the alternative is an Epic shipping with no retrospective and nothing saying so.
    - `{halt: false, retroPath, isEpicClose: true}` — retro exists + passes validation. Continue with Workflow. The eventual STATE.md commit will include the Epic-close.
    - `{halt: true, code, message, retroPath?}` — emit `message` verbatim to the user and **halt**. Do not proceed to Workflow. The user creates / fixes the retro file, then re-invokes `/sig:ship`.
 
@@ -254,11 +254,19 @@ the claim and the thing contradicting it, side by side — and no model judgment
 `D-M6E3-8`). This is the first SHIP halt about what a document *says*; every earlier halt is a
 missing precondition.
 
-### 6.8 Archive the Epic's folder (work store on) — Epic-close SHIP only
+### 6.8 Close the Epic (work store on) — Epic-close SHIP only
 
 **Work store off, or not an Epic-close SHIP:** skip this step. **Work store on** (`isStoreOn(baseDir)`), after §6.6 and §6.7:
 
 Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib/work-ops.js` — `pr` is §3's PR number, `release` the version this ship publishes, if any. **On a v2 store** (`schema_version: 2`) the same call gates through `closeEpicCheck` from `tools/lib/work-records.js` — every record whose Epic is this one must be closed, or *closing* with its fix commit already in this branch's HEAD (`D-M6E13-22`: the fix reaches the default branch only at the merge, and a later SHIP or `/sig:docs-sweep` confirms the close); a *closing* one whose commit is not in HEAD, or when git cannot tell, still counts as open — then moves the folder, which holds documents only, and regenerates the v2 views. **On a v1 store** it refuses (`CONFIG`): the v1 item-file gate was retired with the v1 store (`M6.E13`).
+
+**With unit records** (`.planning/work/units/` exists) the same call does none of the folder work: it records a **close request** on the Epic's unit record (`.planning/work/units/<EpicID>.json`) with a commit as proof — the branch HEAD at ship by default, or pass `commit` — and `pr` and `release` beside it. No Epic folder is needed. It refuses, writing nothing, while any item of the Epic is open (item 1), and while `.planning/<EpicID>-RETROSPECTIVE.md` is missing or still holds a `[FILL IN]` placeholder (`CONFLICT`, naming the file — **HALT**, finish the retrospective, re-run). The outcomes:
+
+- **`{status: 'close-requested', commit, unit}`** — the unit now reads *closing*. It reads *closed* only once `commit` is on the default branch: §6.9, `/sig:docs-sweep`, or a later SHIP confirms it, as for an item. Stage the unit's record into the SHIP commit. `created: true` means the Epic had no unit record and this call made one first; say so.
+- **`{status: 'already-requested'}`** (this commit, a re-run) and **`{status: 'already-closed'}`** — nothing changed; say so and continue.
+- **`CONFLICT` naming two commits** — a close was already requested with another commit. **HALT** and show the message.
+
+Items 1, 5 and 6 below apply as written; items 2, 3 and 4 are for a project with no unit records.
 
 1. **`OPEN_ITEMS` → HALT.** The error names each open record whose Epic is this one — with or without an Epic folder, since the gate runs before the folder is looked for. Close each (`/sig:item close`) or move it back to the backlog (`/sig:item move <id> T`), then re-run. Do not create the SHIP commit with the Epic's work still open.
 2. **`CONFLICT` naming root artifacts → HALT.** The Epic has `{EpicID}-*.md` files at the `.planning/` root, outside its folder (written by a command run with the store off), and archiving the folder would leave them behind. `git mv` each into `.planning/work/epics/<EpicID>/`, then re-run. The retrospective and the profile stay at the root and never trigger this.
@@ -273,6 +281,8 @@ Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib
 
 1. Call `runConfirmCloses(baseDir)` from `tools/lib/close-confirm.js` before the SHIP commit and print its `line` (`null` → say no item is closing). It compares against the local `origin/<default>` ref; SHIP does not fetch.
 2. Stage the changed item records and views into the SHIP commit.
+
+**With unit records** the same call confirms unit closes too, by the same rule, and its `line` names the two kinds separately (`Closes: items — … · units — …`). The close §6.8 just requested reads `still closing (<EpicID>: not-on-default-branch)` here — expected: its commit reaches the default branch at the merge, and the next `/sig:docs-sweep` or SHIP confirms it. Stage any unit record this step changed (`units.confirmed`).
 3. Copy the `Closes:` line into the SHIP artifact verbatim, as the Jev lines are copied in §6.7 — it is the record of which fixes this release confirmed and which still read *closing*. When `line` is `null`, the artifact says no item was closing.
 
 ### 7. Manual milestone meta-retro (`--milestone-meta` flag, optional)
@@ -300,7 +310,7 @@ When it reports `{written: true}`, stage the modified `.planning/INDEX.md` into 
 
 ### 9. Create the SHIP commit, then mark STATE.md fresh (M5.E17 FR3)
 
-Six steps above — §5.5 (evicted narrative), §6 (retro index), §6.5 (inbox + ledger), §6.6 (discharged backlog rows), §6.8 (archived Epic folder), §8 (INDEX.md) — each instruct staging into **"the SHIP commit."** This is the step that makes it. Commit everything those steps staged, as one atomic commit.
+Six steps above — §5.5 (evicted narrative), §6 (retro index), §6.5 (inbox + ledger), §6.6 (discharged backlog rows), §6.8 (archived Epic folder, or the unit record's close request), §8 (INDEX.md) — each instruct staging into **"the SHIP commit."** This is the step that makes it. Commit everything those steps staged, as one atomic commit.
 
 **Then, and only then:** `await markFresh(baseDir, {commit: <git HEAD short>})` from `tools/lib/state.js` — advances `last_updated` + `last_updated_commit` to the SHIP commit so `/sig:resume`'s staleness banner reads fresh. Run it **after** the commit — passing a pre-commit HEAD records a stale sha and silently defeats the freshness check (AC3.4).
 
