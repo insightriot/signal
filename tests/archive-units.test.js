@@ -16,7 +16,7 @@ import { senseArchiveTree } from '../plugin/tools/lib/archive-tree.js';
 import { buildArchiveReport, renderArchiveReport, applyArchive } from '../plugin/tools/lib/archive-command.js';
 import { snapshotTree } from './helpers/write-inventory.js';
 import {
-  cleanupUnitProjects, contradiction, HOLD_REASON, PASS, plant, plantBroken, put, retroFor, state, tempProject, unitsOn,
+  alone, ALONE, cleanupUnitProjects, contradiction, HOLD_REASON, PASS, plant, plantBroken, put, retroFor, state, tempProject, unitsOn,
 } from './helpers/unit-fixture.js';
 
 afterEach(cleanupUnitProjects);
@@ -182,20 +182,9 @@ describe('/sig:docs-archive report with unit records (t6.2, AC5.2)', () => {
 });
 
 describe('AC6.2 — with an open record, nothing on disk archives the unit', () => {
-  const cases = {
-    'a filled retrospective': (b) => put(b, '.planning/M7.E1-RETROSPECTIVE.md', retroFor('M7.E1')),
-    'a PASS verdict': (b) => put(b, '.planning/M7.E1-VERIFICATION.md', PASS('M7.E1')),
-    'a "shipped" milestone row': (b) => put(b, '.planning/MILESTONE-7.md', '# Milestone 7\n\n| Epic | Status |\n|---|---|\n| `M7.E1` | ✅ shipped 2026-09-01 |\n'),
-    'a VERIFICATION under archive/': (b) => put(b, '.planning/archive/M7/E1/M7.E1-VERIFICATION.md', PASS('M7.E1')),
-  };
-  for (const [what, write] of Object.entries(cases)) {
+  for (const what of Object.keys(ALONE)) {
     it(`${what} alone`, async () => {
-      const base = tempProject();
-      put(base, '.planning/STATE.md', state());
-      put(base, '.planning/M7.E1-PLAN.md', '# plan\n');
-      write(base);
-      unitsOn(base);
-      plant(base, 'M7.E1', 'open');
+      const base = alone(what);
       expect((await senseArchiveTree(base)).closedUnits).toEqual([]);
       expect(planned(await buildArchiveReport(base))).toEqual([]);
       const before = snapshotTree(base);

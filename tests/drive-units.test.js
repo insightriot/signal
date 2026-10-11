@@ -4,15 +4,14 @@
 // already finished here. Real git, temp repositories.
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { execFileSync } from 'node:child_process';
-
 import { proposeEpicCandidates } from '../plugin/tools/lib/drive.js';
 import { findWorkOnOtherBranches } from '../plugin/tools/lib/branch-work.js';
-import { cleanupUnitProjects, plant, plantBroken, put, retroFor, SHA, state, tempProject, unitsOn } from './helpers/unit-fixture.js';
+import {
+  branchRepo, cleanupUnitProjects, plant, plantBroken, put, SHA, SHIPPED, state, tempProject, unitsOn,
+} from './helpers/unit-fixture.js';
 
 afterEach(cleanupUnitProjects);
 
-const SHIPPED = ['DISCUSS (2026-09-01)', 'SHIP (2026-09-02)'];
 const open = (r) => r.candidates.filter((c) => c.source === 'STATE.md (open Epic)').map((c) => c.id);
 
 function project({ completed = [] } = {}) {
@@ -83,27 +82,8 @@ describe('proposeEpicCandidates with unit records (t6.4)', () => {
 
 // ── findWorkOnOtherBranches ─────────────────────────────────────────────────
 
-const g = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
-
-// `main` holds a shipped M7.E9; branch `feat/lantern` has M7.E1 open at EXECUTE.
-// `retro`: HEAD carries M7.E1's retrospective, which is what said "finished here".
-function repo({ retro }) {
-  const base = tempProject('sig-branch-units-');
-  g(base, 'init', '-q', '-b', 'main');
-  g(base, 'config', 'user.email', 't@example.com');
-  g(base, 'config', 'user.name', 'T');
-  g(base, 'config', 'commit.gpgsign', 'false');
-  put(base, '.planning/STATE.md', state({ epic: 'M7.E9', phase: 'SHIP', completed: SHIPPED }));
-  if (retro) put(base, '.planning/M7.E1-RETROSPECTIVE.md', retroFor('M7.E1'));
-  g(base, 'add', '-A');
-  g(base, 'commit', '-q', '-m', 'init');
-  g(base, 'checkout', '-q', '-b', 'feat/lantern');
-  put(base, '.planning/STATE.md', state({ epic: 'M7.E1', phase: 'EXECUTE', completed: ['DISCUSS (2026-09-03)'] }));
-  g(base, 'add', '-A');
-  g(base, 'commit', '-q', '-m', 'work');
-  g(base, 'checkout', '-q', 'main');
-  return base;
-}
+// `main` holds a shipped M7.E9; `feat/lantern` has M7.E1 open (`branchRepo`).
+const repo = branchRepo;
 const openElsewhere = async (base) => (await findWorkOnOtherBranches(base, { localEpic: 'M7.E9' })).open.map((o) => o.epic);
 
 describe('findWorkOnOtherBranches with unit records (t6.4)', () => {

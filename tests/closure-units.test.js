@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { resolveClosures, resolveUnitClosure, CLOSURE } from '../plugin/tools/lib/closure.js';
 import { isEpicDone } from '../plugin/tools/lib/retrospective.js';
 import {
-  cleanupUnitProjects, contradiction, HOLD_REASON, PASS, plant, plantBroken, put, retroFor, state, tempProject, unitsOn,
+  alone, ALONE, cleanupUnitProjects, contradiction, HOLD_REASON, plant, plantBroken, put, state, tempProject, unitsOn,
 } from './helpers/unit-fixture.js';
 
 afterEach(cleanupUnitProjects);
@@ -128,22 +128,10 @@ describe('resolveUnitClosure with unit records (t6.1)', () => {
   });
 });
 
-describe('AC6.2 — with an open record, nothing on disk closes the unit (resolveClosures)', () => {
-  // One unit, its record open, and ONE thing that used to mean closed.
-  const cases = {
-    'a filled retrospective': (b) => put(b, '.planning/M7.E1-RETROSPECTIVE.md', retroFor('M7.E1')),
-    'a PASS verdict': (b) => put(b, '.planning/M7.E1-VERIFICATION.md', PASS('M7.E1')),
-    'a "shipped" milestone row': (b) => put(b, '.planning/MILESTONE-7.md', '# Milestone 7\n\n| Epic | Status |\n|---|---|\n| `M7.E1` | ✅ shipped 2026-09-01 |\n'),
-    'a VERIFICATION under archive/': (b) => put(b, '.planning/archive/M7/E1/M7.E1-VERIFICATION.md', PASS('M7.E1')),
-  };
-  for (const [what, write] of Object.entries(cases)) {
+describe('AC6.2 — with an open record, nothing on disk closes the unit (resolveClosures, isEpicDone)', () => {
+  for (const what of Object.keys(ALONE)) {
     it(`${what} alone`, async () => {
-      const base = tempProject();
-      put(base, '.planning/STATE.md', state());
-      put(base, '.planning/M7.E1-PLAN.md', '# plan\n');
-      write(base);
-      unitsOn(base);
-      plant(base, 'M7.E1', 'open');
+      const base = alone(what);
       expect(byUnit(await resolveClosures(base))['M7.E1']).toMatchObject({ status: CLOSURE.OPEN, source: 'record' });
       expect(isEpicDone(base, 'M7.E1').status).toBe('not-done');
     });

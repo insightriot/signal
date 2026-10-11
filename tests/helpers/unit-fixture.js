@@ -16,6 +16,7 @@
 //
 // Not imported from a test file: importing one registers its tests twice.
 
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -155,5 +156,62 @@ export function contradiction({ units = false, store = false } = {}) {
     plant(base, 'M7.E4', 'open');
     plant(base, 'M7.E9', 'closed');
   }
+  return base;
+}
+
+/**
+ * AC6.2's four: each is ONE thing on disk that used to mean "this unit is
+ * closed". `alone(what)` is a project with M7.E1's plan, that one thing, and a
+ * unit record for M7.E1 that is OPEN.
+ */
+export const ALONE = Object.freeze({
+  'a filled retrospective': (b) => put(b, '.planning/M7.E1-RETROSPECTIVE.md', retroFor('M7.E1')),
+  'a PASS verdict': (b) => put(b, '.planning/M7.E1-VERIFICATION.md', PASS('M7.E1')),
+  'a "shipped" milestone row': (b) =>
+    put(b, '.planning/MILESTONE-7.md', '# Milestone 7\n\n| Epic | Status |\n|---|---|\n| `M7.E1` | ✅ shipped 2026-09-01 |\n'),
+  'a VERIFICATION under archive/': (b) => put(b, '.planning/archive/M7/E1/M7.E1-VERIFICATION.md', PASS('M7.E1')),
+});
+
+/** @param {keyof typeof ALONE} what  @param {{store?: boolean}} [opts] — `store`: a v2 store with `SIG-1` queued in M7.E1 */
+export function alone(what, { store = false } = {}) {
+  const base = tempProject('sig-unit-alone-');
+  put(base, '.planning/STATE.md', state({ body: NARRATIVE }));
+  put(base, '.planning/M7.E1-PLAN.md', '# M7.E1 plan\n');
+  ALONE[what](base);
+  if (store) {
+    put(base, '.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n');
+    put(base, recordPath('SIG-1'), serializeRecord(item('SIG-1', 'M7.E1')));
+  }
+  unitsOn(base);
+  plant(base, 'M7.E1', 'open');
+  return base;
+}
+
+const g = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+
+/** What `completed_phases` holds once an Epic has shipped. */
+export const SHIPPED = Object.freeze(['DISCUSS (2026-09-01)', 'SHIP (2026-09-02)']);
+
+/**
+ * A real git repository: `main` (checked out) holds a shipped M7.E9, and the
+ * branch `feat/lantern` has M7.E1 open at EXECUTE. `retro`: `main` carries
+ * M7.E1's retrospective, which is what said "already finished here" before
+ * unit records.
+ */
+export function branchRepo({ retro }) {
+  const base = tempProject('sig-unit-branches-');
+  g(base, 'init', '-q', '-b', 'main');
+  g(base, 'config', 'user.email', 't@example.com');
+  g(base, 'config', 'user.name', 'T');
+  g(base, 'config', 'commit.gpgsign', 'false');
+  put(base, '.planning/STATE.md', state({ epic: 'M7.E9', phase: 'SHIP', completed: SHIPPED }));
+  if (retro) put(base, '.planning/M7.E1-RETROSPECTIVE.md', retroFor('M7.E1'));
+  g(base, 'add', '-A');
+  g(base, 'commit', '-q', '-m', 'init');
+  g(base, 'checkout', '-q', '-b', 'feat/lantern');
+  put(base, '.planning/STATE.md', state({ epic: 'M7.E1', phase: 'EXECUTE', completed: ['DISCUSS (2026-09-03)'] }));
+  g(base, 'add', '-A');
+  g(base, 'commit', '-q', '-m', 'work');
+  g(base, 'checkout', '-q', 'main');
   return base;
 }
