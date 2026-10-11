@@ -27,7 +27,8 @@ import { applyKeyedReplacements, computeLinkEdits } from './archive-tree.js';
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
 import { assertRealInsidePlanning } from './path-confine.js';
-import { EPIC_ID_STRICT_RE, parseFrontmatter, StateSchemaError, stringifyFrontmatter } from './state.js';
+import { EPIC_ID_STRICT_RE, parseFrontmatter, setCurrentEpic, StateSchemaError, stringifyFrontmatter } from './state.js';
+import { assertUnitId, getUnit, hasUnitsSafe, openUnit, reopenUnit, unitClosure } from './unit-records.js';
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
 import { assertNoHandKeptLists, EPIC_README } from './work-generate.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -448,3 +449,109 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     return { status: 'closed', from: fromRel, to: toRel, moved: moved.map((m) => m.to), rewritten, close: record };
   });
 }
+
+// ── Opening an Epic (M6.E16 t3.1, AC3.1, AC3.3) ─────────────────────────────
+
+// A unit's close as one line: the reason and date, then the PR, the release
+// and the words, each when recorded.
+function closeLine(close) {
+  const parts = [`${close.reason}, ${String(close.at).slice(0, 10)}`];
+  if (close.pr) parts.push(`PR ${close.pr}`);
+  if (close.release) parts.push(`release ${close.release}`);
+  if (close.words) parts.push(close.words);
+  return parts.join('; ');
+}
+
+/**
+ * Open an Epic: create its unit record and set `current_epic`
+ * (`setCurrentEpic`, `state.js`). What `/sig:discuss --epic` and
+ * `/sig:new-project --epic` call.
+ *
+ * **On a project with no unit records** (`hasUnitsSafe(baseDir).has` is
+ * false — which includes a `units/` folder it refuses to read) this calls
+ * `setCurrentEpic` and nothing else: no record is created, nothing is
+ * checked first, and its errors are `setCurrentEpic`'s own.
+ *
+ * **On a project with unit records**, Epic IDs only (`M6.E16`; another unit
+ * name is created by the migration, `D-M6E16-13`):
+ *
+ * - no record for the Epic → `openUnit` creates one (`unit: 'created'`);
+ * - its record is open, or closing → the record is left as it is
+ *   (`'existing'`); coming back to an open Epic is normal;
+ * - its record is closed (held or not) → refused (CONFLICT) with the close
+ *   line, unless `force` is true: then `reopenUnit` records a `reopened`
+ *   event whose reason names the override (`'reopened'`).
+ *
+ * Order. Everything that can refuse is checked first, and a refusal writes
+ * nothing: the ID, `by`, the store, the unit's record (a broken one is
+ * refused, SCHEMA), the closed check. Then `setCurrentEpic`, then the record.
+ * `setCurrentEpic` goes first because it has refusals of its own (no
+ * `STATE.md` at schema 1; a phase log with nowhere safe to be archived), and
+ * a record is never deleted — written first, a refused roll would leave a
+ * record for an Epic that was never opened. If the record write then fails
+ * (the lock is held, or the disk), `current_epic` already names the Epic: the
+ * error says so, and calling `openEpic` again finishes the open, because
+ * `setCurrentEpic` on the Epic already set changes nothing.
+ *
+ * @param {string} baseDir
+ * @param {string} epicId
+ * @param {{by: string, force?: boolean}} [open] — `by` is required when the project has unit records
+ * @returns {Promise<{epic: string, unit: 'created'|'existing'|'reopened'|'no-records'}>}
+ * @throws {WorkStoreError} SCHEMA (not an Epic ID, no `by`, a broken record), CONFIG (unit records, and
+ *   the store is off or v1), CONFLICT (the unit is closed and `force` is not true); after `current_epic`
+ *   was set, the record write's own code (LOCKED, IO, …) with a message saying what stands
+ * @throws {StateWriteError} as `setCurrentEpic`
+ */
+export async function openEpic(baseDir, epicId, open = {}) {
+  if (!hasUnitsSafe(baseDir).has) {
+    await setCurrentEpic(baseDir, epicId);
+    return { epic: epicId, unit: 'no-records' };
+  }
+  const { by, force = false } = open;
+  assertEpicId(epicId);
+  if (typeof by !== 'string' || by.trim() === '') {
+    throw new WorkStoreError('SCHEMA', `${epicId}: opening an Epic records who opened it — pass \`by\`. Nothing was written.`);
+  }
+  assertWritable(baseDir);
+
+  let step;
+  if (unitClosure(baseDir, epicId) === 'no-record') {
+    assertUnitId(baseDir, epicId);
+    step = { unit: 'created', did: 'no unit record was created', write: () => openUnit(baseDir, epicId, { by }) };
+  } else {
+    const unit = getUnit(baseDir, epicId);
+    if (unit.status !== 'closed') {
+      step = { unit: 'existing', write: null };
+    } else {
+      const line = closeLine(unit.close);
+      if (force !== true) {
+        throw new WorkStoreError('CONFLICT', `${epicId} is closed (${line})${unit.held ? ', and held' : ''} — nothing was opened. `
+          + 'To open it again, call openEpic with `force: true` (the `--epic` override): that records a reopen on its unit record.');
+      }
+      const reason = `opened again with the --epic override (openEpic, force) — it was closed: ${line}`;
+      step = { unit: 'reopened', did: 'its unit record is still closed', write: () => reopenUnit(baseDir, epicId, { by, reason }) };
+    }
+  }
+
+  await setCurrentEpic(baseDir, epicId);
+  if (step.write) {
+    let failure = null;
+    try {
+      const out = await step.write();
+      if (out?.aborted) failure = new WorkStoreError('IO', `the write was stopped (${out.aborted})`);
+    } catch (err) {
+      failure = err;
+    }
+    if (failure) {
+      const wrapped = new WorkStoreError(
+        failure instanceof WorkStoreError ? failure.code : 'IO',
+        `${epicId}: current_epic is now ${epicId} in STATE.md, but ${step.did} — ${failure?.message ?? String(failure)} `
+        + `Call openEpic(baseDir, '${epicId}', …) again with the same arguments to finish: current_epic is already set, so only the record is written.`,
+      );
+      wrapped.cause = failure;
+      throw wrapped;
+    }
+  }
+  return { epic: epicId, unit: step.unit };
+}
+

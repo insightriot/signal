@@ -86,3 +86,40 @@ describe('AC3.4 — commands direct store-on work to /sig:item and the library',
     }
   });
 });
+
+// M6.E16 AC3.1 (t3.1) — the two commands that open an Epic do it through
+// `openEpic` (`work-ops.js`), which creates the unit record and then calls
+// `setCurrentEpic`. A presence check, with the caveat at the top of this file.
+describe('M6.E16 AC3.1 — the commands that open an Epic name openEpic', () => {
+  const section = (text, from, to) => {
+    const start = text.indexOf(from);
+    expect(start, `no "${from}" heading`).toBeGreaterThan(-1);
+    const end = text.indexOf(to, start + from.length);
+    return text.slice(start, end === -1 ? undefined : end);
+  };
+  const OPENERS = [
+    ['discuss', '## Epic mode (', '\n## Workflow'],
+    ['new-project', '### 1b. Epic mode', '\n### 2'],
+  ];
+
+  it('openEpic is a real lib export', () => {
+    expect(EXPORTS.has('openEpic')).toBe(true);
+  });
+
+  it.each(OPENERS)('%s.md opens the Epic with openEpic, from work-ops.js', (name, from, to) => {
+    const text = section(read(name), from, to);
+    expect(text).toMatch(/call `openEpic\(baseDir, resolvedId, \{ ?by/);
+    expect(text).toContain('tools/lib/work-ops.js');
+  });
+
+  it.each(OPENERS)('%s.md no longer tells the reader to call setCurrentEpic directly', (name, from, to) => {
+    expect(section(read(name), from, to)).not.toMatch(/call `setCurrentEpic\(/);
+  });
+
+  it.each(OPENERS)('%s.md says a closed Epic is refused, and what `force` is for', (name, from, to) => {
+    const text = section(read(name), from, to);
+    expect(text).toMatch(/closed/);
+    expect(text).toMatch(/`force: true`/);
+  });
+});
+
