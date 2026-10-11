@@ -257,10 +257,17 @@ export async function checkReaders(base, readers) {
   return out;
 }
 
-const RECORD_RE = /^\.planning\/work\/items\/[^/]+\/[^/]+\.json$/;
+// The record kinds a writer is judged on (a list since M6.E16.S1): `re` matches
+// a record file's path, `pathOf` is that kind's one path resolver. Items only,
+// until a second kind's library exists.
+const RECORD_KINDS = [
+  { re: /^\.planning\/work\/items\/[^/]+\/[^/]+\.json$/, pathOf: recordPath },
+];
+const kindOf = (rel) => RECORD_KINDS.find((k) => k.re.test(rel));
 
 /**
- * Run one writer and judge every record file it touched: a changed record
+ * Run one writer and judge every record file it touched, of every kind in
+ * `RECORD_KINDS`: a changed record
  * gained exactly one event with the old ones an unchanged prefix; no record
  * moved or vanished; a new record sits at its recordPath with `newEvents`
  * events (default 1); and at least one record changed.
@@ -279,7 +286,7 @@ export async function checkWriter(base, name, { run, newEvents = 1 }) {
       return null;
     }
   };
-  for (const rel of diff(before, after).filter((p) => RECORD_RE.test(p))) {
+  for (const rel of diff(before, after).filter((p) => kindOf(p))) {
     touched += 1;
     if (!after.has(rel)) {
       out.push(`${name}: ${rel} removed or moved — a record never moves (AC1.1)`);
@@ -290,7 +297,7 @@ export async function checkWriter(base, name, { run, newEvents = 1 }) {
     if (!before.has(rel)) {
       let expected;
       try {
-        expected = recordPath(now.id);
+        expected = kindOf(rel).pathOf(now.id);
       } catch {
         expected = null;
       }

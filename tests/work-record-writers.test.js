@@ -45,15 +45,13 @@ const DIRS = ['plugin/tools/lib', 'plugin/hooks'];
 const WRITE_HELPERS = 'plugin/tools/lib/work-write.js';
 const OWNERS = ['plugin/tools/lib/work-records.js', WRITE_HELPERS];
 
-const RECORD_MARKERS = [
-  /\bserializeRecord\b/,
-  /\brecordPath\(/,
-  /work\/items/,
-  /(['"`])items\1/,
-  /\bwalkFiles\(/,
-  /\blistRecords\(/,
-  /\bgetRecord\(/,
+// How code names a record: the markers every kind shares, then each kind's own
+// (a list since M6.E16.S1 — a second record kind adds a row, not a second scan).
+const SHARED_MARKERS = [/\bserializeRecord\b/, /\bwalkFiles\(/];
+const KIND_MARKERS = [
+  { kind: 'item', markers: [/\brecordPath\(/, /work\/items/, /(['"`])items\1/, /\blistRecords\(/, /\bgetRecord\(/] },
 ];
+const RECORD_MARKERS = [...SHARED_MARKERS, ...KIND_MARKERS.flatMap((k) => k.markers)];
 const PRIMITIVES = ['writeFile', 'writeFileSync', 'writeSync', 'atomicWrite', 'appendFile', 'appendFileSync', 'rename',
   'renameSync', 'copyFile', 'copyFileSync', 'cpSync', 'cp', 'createWriteStream'];
 const OPEN_FOR_WRITE = /\bopen(?:Sync)?\(.*(['"`])(?:w|a|r\+)[x+]*\1/;
@@ -227,6 +225,12 @@ describe('no module but work-records.js writes record files (AC2.2, REVIEW I5)',
 });
 
 describe('the record-writer scan bites (self-test)', () => {
+  it('no marker was lost when the list was split by kind: the seven it had are the seven it has', () => {
+    expect(RECORD_MARKERS.map(String).sort()).toEqual([
+      /\bserializeRecord\b/, /\brecordPath\(/, /work\/items/, /(['"`])items\1/, /\bwalkFiles\(/, /\blistRecords\(/, /\bgetRecord\(/,
+    ].map(String).sort());
+  });
+
   it('a module that serializes a record and writes it is found', () => {
     const planted = [
       "import { serializeRecord } from './work-record.js';",
