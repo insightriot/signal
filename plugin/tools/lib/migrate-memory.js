@@ -87,6 +87,21 @@ export function parseMigrateArgs(argv = []) {
         parsed.key = next;
         i++; // consume VALUE
       }
+    } else if (token === '--also') {
+      // `--also <ID>:dropped:<words>`, repeatable (M6.E16 t7.2): a unit no
+      // source names, declared closed as dropped. Split at the first two
+      // colons, so the words may hold one. A value with a part missing is
+      // passed on as it is: the run refuses it and says why.
+      const next = args[i + 1];
+      const value = typeof next === 'string' && !next.startsWith('--') ? next : undefined;
+      if (value !== undefined) i++; // consume VALUE
+      const one = value === undefined ? -1 : value.indexOf(':');
+      const two = one === -1 ? -1 : value.indexOf(':', one + 1);
+      (parsed.also ??= []).push({
+        id: one === -1 ? value : value.slice(0, one),
+        reason: one === -1 ? undefined : value.slice(one + 1, two === -1 ? undefined : two),
+        words: two === -1 ? undefined : value.slice(two + 1),
+      });
     }
   }
   return parsed;
