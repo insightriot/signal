@@ -1798,7 +1798,9 @@ export function listThemes(baseDir, filter = {}) {
  *   exists but is broken is reported as broken, not missing);
  * - `duplicate-id` — `findDuplicateIds` (the relocated v1 folder is skipped);
  * - `view-stale` — a view differs from, or is missing against, its in-memory
- *   regeneration, or the regeneration failed; or a `work/history/*.md` file
+ *   regeneration, or the regeneration failed; with unit records the views
+ *   include `work/EPICS.md` as rendered from them and the current milestone
+ *   file's Epic table (M6.E16 t5.4, AC7.4); or a `work/history/*.md` file
  *   is on disk that no regeneration produces (a reopen, or one made by hand).
  *
  * `opts.regenerateToMemory(baseDir)` is the view generator, injected; by
@@ -1862,6 +1864,8 @@ export function checkRecords(baseDir, opts = {}) {
   });
 }
 
+const MILESTONE_VIEW_RE = /^\.planning\/MILESTONE-[^/]+\.md$/;
+
 // Every view that differs from its in-memory regeneration, as findings.
 function staleViews(baseDir, regenerate) {
   const stale = (path, message) => ({ code: 'view-stale', id: null, path, message: `${path}: ${message}` });
@@ -1881,7 +1885,16 @@ function staleViews(baseDir, regenerate) {
       out.push(stale(rel, err.code === 'ENOENT' ? 'missing — regenerate the views' : `could not be read (${err.code ?? err.message})`));
       continue;
     }
-    if (disk !== text) out.push(stale(rel, 'differs from a regeneration of the records — edited by hand, or not regenerated'));
+    if (disk === text) continue;
+    // The milestone file is a person's document with one generated region
+    // (M6.E16 t5.4, AC7.4): the regeneration is built from the file as it is
+    // now, so only the Epic table between its markers can differ.
+    if (MILESTONE_VIEW_RE.test(rel)) {
+      out.push(stale(rel, 'its Epic table (between the signal:epics markers) differs from a regeneration of the unit records — '
+        + 'edited by hand, or not regenerated'));
+    } else {
+      out.push(stale(rel, 'differs from a regeneration of the records — edited by hand, or not regenerated'));
+    }
   }
   // A history file on disk that no regeneration produces (REVIEW pass 1):
   // regeneration never deletes one, so reopening the only item closed in an old
