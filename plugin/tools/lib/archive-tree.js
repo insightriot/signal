@@ -39,6 +39,7 @@ import { realpathSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative, sep, posix } from 'node:path';
 
 import { deriveUnits, suffixOf } from './work-units.js';
+import { isSafeUnitName } from './unit-name.js';
 
 import { PLANNING_DIR, EPIC_ID_STRICT_RE, compareEpicIds } from './state.js';
 import { atomicWrite } from './atomic-write.js';
@@ -89,29 +90,10 @@ export function toPosix(p) {
  * @param {{scaffoldSuffixes?: string[]}} [opts]
  * @returns {{moves: Array<{from,to}>, moveMap: Map<string,string>}}
  */
-// M5.E18 S6 (NFR4) — what may become a directory name under `.planning/archive/`.
-//
-// Units are DERIVED from filenames (S1), so a `/` cannot occur in practice and
-// the real corpus has no hostile name. That is luck of inventory, not safety:
-// the derivation rule could widen, and a project could name a file anything. So
-// the constraint is stated rather than assumed.
-//
-// First character must be alphanumeric — that alone blocks `.`, `..`, `.hidden`
-// and `/abs`. The charset excludes `/` and `\`. `..` anywhere is rejected
-// separately because `.` must remain legal INSIDE a name: `M4.5.E1` and `v0.1.6`
-// are both real units.
-const SAFE_UNIT_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-
-/**
- * Is this unit name safe to use as a path component under `.planning/archive/`?
- * @param {unknown} unit
- * @returns {boolean}
- */
-export function isSafeUnitName(unit) {
-  if (typeof unit !== 'string' || unit.length === 0 || unit.length > 100) return false;
-  if (unit.includes('..')) return false;
-  return SAFE_UNIT_RE.test(unit);
-}
+// M5.E18 S6 (NFR4) — what may become a directory name under `.planning/archive/`
+// is `isSafeUnitName`, which lives in the leaf module `unit-name.js` (M6.E16 S6)
+// and is re-exported here for its callers.
+export { isSafeUnitName };
 
 /**
  * Where a closed unit's scaffold archives to.

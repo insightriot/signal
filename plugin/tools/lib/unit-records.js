@@ -37,9 +37,9 @@ import { execFileSync } from 'node:child_process';
 import { lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 
-import { isSafeUnitName } from './archive-tree.js';
 import { atomicWrite } from './atomic-write.js';
 import { PHASES } from './state.js';
+import { isSafeUnitName } from './unit-name.js';
 import { UNIT_KIND, UNIT_SCHEMA, foldUnit } from './unit-record.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { assertWritable } from './work-records.js';
@@ -78,7 +78,7 @@ function shown(value) {
 }
 
 // The charset and length rule, which is what makes an ID safe as a file name:
-// `isSafeUnitName` (`archive-tree.js`), reused so the archive and the store
+// `isSafeUnitName` (`unit-name.js`), reused so the archive and the store
 // cannot disagree about what a unit name is.
 function assertShape(id) {
   if (!isSafeUnitName(id)) {
