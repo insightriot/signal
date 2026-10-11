@@ -739,6 +739,47 @@ export async function confirmUnitClose(baseDir, id, confirm = {}, opts = {}) {
 }
 
 /**
+ * The shipped closes `confirmCloses` (`work-records.js`) is about to write,
+ * built and checked and NOT written (M6.E16 t4.2). It confirms item closes and
+ * unit closes in one call, under one take of the store's lock, and writes both
+ * all or nothing — so it cannot call `confirmUnitClose`, which takes the lock
+ * itself. This is that function's body up to the write: each record is
+ * re-read under the caller's lock (`handle`), and planned only if it is still
+ * closing on the same proof. The event is `confirmUnitClose`'s: reason
+ * `shipped`, the request's proof, and its `pr` and `release`.
+ *
+ * Reads only. As `confirmUnitClose`, it does not check that the commit is on
+ * the default branch: the caller has.
+ *
+ * @param {{baseDir: string, key: string}} handle — the caller's lock
+ * @param {Array<{id: string, proof: string}>} candidates
+ * @param {{at: string, by: string}} confirm
+ * @returns {{planned: Array<{next: object, text: string, oldText: string, abs: string}>, changed: string[]}}
+ *   `planned`: one per unit to write (`text` its new bytes, `oldText` its bytes now);
+ *   `changed`: units now closing on another proof. One that is no longer closing is in neither.
+ * @throws {WorkStoreError} SCHEMA (a broken record), NOT_FOUND
+ */
+export function planUnitConfirms(handle, candidates, { at, by }) {
+  const planned = [];
+  const changed = [];
+  for (const c of candidates) {
+    const { entry, text } = readForWrite(handle, c.id);
+    if (entry.status !== 'closing') continue; // closed or reopened meanwhile: nothing to confirm
+    if (entry.closing_proof !== c.proof) {
+      changed.push(c.id);
+      continue;
+    }
+    const request = latestRequest(entry.record);
+    const event = pruneUndefined({
+      type: 'closed', at, by, reason: 'shipped', proof: c.proof, pr: request?.pr, release: request?.release,
+    });
+    const next = withEvent(entry, event);
+    planned.push({ next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) });
+  }
+  return { planned, changed };
+}
+
+/**
  * Close a unit directly, as `dropped` (it stopped, or its work went elsewhere;
  * `words` required) or as `legacy` (it was over before unit records existed;
  * `words`, `pr` and `release` carry what was written down at the time). Legal

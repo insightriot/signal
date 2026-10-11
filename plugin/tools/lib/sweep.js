@@ -47,7 +47,7 @@ import { ALL_DRIFT_CHECKS, REACH } from './published-facts.js';
 import { backlogDischargeStatus, storeDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
 import { isStoreOn } from './work-store.js';
 import { checkRecords, listClosing, listRecords, recordPath, storeVersion } from './work-records.js';
-import { checkUnits } from './unit-records.js';
+import { checkUnits, UNITS_REL } from './unit-records.js';
 import { runConfirmCloses } from './close-confirm.js';
 
 const PLANNING_DIR = '.planning';
@@ -498,7 +498,7 @@ export async function confirmClosesInSweep(baseDir, opts = {}) {
     const what = out.ran ? 'closes not confirmed' : 'closes not checked';
     return [mkFinding('closes-confirmed', 'advisory', WORK_MD_REL, `${what} — ${out.error}`)];
   }
-  return out.confirmed.map((id) =>
+  const items = out.confirmed.map((id) =>
     mkFinding(
       'closes-confirmed',
       'advisory',
@@ -506,6 +506,17 @@ export async function confirmClosesInSweep(baseDir, opts = {}) {
       `${id} confirmed closed — its fix commit is on the default branch. The sweep wrote its closed event ` +
         'and regenerated the views; commit them.'
     ));
+  // A unit's close is confirmed by the same call (M6.E16 t4.2): the sweep
+  // wrote that record too, so it is named too.
+  const units = (out.units?.confirmed ?? []).map((id) =>
+    mkFinding(
+      'closes-confirmed',
+      'advisory',
+      `${UNITS_REL}/${id}.json`,
+      `${id} confirmed closed — the commit its close was requested with is on the default branch. ` +
+        'The sweep wrote its closed event; commit its record.'
+    ));
+  return [...items, ...units];
 }
 
 // CLAUDE.md bloat threshold (AD6). A COARSE advisory nudge — NOT the STATE size

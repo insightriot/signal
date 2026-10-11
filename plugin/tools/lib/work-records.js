@@ -60,6 +60,7 @@ import {
   shallowProbe,
   withEvent,
   withWorkLock,
+  writePlanned,
 } from './work-write.js';
 
 const ITEMS_DIR = 'items';
@@ -1410,12 +1411,24 @@ const latestRequest = (record) => record.events.findLast((e) => e.type === 'clos
  * unless some commit is confirmed. A broken record anywhere in the store
  * refuses the run (SCHEMA), before git and again under the lock: all or nothing.
  *
+ * **Unit closes too, on a project with unit records** (M6.E16 t4.2, AC4.2):
+ * every unit record reading *closing* is classified by the same rule, against
+ * the same ref, and confirmed in the same call — under the same one take of
+ * the lock, in the same all-or-nothing write as the items. A unit's event is
+ * `closed` with reason `shipped`, the request's proof, and the `pr` and
+ * `release` the request carried. The result then has a `units` field; the
+ * item fields mean what they did. A broken unit record refuses the run as a
+ * broken item record does. Without unit records nothing here changes, and
+ * the result has no `units` field.
+ *
  * @param {string} baseDir
  * @param {{now?: Date|string, execFn?: Function, renameFn?: Function,
  *   regenerate?: (baseDir: string) => Promise<void>}} [opts]
  *   `now`: the clock, for the closing `at` and for `stale` (default: now)
- * @returns {Promise<{confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}>}
- *   `stale`: items still closing whose request is more than 14 days before `now`
+ * @returns {Promise<{confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[],
+ *   units?: {confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}>}
+ *   `stale`: items still closing whose request is more than 14 days before `now`;
+ *   `units`: the same three for unit records, by unit ID — present only on a project with unit records
  * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (a broken record), NOT_FOUND (a record removed between the check and the write), LOCKED, IO
  */
 export async function confirmCloses(baseDir, opts = {}) {
@@ -1424,10 +1437,14 @@ export async function confirmCloses(baseDir, opts = {}) {
   if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `confirmCloses: now ${JSON.stringify(opts.now)} is not a date`);
   assertWritable(baseDir);
 
-  const { still, ok } = classifyClosing(baseDir, execFn);
+  const units = await unitRecords(baseDir);
+  const onDefaultBranch = ancestrySplit(baseDir, execFn);
+  const { still, ok } = classifyClosing(baseDir, execFn, { onDefaultBranch });
+  const unitSide = units === null ? null : classifyClosingUnits(units, baseDir, onDefaultBranch);
 
   const confirmed = [];
-  if (ok.length > 0) {
+  const unitsConfirmed = [];
+  if (ok.length > 0 || (unitSide !== null && unitSide.ok.length > 0)) {
     await withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
       const at = now.toISOString();
       const planned = [];
@@ -1443,21 +1460,57 @@ export async function confirmCloses(baseDir, opts = {}) {
         const next = withEvent(entry, { type: 'closed', at, by: CONFIRM_BY, reason: 'fixed', proof: req.proof });
         planned.push({ next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) });
       }
-      if (planned.length === 0) return;
-      await writeRecords(handle, planned, opts);
+      // The unit closes, built and checked by the unit library and written with
+      // the items' — one write, all or nothing.
+      let unitPlanned = [];
+      if (unitSide !== null && unitSide.ok.length > 0) {
+        refuseBroken(units.listUnits(handle.baseDir));
+        const plan = units.planUnitConfirms(handle, unitSide.ok.map((c) => ({ id: c.id, proof: c.req.proof })), { at, by: CONFIRM_BY });
+        for (const id of plan.changed) unitSide.still.set(id, { reason: 'changed', req: unitSide.ok.find((c) => c.id === id).req });
+        unitPlanned = plan.planned;
+      }
+      if (planned.length + unitPlanned.length === 0) return;
+      await writePlanned(handle, [...planned, ...unitPlanned], opts);
       confirmed.push(...planned.map((p) => p.next.id));
-      await regenerateAfter(handle, `${confirmed.join(', ')} ${confirmed.length === 1 ? 'was' : 'were'} confirmed closed`, opts);
+      unitsConfirmed.push(...unitPlanned.map((p) => p.next.id));
+      const all = [...confirmed, ...unitsConfirmed];
+      await regenerateAfter(handle, `${all.join(', ')} ${all.length === 1 ? 'was' : 'were'} confirmed closed`, opts);
     });
   }
 
-  return { confirmed, ...stillAndStale(still, now) };
+  const out = { confirmed, ...stillAndStale(still, now) };
+  if (unitSide !== null) out.units = { confirmed: unitsConfirmed.sort(), ...stillAndStale(unitSide.still, now, byText) };
+  return out;
+}
+
+const byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
+// `(candidates, still) => ok`: which candidates' proof commits are on the
+// default branch now; the others go to `still` with the reason. The ref is
+// resolved once, on the first call with a candidate, and shared by every call
+// — items and units are checked against the same ref.
+function ancestrySplit(baseDir, execFn) {
+  let target;
+  let isShallow;
+  return (candidates, still) => {
+    const ok = [];
+    if (candidates.length === 0) return ok;
+    target ??= defaultBranchRef(baseDir, execFn);
+    isShallow ??= shallowProbe(baseDir, execFn);
+    for (const c of candidates) {
+      const reason = target.reason ?? ancestryFailure(baseDir, c.req.proof, target.ref, execFn, isShallow);
+      if (reason === null) ok.push(c);
+      else still.set(c.id, { reason, req: c.req });
+    }
+    return ok;
+  };
 }
 
 // Every *closing* record, split by whether its proof commit is on the default
 // branch now: `ok` (it is) and `still` (id → {reason, req}, why not). Reads the
 // records and asks git; writes nothing. Shared by `confirmCloses` and
 // `probeCloses`, so the two can never disagree on what is confirmable.
-function classifyClosing(baseDir, execFn, { writing = true } = {}) {
+function classifyClosing(baseDir, execFn, { writing = true, onDefaultBranch = ancestrySplit(baseDir, execFn) } = {}) {
   const listed = listRecords(baseDir);
   refuseBroken(listed, { writing });
   const closing = listed.records.filter((r) => r.status === 'closing');
@@ -1468,18 +1521,23 @@ function classifyClosing(baseDir, execFn, { writing = true } = {}) {
     if (typeof req?.proof !== 'string' || !COMMIT_RE.test(req.proof)) still.set(r.id, { reason: 'invalid-proof', req });
     else candidates.push({ id: r.id, req });
   }
+  return { still, ok: onDefaultBranch(candidates, still) };
+}
 
-  const ok = [];
-  if (candidates.length > 0) {
-    const target = defaultBranchRef(baseDir, execFn);
-    const isShallow = shallowProbe(baseDir, execFn);
-    for (const c of candidates) {
-      const reason = target.reason ?? ancestryFailure(baseDir, c.req.proof, target.ref, execFn, isShallow);
-      if (reason === null) ok.push(c);
-      else still.set(c.id, { reason, req: c.req });
-    }
+// `classifyClosing` for unit records (M6.E16 t4.2): every unit reading
+// *closing*, split the same way, by the same rule and against the same ref.
+// A broken unit record refuses the run, as a broken item record does.
+function classifyClosingUnits(units, baseDir, onDefaultBranch) {
+  const listed = units.listUnits(baseDir);
+  refuseBroken(listed);
+  const still = new Map();
+  const candidates = [];
+  for (const u of listed.units.filter((x) => x.status === 'closing')) {
+    const req = latestRequest(u.record);
+    if (typeof req?.proof !== 'string' || !COMMIT_RE.test(req.proof)) still.set(u.id, { reason: 'invalid-proof', req });
+    else candidates.push({ id: u.id, req });
   }
-  return { still, ok };
+  return { still, ok: onDefaultBranch(candidates, still) };
 }
 
 // The views refuse to regenerate over a broken record, so writing the others
@@ -1498,8 +1556,8 @@ function refuseBroken({ broken }, { writing = true } = {}) {
   throw err;
 }
 
-function stillAndStale(still, now) {
-  const ids = [...still.keys()].sort((a, b) => numberOf(a) - numberOf(b));
+function stillAndStale(still, now, order = (a, b) => numberOf(a) - numberOf(b)) {
+  const ids = [...still.keys()].sort(order);
   const stale = ids.filter((id) => {
     const t = Date.parse(still.get(id).req?.at);
     return Number.isFinite(t) && now.getTime() - t > STALE_CLOSING_MS;

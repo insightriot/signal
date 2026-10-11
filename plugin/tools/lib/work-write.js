@@ -173,35 +173,49 @@ export function recordWriter({ kind, pathOf, entryOf, assertId, readOne, noun })
     return entryOf(next);
   }
 
-  // Write several changed records, all or nothing: on a failure each record
-  // already written is put back to its old bytes. A put-back that fails is named.
+  // Write several changed records, all or nothing (`writePlanned`).
   async function writeRecords(handle, planned, opts) {
-    const done = [];
-    try {
-      for (const p of planned) {
-        confine(handle.baseDir, p.abs);
-        await atomicWrite(p.abs, p.text, { renameFn: opts.renameFn });
-        done.push(p);
-      }
-    } catch (err) {
-      const left = [];
-      for (const p of done.reverse()) {
-        try {
-          await atomicWrite(p.abs, p.oldText);
-        } catch {
-          left.push(p.next.id);
-        }
-      }
-      const wrapped = asWorkStoreError(err, 'IO', left.length
-        ? `the write failed and ${left.join(', ')} could not be put back: `
-        : '');
-      wrapped.leftChanged = left;
-      throw wrapped;
-    }
+    await writePlanned(handle, planned, opts);
     return planned.map((p) => entryOf(p.next));
   }
 
   return { recordText, readForWrite, writeRecord, writeRecords };
+}
+
+/**
+ * Write several changed records, all or nothing: on a failure each record
+ * already written is put back to its old bytes. A put-back that fails is
+ * named. The records may be of different kinds (an item and a unit confirmed
+ * in one call, M6.E16 t4.2): each entry carries the bytes its own library
+ * built and checked.
+ *
+ * @param {{baseDir: string}} handle
+ * @param {Array<{next: {id: string}, text: string, oldText: string, abs: string}>} planned
+ * @param {{renameFn?: Function}} opts
+ */
+export async function writePlanned(handle, planned, opts) {
+  const done = [];
+  try {
+    for (const p of planned) {
+      confine(handle.baseDir, p.abs);
+      await atomicWrite(p.abs, p.text, { renameFn: opts.renameFn });
+      done.push(p);
+    }
+  } catch (err) {
+    const left = [];
+    for (const p of done.reverse()) {
+      try {
+        await atomicWrite(p.abs, p.oldText);
+      } catch {
+        left.push(p.next.id);
+      }
+    }
+    const wrapped = asWorkStoreError(err, 'IO', left.length
+      ? `the write failed and ${left.join(', ')} could not be put back: `
+      : '');
+    wrapped.leftChanged = left;
+    throw wrapped;
+  }
 }
 
 // ── Git: is a commit on the default branch ─────────────────────────────────

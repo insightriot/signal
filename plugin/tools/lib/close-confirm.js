@@ -17,6 +17,10 @@
 // store (whose fixed closes all read as *closing* through the converter, and
 // which v2 code may not write).
 //
+// On a project with unit records (M6.E16 t4.2) `confirmCloses` confirms unit
+// closes in the same call, and the line names units and items separately. With
+// no unit involved the line is what it was.
+//
 // FAIL-OPEN by construction: neither throws nor blocks. A broken `WORK.md` or
 // a failed confirmation becomes the line, never an exception — a briefing, a
 // sweep or a release must not stop because a close could not be checked.
@@ -27,31 +31,55 @@ const LIST_MAX = 5;
 
 const list = (ids) => (ids.length <= LIST_MAX ? ids.join(', ') : `${ids.slice(0, LIST_MAX).join(', ')} and ${ids.length - LIST_MAX} more`);
 
+// The parts of the line for one kind of record. `what` words the two places
+// items and units differ: what changed on a confirm, and what to do about an
+// ambiguous proof.
+function closeParts({ confirmed = [], stillClosing = [], stale = [] }, what) {
+  const parts = [];
+  if (confirmed.length > 0) parts.push(`confirmed ${confirmed.length} (${list(confirmed)}) — ${what.changed(confirmed.length)}`);
+  if (stillClosing.length > 0) {
+    parts.push(`${stillClosing.length} still closing (${list(stillClosing.map((s) => `${s.id}: ${s.reason}`))})`);
+    // SIG-276: the reason alone does not say what to do.
+    if (stillClosing.some((s) => s.reason === 'ambiguous-proof')) parts.push(what.ambiguous);
+  }
+  if (stale.length > 0) parts.push(`${stale.length} closing over 14 days (${list(stale)})${what.stale}`);
+  return parts;
+}
+
+const ITEM_WORDS = {
+  changed: (n) => `${n === 1 ? 'its record' : 'their records'} and the views changed; commit them`,
+  ambiguous: 'ambiguous-proof: the proof is the start of more than one commit — reopen the item and close it again with a longer hash',
+  stale: ' — see /sig:docs-sweep',
+};
+const UNIT_WORDS = {
+  changed: (n) => (n === 1 ? 'its record changed; commit it' : 'their records changed; commit them'),
+  ambiguous: 'ambiguous-proof: the proof is the start of more than one commit — reopen the unit and request its close again with a longer hash',
+  stale: ' — the commit each was requested with is not on the default branch',
+};
+
 /**
  * The one line for a `confirmCloses` result, or `null` when there is nothing
  * to say (nothing confirmed, nothing closing). A confirmation names the files
  * it changed so a person seeing a modified view knows why.
  *
- * @param {{confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}|null} result
+ * When a unit close is involved (`result.units` has anything in it, M6.E16
+ * t4.2) the line names the two kinds separately: `Closes: items — … · units —
+ * …`, or `Closes: units — …` when no item is. With no unit involved it is
+ * the line it was before unit records.
+ *
+ * @param {{confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[],
+ *   units?: {confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}|null} result
  * @returns {string|null}
  */
 export function formatConfirmClosesLine(result) {
   if (!result) return null;
-  const { confirmed = [], stillClosing = [], stale = [] } = result;
-  const parts = [];
-  if (confirmed.length > 0) {
-    const whose = confirmed.length === 1 ? 'its record' : 'their records';
-    parts.push(`confirmed ${confirmed.length} (${list(confirmed)}) — ${whose} and the views changed; commit them`);
-  }
-  if (stillClosing.length > 0) {
-    parts.push(`${stillClosing.length} still closing (${list(stillClosing.map((s) => `${s.id}: ${s.reason}`))})`);
-    // SIG-276: the reason alone does not say what to do.
-    if (stillClosing.some((s) => s.reason === 'ambiguous-proof')) {
-      parts.push('ambiguous-proof: the proof is the start of more than one commit — reopen the item and close it again with a longer hash');
-    }
-  }
-  if (stale.length > 0) parts.push(`${stale.length} closing over 14 days (${list(stale)}) — see /sig:docs-sweep`);
-  return parts.length === 0 ? null : `Closes: ${parts.join(' · ')}`;
+  const parts = closeParts(result, ITEM_WORDS);
+  const unitParts = result.units ? closeParts(result.units, UNIT_WORDS) : [];
+  if (unitParts.length === 0) return parts.length === 0 ? null : `Closes: ${parts.join(' · ')}`;
+  const groups = [];
+  if (parts.length > 0) groups.push(`items — ${parts.join(' · ')}`);
+  groups.push(`units — ${unitParts.join(' · ')}`);
+  return `Closes: ${groups.join(' · ')}`;
 }
 
 const nothing = () => ({ ran: false, confirmed: [], stillClosing: [], stale: [], error: null, line: null });
@@ -73,8 +101,10 @@ const nothing = () => ({ ran: false, confirmed: [], stillClosing: [], stale: [],
  * @param {{now?: Date|string, execFn?: Function, confirm?: Function}} [opts]
  *   `confirm`: the confirmation, injected in tests (default `confirmCloses`)
  * @returns {Promise<{ran: boolean, confirmed: string[], stillClosing: Array<{id: string, reason: string}>,
- *   stale: string[], error: string|null, broken?: string[], line: string|null}>}
+ *   stale: string[], error: string|null, broken?: string[], line: string|null,
+ *   units?: {confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}>}
  *   `broken`: on a refusal over broken records, their IDs (else empty).
+ *   `units`: `confirmCloses`' own, present only on a project with unit records.
  */
 export async function runConfirmCloses(baseDir, opts = {}) {
   let version;
@@ -108,6 +138,7 @@ export async function runConfirmCloses(baseDir, opts = {}) {
     stale: result.stale,
     error: null,
     line: formatConfirmClosesLine(result),
+    ...(result.units ? { units: result.units } : {}),
   };
 }
 
