@@ -448,7 +448,8 @@ function prepareViews(baseDir) {
     throw new WorkStoreError('CONFIG', `${kept.join(', ')} ${kept.length === 1 ? 'is' : 'are'} hand-kept, not generated `
       + '(the first line is not the generated marker). Regenerating would overwrite '
       + `${kept.length === 1 ? 'it' : 'them'} with a view of the records, so nothing was written. If this list `
-      + 'was never migrated, migrate it: `node tools/work-migrate-v2.mjs`. If it was edited by hand, restore '
+      + 'was never migrated (the store was switched on by hand), remove `.planning/work/WORK.md` and run '
+      + '`/sig:docs-migrate --work-store`, which moves the lists into records. If it was edited by hand, restore '
       + 'it from git (`git checkout -- <file>`) and make the change with /sig:item.');
   }
   return views;

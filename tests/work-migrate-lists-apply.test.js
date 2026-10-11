@@ -1,0 +1,807 @@
+// M6.E15 S4 — `/sig:docs-migrate --work-store` on a project whose lists have
+// entries: the dry run lists every planned item, the apply archives the
+// originals, writes the records, regenerates the views (FR6.1, FR6.4, AC1.2,
+// D-M6E15-19, -20, -23, NFR security). See .planning/M6.E15-PLAN.md § S4.
+//
+// Fixtures are invented text in corpus project 1's shapes
+// (`fixtures/work-migrate-corpus1/`); folder names and keys are invented
+// (`tests/private-name-guard.test.js`).
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import {
+  existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync,
+} from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { performance } from 'node:perf_hooks';
+import { fileURLToPath } from 'node:url';
+
+import { runWorkStoreMigrate } from '../plugin/tools/lib/work-migrate-lists.js';
+import { checkRecords, listRecords } from '../plugin/tools/lib/work-records.js';
+import { GENERATED_MARKER } from '../plugin/tools/lib/work-marker.js';
+import { regeneratePlanningIndexCore } from '../plugin/tools/lib/planning-index.js';
+import { runSweep } from '../plugin/tools/lib/sweep.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const FIX = join(__dirname, 'fixtures', 'work-migrate-corpus1');
+const LISTS = ['BUGS.md', 'BACKLOG.md', 'ISSUES-INBOX.md', 'OPEN-QUESTIONS.md'];
+const fixture = (name) => readFileSync(join(FIX, name), 'utf-8');
+const ARCHIVE = '.planning/archive/pre-work-store';
+const VIEWS = ['.planning/BUGS.md', '.planning/BACKLOG.md', '.planning/ISSUES-INBOX.md', '.planning/OPEN-QUESTIONS.md', '.planning/work/EPICS.md'];
+
+const git = (cwd, args, env = {}) => String(execFileSync('git', args, {
+  cwd, stdio: ['ignore', 'pipe', 'ignore'], env: { ...process.env, ...env },
+}));
+const at = (day) => ({ GIT_AUTHOR_DATE: `${day}T12:00:00Z`, GIT_COMMITTER_DATE: `${day}T12:00:00Z` });
+function initRepo(dir) {
+  git(dir, ['init', '-q', '-b', 'main']);
+  git(dir, ['config', 'user.email', 't@t.co']);
+  git(dir, ['config', 'user.name', 'T']);
+  git(dir, ['config', 'commit.gpgsign', 'false']);
+  git(dir, ['config', 'tag.gpgsign', 'false']); // the apply tags the pre-apply HEAD
+}
+const commitAll = (dir, day, msg = 'c') => {
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', msg], at(day));
+};
+
+const STATE = '---\nschema_version: 1\ndocs_layout_version: 3\nphase: PLAN\ncurrent_epic: null\ncurrent_tasks: []\n'
+  + 'completed_phases: []\nblockers: []\n---\n# Project State\n\nbody\n';
+
+// Every file under `dir` (outside .git), with its bytes and mtime.
+function snapshot(dir) {
+  const out = {};
+  const walk = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      if (e.name === '.git') continue;
+      const p = join(d, e.name);
+      if (e.isSymbolicLink()) out[p.slice(dir.length)] = 'link';
+      else if (e.isDirectory()) walk(p);
+      else out[p.slice(dir.length)] = `${statSync(p).mtimeMs}:${readFileSync(p, 'utf-8')}`;
+    }
+  };
+  walk(dir);
+  return out;
+}
+
+let root;
+let base;
+const read = (rel) => readFileSync(join(base, rel), 'utf-8');
+const write = (rel, text) => {
+  mkdirSync(dirname(join(base, rel)), { recursive: true });
+  writeFileSync(join(base, rel), text);
+};
+
+// A git project with the corpus-1 lists. BUGS.md is first committed on
+// 2026-01-05 (title only), then all four lists land on 2026-02-20 — so BUGS.md's
+// first/last dates differ and the other three's are both 2026-02-20.
+function corpusProject({ texts = {} } = {}) {
+  base = join(root, 'leaf-notes');
+  mkdirSync(join(base, '.planning'), { recursive: true });
+  initRepo(base);
+  write('.planning/STATE.md', STATE);
+  write('.planning/BUGS.md', '# Bugs\n');
+  commitAll(base, '2026-01-05');
+  for (const f of LISTS) write(`.planning/${f}`, texts[f] ?? fixture(f));
+  // The subject carries PR #44, which B1 cites: a close needs a reference
+  // that resolves in this repository's history (D-M6E15-24).
+  commitAll(base, '2026-02-20', 'Add the lists (#44)');
+}
+
+beforeEach(() => {
+  root = mkdtempSync(join(tmpdir(), 'signal-wml-'));
+});
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true });
+});
+
+// The dry run's token, which every apply needs (AC6.4).
+const tokenFor = async (key = 'LF') => (await runWorkStoreMigrate(base, { key })).inputHash;
+
+const asideLeft = () => readdirSync(join(base, '.planning')).filter((n) => n.startsWith('.work-store-'));
+
+describe('t4.1 — the dry run lists every planned item and writes nothing (AC1.2)', () => {
+  it('prints the key, per-file counts and every item’s new ID, old ID, title and status', async () => {
+    corpusProject();
+    const before = snapshot(base);
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.refused).toBeUndefined();
+    expect(r.dryRun).toBe(true);
+    expect(r.key).toBe('LF');
+    expect(r.items).toHaveLength(23);
+    expect(r.items.map((i) => i.id)).toEqual(Array.from({ length: 23 }, (_, i) => `LF-${i + 1}`));
+    expect(r.files.map((f) => [f.file, f.items])).toEqual([
+      ['.planning/BUGS.md', 8], ['.planning/BACKLOG.md', 10], ['.planning/ISSUES-INBOX.md', 1], ['.planning/OPEN-QUESTIONS.md', 4],
+    ]);
+    for (const f of r.files) {
+      expect(f.open + f.closed, f.file).toBe(f.items);
+      expect(r.report, f.file).toContain(`${f.file}: ${f.items} items (${f.open} open, ${f.closed} closed, ${f.flagged} flagged), ${f.regions.length} non-item region`);
+    }
+    for (const it of r.items) {
+      const line = r.report.split('\n').find((l) => l.includes(`${it.id} `));
+      expect(line, it.id).toBeDefined();
+      expect(line).toContain(it.title);
+      expect(line).toContain(it.legacy_id ?? '—');
+      expect(line).toMatch(new RegExp(`\\b${it.status}\\b`));
+    }
+    // A dry run never shows a close, only a proposal (D-M6E15-25).
+    expect(r.items.find((i) => i.legacy_id === 'B1')).toMatchObject({ status: 'T', flag: 'looks-finished' });
+    expect(r.items.filter((i) => i.status === 'C')).toEqual([]);
+    expect(r.proposedCloses.map((c) => c.legacyId)).toContain('B1');
+    expect(r.items.find((i) => i.legacy_id === '#244')).toMatchObject({ status: 'T' });
+    expect(r.report).toMatch(/flagged/);
+    expect(typeof r.inputHash).toBe('string');
+    expect(snapshot(base)).toEqual(before);
+  });
+});
+
+describe('t4.1 — apply: originals archived byte-for-byte, records + views written, staged (FR6.1, AC1.3)', () => {
+  it('archives, writes 23 records, regenerates the views, checkRecords is clean, stages and tags', async () => {
+    corpusProject();
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    // The person confirmed the proposed closes (D-M6E15-25), so B1 closes.
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1', confirmCloses: true });
+    expect(r.applied).toBe(true);
+
+    for (const f of LISTS) expect(read(`${ARCHIVE}/${f}`), f).toBe(fixture(f));
+    const manifest = JSON.parse(read(`${ARCHIVE}/MANIFEST.json`));
+    expect(manifest.key).toBe('LF');
+    expect(manifest.items).toHaveLength(23);
+    expect(manifest.items[0].ranges[0]).toEqual({ line: expect.any(Number), endLine: expect.any(Number) });
+    for (const f of LISTS) expect(manifest.files[f].verified, f).toBe(true);
+    // The measured results, not literals (REVIEW I2): the post-swap check, and
+    // the conservation check per file.
+    expect(manifest.verification).toEqual({
+      ok: true,
+      records: 23,
+      checkRecords: JSON.parse(JSON.stringify(checkRecords(base))),
+      conservation: Object.fromEntries(LISTS.map((f) => [f, { lines: fixture(f).split('\n').length, verified: true }])),
+      unaccounted: [],
+    });
+    // One item's ranges are its source lines: B1's lines in the fixture are its body.
+    const b1Item = manifest.items.find((i) => i.legacy_id === 'B1');
+    const [range] = b1Item.ranges;
+    const src = fixture('BUGS.md').split('\n').slice(range.line - 1, range.endLine).join('\n');
+    expect(src).toMatch(/^\| B1 \|/);
+    expect(read(`.planning/work/items/00/${b1Item.id}.md`)).toBe(`Old ID: B1\n\n${src}`);
+    expect(manifest.dates['BUGS.md']).toEqual({ first: '2026-01-05', last: '2026-02-20', source: 'git' });
+
+    const listed = listRecords(base);
+    expect(listed.records).toHaveLength(23);
+    expect(listed.broken).toEqual([]);
+    expect(checkRecords(base)).toEqual([]);
+    const b1 = listed.records.find((x) => x.record.legacy_id === 'B1');
+    expect(b1.record.events.at(-1)).toMatchObject({ type: 'closed', legacy: true });
+    for (const v of VIEWS) expect(read(v).split('\n')[0], v).toBe(GENERATED_MARKER);
+    expect(asideLeft()).toEqual([]);
+
+    const staged = git(base, ['diff', '--cached', '--name-only']).trim().split('\n');
+    for (const f of LISTS) expect(staged).toContain(`${ARCHIVE}/${f}`);
+    expect(staged).toContain(`${ARCHIVE}/MANIFEST.json`);
+    expect(staged).toContain('.planning/work/WORK.md');
+    for (const v of VIEWS) expect(staged).toContain(v);
+    expect(staged.filter((p) => p.startsWith('.planning/work/items/'))).toHaveLength(46);
+    expect(git(base, ['rev-list', '--count', 'HEAD']).trim()).toBe('2'); // not committed
+    expect(r.tag).toBe('pre-work-store-T1');
+    expect(r.revertLine).toContain('git reset --hard pre-work-store-T1');
+    expect(r.report).toContain(r.revertLine);
+    expect(existsSync(join(base, '.planning/work/.lock'))).toBe(false);
+  });
+});
+
+describe('t4.8 — a project with an INDEX.md: the apply regenerates it, stages it, and puts it back on failure', () => {
+  // corpusProject, plus a managed INDEX.md generated from the lists and committed.
+  async function withIndex() {
+    corpusProject();
+    await regeneratePlanningIndexCore(base);
+    commitAll(base, '2026-02-21');
+    return read('.planning/INDEX.md');
+  }
+
+  it('after the apply, /sig:docs-sweep reports no stale INDEX.md and no orphan item files', async () => {
+    const before = await withIndex();
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
+    expect(r.applied).toBe(true);
+    expect(read('.planning/INDEX.md')).not.toBe(before);
+    expect(git(base, ['diff', '--cached', '--name-only']).trim().split('\n')).toContain('.planning/INDEX.md');
+    const { findings } = await runSweep(base);
+    expect(findings.filter((f) => f.check === 'index-freshness')).toEqual([]);
+    expect(findings.filter((f) => f.check === 'orphan-doc' && String(f.file).startsWith('.planning/work/'))).toEqual([]);
+  });
+
+  it('a failure after the INDEX.md regeneration puts INDEX.md back byte for byte', async () => {
+    const before = await withIndex();
+    const fail = (s) => {
+      if (s === 'index') throw new Error('injected failure at index');
+    };
+    await expect(runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', onSwapStep: fail, expectedHash: await tokenFor() })).rejects.toThrow(/injected failure/);
+    expect(read('.planning/INDEX.md')).toBe(before);
+    for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(existsSync(join(base, '.planning/archive'))).toBe(false);
+    expect(git(base, ['status', '--porcelain']).trim()).toBe('');
+  });
+
+  it('a project with no INDEX.md does not get one', async () => {
+    corpusProject();
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
+    expect(r.applied).toBe(true);
+    expect(existsSync(join(base, '.planning/INDEX.md'))).toBe(false);
+  });
+
+  it('a hand-written (foreign) INDEX.md is left as it is, and the report says so', async () => {
+    corpusProject();
+    write('.planning/INDEX.md', '# Our own index\n\nWritten by hand.\n');
+    commitAll(base, '2026-02-21');
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
+    expect(r.applied).toBe(true);
+    expect(read('.planning/INDEX.md')).toBe('# Our own index\n\nWritten by hand.\n');
+    expect(r.report).toMatch(/INDEX\.md.*left as it is/);
+  });
+
+  it('an INDEX.md that is a symbolic link is not followed or written; the report says so', async () => {
+    const outside = join(root, 'outside');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'INDEX.md'), 'outside\n');
+    corpusProject();
+    symlinkSync(join(outside, 'INDEX.md'), join(base, '.planning/INDEX.md'));
+    commitAll(base, '2026-02-21');
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
+    expect(r.applied).toBe(true);
+    expect(readFileSync(join(outside, 'INDEX.md'), 'utf-8')).toBe('outside\n');
+    expect(r.report).toMatch(/INDEX\.md is a symbolic link or not a regular file/);
+  });
+});
+
+describe('t4.2 — built aside, then swapped; a failure mid-swap puts the project back (D-M6E15-20)', () => {
+  it.each(['archive', 'work', 'views', 'verify'])('a failure at the %s step: originals byte-identical, no work/, no archive, tag removed', async (step) => {
+    corpusProject();
+    const before = snapshot(base);
+    const fail = (s) => {
+      if (s === step) throw new Error(`injected failure at ${s}`);
+    };
+    await expect(runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', onSwapStep: fail, expectedHash: await tokenFor() })).rejects.toThrow(/injected failure/);
+    for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(existsSync(join(base, '.planning/archive'))).toBe(false);
+    expect(asideLeft()).toEqual([]);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+    expect(git(base, ['status', '--porcelain']).trim()).toBe('');
+    expect(Object.keys(snapshot(base)).sort()).toEqual(Object.keys(before).sort());
+  });
+});
+
+describe('t4.3 — the input hash covers STATE.md and the four lists (AC6.4)', () => {
+  it('a list edited between the dry run and the apply aborts before any write', async () => {
+    corpusProject();
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    write('.planning/ISSUES-INBOX.md', `${fixture('ISSUES-INBOX.md')}\n## A capture added after the dry run\n`);
+    commitAll(base, '2026-02-21');
+    const before = snapshot(base);
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1' });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/changed since the dry run/);
+    expect(snapshot(base)).toEqual(before);
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+  });
+
+  it('a list deleted between the dry run and the apply → refused, nothing written', async () => {
+    corpusProject();
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    git(base, ['rm', '-q', '.planning/ISSUES-INBOX.md']);
+    commitAll(base, '2026-02-21');
+    const before = snapshot(base);
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1' });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/changed since the dry run/);
+    expect(snapshot(base)).toEqual(before);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+  });
+
+  it('the dry run’s hash moves when any list or STATE.md changes', async () => {
+    corpusProject();
+    const h0 = (await runWorkStoreMigrate(base, { key: 'LF' })).inputHash;
+    write('.planning/OPEN-QUESTIONS.md', `${fixture('OPEN-QUESTIONS.md')}x`);
+    const h1 = (await runWorkStoreMigrate(base, { key: 'LF' })).inputHash;
+    write('.planning/STATE.md', STATE.replace('body', 'edited'));
+    const h2 = (await runWorkStoreMigrate(base, { key: 'LF' })).inputHash;
+    expect(new Set([h0, h1, h2]).size).toBe(3);
+  });
+});
+
+describe('t4.4 — dates from git, else the file’s mtime, stated in the manifest (D-M6E15-19)', () => {
+  it('git: created at each file’s first commit; an undated close at its last commit', async () => {
+    corpusProject();
+    // Confirmed (D-M6E15-25): the close dates are what this test pins.
+    await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor(), confirmCloses: true });
+    const { records } = listRecords(base);
+    const bugs = records.filter((x) => x.record.source === 'migration:BUGS.md');
+    // Exactly BUGS.md's first commit — except an item closed at an earlier
+    // marker date, whose created moves back to it (the manifest's dateNote).
+    const manifest = JSON.parse(read(`${ARCHIVE}/MANIFEST.json`));
+    for (const b of bugs) {
+      const note = manifest.items.find((i) => i.id === b.id).dateNote;
+      const want = note ? note.match(/created moved back to (\d{4}-\d{2}-\d{2})/)[1] : '2026-01-05';
+      expect(b.record.events[0].at.slice(0, 10), b.id).toBe(want);
+    }
+    const inbox = records.filter((x) => x.record.source === 'migration:ISSUES-INBOX.md');
+    for (const b of inbox) expect(b.record.events[0].at.slice(0, 10), b.id).toBe('2026-02-20');
+    const b1 = bugs.find((x) => x.record.legacy_id === 'B1');
+    expect(b1.record.events.at(-1).at.slice(0, 10)).toBe('2026-02-20');
+  });
+
+  it('a list renamed by the layout migration dates from its original first commit, not the rename (t4.8)', async () => {
+    base = join(root, 'leaf-notes');
+    mkdirSync(join(base, '.planning'), { recursive: true });
+    initRepo(base);
+    write('.planning/STATE.md', STATE);
+    write('.planning/FUTURE-IDEAS.md', fixture('ISSUES-INBOX.md'));
+    commitAll(base, '2025-11-02');
+    git(base, ['mv', '.planning/FUTURE-IDEAS.md', '.planning/ISSUES-INBOX.md']);
+    commitAll(base, '2026-02-20', 'layout migration: rename');
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.dryRun).toBe(true);
+    expect(r.dates['ISSUES-INBOX.md']).toEqual({ first: '2025-11-02', last: '2026-02-20', source: 'git' });
+  });
+
+  it('no git: each file’s mtime, and the manifest says so', async () => {
+    base = join(root, 'leaf-notes');
+    mkdirSync(join(base, '.planning'), { recursive: true });
+    write('.planning/STATE.md', STATE);
+    const when = new Date('2026-02-03T12:00:00Z');
+    for (const f of LISTS) {
+      write(`.planning/${f}`, fixture(f));
+      utimesSync(join(base, '.planning', f), when, when);
+    }
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
+    expect(r.applied).toBe(true);
+    expect(r.mode).toBe('fs-backup');
+    const manifest = JSON.parse(read(`${ARCHIVE}/MANIFEST.json`));
+    for (const f of LISTS) expect(manifest.dates[f], f).toEqual({ first: '2026-02-03', last: '2026-02-03', source: 'mtime' });
+    expect(checkRecords(base)).toEqual([]);
+  });
+});
+
+describe('a real secret stops the apply for a decision (NFR security, D-M6E15-23)', () => {
+  const SECRET = `AKIA${'Q'.repeat(16)}`;
+  const withSecret = () => fixture('BUGS.md').replace('not reproduced.', `not reproduced. Logs show ${SECRET}.`);
+
+  it('dry run: lists the hit; apply: aborted, nothing written; acknowledged: applied', async () => {
+    corpusProject({ texts: { 'BUGS.md': withSecret() } });
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(dry.dryRun).toBe(true);
+    expect(dry.sensitiveHits).toEqual([expect.objectContaining({ file: 'BUGS.md', type: 'aws-key' })]);
+    expect(dry.report).toMatch(/sensitive/i);
+
+    const before = snapshot(base);
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1' });
+    expect(r.applied).toBe(false);
+    expect(r.aborted).toBe('sensitive-data-pending');
+    expect(r.hits).toEqual([expect.objectContaining({ file: 'BUGS.md', type: 'aws-key' })]);
+    expect(snapshot(base)).toEqual(before);
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+
+    const ok = await runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T2', acknowledgeSensitive: true });
+    expect(ok.applied).toBe(true);
+    const manifest = JSON.parse(read(`${ARCHIVE}/MANIFEST.json`));
+    expect(JSON.stringify(manifest)).not.toContain(SECRET);
+  });
+
+  it('Signal’s own backlog-key comment (in the corpus BACKLOG.md) does not stop it', async () => {
+    corpusProject();
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(dry.sensitiveHits).toEqual([]);
+  });
+});
+
+describe('t4.6 — a hostile repository: links are text, linked paths are refused (NFR security)', () => {
+  it('a link in list text pointing outside the repo is kept as text and never followed', async () => {
+    const outside = join(root, 'outside');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'secret.txt'), 'TOPSECRET-CONTENT\n');
+    corpusProject({ texts: { 'BUGS.md': `${fixture('BUGS.md')}\n## Reads a file it should not\n\n**Status:** confirmed\n\nSee [the file](../../outside/secret.txt).\n` } });
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', expectedHash: await tokenFor() });
+    expect(r.applied).toBe(true);
+    const { records } = listRecords(base, { bodies: true });
+    const hit = records.find((x) => x.record.title.includes('Reads a file'));
+    const body = read(hit.path.replace(/\.json$/, '.md'));
+    expect(body).toContain('outside/secret.txt');
+    for (const x of records) expect(read(x.path.replace(/\.json$/, '.md'))).not.toContain('TOPSECRET');
+    expect(readFileSync(join(outside, 'secret.txt'), 'utf-8')).toBe('TOPSECRET-CONTENT\n');
+  });
+
+  const refusedBoth = async (pattern, outsideDir) => {
+    const outsideBefore = outsideDir ? snapshot(outsideDir) : null;
+    for (const apply of [false, true]) {
+      const before = snapshot(base);
+      const r = await runWorkStoreMigrate(base, { apply, key: 'LF', stamp: 'T1' });
+      expect(r.refused, `apply: ${apply}`).toBe(true);
+      expect(r.reason).toMatch(pattern);
+      expect(snapshot(base)).toEqual(before);
+      if (outsideDir) expect(snapshot(outsideDir)).toEqual(outsideBefore);
+    }
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+  };
+
+  it('a list file that is a symbolic link (to outside the repo) is refused before any read or write', async () => {
+    const outside = join(root, 'outside');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'BUGS.md'), fixture('BUGS.md'));
+    corpusProject();
+    rmSync(join(base, '.planning/BUGS.md'));
+    symlinkSync(join(outside, 'BUGS.md'), join(base, '.planning/BUGS.md'));
+    commitAll(base, '2026-02-21');
+    await refusedBoth(/BUGS\.md is a symbolic link/, outside);
+  });
+
+  it('.planning/work linked to a folder outside the repo is refused, and nothing lands there', async () => {
+    const outside = join(root, 'outside-work');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'keep.txt'), 'x\n');
+    corpusProject();
+    symlinkSync(outside, join(base, '.planning/work'));
+    commitAll(base, '2026-02-21');
+    await refusedBoth(/symbolic link/, outside);
+  });
+
+  it('.planning linked to a folder outside the repo is refused, and nothing lands there', async () => {
+    const outside = join(root, 'outside-planning');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'STATE.md'), STATE);
+    for (const f of LISTS) writeFileSync(join(outside, f), fixture(f));
+    base = join(root, 'leaf-notes');
+    mkdirSync(base);
+    initRepo(base);
+    symlinkSync(outside, join(base, '.planning'));
+    commitAll(base, '2026-02-20');
+    await refusedBoth(/outside the repo/, outside);
+  });
+});
+
+describe('t4.7 — a dry run on a 400-line list finishes well under 5 s (NFR performance)', () => {
+  it('400-line BACKLOG.md', async () => {
+    const rows = ['# Backlog', ''];
+    for (let i = 1; rows.length < 398; i++) {
+      rows.push(`### #${i} — Idea number ${i} · **roadmap** · small`, `Text about idea ${i}, with a [link](docs/x${i}.md).`,
+        i % 5 === 0 ? `**Done** in v${i}, 2026-02-0${(i % 9) + 1}.` : 'More text.', '');
+    }
+    rows.push('*Last updated: 2026-02-01*', '');
+    expect(rows.length).toBe(400);
+    corpusProject({ texts: { 'BACKLOG.md': rows.join('\n') } });
+    const t0 = performance.now();
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    const ms = performance.now() - t0;
+    expect(r.dryRun).toBe(true);
+    expect(ms).toBeLessThan(5000);
+  });
+});
+
+describe('AC6.2 — a byte the plan cannot account for refuses the whole apply (integration)', () => {
+  it('a segmentation that drops a line → dry run and apply refused, nothing written, no tag', async () => {
+    const { segmentBugs } = await import('../plugin/tools/lib/work-migrate.js');
+    // Drops the last orphan/gap piece, so its lines are in no record or region.
+    const lossy = (text) => {
+      const seg = segmentBugs(text);
+      return { ...seg, gaps: seg.gaps.slice(0, -1) };
+    };
+    corpusProject();
+    for (const apply of [false, true]) {
+      const before = snapshot(base);
+      const r = await runWorkStoreMigrate(base, { apply, key: 'LF', stamp: 'T1', segmenters: { 'BUGS.md': lossy } });
+      expect(r.refused, `apply: ${apply}`).toBe(true);
+      expect(r.reason).toMatch(/could not be planned as records/);
+      expect(r.reason).toMatch(/BUGS\.md: line \d+.* is in no record or region/);
+      expect(snapshot(base)).toEqual(before);
+      expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    }
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+  });
+});
+
+// ── REVIEW pass 1, fix loop 1, batch B ───────────────────────────────────────
+
+// Refused in a dry run and an apply, nothing written; `outsideDir` unchanged too.
+async function refusedEither(pattern, { outsideDir, notIn } = {}) {
+  const outsideBefore = outsideDir ? snapshot(outsideDir) : null;
+  for (const apply of [false, true]) {
+    const before = snapshot(base);
+    const r = await runWorkStoreMigrate(base, { apply, key: 'LF', stamp: 'T1', expectedHash: 'x' });
+    expect(r.refused, `apply: ${apply}`).toBe(true);
+    expect(r.reason).toMatch(pattern);
+    if (notIn) expect(r.reason).not.toContain(notIn);
+    expect(snapshot(base)).toEqual(before);
+    if (outsideDir) expect(snapshot(outsideDir)).toEqual(outsideBefore);
+  }
+  expect(git(base, ['tag', '-l']).trim()).toBe('');
+}
+
+describe('I5 — the lock paths are confined; a leftover work lock is refused (NFR security)', () => {
+  const SECRET = 'TOKEN=very-private-value-0451';
+
+  it('.planning/work/.lock linked to the project’s .env: refused, the .env never read or printed', async () => {
+    corpusProject();
+    writeFileSync(join(base, '.env'), `${SECRET}\n`);
+    mkdirSync(join(base, '.planning/work'));
+    symlinkSync('../../.env', join(base, '.planning/work/.lock'));
+    await refusedEither(/\.planning\/work\/\.lock/, { notIn: 'very-private' });
+    expect(readFileSync(join(base, '.env'), 'utf-8')).toBe(`${SECRET}\n`);
+  });
+
+  // REVIEW pass 2 I-E: the work-lock confinement on its own. The leftover-lock
+  // refusal would also name the path, so the assertion is on the
+  // confinement's own words, and that the leftover refusal did not answer.
+  it('.planning/work/.lock linked outside, nothing else to refuse: the CONFINEMENT refusal answers, not the leftover one', async () => {
+    corpusProject();
+    const outside = join(root, 'outside');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'lock'), `${SECRET}\n0\n`);
+    mkdirSync(join(base, '.planning/work'));
+    symlinkSync(join(outside, 'lock'), join(base, '.planning/work/.lock'));
+    await refusedEither(/^\.planning\/work\/\.lock is a symbolic link — the views are never written through a link/, { outsideDir: outside, notIn: 'very-private' });
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.reason).not.toMatch(/left over/);
+  });
+
+  it('.planning/.add.lock linked to the .env: refused the same way', async () => {
+    corpusProject();
+    writeFileSync(join(base, '.env'), `${SECRET}\n`);
+    symlinkSync('../.env', join(base, '.planning/.add.lock'));
+    await refusedEither(/\.planning\/\.add\.lock/, { notIn: 'very-private' });
+  });
+
+  it('a regular .planning/work/.lock with no store is left over: refused, naming it', async () => {
+    corpusProject();
+    mkdirSync(join(base, '.planning/work'));
+    writeFileSync(join(base, '.planning/work/.lock'), '123\n0\n');
+    await refusedEither(/\.planning\/work\/\.lock[^\n]*left over/);
+  });
+});
+
+// The "stopped part-way" refusal fires only on evidence this tool leaves (REVIEW
+// pass 2 I-A): a list missing beside its manifest-less archive copy, or a
+// `pre-work-store-*` tag. "Already on the store" (AC1.5) wins whenever WORK.md
+// exists. No refusal ever tells a person to remove `.planning/work/`, and a
+// reset is offered only with "check the tag is yours and the tree is clean".
+const NOTHING_DESTRUCTIVE = (reason) => {
+  expect(reason).not.toMatch(/remove \.planning\/work|rm -rf/);
+};
+
+describe('S4 / I-A — a run stopped part-way is refused, never re-applied as an empty store', () => {
+  it('archive copies with no MANIFEST.json and the lists gone → refused; the reset is offered with the checks first', async () => {
+    corpusProject();
+    mkdirSync(join(base, ARCHIVE), { recursive: true });
+    for (const f of LISTS) git(base, ['mv', `.planning/${f}`, `${ARCHIVE}/${f}`]);
+    commitAll(base, '2026-02-21');
+    await refusedEither(/stops part-way[\s\S]*git tag -l 'pre-work-store-\*'[\s\S]*one this tool made[\s\S]*git status[\s\S]*clean[\s\S]*git reset --hard/);
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.reason).not.toMatch(/interrupted/);
+    NOTHING_DESTRUCTIVE(r.reason);
+  });
+
+  it('a pre-work-store tag beside manifest-less copies (lists present) → the same refusal, naming the tag', async () => {
+    corpusProject();
+    mkdirSync(join(base, ARCHIVE), { recursive: true });
+    for (const f of LISTS) write(`${ARCHIVE}/${f}`, fixture(f));
+    commitAll(base, '2026-02-21');
+    git(base, ['tag', 'pre-work-store-T0']);
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/pre-work-store-T0[\s\S]*one this tool made[\s\S]*git reset --hard/);
+    NOTHING_DESTRUCTIVE(r.reason);
+  });
+
+  it('copies with no MANIFEST.json, every list present, no tag → only the never-overwrite refusal (no reset offered)', async () => {
+    corpusProject();
+    mkdirSync(join(base, ARCHIVE), { recursive: true });
+    for (const f of LISTS) write(`${ARCHIVE}/${f}`, fixture(f));
+    commitAll(base, '2026-02-21');
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/already exist; this run never overwrites one/);
+    expect(r.reason).not.toMatch(/reset|part-way|interrupted/);
+  });
+
+  it('WORK.md in place (stopped after it moved in) → "already on the store", which wins', async () => {
+    corpusProject();
+    mkdirSync(join(base, ARCHIVE), { recursive: true });
+    git(base, ['mv', '.planning/BUGS.md', `${ARCHIVE}/BUGS.md`]);
+    write('.planning/work/WORK.md', '---\nkey: LF\nschema_version: 2\n---\n');
+    commitAll(base, '2026-02-21');
+    await refusedEither(/already on the store/);
+    NOTHING_DESTRUCTIVE((await runWorkStoreMigrate(base, { key: 'LF' })).reason);
+  });
+
+  it('a project already on the store with archived lists and no tag (this repository\'s shape) → "already on the store", nothing destructive suggested (AC1.5)', async () => {
+    corpusProject();
+    mkdirSync(join(base, ARCHIVE), { recursive: true });
+    for (const f of LISTS) write(`${ARCHIVE}/${f}`, fixture(f));
+    write('.planning/work/WORK.md', '---\nkey: LF\nschema_version: 2\n---\n');
+    commitAll(base, '2026-02-21');
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/already on the store/);
+    expect(r.reason).not.toMatch(/reset|interrupted|part-way/);
+    NOTHING_DESTRUCTIVE(r.reason);
+  });
+});
+
+describe('STATE.md is read only as a regular file', () => {
+  it('STATE.md linked outside the repo → refused, the target not read', async () => {
+    const outside = join(root, 'outside');
+    mkdirSync(outside);
+    writeFileSync(join(outside, 'STATE.md'), STATE);
+    corpusProject();
+    rmSync(join(base, '.planning/STATE.md'));
+    symlinkSync(join(outside, 'STATE.md'), join(base, '.planning/STATE.md'));
+    commitAll(base, '2026-02-21');
+    await refusedEither(/STATE\.md is a symbolic link/, { outsideDir: outside });
+  });
+});
+
+describe('I1 — a capture made during the apply is never lost', () => {
+  const CAPTURE = '\n## Captured while the migration ran\n\nThese words must survive.\n';
+  const applyWith = async (onSwapStep) => {
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    return runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1', onSwapStep });
+  };
+
+  it('a list changed after the plan under the lock, before the archive → refused; the change and every list kept', async () => {
+    corpusProject();
+    const r = await applyWith((s) => {
+      if (s === 'archive') writeFileSync(join(base, '.planning/ISSUES-INBOX.md'), fixture('ISSUES-INBOX.md') + CAPTURE);
+    });
+    expect(r.applied).toBe(false);
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/ISSUES-INBOX\.md changed while the migration ran/);
+    expect(read('.planning/ISSUES-INBOX.md')).toBe(fixture('ISSUES-INBOX.md') + CAPTURE);
+    for (const f of LISTS.filter((x) => x !== 'ISSUES-INBOX.md')) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(existsSync(join(base, '.planning/archive'))).toBe(false);
+    expect(asideLeft()).toEqual([]);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+  });
+
+  it('/sig:add’s lock is held for the whole apply, and released after', async () => {
+    corpusProject();
+    const held = [];
+    const r = await applyWith((s) => held.push([s, existsSync(join(base, '.planning/.add.lock'))]));
+    expect(r.applied).toBe(true);
+    expect(held.length).toBeGreaterThan(4);
+    for (const [s, h] of held) expect(h, s).toBe(true);
+    expect(existsSync(join(base, '.planning/.add.lock'))).toBe(false);
+  });
+
+  it('/sig:add holding its lock → the apply is refused LOCKED, nothing written', async () => {
+    corpusProject();
+    const { acquireLock } = await import('../plugin/tools/lib/add.js');
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    const lock = await acquireLock(base);
+    try {
+      // --force: the held lock file itself makes the tree dirty.
+      await expect(runWorkStoreMigrate(base, { apply: true, force: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1' }))
+        .rejects.toMatchObject({ code: 'LOCKED' });
+    } finally {
+      await lock.released();
+    }
+    for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work/.lock'))).toBe(false);
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+  });
+
+  // REVIEW pass 2 I-E: the re-read of the ARCHIVED copies, on its own. The
+  // pre-archive re-read runs at the `archive` step and passes; BUGS.md's
+  // archived copy is changed after its rename, while BACKLOG.md is being
+  // moved — only the post-rename re-read can see it.
+  it('an archived copy changed after its rename (the pre-archive re-read already passed) → refused; the change kept, every list back', async () => {
+    corpusProject();
+    const r = await applyWith((s) => {
+      if (s === 'archive:BACKLOG.md') writeFileSync(join(base, `${ARCHIVE}/BUGS.md`), fixture('BUGS.md') + CAPTURE);
+    });
+    expect(r.applied).toBe(false);
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/^\.planning\/BUGS\.md changed while the migration ran/);
+    expect(read('.planning/BUGS.md')).toBe(fixture('BUGS.md') + CAPTURE);
+    for (const f of LISTS.filter((x) => x !== 'BUGS.md')) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(existsSync(join(base, ARCHIVE))).toBe(false);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+  });
+
+  it('a list file written back at a view’s path after the archive → refused CONFLICT; that file is not written over, the original is in the archive', async () => {
+    corpusProject();
+    await expect(applyWith((s) => {
+      if (s === 'views') writeFileSync(join(base, '.planning/BUGS.md'), `# Bugs${CAPTURE}`);
+    })).rejects.toMatchObject({ code: 'CONFLICT', message: expect.stringMatching(/\.planning\/BUGS\.md appeared/) });
+    expect(read('.planning/BUGS.md')).toBe(`# Bugs${CAPTURE}`);
+    expect(read(`${ARCHIVE}/BUGS.md`)).toBe(fixture('BUGS.md'));
+    for (const f of LISTS.filter((x) => x !== 'BUGS.md')) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+  });
+});
+
+describe('I9 — a failure part-way through the archive step (list 2 of 4) puts the project back', () => {
+  it('fails on BACKLOG.md’s move, after BUGS.md moved: BUGS.md comes back, no archive, no work/', async () => {
+    corpusProject();
+    const before = snapshot(base);
+    const seen = [];
+    const fail = (s) => {
+      seen.push(s);
+      if (s === 'archive:BACKLOG.md') throw new Error('injected failure moving list 2');
+    };
+    await expect(runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1', onSwapStep: fail, expectedHash: (await runWorkStoreMigrate(base, { key: 'LF' })).inputHash }))
+      .rejects.toThrow(/injected failure moving list 2/);
+    expect(seen).toEqual(['archive', 'archive:BUGS.md', 'archive:BACKLOG.md']);
+    for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/archive'))).toBe(false);
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+    expect(git(base, ['status', '--porcelain']).trim()).toBe('');
+    expect(Object.keys(snapshot(base)).sort()).toEqual(Object.keys(before).sort());
+  });
+});
+
+describe('I6 — the moved-in store failing its own verification puts the project back', () => {
+  it('a record corrupted at the verify step (the hook returns): "did not verify", lists back, no work/', async () => {
+    corpusProject();
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    const corrupt = (s) => {
+      if (s === 'verify') writeFileSync(join(base, '.planning/work/items/00/LF-1.json'), '{ not json');
+    };
+    await expect(runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1', onSwapStep: corrupt }))
+      .rejects.toThrow(/the migrated store did not verify/);
+    for (const f of LISTS) expect(read(`.planning/${f}`), f).toBe(fixture(f));
+    expect(existsSync(join(base, '.planning/work'))).toBe(false);
+    expect(existsSync(join(base, '.planning/archive'))).toBe(false);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+    expect(git(base, ['status', '--porcelain']).trim()).toBe('');
+  });
+});
+
+describe('the apply needs the dry run’s token (AC6.4)', () => {
+  it('apply with no expectedHash → refused, nothing written, no tag', async () => {
+    corpusProject();
+    const before = snapshot(base);
+    const r = await runWorkStoreMigrate(base, { apply: true, key: 'LF', stamp: 'T1' });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toMatch(/expectedHash/);
+    expect(r.reason).toMatch(/dry run/);
+    expect(snapshot(base)).toEqual(before);
+    expect(git(base, ['tag', '-l']).trim()).toBe('');
+  });
+});
+
+describe('a sensitive-data hit is masked wherever it is returned', () => {
+  const SECRET = `AKIA${'Q'.repeat(16)}`;
+  it('the dry run’s sensitiveHits, its report and the apply’s stop carry only the start of the match', async () => {
+    corpusProject({ texts: { 'BUGS.md': fixture('BUGS.md').replace('not reproduced.', `not reproduced. Logs show ${SECRET}.`) } });
+    const dry = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(dry.sensitiveHits).toHaveLength(1);
+    expect(dry.report).not.toContain(SECRET);
+    expect(JSON.stringify(dry.sensitiveHits)).not.toContain(SECRET);
+    expect(dry.sensitiveHits[0].match).toBe('AKIAQQ…');
+    const stop = await runWorkStoreMigrate(base, { apply: true, key: 'LF', expectedHash: dry.inputHash, stamp: 'T1' });
+    expect(stop.aborted).toBe('sensitive-data-pending');
+    expect(JSON.stringify(stop)).not.toContain(SECRET);
+  });
+});
+
+describe('I7 — never overwrite: a store file or archive copy already in place is refused', () => {
+  it('a leftover archive copy (with its MANIFEST.json) → refused, naming both, nothing written', async () => {
+    corpusProject();
+    write(`${ARCHIVE}/BUGS.md`, 'an older archived list\n');
+    write(`${ARCHIVE}/MANIFEST.json`, '{}\n');
+    commitAll(base, '2026-02-21');
+    await refusedEither(/archive\/pre-work-store\/MANIFEST\.json, \.planning\/archive\/pre-work-store\/BUGS\.md already exist; this run never overwrites one/);
+    expect(read(`${ARCHIVE}/BUGS.md`)).toBe('an older archived list\n');
+  });
+
+  it('a store folder with no WORK.md (.planning/work/items/) → refused, nothing written', async () => {
+    corpusProject();
+    write('.planning/work/items/00/keep.txt', 'x\n');
+    commitAll(base, '2026-02-21');
+    await refusedEither(/\.planning\/work\/items already exists; this run never overwrites one/);
+  });
+});

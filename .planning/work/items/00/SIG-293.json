@@ -1,0 +1,41 @@
+{
+  "id": "SIG-293",
+  "type": "CHORE",
+  "title": "Two speed tests use a 4× size step with an 8× ratio limit, which CI timing noise can cross",
+  "theme": "tests",
+  "priority": "P3",
+  "source": "M6.E15 SHIP, PR #296 CI",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-10T23:53:41.824Z",
+      "by": "claude (M6.E15 SHIP)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-10T23:53:41.881Z",
+      "by": "claude (M6.E15 SHIP)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "CHORE"
+        },
+        "theme": {
+          "from": null,
+          "to": "tests"
+        },
+        "priority": {
+          "from": null,
+          "to": "P3"
+        }
+      }
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-11T00:09:49.401Z",
+      "by": "M6.E15 SHIP",
+      "reason": "fixed",
+      "proof": "8ee8172e78fa45106130ccdd8af3d1bcfdcea5f4"
+    }
+  ]
+}

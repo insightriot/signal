@@ -65,15 +65,31 @@ export const verifyFaithful = verifyCardCoverage;
  * (consumed by the S1.t7 safety harness). Fail-open: non-array / unknown input
  * degrades to a dry-run (the safe default), never throws.
  *
+ * `--work-store` chooses the store migration (`work-migrate-lists.js`, M6.E15)
+ * and `--key VALUE` its project key. Each is in the result only when given, so
+ * a run without them parses exactly as before. A `--key` followed by nothing,
+ * or by another flag, sets no key.
+ *
  * @param {string[]} argv
- * @returns {{apply: boolean, force: boolean}}
+ * @returns {{apply: boolean, force: boolean, workStore?: true, key?: string}}
  */
 export function parseMigrateArgs(argv = []) {
   const args = Array.isArray(argv) ? argv : [];
-  return {
-    apply: args.includes('--apply'),
-    force: args.includes('--force'),
-  };
+  const parsed = { apply: false, force: false };
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i];
+    if (token === '--apply') parsed.apply = true;
+    else if (token === '--force') parsed.force = true;
+    else if (token === '--work-store') parsed.workStore = true;
+    else if (token === '--key') {
+      const next = args[i + 1];
+      if (typeof next === 'string' && !next.startsWith('--')) {
+        parsed.key = next;
+        i++; // consume VALUE
+      }
+    }
+  }
+  return parsed;
 }
 
 // --- docs_layout_version stamp (FR7.1) — raw-line splice, never a serializer ---
@@ -977,17 +993,63 @@ export function planVector3(stateText, cards) {
 }
 
 /**
+ * The units `/sig:docs-migrate` may treat as CLOSED — computed ONCE per run and
+ * passed to every archive site and to `senseVector3` (M6.E15 S6, `SIG-286`,
+ * `D-M6E15-21`). `resolveClosures` says `closed` only for a non-current unit with
+ * a readable PASS verdict; a stub retrospective still vetoes (`B64`). A filled-in
+ * retrospective alone is NOT closure here: `senseArchiveTree`'s default treats it
+ * as such, with no current-unit or verdict check, which moved unfinished Epics.
+ *
+ * STATE.md unreadable (or absent) → `[]`, as `/sig:docs-archive` refuses then: the
+ * current unit is unknown, and a current unit must never move. If closure
+ * resolution THROWS, also `[]` (fail closed) with `closures: null`, so the dry
+ * run prints its "could not resolve" line instead of a move list it cannot back.
+ *
+ * `closures` is the same `resolveClosures` result the dry run's explanation uses,
+ * so the move list and the "could not evaluate" lines cannot disagree (AC8.3).
+ *
+ * @param {string} baseDir
+ * @returns {Promise<{closedUnits: string[], closures: object|null}>}
+ */
+export async function resolveMigrateClosedUnits(baseDir) {
+  let closures;
+  try {
+    closures = await resolveClosures(baseDir);
+  } catch {
+    return { closedUnits: [], closures: null };
+  }
+  if (!closures.stateReadable) return { closedUnits: [], closures };
+  const retros = await enumerateRetros(baseDir);
+  const stubbed = new Set(retros.filter((r) => r.isStub).map((r) => r.epicId));
+  const closedUnits = closures.units
+    .filter((u) => u.status === 'closed' && !stubbed.has(u.unit))
+    .map((u) => u.unit);
+  return { closedUnits, closures };
+}
+
+/**
  * Disk-aware vector-3 sense: glob the closed Epics (enumerateRetros), read each
  * card, and delegate to the pure planVector3. Adds the INDEX.md refresh flag (§10)
  * when evicts would move narrative AND a hand-curated `.planning/INDEX.md` exists —
  * migrate NEVER auto-writes INDEX.md, only flags it. Read-only.
  *
+ * A retrospective is the CARD, not the closed-signal: only an Epic in
+ * `opts.closedUnits` (default: `resolveMigrateClosedUnits`) is evicted, the same
+ * rule that decides the archive moves (M6.E15 S6, plan-checker I3).
+ *
  * @param {string} baseDir
  * @param {string} stateText  full STATE.md content
+ * @param {{closedUnits?: string[]}} [opts]
  */
-export async function senseVector3(baseDir, stateText) {
+export async function senseVector3(baseDir, stateText, opts = {}) {
+  const closedUnits = opts.closedUnits ?? (await resolveMigrateClosedUnits(baseDir)).closedUnits;
+  const closedSet = new Set(closedUnits);
   const retros = await enumerateRetros(baseDir);
   const cards = new Map();
+  // A filled retrospective whose Epic is not closed (the current unit, or no
+  // readable PASS verdict). Its live section must not be evicted — and must not be
+  // flagged as having NO retrospective either, which would be false.
+  const retroNotClosed = new Set();
   for (const r of retros) {
     // M5.E18 S5 (sweep site 4): a STUB card is not the closed-signal. Evicting
     // against a retro that is still `[FILL IN]` replaces live STATE narrative
@@ -995,6 +1057,10 @@ export async function senseVector3(baseDir, stateText) {
     // step further in refuses to INVENT a card, but this path happily accepted
     // an empty one. `evict.js` is protected by verifyCardCoverage; this was not.
     if (r.isStub) continue;
+    if (!closedSet.has(r.epicId)) {
+      retroNotClosed.add(r.epicId);
+      continue;
+    }
     let content = '';
     try {
       content = await readFile(join(baseDir, r.path), 'utf-8');
@@ -1004,6 +1070,15 @@ export async function senseVector3(baseDir, stateText) {
     cards.set(r.epicId, { path: r.path, content });
   }
   const plan = planVector3(stateText, cards);
+  plan.flags = plan.flags.map((f) =>
+    f.kind === 'no-retrospective' && retroNotClosed.has(f.epicId)
+      ? {
+          kind: 'not-closed',
+          epicId: f.epicId,
+          reason: `live section for ${f.epicId}, which has a retrospective but did not resolve as closed (closure needs a readable PASS verdict in ${PLANNING_DIR}/ and a unit that is not current) — SKIPPED`,
+        }
+      : f,
+  );
   if (plan.evicts.length > 0 && existsSync(join(baseDir, PLANNING_DIR, 'INDEX.md'))) {
     plan.flags = [
       ...plan.flags,
@@ -1109,6 +1184,50 @@ export function probeGitState(baseDir, opts = {}) {
   }
 
   return { mode: 'git', proceed: true, dirty, warnings };
+}
+
+// --- pre-apply tag + staging — shared by every `/sig:docs-migrate` apply ------
+//
+// Extracted from `applyMigrate` (M6.E15 S1) so the work-store migration
+// (`work-migrate-lists.js`) keeps the same contract: a tag at the pre-apply
+// HEAD, and the changed files left staged, not committed. Both are
+// best-effort, as they were inline: a failed tag leaves `null` (the caller's
+// revert line then names the pre-apply commit generically), and a failed
+// `git add` leaves the changes on disk regardless. Each caller words its own
+// revert line.
+
+/**
+ * Create the pre-apply tag at HEAD. Call only in `git` mode.
+ *
+ * @param {string} baseDir
+ * @param {string} name — e.g. `pre-migrate-memory-<stamp>`
+ * @param {typeof execFileSync} [execFn]
+ * @returns {string|null} the tag, or null when git refused it
+ */
+export function tagPreApply(baseDir, name, execFn = execFileSync) {
+  try {
+    execFn('git', ['tag', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+    return name;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Stage exactly `paths` (repo-root-relative). `--` ends option parsing so a
+ * pathological path never parses as a flag. Every path must exist or be a
+ * tracked deletion: one that matches nothing fails the whole `git add`.
+ *
+ * @param {string} baseDir
+ * @param {string[]} paths
+ * @param {typeof execFileSync} [execFn]
+ */
+export function stagePaths(baseDir, paths, execFn = execFileSync) {
+  try {
+    execFn('git', ['add', '--', ...paths], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+  } catch {
+    /* staging is best-effort — the changes are on disk regardless */
+  }
 }
 
 // --- single-STATE auto-sense (S1.t6) — stamp-first → structural sniff → plan ---
@@ -1236,12 +1355,12 @@ export function stampOnConformance(text, version = CURRENT_LAYOUT_VERSION) {
  *
  * @param {string} baseDir
  * @param {string} stateText  the on-disk STATE.md content
- * @param {{boundaryDate?: string, milestoneOf?: (d: string) => string|null}} [opts]
+ * @param {{boundaryDate?: string, milestoneOf?: (d: string) => string|null, closedUnits?: string[]}} [opts]
  * @returns {Promise<boolean>}
  */
 export async function isV3Conformant(baseDir, stateText, opts = {}) {
   if (!senseState(stateText).conformant) return false;
-  if ((await senseVector3(baseDir, stateText)).evicts.length > 0) return false;
+  if ((await senseVector3(baseDir, stateText, { closedUnits: opts.closedUnits })).evicts.length > 0) return false;
   const planningDir = join(baseDir, PLANNING_DIR);
   if (existsSync(join(planningDir, 'FUTURE-IDEAS.md'))) return false;
   if (!existsSync(join(planningDir, 'BACKLOG.md'))) return false;
@@ -1428,7 +1547,10 @@ export async function senseCorpusHygiene(baseDir) {
  */
 export async function senseProject(baseDir) {
   const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');
-  const archive = await senseArchiveTree(baseDir);
+  // One closed-unit set for every archive site in this run (SIG-286). Computed
+  // before the no-STATE branch: no STATE.md means the current unit is unknown → [].
+  const { closedUnits } = await resolveMigrateClosedUnits(baseDir);
+  const archive = await senseArchiveTree(baseDir, { closedUnits });
   const corpus = await senseCorpusHygiene(baseDir);
   const archiveOut = { moves: archive.moves, moveMap: archive.moveMap, closedEpicIds: archive.closedEpicIds };
 
@@ -1443,7 +1565,7 @@ export async function senseProject(baseDir) {
   }
   const raw = await readFile(statePath, 'utf-8');
   const base = senseState(raw);
-  const v3 = await senseVector3(baseDir, raw);
+  const v3 = await senseVector3(baseDir, raw, { closedUnits });
   // Filesystem-aware v3 conformance (R2): folds in the FR6 file lifecycle the pure-text
   // vectors can't see — inbox renamed, BACKLOG present, append-log evict done — on top
   // of the within-STATE V1/V2/V3 vectors. The layout banner keys its stamp-null branch
@@ -1452,7 +1574,7 @@ export async function senseProject(baseDir) {
   // nudges the migrate, while an already-v3-structured one stays silent. Reached only on
   // the unstamped banner fallthrough + the CLI `sense` readout (an integer-stamped
   // project short-circuits before senseProject), so the extra disk read is off the hot path.
-  const v3Conformant = await isV3Conformant(baseDir, raw);
+  const v3Conformant = await isV3Conformant(baseDir, raw, { closedUnits });
   const flags = [...base.flags, ...v3.flags, ...corpus.flags];
   const noop = base.noop && v3.evicts.length === 0 && archive.moves.length === 0;
   return { ...base, v3, v3Conformant, archive: archiveOut, appendLogs: corpus.appendLogs, flags, noop };
@@ -1888,7 +2010,10 @@ export async function renderDryRun(baseDir, opts = {}) {
   // Disk-aware V3 sense (retroactive closed-Epic evict) — read-only. (Distinct from
   // the FR5 append-log evict below: `v3` is the within-STATE closed-Epic vector,
   // `evictPlan` is the DECISIONS.md date-section relocate.)
-  const v3 = await senseVector3(baseDir, raw);
+  // One closed-unit set for the move list, the vector-3 evicts AND the
+  // explanation below (SIG-286, AC8.3) — never a second resolveClosures call.
+  const { closedUnits, closures } = await resolveMigrateClosedUnits(baseDir);
+  const v3 = await senseVector3(baseDir, raw, { closedUnits });
   // Full-corpus layers (S2.t5b), via the SAME helpers senseProject/applyMigrate call
   // so the human-facing display never drifts from the plan-data: the archive-tree file
   // moves + referrer rewrites (folding in the FR6 inbox/ledger rename when v3-pending,
@@ -1896,7 +2021,7 @@ export async function renderDryRun(baseDir, opts = {}) {
   // alone, bloated milestone docs flagged for manual review). Archive moves fold into
   // the no-op gate — a conformant STATE.md with an un-archived closed scaffold (or a
   // pending rename) is NOT a no-op.
-  const archive = await senseArchiveTree(baseDir, { v3Rename: needsV3 });
+  const archive = await senseArchiveTree(baseDir, { v3Rename: needsV3, closedUnits });
   const corpus = await senseCorpusHygiene(baseDir);
 
   // Append-log evict plan (FR5, v3-pending only) — parse the LIVE DECISIONS.md and
@@ -1984,7 +2109,7 @@ export async function renderDryRun(baseDir, opts = {}) {
   // resolution throws, the migrate preview must still render.
   {
     try {
-      const closures = await resolveClosures(baseDir);
+      if (!closures) throw new Error('closure resolution failed');
       for (const line of explainArchiveOutcome({
         closures: closures.units,
         dropped: archive.dropped,
@@ -2260,7 +2385,12 @@ export async function applyMigrate(baseDir, opts = {}) {
     // V3-BLIND: a clean-frontmatter, small-body, already-stamped STATE.md with
     // closed-Epic sections still to evict is exactly V3's job. Fold V3 into the
     // gate so that case isn't early-returned as a no-op.
-    const v3sense = await senseVector3(baseDir, raw);
+    // One closed-unit set for every archive site in this apply (SIG-286): the
+    // pre-gate senses, the V3 evicts, applyArchiveTree's re-sense and the stamp
+    // tail. Never recomputed later — once the archive moves run, the scaffold
+    // files have left `.planning/` and a fresh resolve would see different units.
+    const { closedUnits } = await resolveMigrateClosedUnits(baseDir);
+    const v3sense = await senseVector3(baseDir, raw, { closedUnits });
 
     // v2→v3 gate (FR6): the append-log evict + BACKLOG-create + inbox rename fire when
     // the project is PRE-v3 — a stamp BELOW current OR a stamp-null legacy project.
@@ -2281,7 +2411,7 @@ export async function applyMigrate(baseDir, opts = {}) {
     // (2) it is read BEFORE any write, so the extended snapshot set + the
     // enforceNoDangling moveMap both derive from it. The moveMap is invariant across
     // the V1/V3/V2 compose (STATE.md is not a scaffold doc), so sensing it now is safe.
-    const archiveSense = await senseArchiveTree(baseDir, { v3Rename: needsV3 });
+    const archiveSense = await senseArchiveTree(baseDir, { v3Rename: needsV3, closedUnits });
     const archiveMoveMap = archiveSense.moveMap;
 
     // Append-log evict plan (FR5, v3-pending only): parse the LIVE DECISIONS.md and
@@ -2361,7 +2491,7 @@ export async function applyMigrate(baseDir, opts = {}) {
     // mixed-body catastrophe is structurally impossible. Per-evict gate: a lossy
     // card (or a broken byte-relocate) hard-fails → surgical rollback, no partial
     // writes. Body is re-derived per evict so sequential evicts compose correctly.
-    const v3 = await senseVector3(baseDir, text);
+    const v3 = await senseVector3(baseDir, text, { closedUnits });
     for (const ev of v3.evicts) {
       const p = planEpicEvict(bodyOf(text), ev.epicId, ev.card, { cardPath: ev.cardPath });
       if (!p.evict) {
@@ -2494,15 +2624,7 @@ export async function applyMigrate(baseDir, opts = {}) {
     // deleted (B16 — so retries don't accumulate stray tags); it is KEPT only if the
     // in-memory rollback itself fails, as the last-resort recovery pointer. On a
     // successful apply it's the intended revert pointer (see revertLine below).
-    let tag = null;
-    if (probe.mode === 'git') {
-      try {
-        execFn('git', ['tag', `pre-migrate-memory-${stamp}`], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
-        tag = `pre-migrate-memory-${stamp}`;
-      } catch {
-        tag = null;
-      }
-    }
+    const tag = probe.mode === 'git' ? tagPreApply(baseDir, `pre-migrate-memory-${stamp}`, execFn) : null;
 
     // B19: set when the tail INDEX regen is SKIPPED because the existing INDEX.md is a
     // foreign/pre-v3 format (see the regen block below) — surfaced in the return warnings.
@@ -2570,7 +2692,7 @@ export async function applyMigrate(baseDir, opts = {}) {
       // persist) so the recovery aids cover the archive-touched files. `v3Rename`
       // matches the pre-gate sense so the re-sense inside applyArchiveTree agrees.
       if (archiveMoveMap.size > 0) {
-        const archiveResult = await applyArchiveTree(baseDir, { apply: true, v3Rename: needsV3 });
+        const archiveResult = await applyArchiveTree(baseDir, { apply: true, v3Rename: needsV3, closedUnits });
         moves.push({
           vector: 'archive-tree',
           moves: archiveResult.moves.length,
@@ -2620,7 +2742,7 @@ export async function applyMigrate(baseDir, opts = {}) {
       // stamp back too. A non-conformant partial run is left UNSTAMPED → banner stays.
       if (needsV3) {
         const onDisk = await readFile(statePath, 'utf-8');
-        if (await isV3Conformant(baseDir, onDisk, { boundaryDate, milestoneOf })) {
+        if (await isV3Conformant(baseDir, onDisk, { boundaryDate, milestoneOf, closedUnits })) {
           const stamped = spliceDocsLayoutVersion(onDisk, CURRENT_LAYOUT_VERSION);
           if (stamped !== onDisk) await atomicWrite(statePath, stamped);
           text = stamped;
@@ -2682,11 +2804,7 @@ export async function applyMigrate(baseDir, opts = {}) {
       .filter(([, s]) => s.existed || existsSync(s.abs))
       .map(([rel]) => `${PLANNING_DIR}/${rel}`);
     if (probe.mode === 'git') {
-      try {
-        execFn('git', ['add', '--', ...touched], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
-      } catch {
-        /* staging is best-effort — the changes are on disk regardless */
-      }
+      stagePaths(baseDir, touched, execFn);
       revertLine =
         probe.dirty && force
           ? `# --force on a dirty tree: restore ONLY the migrated files from ${snapshotDir} — do NOT 'git reset --hard' (it would discard your other uncommitted work).`

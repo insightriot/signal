@@ -28,7 +28,8 @@ const FRONTMATTER = [
   '---',
   'schema_version: 1',
   'phase: SHIP',
-  'current_epic: M5.E2',
+  // SIG-286: the current unit never closes; the fixture's closed Epics are M5.E1/M5.E2.
+  'current_epic: M5.E3',
   'current_wave: null',
   'current_tasks: []',
   'completed_phases: []',
@@ -74,8 +75,12 @@ describe('M5.E2.S2.t2 vector-3 retroactive evict loop', () => {
   // close as '---\n' so the extracted body region equals `body` byte-for-byte.
   const writeState = (body) =>
     writeFile(join(planningDir, 'STATE.md'), FRONTMATTER + '\n' + body, 'utf-8');
-  const writeRetro = (epicId, content) =>
-    writeFile(join(planningDir, `${epicId}-RETROSPECTIVE.md`), content, 'utf-8');
+  // SIG-286: a retro alone is not closure — each retro'd Epic also gets a readable
+  // PASS verdict, so it is closed by the rule docs-migrate now uses.
+  const writeRetro = async (epicId, content) => {
+    await writeFile(join(planningDir, `${epicId}-VERIFICATION.md`), `# ${epicId} verification\n\n**Verdict:** PASS\n`, 'utf-8');
+    await writeFile(join(planningDir, `${epicId}-RETROSPECTIVE.md`), content, 'utf-8');
+  };
   const readState = () => readFile(join(planningDir, 'STATE.md'), 'utf-8');
   const archivePath = (m, e) =>
     join(planningDir, 'archive', m, e, 'STATE-NARRATIVE.md');

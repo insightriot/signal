@@ -1,0 +1,34 @@
+{
+  "id": "SIG-290",
+  "type": "FEAT",
+  "title": "/sig:docs-migrate --work-store: support corpus project 2 list shapes (prose roadmap backlog, long write-ups with status in the text)",
+  "theme": "work-store",
+  "priority": "P2",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-10T00:51:45.702Z",
+      "by": "claude (M6.E15 VERIFY)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-10T00:51:45.756Z",
+      "by": "claude (M6.E15 VERIFY)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "FEAT"
+        },
+        "theme": {
+          "from": null,
+          "to": "work-store"
+        },
+        "priority": {
+          "from": null,
+          "to": "P2"
+        }
+      }
+    }
+  ]
+}

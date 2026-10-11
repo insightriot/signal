@@ -108,6 +108,24 @@ const EXEMPTIONS = [
       + 'finds. The `.md` filter is pinned — widened to `.json`, the walk would rewrite records with no event',
   },
   {
+    file: 'plugin/tools/lib/work-migrate-lists.js',
+    fn: 'buildAside',
+    writes: [
+      'renameSync(join(baseDir, x.to), join(baseDir, x.from))',
+      'renameSync(join(baseDir, x.from), join(baseDir, x.to))',
+      'renameSync(from, join(baseDir, rel))', // moveInNew: WORK.md and each view, never over a file (REVIEW I1)
+      'renameSync(join(aside, ITEMS_REL), join(baseDir, ITEMS_REL))',
+      'atomicWrite(join(baseDir, MANIFEST_REL)',
+      'writeFileSync(join(baseDir, INDEX_REL), done.index)',
+    ],
+    reason: '`/sig:docs-migrate --work-store` (M6.E15 S4) is a migration INTO an empty store: every record is born from a '
+      + 'hand-kept list with its full planned event log (created, and triaged or a legacy close), validated by '
+      + '`validateRecord`/`checkEvents` before any write — there is no store yet for work-records.js to write through. '
+      + '`buildAside` writes records only into a fresh build folder; outside it the project sees renames (lists to the '
+      + 'archive, the built store and views in, and the restore that moves an archive copy back), the MANIFEST.json, '
+      + 'and the restore that puts INDEX.md\'s own bytes back after a failure (t4.8; INDEX.md is not a record)',
+  },
+  {
     file: 'plugin/tools/lib/work-views.js',
     writes: ['atomicWrite(abs, views[rel], { generated: true })'],
     reason: 'regenerates the views from the records it reads; it writes views, never a record',

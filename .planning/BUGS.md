@@ -171,7 +171,13 @@
 | SIG-279 | `fixed` | P2 | **A project whose .planning/ is a symbolic link (even to a folder inside the repo) cannot regenerate its work views** |
 | SIG-280 | `fixed` | P2 | **M6.E13 REVIEW residue: broken-record remedy wording, probe message, double sweep report, weak two-process assertion** |
 | SIG-282 | `confirmed` | P3 | **PLAN's drain floors still describe the drain when the work store is on (the step is /sig:item triage)** |
-| SIG-286 | `confirmed` | P3 | **/sig:docs-migrate dry run lists a unit's files to move while also saying it "could not evaluate" that unit** |
+| SIG-283 | `confirmed` | P2 | **CI does not run lint, so a lint error can reach main unnoticed** |
+| SIG-284 | `confirmed` | P3 | **/sig:advise and tools/cut-release.js stamp dates with the UTC date, not the local one** |
+| SIG-285 | `confirmed` | P3 | **SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'** |
+| SIG-286 | `closing` | P3 | **/sig:docs-migrate dry run lists a unit's files to move while also saying it "could not evaluate" that unit** |
 | SIG-287 | `confirmed` | P3 | **/sig:docs-sweep dangling-reference flags non-bug IDs like "B3." research-assumption labels as missing bugs** |
+| SIG-288 | `confirmed` | P3 | **/sig:docs-archive shares the retro-only closure default (archive-tree.js senseArchiveTree), so a filled retrospective alone can archive an unfinished Epic** |
+| SIG-289 | `confirmed` | P3 | **An Epic whose VERIFICATION is already in archive/ keeps its STATE narrative and isV3Conformant reads true (resolveClosures lists only top-level .planning/)** |
+| SIG-292 | `closing` | P2 | **Work-store migration: a backlog row absorbs a folded <details> block below it, so its evidence check can borrow a sibling's PR reference** |
 
-*0 needs-triage · 53 confirmed · 0 closing · 117 closed (170 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 57 confirmed · 2 closing · 117 closed (176 total) · closes more than 30 days before the newest event are in `work/history/`*

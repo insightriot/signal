@@ -99,6 +99,8 @@ async function setup(dir) {
   await mkdir(p, { recursive: true });
   await writeFile(join(p, 'STATE.md'), STATE, 'utf-8');
   await writeFile(join(p, 'M5.E1-RETROSPECTIVE.md'), M5E1_RETRO, 'utf-8');
+  // SIG-286: closure needs a readable PASS verdict, not a retro alone.
+  await writeFile(join(p, 'M5.E1-VERIFICATION.md'), '# M5.E1 verification\n\n**Verdict:** PASS\n', 'utf-8');
   await writeFile(join(p, 'M5.E1-PLAN.md'), PLAN_BODY, 'utf-8');
   await writeFile(join(p, 'NOTES.md'), NOTES_BODY, 'utf-8');
   git(dir, ['init', '-q', '-b', 'main']);

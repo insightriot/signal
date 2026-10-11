@@ -198,6 +198,8 @@ describe('decideLayoutBanner — structural sniff (no/unparseable stamp)', () =>
         'utf-8',
       );
       await writeFile(join(p, 'BACKLOG.md'), '# Backlog\n', 'utf-8');
+      // SIG-286: closure needs a readable PASS verdict, not a retro alone.
+      await writeFile(join(p, 'M5.E1-VERIFICATION.md'), '# M5.E1 verification\n\n**Verdict:** PASS\n', 'utf-8');
       await writeFile(
         join(p, 'M5.E1-RETROSPECTIVE.md'),
         `# M5.E1 Retrospective\nOutcome: doc-runtime model shipped 2026-07-16 (M5.E1).\n` +
@@ -208,7 +210,11 @@ describe('decideLayoutBanner — structural sniff (no/unparseable stamp)', () =>
       const s = await senseProject(dir);
       // Isolate the fold: the banner is driven by v3Conformant (the evict), not a move.
       expect(s.v3Conformant).toBe(false);
-      expect(s.archive.moves.length).toBe(0);
+      // SIG-286: a closed Epic now needs a verdict file, which is itself a scaffold
+      // that moves — so the one move is that file, and the fold is isolated by
+      // deciding the banner with the moves emptied.
+      expect(s.archive.moves.map((m) => m.from)).toEqual(['.planning/M5.E1-VERIFICATION.md']);
+      expect(decideLayoutBanner({ ...s, archive: { ...s.archive, moves: [], moveMap: new Map() } })).toBe(true);
       expect(decideLayoutBanner(s)).toBe(true);
     } finally {
       await rm(dir, { recursive: true, force: true });

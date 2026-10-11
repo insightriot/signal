@@ -12,15 +12,18 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
-describe('AC-10.2 — the newest CHANGELOG entry names /sig:docs-migrate as the path for other projects', () => {
-  it('the first `## [` section mentions /sig:docs-migrate and that it is not built yet', () => {
+describe('AC-10.2 — the 0.1.49 CHANGELOG entry named /sig:docs-migrate as the path for other projects', () => {
+  // Written when 0.1.49 was the newest entry. 0.1.50 (M6.E15) built that path,
+  // so the claim is pinned to the release that made it, not to "the newest".
+  it('the 0.1.49 section mentions /sig:docs-migrate and that it was not built yet', () => {
     const text = readFileSync(join(ROOT, 'CHANGELOG.md'), 'utf-8');
-    const start = text.search(/^## \[/m);
+    const start = text.search(/^## \[0\.1\.49\]/m);
+    expect(start).toBeGreaterThan(-1);
     const rest = text.slice(start + 1);
     const next = rest.search(/^## \[/m);
-    const newest = next === -1 ? text.slice(start) : text.slice(start, start + 1 + next);
-    expect(newest).toContain('/sig:docs-migrate');
-    expect(newest).toMatch(/not built yet/);
+    const section = next === -1 ? text.slice(start) : text.slice(start, start + 1 + next);
+    expect(section).toContain('/sig:docs-migrate');
+    expect(section).toMatch(/not built yet/);
     expect(existsSync(join(ROOT, 'plugin', 'commands', 'docs-migrate.md'))).toBe(true);
   });
 });

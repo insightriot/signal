@@ -80,12 +80,13 @@ in `SIG-257`. Retro: [`.planning/M6.E12-RETROSPECTIVE.md`](.planning/M6.E12-RETR
 **Previous: `v0.1.48` (2026-10-05) — `M6.E13` shipped:** work items are JSON records that never move,
 status from recorded events, one write library, a hook blocking hand edits. Retro:
 [`.planning/M6.E13-RETROSPECTIVE.md`](.planning/M6.E13-RETROSPECTIVE.md).
-**Latest: `v0.1.49` (2026-10-07) — `M6.E14` shipped: the work store, hardened** before other projects
-use it — eight defects (linked `.planning`, write-then-stale-views, twin records, ambiguous proofs, lock
-races). **The first `/sig:drive` run from DISCUSS** (one floor halt, then through to SHIP). ⚠ A fix's
-own fresh reader found the Epic's worst defect, again. Retro:
-[`.planning/M6.E14-RETROSPECTIVE.md`](.planning/M6.E14-RETROSPECTIVE.md). **Next:** other projects onto
-the store (`/sig:docs-migrate`).
+**Previous: `v0.1.49` (2026-10-07) — `M6.E14`:** the work store, hardened. Retro:
+[`.planning/M6.E14-RETROSPECTIVE.md`](.planning/M6.E14-RETROSPECTIVE.md).
+**Latest: `v0.1.50` (2026-10-10) — `M6.E15` shipped: other projects move onto the work store**
+(`/sig:docs-migrate --work-store`). Old IDs kept; nothing is closed on its own — entries that look
+finished, with evidence from the default branch, are *proposed* and one yes closes them. ⚠ Three REVIEW
+passes found a wording rule closing open entries; Brett changed the contract at the ceiling and pass 4
+found 0 Critical. Retro: [`.planning/M6.E15-RETROSPECTIVE.md`](.planning/M6.E15-RETROSPECTIVE.md).
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
 merged with the green button and collapsed 35 commits into one, orphaning two published anchors and

@@ -6,6 +6,41 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.50] — 2026-10-10 — other projects can move onto the work store
+
+### M6.E15 — `/sig:docs-migrate --work-store`
+
+A project with hand-kept lists (`BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`) can now
+move onto the work store. A project with no lists just turns the store on. 5426 → 5968 tests.
+
+#### Added
+- **`/sig:docs-migrate --work-store [--key KEY]`.** A dry run first: the proposed key (from the folder
+  name), each list's counts, every planned item with its old ID and status, and anything flagged for
+  you to look at. Then `--apply`, which refuses if anything you were shown has changed since the dry
+  run. The originals are kept byte-for-byte in `.planning/archive/pre-work-store/` with a
+  `MANIFEST.json`; every byte of every list is accounted for before anything is written; changes are
+  staged, not committed, behind a `pre-work-store-<stamp>` tag. Needs docs layout v3 first.
+- **Entries that look finished are proposed, never closed on their own.** An entry is proposed only
+  when its wording plainly says finished (a finish word followed by nothing but a date, a reference,
+  or `in <ref>` — any other note, `?`, or undoing word leaves it open) **and** a reference in the entry
+  itself resolves on the default branch: a commit, a PR number in a commit subject (`(#N)` or
+  `Merge pull request #N`), or an Epic with a retrospective. The dry run lists each proposal with its
+  wording and evidence; one yes closes exactly that list, and anything not confirmed stays open,
+  flagged `looks-finished`. Everything else stays open with a note saying what was found and not found.
+- **Old IDs are kept.** Items are renumbered `KEY-1…`; `legacy_id` keeps `B1`, `#99`, `R3`, `NFR-04`, and
+  `/sig:item show #99` finds the new item.
+
+#### Fixed
+- **`/sig:docs-migrate` archived files of Epics that were not finished** (`SIG-286`): it now archives
+  only units that resolve as closed, and nothing when `STATE.md` cannot be read.
+- **Signal-only assumptions in the store:** a `B{n}` reference resolves through `legacy_id` when the
+  key is not `SIG`; store messages no longer name Signal's own scripts.
+
+#### Known limits
+- Corpus project 2's prose-roadmap backlog becomes one flagged entry (`SIG-290`).
+- A proposal's evidence proves a cited change exists, not that it finished the entry; the person's yes
+  is the check. A flag-only Jev second opinion is parked (`SIG-291`).
+
 ## [0.1.49] — 2026-10-07 — the work store, hardened
 
 ### M6.E14 — the work store, hardened before other projects use it

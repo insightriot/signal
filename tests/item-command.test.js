@@ -81,8 +81,18 @@ describe('/sig:item command file', () => {
     expect(text).toMatch(/Every change to an item goes through here/);
     // The migration, never a hand-made WORK.md — that regenerates over hand-kept lists (REVIEW I1).
     // M6.E13 t7.4: the migration named is /sig:docs-migrate's (tools/work-migrate.mjs was retired).
-    expect(text).toMatch(/\.planning\/work\/WORK\.md[^\n]*`\/sig:docs-migrate`/);
+    // M6.E15 S1: it shipped, as /sig:docs-migrate --work-store.
+    expect(text).toMatch(/\.planning\/work\/WORK\.md[^\n]*`\/sig:docs-migrate --work-store`/);
     expect(text).not.toMatch(/create `\.planning\/work\/WORK\.md` with `key: SIG`/);
+  });
+
+  it('show/list: only `<this store\'s key>-n` is an item ID; anything else, or a NOT_FOUND, is looked up as an old ID (REVIEW I3)', () => {
+    const show = section('show');
+    expect(show).toMatch(/item ID only when it is `<key>-n` with this store's own key/);
+    expect(show).toMatch(/`key:` in `\.planning\/work\/WORK\.md`/);
+    expect(show).toContain('`NFR-04`');
+    expect(show).toMatch(/`getRecord` throws `NOT_FOUND`[^\n]*`findByLegacyId`/);
+    expect(section('list')).toMatch(/by the same rule as `show`[^\n]*findByLegacyId\(/);
   });
 
   it('attention, not gate_strictness, governs triage confirmation', () => {

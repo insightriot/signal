@@ -1,0 +1,34 @@
+{
+  "id": "SIG-291",
+  "type": "FEAT",
+  "title": "Jev second opinion on migrated closes (flag-only) — build only if a migrated close proves wrong",
+  "theme": "work-store",
+  "priority": "P3",
+  "source": "M6.E15 REVIEW pass 2",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-10T20:45:35.225Z",
+      "by": "claude (M6.E15 REVIEW)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-10T20:45:35.278Z",
+      "by": "claude (M6.E15 REVIEW)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "FEAT"
+        },
+        "theme": {
+          "from": null,
+          "to": "work-store"
+        },
+        "priority": {
+          "from": null,
+          "to": "P3"
+        }
+      }
+    }
+  ]
+}

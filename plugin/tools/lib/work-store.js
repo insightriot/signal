@@ -58,12 +58,12 @@ const KEY_FIX = 'Put `key: SIG` (2–10 characters: an uppercase letter, then up
 
 // What to say when the store is off (REVIEW I1). Not "create WORK.md": on a
 // project whose lists are hand-kept, a hand-made WORK.md switches on
-// regeneration over them. The migration moves the lists into item files and
-// writes WORK.md itself.
+// regeneration over them. The migration moves the lists into records and
+// writes WORK.md itself (M6.E15).
 export const STORE_OFF_MESSAGE = `The work store is off: ${WORK_FILE_REL} does not exist. `
-  + 'Turning it on for a project that already has hand-kept lists (BUGS.md, BACKLOG.md, ISSUES-INBOX.md, '
-  + 'OPEN-QUESTIONS.md) is done by a migration, which moves every entry into the store and writes '
-  + `${WORK_FILE} itself: \`/sig:docs-migrate\`, in a later release.`;
+  + 'Turning it on is done by a migration, which moves every entry of the hand-kept lists (BUGS.md, BACKLOG.md, '
+  + `ISSUES-INBOX.md, OPEN-QUESTIONS.md) into the store and writes ${WORK_FILE} itself: `
+  + '`/sig:docs-migrate --work-store` (a dry run; add `--apply` to write).';
 
 function configError(problem) {
   return new WorkStoreError('CONFIG', `${WORK_FILE_REL}: ${problem}. ${KEY_FIX}`);

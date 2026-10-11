@@ -1,7 +1,9 @@
 {
   "id": "SIG-284",
-  "type": "NEW",
+  "type": "BUG",
   "title": "/sig:advise and tools/cut-release.js stamp dates with the UTC date, not the local one",
+  "theme": "advise",
+  "priority": "P3",
   "source": "/sig:advise",
   "events": [
     {
@@ -17,6 +19,25 @@
         "title": {
           "from": "/sig:advise records the pick with the UTC date, not the local one",
           "to": "/sig:advise and tools/cut-release.js stamp dates with the UTC date, not the local one"
+        }
+      }
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-09T22:17:36.708Z",
+      "by": "claude (M6.E15 PLAN triage, confirmed by Brett)",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "BUG"
+        },
+        "theme": {
+          "from": null,
+          "to": "advise"
+        },
+        "priority": {
+          "from": null,
+          "to": "P3"
         }
       }
     }

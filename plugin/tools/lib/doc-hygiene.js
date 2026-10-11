@@ -751,7 +751,8 @@ export async function checkDanglingReferences(baseDir = ROOT, opts = {}) {
   // by BUGS.md — a view that can lag them, and is never parsed on this path
   // (Decision 12). Every record's own id is defined, and so are a bug's `B{n}`
   // and a `legacy_id` of the form `B{n}`, so a document written before the
-  // store, or against its v1 views, still resolves.
+  // store, or against its v1 views, still resolves. (A bug's `B{n}` by number is
+  // Signal's own store only — `readStoreIds`.)
   const store = readStoreIds(baseDir);
   if (store !== null) return checkDanglingWithStore(baseDir, planning, store, exemptIds);
 
@@ -835,8 +836,9 @@ export async function checkDanglingReferences(baseDir = ROOT, opts = {}) {
 
 // The work store's defined ids, or null when the store is off. `{error}` when
 // it cannot be read; `{key, defined, broken}` otherwise. Defined: every record's
-// id, a bug's `B{n}`, and a `legacy_id` of the form `B{n}`. A broken record's own
-// id is defined (it exists), but its type and `legacy_id` are unknown.
+// id, a `legacy_id` of the form `B{n}`, and — in Signal's own store (key `SIG`)
+// only — a bug's `B{n}` by its number. A broken record's own id is defined (it
+// exists), but its type and `legacy_id` are unknown.
 function readStoreIds(baseDir) {
   let key;
   try {
@@ -849,8 +851,11 @@ function readStoreIds(baseDir) {
       defined.add(r.id);
       // `D-M6E11-20`: the v1 BUGS.md view showed a bug `SIG-n` as `B{n}`, so
       // documents written against it cite that number. v2 views show `SIG-n`
-      // only (`D-M6E13-11`); the old citations must still resolve.
-      if (r.record.type === 'BUG') defined.add(`B${r.id.slice(r.id.lastIndexOf('-') + 1)}`);
+      // only (`D-M6E13-11`); the old citations must still resolve. Signal's
+      // own rule: another project's migration renumbers every item
+      // (`D-M6E15-2`), so there `B{n}` answers only through `legacy_id`
+      // (M6.E15 FR7).
+      if (key === 'SIG' && r.record.type === 'BUG') defined.add(`B${r.id.slice(r.id.lastIndexOf('-') + 1)}`);
       const legacy = r.record.legacy_id;
       if (typeof legacy === 'string' && /^B\d{1,4}$/.test(legacy)) defined.add(legacy);
     }

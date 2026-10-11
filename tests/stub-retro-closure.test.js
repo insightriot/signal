@@ -336,6 +336,8 @@ describe('S5.t4 sweep site 4 — a stub is not the closed-signal that evicts liv
     await planning(baseDir, {
       'STATE.md': stateText,
       'M9.E1-RETROSPECTIVE.md': STUB,
+      // SIG-286: a readable PASS verdict, so the retro is the only variable here.
+      'M9.E1-VERIFICATION.md': '# M9.E1 verification\n\n**Verdict:** PASS\n',
     });
     const plan = await senseVector3(baseDir, stateText);
     // Evicting against a [FILL IN] card replaces live narrative with a pointer
@@ -353,6 +355,8 @@ describe('S5.t4 sweep site 4 — a stub is not the closed-signal that evicts liv
     await planning(baseDir, {
       'STATE.md': stateText,
       'M9.E1-RETROSPECTIVE.md': COMPLETE,
+      // SIG-286: a readable PASS verdict, so the retro is the only variable here.
+      'M9.E1-VERIFICATION.md': '# M9.E1 verification\n\n**Verdict:** PASS\n',
     });
     const plan = await senseVector3(baseDir, stateText);
     expect(JSON.stringify(plan.evicts ?? [])).toContain('M9.E1');
