@@ -44,7 +44,7 @@ import {
   WORK_DIR,
   WORK_FILE,
 } from './work-store.js';
-import { parseFrontmatter } from './state.js';
+import { EPIC_ID_STRICT_RE, parseFrontmatter } from './state.js';
 // The write helpers every record kind shares. `regenerateAfter` comes in under
 // another name because this module keeps its own, which names the views.
 import {
@@ -941,14 +941,51 @@ function epicEvent(type, move) {
   return pruneUndefined({ type, at: move.at ?? nowIso(), by: move.by, epic: move.epic });
 }
 
+// The unit-record library, when this project has unit records (M6.E16 t3.3);
+// null when it has none, or `units/` is a layout the library refuses
+// (`hasUnitsSafe`) — the caller then does what it did before unit records.
+// Imported here, not at the top: unit-records.js imports this module.
+async function unitRecords(baseDir) {
+  const lib = await import('./unit-records.js');
+  return lib.hasUnitsSafe(baseDir).has ? lib : null;
+}
+
 // An archived Epic is finished: nothing is queued or started in it, as
 // `reopenItem` refuses to pull an item out of one (REVIEW pass 1). A malformed
 // Epic is left to the schema check, which names it.
-function refuseArchivedEpic(baseDir, id, epic, verb) {
-  if (typeof epic !== 'string' || !EPIC_ID_RE.test(epic)) return;
-  if (isEpicArchived(baseDir, epic)) {
-    throw new WorkStoreError('CONFLICT', `${id}: Epic ${epic} is archived (${ARCHIVED_EPICS_REL}/${epic}/) — `
-      + `nothing was ${verb}. An archived Epic is finished; pick a live one.`);
+//
+// With unit records (M6.E16 AC1.4) the unit named — an Epic ID or the
+// project's own unit name — must have a record, and the record must not be
+// closed (a held unit is closed). Read under the store's lock, which unit
+// writers take too. The archive folder is not read.
+//
+// Without unit records the rule is the one from before them: an Epic ID
+// only, and not an archived one. The schema's rule for the name is the unit
+// ID's since t3.3, so the Epic-ID rule is applied here.
+async function refuseUnavailableEpic(baseDir, id, epic, verb) {
+  if (typeof epic !== 'string') return;
+  const units = await unitRecords(baseDir);
+  if (units === null) {
+    if (!EPIC_ID_RE.test(epic)) {
+      throw new WorkStoreError('SCHEMA', `invalid work record: ${id}: epic does not match ${EPIC_ID_RE.source} `
+        + `(got ${JSON.stringify(epic)}) — nothing was ${verb}.`);
+    }
+    if (isEpicArchived(baseDir, epic)) {
+      throw new WorkStoreError('CONFLICT', `${id}: Epic ${epic} is archived (${ARCHIVED_EPICS_REL}/${epic}/) — `
+        + `nothing was ${verb}. An archived Epic is finished; pick a live one.`);
+    }
+    return;
+  }
+  if (!UNIT_NAME_RE.test(epic)) return;
+  const closure = units.unitClosure(baseDir, epic);
+  if (closure === 'no-record') {
+    throw new WorkStoreError('NOT_FOUND', `${id}: there is no unit ${epic} (no record ${units.UNITS_REL}/${epic}.json) — `
+      + `nothing was ${verb}. An Epic's record is created when it is opened (/sig:discuss --epic); `
+      + 'another unit\'s is created by /sig:docs-migrate --work-store.');
+  }
+  if (closure !== 'open') {
+    throw new WorkStoreError('CONFLICT', `${id}: ${epic} is closed (${units.UNITS_REL}/${epic}.json) — `
+      + `nothing was ${verb}. A closed unit is finished; pick an open one.`);
   }
 }
 
@@ -956,16 +993,21 @@ function refuseArchivedEpic(baseDir, id, epic, verb) {
  * Queue an item for an Epic: a `queued` event (legal from T, Q, P). Refused
  * (CONFLICT) when the Epic is archived (`isEpicArchived`).
  *
+ * On a project with unit records (M6.E16 AC1.4) `epic` is any unit that has
+ * a record — an Epic ID or the project's own unit name — and the refusals
+ * are read from the record: NOT_FOUND when the unit has none, CONFLICT when
+ * it is closed (held or not). The archive folder is not read.
+ *
  * @param {string} baseDir
  * @param {string} id
- * @param {{epic: string, by: string, at?: string}} move — `epic` is an Epic ID (`M6.E13`)
+ * @param {{epic: string, by: string, at?: string}} move — `epic` is an Epic ID (`M6.E13`); with unit records, a unit ID
  * @param {object} [opts] — as `newItems`'s
  * @returns {Promise<object>} the entry
  */
 export async function queueItem(baseDir, id, move = {}, opts = {}) {
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
-    refuseArchivedEpic(baseDir, id, move.epic, 'queued');
+    await refuseUnavailableEpic(baseDir, id, move.epic, 'queued');
     const out = await writeRecord(handle, withEvent(current, epicEvent('queued', move)), opts);
     await regenerateAfter(handle, `${id} was queued for ${move.epic}`, opts);
     return out;
@@ -974,7 +1016,8 @@ export async function queueItem(baseDir, id, move = {}, opts = {}) {
 
 /**
  * Start an item in an Epic: a `started` event (legal from T, Q). Refused
- * (CONFLICT) when the Epic is archived (`isEpicArchived`).
+ * (CONFLICT) when the Epic is archived (`isEpicArchived`). On a project with
+ * unit records, as `queueItem`: any unit with a record that is not closed.
  *
  * @param {string} baseDir
  * @param {string} id
@@ -985,7 +1028,7 @@ export async function queueItem(baseDir, id, move = {}, opts = {}) {
 export async function startItem(baseDir, id, move = {}, opts = {}) {
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
-    refuseArchivedEpic(baseDir, id, move.epic, 'started');
+    await refuseUnavailableEpic(baseDir, id, move.epic, 'started');
     const out = await writeRecord(handle, withEvent(current, epicEvent('started', move)), opts);
     await regenerateAfter(handle, `${id} was started in ${move.epic}`, opts);
     return out;
@@ -1188,7 +1231,9 @@ export async function closeItems(baseDir, closes, opts = {}) {
  * Reopen a closed or closing item: a `reopened` event, back to T, the Epic
  * cleared. Refused when the item's Epic is archived
  * (`.planning/archive/epics/<Epic>/` exists): that Epic is finished, and
- * pulling an item out would change what the archive says it contained.
+ * pulling an item out would change what the archive says it contained. On a
+ * project with unit records the refusal is read from the unit's record
+ * instead — closed, held or not — and a unit with no record refuses nothing.
  *
  * Sensitive data: `reason` (v1 `reopenItem`'s gate).
  *
@@ -1209,7 +1254,16 @@ export async function reopenItem(baseDir, id, reopen = {}, opts = {}) {
   if (pending) return pending;
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
-    if (current.epic !== null && isEpicArchived(baseDir, current.epic)) {
+    const units = current.epic === null ? null : await unitRecords(baseDir);
+    if (units !== null) {
+      // With unit records (M6.E16 t3.3) the unit's record says whether it is
+      // closed; the archive folder is not read. No record: nothing says so.
+      const closure = units.unitClosure(baseDir, current.epic);
+      if (closure === 'closed' || closure === 'held') {
+        throw new WorkStoreError('CONFLICT', `${id} belongs to ${current.epic}, which is closed `
+          + `(${units.UNITS_REL}/${current.epic}.json) — nothing was reopened. Capture a new item and link it to ${id} instead.`);
+      }
+    } else if (current.epic !== null && isEpicArchived(baseDir, current.epic)) {
       throw new WorkStoreError('CONFLICT', `${id} belongs to Epic ${current.epic}, which is archived `
         + `(${ARCHIVED_EPICS_REL}/${current.epic}/) — nothing was reopened. Capture a new item and link it to ${id} instead.`);
     }
@@ -1225,7 +1279,13 @@ export async function reopenItem(baseDir, id, reopen = {}, opts = {}) {
 // an Epic may close is a query over every record, not a walk of its folder.
 // Moving the Epic folder stays in v1 `closeEpic` (`work-ops.js`) until S7.
 
-const EPIC_ID_RE = new RegExp(RECORD_SCHEMA.$defs.epic_id.pattern, 'u');
+// An Epic ID (`M6.E13`): what `isEpicArchived` and `closeEpicCheck` take, and
+// the only name an item may be queued to on a project with no unit records.
+// `state.js`'s rule, not the schema's: since M6.E16 t3.3 the schema's
+// `epic_id` is the wider unit-ID rule (`D-M6E16-5`).
+const EPIC_ID_RE = EPIC_ID_STRICT_RE;
+// What an item's event may name on a project with unit records: a unit ID.
+const UNIT_NAME_RE = new RegExp(RECORD_SCHEMA.$defs.epic_id.pattern, 'u');
 
 function assertEpicId(epicId) {
   if (typeof epicId !== 'string' || !EPIC_ID_RE.test(epicId)) {
@@ -1236,8 +1296,8 @@ function assertEpicId(epicId) {
 /**
  * Whether an Epic is archived: `.planning/archive/epics/<Epic>/` exists (not
  * followed if it is a link). `reopenItem`, `queueItem` and `startItem` refuse
- * on it; `closeEpicCheck` reports it. The ID is checked against the schema's Epic pattern before it
- * becomes part of a path.
+ * on it (on a project with no unit records); `closeEpicCheck` reports it. The ID is checked against
+ * the Epic-ID pattern (`EPIC_ID_STRICT_RE`, `state.js`) before it becomes part of a path.
  *
  * @param {string} baseDir
  * @param {string} epicId

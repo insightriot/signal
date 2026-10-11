@@ -141,7 +141,26 @@ describe('validateRecord — rejections (AC1.6: unknown keys are errors)', () =>
 
   it('queued/started require an Epic ID', () => {
     expect(validateRecord(record([{ type: 'queued', at: AT, by: 'x' }]))).toEqual(['events[1].epic is required']);
-    expect(validateRecord(record([{ ...EVENT_SAMPLES.started, epic: 'next' }]))).toHaveLength(1);
+    // M6.E16 t3.3 (D-M6E16-5): the rule widened from an Epic ID to a unit ID,
+    // so `next` — the value this line refused until then — is now a legal
+    // name. A value that is still illegal stands in for it.
+    expect(validateRecord(record([{ ...EVENT_SAMPLES.started, epic: 'next one' }]))).toHaveLength(1);
+  });
+
+  it('queued/started accept a unit ID that is not an Epic ID, and refuse what cannot be one (M6.E16 AC1.4)', () => {
+    for (const type of ['queued', 'started']) {
+      for (const epic of ['phase-11', 'GATE-A', 'v0.1.6', 'M4.5.E11', 'a'.repeat(100)]) {
+        expect(validateRecord(record([{ ...EVENT_SAMPLES[type], epic }])), `${type} ${epic}`).toEqual([]);
+      }
+      for (const epic of ['a b', 'a/b', '../a', '.hidden', 'a..b', '-a', '', 'a\nb', 'a'.repeat(101), 7, null]) {
+        expect(validateRecord(record([{ ...EVENT_SAMPLES[type], epic }])), `${type} ${JSON.stringify(epic)}`).toHaveLength(1);
+      }
+    }
+  });
+
+  it('an item names a unit by the rule the unit schema uses for a unit ID', () => {
+    const unitSchema = JSON.parse(readFileSync(join(process.cwd(), 'plugin', 'references', 'work-unit.schema.json'), 'utf-8'));
+    expect(RECORD_SCHEMA.$defs.epic_id).toEqual(unitSchema.$defs.unit_id);
   });
 
   it('close_requested needs reason fixed and a bare commit hash', () => {
