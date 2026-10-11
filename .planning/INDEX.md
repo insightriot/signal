@@ -180,6 +180,7 @@
 - [M6.E15-VERIFICATION.md](M6.E15-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E16-INVENTORY.md](M6.E16-INVENTORY.md) — `other` — _(note pending)_
 - [M6.E16-PLAN.md](M6.E16-PLAN.md) — `other` — _(note pending)_
+- [M6.E16-PROGRESS.md](M6.E16-PROGRESS.md) — `other` — _(note pending)_
 - [M6.E16-REQUIREMENTS.md](M6.E16-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E16-RESEARCH.md](M6.E16-RESEARCH.md) — `other` — _(note pending)_
 - [M6.E16-VALIDATION.md](M6.E16-VALIDATION.md) — `other` — _(note pending)_
