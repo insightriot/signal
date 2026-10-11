@@ -15,7 +15,7 @@ import { join } from 'node:path';
 
 import { EPIC_ID_STRICT_RE, PHASES, detectMode } from './state.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
-import { getUnit, hasUnitsSafe } from './unit-records.js';
+import { getUnit, hasUnitsSafe, unitClosure } from './unit-records.js';
 
 // Pre-SHIP work phases in canonical order — everything in PHASES between
 // CALIBRATE and SHIP (both exclusive). Derived from PHASES (state.js:16) so the
@@ -177,6 +177,12 @@ export function deriveRetroPath(epicId) {
  * directions by AC5.4 and AC5.6, because a newly-unconditional guard that
  * makes a documented mode unusable is `B42`'s failure mode.
  *
+ * **On a project with unit records** (`hasUnitsSafe`; M6.E16 t6.1) the unit's
+ * record is asked first, whatever the unit is called: `done` when it is closed
+ * (a held unit is closed), `not-done` when it is open or *closing*,
+ * `cannot-evaluate` when the record does not read. The retrospective is not
+ * read. A unit with no record is answered as above.
+ *
  * Never throws.
  *
  * @param {string} baseDir
@@ -187,6 +193,24 @@ export function isEpicDone(baseDir, epicId) {
   if (typeof epicId !== 'string' || epicId.length === 0) {
     return { status: 'cannot-evaluate', reason: 'no unit id to evaluate' };
   }
+  // With unit records (M6.E16 t6.1, `D-M6E16-2`) the unit's record is asked
+  // first: done when it is closed (a held unit is closed), not-done when it is
+  // open or *closing*. A unit with no record takes the path below.
+  if (hasUnitsSafe(baseDir).has) {
+    let closure;
+    try {
+      closure = unitClosure(baseDir, epicId);
+    } catch (err) {
+      return { status: 'cannot-evaluate', reason: `${epicId}'s unit record could not be read — ${err.message}` };
+    }
+    if (closure === 'closed' || closure === 'held') {
+      return { status: 'done', reason: `${epicId}'s unit record is closed` };
+    }
+    if (closure === 'open') {
+      return { status: 'not-done', reason: `${epicId}'s unit record is not closed` };
+    }
+  }
+
   if (!EPIC_ID_STRICT_RE.test(epicId)) {
     return {
       status: 'cannot-evaluate',

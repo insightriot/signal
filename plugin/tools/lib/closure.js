@@ -40,9 +40,10 @@
 // opposite directions.
 
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { readState } from './state.js';
+import { hasUnitsSafe, listUnits } from './unit-records.js';
 import { deriveUnits, currentUnit } from './work-units.js';
 import { parseVerdict, rankTerminalArtifacts } from './verdict.js';
 
@@ -69,7 +70,74 @@ function terminalSuffix(filename) {
 }
 
 /**
- * Resolve one unit's closure from its files.
+ * The project's unit records, for a closure reader (M6.E16 S6) — or null when
+ * the project has none (`hasUnitsSafe`: no `work/units/` folder, or a layout
+ * the unit library refuses), which is when a reader does what it did before
+ * unit records.
+ *
+ * Never throws. One record that does not read is in `broken` under its ID with
+ * the reason, and stops no other: a broken record has no honest answer, so a
+ * reader must neither call its unit closed nor go back to the unit's files.
+ *
+ * @param {string} baseDir
+ * @returns {{byId: Map<string, {id: string, status: 'open'|'closing'|'closed', held: boolean,
+ *   hold_reason: string|null, close: object|null, closing_proof: string|null}>,
+ *   broken: Map<string, string>} | null}
+ */
+export function readUnitRecords(baseDir) {
+  if (!hasUnitsSafe(baseDir).has) return null;
+  let listed;
+  try {
+    listed = listUnits(baseDir);
+  } catch {
+    return null; // the folder went away or turned into a link between the two reads
+  }
+  return {
+    byId: new Map(listed.units.map((u) => [u.id, u])),
+    broken: new Map(listed.broken.filter((b) => b.id !== null).map((b) => [b.id, b.error])),
+  };
+}
+
+// A unit's closure from its record (M6.E16 t6.1, `D-M6E16-2`). Closed when the
+// record is closed — a held unit IS closed; the hold only stops its files
+// moving, and the answer says so. Open when the record is open or *closing*: a
+// close that is requested and not confirmed is not a close.
+function closureFromRecord(unit, record) {
+  if (record.status !== 'closed') {
+    return {
+      unit,
+      status: CLOSURE.OPEN,
+      reason: record.status === 'closing'
+        ? `${unit}'s unit record is closing — its close is requested (${record.closing_proof}) and not yet confirmed`
+        : `${unit}'s unit record is open`,
+      evidence: null,
+      source: 'record',
+    };
+  }
+  const out = {
+    unit,
+    status: CLOSURE.CLOSED,
+    reason: `${unit}'s unit record is closed (${record.close?.reason ?? 'closed'})`,
+    evidence: null,
+    source: 'record',
+  };
+  if (record.held) {
+    out.reason += `, and held — ${record.hold_reason}`;
+    out.held = true;
+    out.hold_reason = record.hold_reason;
+  }
+  return out;
+}
+
+/**
+ * Resolve one unit's closure — from its record when the project has unit
+ * records and this unit has one, otherwise from its files.
+ *
+ * With a record (M6.E16 t6.1) the answer carries `source: 'record'`, and
+ * `held: true` with `hold_reason` when the closed unit is held. A record that
+ * does not read is `cannotDetermine` (`source: 'record'`), never read from the
+ * unit's files. Clause 1 below still comes first: the current unit is open
+ * whatever its record says. A unit with no record takes clauses 3 and 4.
  *
  * Clause order (each is a decision, not an accident):
  *
@@ -99,7 +167,10 @@ function terminalSuffix(filename) {
  * @param {string|null} args.currentUnitId
  * @param {string} args.planningDir      absolute path
  * @param {(p: string) => Promise<string>} [args.readFileFn]  DI for testing
- * @returns {Promise<{unit: string, status: string, reason: string, evidence: string|null}>}
+ * @param {ReturnType<typeof readUnitRecords>} [args.unitRecords]  the project's unit records, when the
+ *   caller has read them; read here (from the folder `planningDir` sits in) when not passed
+ * @returns {Promise<{unit: string, status: string, reason: string, evidence: string|null,
+ *   source?: 'record', held?: true, hold_reason?: string}>}
  */
 export async function resolveUnitClosure(args) {
   const { unit, files, currentUnitId, planningDir } = args;
@@ -115,6 +186,22 @@ export async function resolveUnitClosure(args) {
       reason: `${unit} is the current unit — mid-flight, not closed`,
       evidence: null,
     };
+  }
+
+  // With unit records, the unit's record decides when it has one (see above).
+  const unitRecords = args.unitRecords === undefined ? readUnitRecords(dirname(planningDir)) : args.unitRecords;
+  if (unitRecords !== null) {
+    if (unitRecords.broken.has(unit)) {
+      return {
+        unit,
+        status: CLOSURE.CANNOT_DETERMINE,
+        reason: `${unit}'s unit record could not be read — ${unitRecords.broken.get(unit)}`,
+        evidence: null,
+        source: 'record',
+      };
+    }
+    const record = unitRecords.byId.get(unit);
+    if (record !== undefined) return closureFromRecord(unit, record);
   }
 
   // 3. No terminal artifact at all.
@@ -260,6 +347,16 @@ export async function resolveClosures(baseDir, opts = {}) {
   const { units } = deriveUnits(files, opts.suffixes ? { suffixes: opts.suffixes } : {});
   const currentUnitId = stateReadable ? currentUnit(state) : null;
 
+  // With unit records (M6.E16 t6.1) every unit that has a record is listed,
+  // with or without a file left in `.planning/`: a unit whose files are all
+  // archived had no entry here, so a shipped Epic was never seen.
+  const unitRecords = readUnitRecords(baseDir);
+  if (unitRecords !== null) {
+    for (const id of [...unitRecords.byId.keys(), ...unitRecords.broken.keys()]) {
+      if (!units.has(id)) units.set(id, []);
+    }
+  }
+
   const results = [];
   for (const [unit, unitFiles] of [...units.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     if (!stateReadable) {
@@ -278,6 +375,7 @@ export async function resolveClosures(baseDir, opts = {}) {
         currentUnitId,
         planningDir,
         readFileFn: opts.readFileFn,
+        unitRecords,
       })
     );
   }
