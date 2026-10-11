@@ -4160,7 +4160,7 @@ from the default branch's history (`git log HEAD`), as native closes require, no
 proposal is now visible before it is acted on, which is the property three passes could not get from
 wording rules alone. Loop 3 runs past the ceiling by Brett's choice.
 
-## 2026-10-11 — M6.E16 DISCUSS: Epics and units become records (D-M6E16-1 … D-M6E16-9)
+## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-15)
 
 Picked by Brett as priority 1 of [`BACKLOG-REVIEW-2026-10-10.md`](BACKLOG-REVIEW-2026-10-10.md). Stage 1
 of the "after Epic 1" list in
@@ -4219,3 +4219,41 @@ project.
 JSON records at fixed paths, status folded from events, one write library, the edit hook, committed
 generated views that no code reads (`D-M6E13-1` … `-22`). Typed verdicts and the `STATE.md` split are
 later stages.
+
+### D-M6E16-10 — With unit records, `STATE.md` alone says whether a SHIP closes the Epic (Claude, PLAN)
+`isEpicCloseByState` becomes the only signal; the milestone-row read and the `stale-milestone-row`
+branch of `shipFR1Check` go. **Measured:** the row parser matches 0 of 16 rows in `MILESTONE-6.md`, so
+every M6 Epic already closed on the `STATE.md` fallback alone. The `warn-dirty-execute` hook's trigger
+(row says shipped while phase is EXECUTE) becomes: the current unit's record reads closing or closed.
+
+### D-M6E16-11 — Epics that never ran get a record closed as `dropped`, with words (Claude, PLAN)
+`M5.E11` (became `M6.E7`), `M5.E12`, `M5.E14` and `M5.E20` (parked) get a record so their IDs are taken:
+today `deriveNextEpicId` under milestone 5 returns `M5.E20`, which is in use. Closed with reason
+`dropped` and a sentence naming where the work went (`SIG-191`, `-198`, `-199`, `-192`); reopenable.
+Shown to Brett in the cutover diff before the commit (AC8.3). Rejected: a "parked" status — a third
+kind of not-open that every open-Epic reader would have to learn.
+
+### D-M6E16-12 — Only the live milestone file gets a generated Epic table (Claude, PLAN)
+Narrows `D-M6E16-4`. `MILESTONE-4.5.md` and `MILESTONE-5.md` use two other row formats, are not in
+numeric order and carry hand-written titles and free-text status; once the parsers are gone nothing
+reads them, and generating them would put paragraphs into records. They stay as written. The marked
+region is written in the milestone file of the current Epic (`MILESTONE-6.md` today). A legacy record
+carries its old row's cells verbatim and the generator prints them unchanged.
+
+### D-M6E16-13 — Units other than Epic IDs are created by the migration, not by the phase commands (Claude, PLAN)
+Bounds `D-M6E16-5`. A record for `phase-11` is created by `/sig:docs-migrate --work-store`, can be
+named by an item, and is read by the closure, archive and view readers. `/sig:discuss --epic`,
+`setCurrentEpic`, `deriveRetroPath` and `isEpicDone`'s strict-ID path stay strict in this Epic.
+`v0.1.6`, Signal's own non-Epic unit, gets a legacy record at the cutover: the one real case of a
+non-Epic unit ID outside fixtures.
+
+### D-M6E16-14 — Archive layout: `archive/<M>/E<n>/`; Epic folders in the store are retired (Claude, PLAN)
+Settles `D-M6E16-6`. It has five writers and 34 folders against one and one, and is the only layout
+that already handles a non-Epic unit name. `closeEpic` stops moving a `work/epics/<ID>/` folder that
+nothing creates and records a close on the unit instead. `archive/epics/M6.E11/` stays where it is and
+stays readable.
+
+### D-M6E16-15 — A legacy-closed unit is not evidence for another close (Claude, PLAN)
+Makes AC8.2 testable. The migration uses "an Epic with a retrospective" as evidence that a list entry
+is finished (`buildEvidenceIndex`). With unit records that becomes "the unit's record is closed", and
+a `legacy` or `dropped` close does not count there.

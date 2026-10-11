@@ -9,7 +9,7 @@ Load this at the start of every work session. Short on purpose.
 **`M6.E16` — *"Epics and units as records"*** — an Epic or unit becomes a JSON record that says it
 exists, which items belong to it, its close (with proof) and a hold. Phase progress stays in
 `STATE.md` (`D-M6E16-1`). Branch `feat/m6.e16-epics-units-as-records`. Requirements:
-[`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md); decisions `D-M6E16-1` … `D-M6E16-9`; the list of
+[`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md); decisions `D-M6E16-1` … `-15`; the list of
 code it touches: [`M6.E16-INVENTORY.md`](M6.E16-INVENTORY.md). Picked by Brett from
 [`BACKLOG-REVIEW-2026-10-10.md`](BACKLOG-REVIEW-2026-10-10.md).
 

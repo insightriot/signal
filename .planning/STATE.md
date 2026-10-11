@@ -1,16 +1,17 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: DISCUSS
+phase: PLAN
 current_epic: M6.E16
 current_wave: null
 current_tasks: []
-completed_phases: []
+completed_phases:
+  - DISCUSS (2026-10-11)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-10-10T00:40:29.810Z
 last_updated_commit: e68f6f8
-last_updated: 2026-10-11T15:53:30.369Z
+last_updated: 2026-10-11T15:53:46.707Z
 ---
 # Project State
 
@@ -18,10 +19,10 @@ last_updated: 2026-10-11T15:53:30.369Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-10-11)
 
-**`M6.E16` — *"Epics and units as records"* — DISCUSS done, PLAN next.** Branch
+**`M6.E16` — *"Epics and units as records"* — PLAN done, EXECUTE next (wave 1: S0 baseline, S1 reuse refactor).** Plan: [`M6.E16-PLAN.md`](M6.E16-PLAN.md), ten slices in eight waves; S8 (Signal's own cutover) stops for Brett to read the diff. Branch
 `feat/m6.e16-epics-units-as-records`. A unit record holds existence, membership, close with proof and
 a hold; phase progress stays in this file (`D-M6E16-1`). Requirements:
-[`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md). Decisions `D-M6E16-1` … `-9`. The list of code it
+[`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md). Decisions `D-M6E16-1` … `-15`. The list of code it
 touches: [`M6.E16-INVENTORY.md`](M6.E16-INVENTORY.md) — four findings checked by hand, the rest is an
 agent's report that PLAN re-derives. Not done from the small-fix batch: `SIG-285`, `SIG-139`.
 
