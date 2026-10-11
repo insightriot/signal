@@ -113,6 +113,7 @@ import {
 } from './work-migrate.js';
 import { checkEvents, serializeRecord, validateRecord } from './work-record.js';
 import { bodyPath, checkRecords, listRecords, recordPath } from './work-records.js';
+import { hasUnitsSafe, listUnits } from './unit-records.js';
 import { scrubSensitive } from './scrub.js';
 import { isGeneratedFile } from './work-marker.js';
 import { STORE_KEY_RE, WORK_DIR, WORK_FILE, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
@@ -430,7 +431,7 @@ function dryRunReport(a) {
     ? `Project key: ${a.key} (from --key)`
     : `Project key: ${a.key} (proposed from the folder name "${a.folder}"; pass --key KEY to choose another)`);
   lines.push(a.evidence.source === 'git'
-    ? `Closes are checked against this repository's history — the default branch, ${a.evidence.ref} (${a.evidence.commits.length} commits, ${a.evidence.epics.size} retrospectives): `
+    ? `Closes are checked against this repository's history — the default branch, ${a.evidence.ref} (${a.evidence.commits.length} commits, ${a.evidence.epics.size} ${a.evidence.units ? 'units closed as shipped' : 'retrospectives'}): `
       + 'an entry is proposed for closing only when its wording says it is finished AND a commit, pull request or Epic it cites is found there. '
       + 'Nothing closes unless you confirm the proposals. Anything else stays open, flagged, with a note saying what was found and not found.'
     : 'The migration could not read this repository\'s history, so nothing can be proposed for closing (not a git checkout, no commits, or git failed): '
@@ -1161,10 +1162,15 @@ const RETRO_WALK_MAX = 50000;
  * commit subjects carry (→ that commit), and the Epic IDs with a
  * retrospective under `.planning/` (→ its path). Reads only.
  *
+ * On a project with unit records (`hasUnitsSafe`; M6.E16 t4.4) `epics` is
+ * instead the units whose record is closed with reason `shipped` (→ the
+ * record's path), and `units` is true. A `legacy`- or `dropped`-closed unit is
+ * not in it, whether or not it has a retrospective (`D-M6E16-15`).
+ *
  * @param {string} baseDir
  * @param {{execFn?: Function}} [opts]
  * @returns {{source: 'git'|'none', commits: string[], prs: Map<number, string>, epics: Map<string, string>,
- *   origin: {host: string, repo: string}|null}}
+ *   origin: {host: string, repo: string}|null, units?: true}}
  */
 export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   let out = '';
@@ -1208,6 +1214,23 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
     })).trim());
   } catch {
     origin = null;
+  }
+
+  // With unit records (M6.E16 t4.4, `D-M6E16-15`, AC8.2) an Epic or unit is
+  // evidence only when its record is closed as `shipped` — a close confirmed
+  // against the default branch. A `legacy` close (recorded as over, never
+  // checked) and a `dropped` one (it did not ship) are not, and neither is a
+  // retrospective existing. Records that cannot be read are evidence of nothing.
+  if (hasUnitsSafe(baseDir).has) {
+    const shipped = new Map();
+    let listed = { units: [] };
+    try {
+      listed = listUnits(baseDir);
+    } catch {
+      listed = { units: [] };
+    }
+    for (const u of listed.units) if (u.status === 'closed' && u.close?.reason === 'shipped') shipped.set(u.id, u.path);
+    return { source, ref: ref.replace(/^refs\/(?:heads|remotes)\//, ''), commits, prs, epics: shipped, origin, units: true };
   }
 
   const epics = new Map();
@@ -1303,6 +1326,7 @@ function checkEvidence(text, legacy, evidence, { bareHash = true } = {}) {
       cited.push(`Epic ${r.key}`);
       const path = evidence?.epics.get(r.key);
       if (path) found.push(`${r.key} → ${path}`);
+      else if (evidence?.units) missing.push(`Epic ${r.key} has no unit record closed as shipped (an open, legacy or dropped unit is not evidence)`);
       else missing.push(`Epic ${r.key} has no retrospective under .planning/`);
     }
   }
