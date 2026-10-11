@@ -28,6 +28,7 @@ import { leadingUnitId } from './leading-id.js';
 import { readState, partitionCompletedPhases, PHASES } from './state.js';
 import { findWorkOnOtherBranches, nextStepFor } from './branch-work.js';
 import { resolveArtifactPath } from './resume.js';
+import { getUnit, hasUnitsSafe, unitClosure } from './unit-records.js';
 import { isStoreOn } from './work-store.js';
 import { listRecords } from './work-records.js';
 import { storeBacklogRows, storeQuestions } from './advise-corpus.js';
@@ -497,10 +498,15 @@ export async function readQueue(baseDir) {
  * Resume beats start: an Epic already open with phases still to run is the work
  * in progress, and proposing a new one ahead of it is how two Epics end up half done.
  *
+ * On a project with unit records (M6.E16 t6.4) the current Epic's record, when
+ * it has one, says whether it is open: STATE.md's "no SHIP recorded" does not.
+ * An Epic whose close is requested and not yet confirmed is not a candidate;
+ * it is returned in `awaitingMerge` (a key present only when there is one).
+ *
  * @param {string} baseDir
  * @returns {Promise<{candidates: Array<{id: string|null, title: string, source: string,
  *   line: number|null, why: string, branch?: string}>, cannotCheck: Array<{source: string, reason: string}>,
- *   unclassifiedBranches: string[]}>}
+ *   unclassifiedBranches: string[], awaitingMerge?: Array<{id: string, proof: string, why: string}>}>}
  */
 /**
  * How much a backlog heading looks like a unit of WORK rather than a section of prose.
@@ -540,10 +546,33 @@ export async function proposeEpicCandidates(baseDir) {
     cannotCheck.push({ source: 'STATE.md', reason: err.message });
   }
 
+  // Closing Epics (unit records only): their close is requested and waits for
+  // its commit to reach the default branch. Not work to start or resume.
+  const awaitingMerge = [];
+
   if (state?.current_epic) {
+    // With unit records (M6.E16 t6.4) the Epic's record says whether it is
+    // open, when it has one: open is a candidate; *closing* is not — it is
+    // named in `awaitingMerge`; closed (held or not) is neither. An Epic with
+    // no record, or one whose record does not read (reported), is read from
+    // STATE.md as before.
+    let unit = null;
+    if (hasUnitsSafe(baseDir).has) {
+      try {
+        if (unitClosure(baseDir, state.current_epic) !== 'no-record') unit = getUnit(baseDir, state.current_epic);
+      } catch (err) {
+        cannotCheck.push({ source: 'unit records', reason: err.message });
+      }
+    }
     const { valid } = partitionCompletedPhases(state.completed_phases ?? []);
     const shipped = valid.some((e) => e.startsWith('SHIP '));
-    if (!shipped) {
+    if (unit?.status === 'closing') {
+      awaitingMerge.push({
+        id: state.current_epic,
+        proof: unit.closing_proof,
+        why: `its close is requested with ${unit.closing_proof} — it closes when that commit is on the default branch`,
+      });
+    } else if (unit === null ? !shipped : unit.status === 'open') {
       candidates.push({
         id: state.current_epic,
         title: state.current_epic,
@@ -644,7 +673,8 @@ export async function proposeEpicCandidates(baseDir) {
     }
   }
 
-  return { candidates, cannotCheck, unclassifiedBranches: otherBranches.unclassified };
+  const out = { candidates, cannotCheck, unclassifiedBranches: otherBranches.unclassified };
+  return awaitingMerge.length > 0 ? { ...out, awaitingMerge } : out;
 }
 
 /** Sources the pre-flight pass consults. Named so a report can say what it looked at. */

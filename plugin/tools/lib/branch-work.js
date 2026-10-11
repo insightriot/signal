@@ -40,6 +40,7 @@ import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 
 import { parseFrontmatter, partitionCompletedPhases } from './state.js';
+import { hasUnitsSafe, unitClosure } from './unit-records.js';
 
 const GIT_TIMEOUT_MS = 5000;
 const FIELD_MAX = 160;
@@ -178,6 +179,28 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
     return fail(`could not list .planning/ on HEAD — ${gitWhy(err)}`);
   }
 
+  // Is this Epic already finished on the checked-out branch? With unit records
+  // (M6.E16 t6.4) its record here says so, when it has one: closed (held or
+  // not) is finished; open or *closing* is not. The record is read from the
+  // working tree by the unit library — the name came from another branch's
+  // STATE.md and never reaches a git argument. No record: rule 3's files on
+  // HEAD, as before. A record that does not read hides nothing: the Epic is
+  // still offered, and the problem is reported once.
+  const unitsOn = hasUnitsSafe(baseDir).has;
+  const recordProblems = [];
+  const isFinishedHere = (epic) => {
+    if (unitsOn) {
+      try {
+        const closure = unitClosure(baseDir, epic);
+        if (closure !== 'no-record') return closure !== 'open';
+      } catch (err) {
+        recordProblems.push(err.message);
+        return false;
+      }
+    }
+    return finishedHere.has(`${epic}-RETROSPECTIVE.md`) || finishedHere.has(`${epic}-SHIP.md`);
+  };
+
   let blobs;
   try {
     // ⚠ `./` IS LOAD-BEARING. `<ref>:path` resolves from the REPOSITORY ROOT and
@@ -251,7 +274,7 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
     }
     const { valid } = partitionCompletedPhases(Array.isArray(data.completed_phases) ? data.completed_phases : []);
     if (valid.some((e) => e.startsWith('SHIP '))) return;
-    if (finishedHere.has(`${epic}-RETROSPECTIVE.md`) || finishedHere.has(`${epic}-SHIP.md`)) return;
+    if (isFinishedHere(epic)) return;
     if (localEpic && epic === localEpic) return;
     const entry = byEpic.get(epic) ?? { epic, phase: null, refs: [] };
     entry.refs.push(d);
@@ -293,6 +316,7 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
       reason: `STATE.md on ${unreadable.length} branch(es) could not be parsed: ${unreadable.join(', ')}`,
     });
   }
+  for (const reason of new Set(recordProblems)) cannotCheck.push({ source: 'unit records', reason });
   return done();
 }
 
