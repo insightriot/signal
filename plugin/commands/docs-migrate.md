@@ -1,7 +1,7 @@
 ---
 name: sig:docs-migrate
 description: "Auto-sensing doc-runtime migrate — reorganizes THIS project's .planning/ docs to the current layout (de-prose frontmatter, relocate bloated bodies, evict closed-Epic narrative, build the archive tree; and on a v2→v3 layout bump: rename FUTURE-IDEAS→ISSUES-INBOX, create BACKLOG, evict closed-milestone DECISIONS sections). Relocate-never-delete, dry-run by default, git-reversible."
-args: "[--apply] [--force] [--work-store [--key KEY]]"
+args: "[--apply] [--force] [--work-store [--key KEY] [--also ID:dropped:WORDS]...]"
 ---
 
 # `/sig:docs-migrate` — Auto-sensing doc-runtime migrate
@@ -33,7 +33,8 @@ never chained with the layout steps above, and keeps this command's contract: dr
 committed, an undo line printed.
 
 - **Refused, nothing written** (dry run or apply): the project already has `.planning/work/WORK.md`
-  (any content — *"already on the store"*); the layout is below v3 or there is no `STATE.md` (run the
+  (any content — *"already on the store"*) — unless it is a store with no unit records, which adds them
+  (*Unit records*, below); the layout is below v3 or there is no `STATE.md` (run the
   plain `/sig:docs-migrate`, then `/sig:docs-migrate --apply`, first); `--key` is not a valid key.
 - **The key** is the prefix of every item ID (`KEY-1`). The dry run proposes one from the folder name
   and prints it; `--apply` without `--key` uses that proposal, `--key KEY` overrides it. A key is an
@@ -68,6 +69,33 @@ committed, an undo line printed.
 - **Undo** with the printed line (`git reset --hard <tag>` on a clean tree). **Afterwards**, triage the
   flagged items with `/sig:item` — each carries a `migration_note` saying why it was left open.
 
+### Unit records (`M6.E16`)
+
+The same command gives every Epic or unit the project names one record under `.planning/work/units/`
+— the folder that turns unit records on. Two ways in, one plan:
+
+- **A project not yet on the store:** the dry run above also lists the units, and the apply creates
+  `work/units/` beside `items/` (with a `.keep`, even when no unit is named).
+- **A project already on the store with no `work/units/`:** `--work-store` adds the unit records and
+  changes nothing else — no item, and no view but `work/EPICS.md`. A store that already has the folder
+  is refused (*"unit records are already on"*); so is one `/sig:docs-sweep` has findings for, and a
+  `WORK.md` with no `items/` folder.
+- **What is proposed for each unit**, from its milestone table row, its retrospective, its files in
+  `.planning/`, its archive folder, the items queued in it and `STATE.md`: **open** — the current unit,
+  and any unit nothing says is over; **a legacy close** — its row's status cell says *shipped* (and not
+  also pending, in flight or parked), or its retrospective is complete, or today's closure check reads
+  it closed; **refused, no record** — a name that cannot be a unit ID, or two names that differ only by
+  case. A stub retrospective is not evidence.
+- **Nothing is closed on its own** (`D-M6E15-25`): the proposed legacy closes are shown as **one list,
+  confirmed by one yes**. On no, every one of them is created open, with a note saying it looked
+  finished.
+- **`--also <ID>:dropped:<words>`** (repeatable) declares a unit no file names — an Epic that never
+  ran — closed as dropped, with where its work went. It is shown in the dry run with the rest. Only
+  `dropped` can be declared; an ID the project already names is refused.
+- **The milestone file is never given markers by this command.** The dry run says whether the current
+  milestone file carries the Epic-table markers and what to add by hand; a file without them is left
+  exactly as it is.
+
 ## The v2→v3 layout transition (FR6)
 
 When the project's `docs_layout_version` stamp is **below** `CURRENT_LAYOUT_VERSION` (3), the same one-apply, one-lock, one-rollback chain also performs the v2→v3 file transition — each step **relocate-never-delete**, previewed in the dry-run, and gated on the dangling-link + anchor-resolvability checks:
@@ -98,14 +126,14 @@ Drive the command by calling into `tools/lib/migrate-memory.js` (import with `no
 
 From `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-migrate-lists.js`. It never calls `senseProject`, `renderDryRun` or `applyMigrate`.
 
-1. **Dry run** — `const dry = await runWorkStoreMigrate(baseDir, {apply: false, key})`. If `dry.refused`, print `dry.reason` and stop. Otherwise print `dry.report` — the key, each list's counts and dates, every planned item and its flag, the **proposed closes** (each with its new ID, old ID, title, wording and evidence), any sensitive-data hits — and hold `dry.inputHash`.
-2. **Confirm** — the user confirms the key (or re-runs with `--key KEY`) and has seen the counts and the flagged items. If `dry.proposedCloses` is not empty, show that section again and ask **one yes/no**: *close these N entries?* Yes → `confirmCloses = true`; no → `false` (they stay open, flagged `looks-finished`). Never answer it for the user, and never ask per entry. If `dry.sensitiveHits` is not empty, ask: **keep** the text as it is, or **abort** and edit the list first. No confirmation → stop, having written nothing.
-3. **Apply** (`--apply` only) — `await runWorkStoreMigrate(baseDir, {apply: true, force, key: dry.key, expectedHash: dry.inputHash, confirmCloses, acknowledgeSensitive})`, with `confirmCloses: true` only when the user said yes in step 2 and `acknowledgeSensitive: true` only when the user chose keep. A `refused` result (dirty tree, `STATE.md` or a list changed since the dry run or while the apply ran, what the dry run showed — an item's status or flag, a proposed close or its evidence — no longer what the apply would do, an earlier run of this tool stopped part-way) or `aborted: 'sensitive-data-pending'` → print `reason` and stop. Otherwise print `result.report`, which ends with the pre-apply tag and `result.revertLine`.
+1. **Dry run** — `const dry = await runWorkStoreMigrate(baseDir, {apply: false, key, also})`, with `also` from `parseMigrateArgs` when `--also` was given. If `dry.refused`, print `dry.reason` and stop. Otherwise print `dry.report` — the key, each list's counts and dates, every planned item and its flag, the **proposed closes** (each with its new ID, old ID, title, wording and evidence), every unit and what is proposed for it, the **proposed legacy closes** of units, any sensitive-data hits — and hold `dry.inputHash`. On a project already on the store (`dry.unitsOnly`) the report is the units alone.
+2. **Confirm** — the user confirms the key (or re-runs with `--key KEY`) and has seen the counts and the flagged items. If `dry.proposedCloses` is not empty, show that section again and ask **one yes/no**: *close these N entries?* Yes → `confirmCloses = true`; no → `false` (they stay open, flagged `looks-finished`). Never answer it for the user, and never ask per entry. If `dry.proposedUnitCloses` is not empty, show that list again and ask a **second, separate yes/no**: *record these N units as closed?* Yes → `confirmUnitCloses = true`; no → `false` (each is created open, with a note). One answer per list, never one per unit, and a yes to one list is not a yes to the other. If `dry.sensitiveHits` is not empty, ask: **keep** the text as it is, or **abort** and edit the list first. No confirmation → stop, having written nothing.
+3. **Apply** (`--apply` only) — `await runWorkStoreMigrate(baseDir, {apply: true, force, key: dry.key, also, expectedHash: dry.inputHash, confirmCloses, confirmUnitCloses, acknowledgeSensitive})`, with the same `also` as the dry run, `confirmCloses: true` and `confirmUnitCloses: true` each only when the user said yes to that list in step 2, and `acknowledgeSensitive: true` only when the user chose keep. A `refused` result (dirty tree, `STATE.md` or a list changed since the dry run or while the apply ran, what the dry run showed — an item's status or flag, a proposed close or its evidence — no longer what the apply would do, an earlier run of this tool stopped part-way) or `aborted: 'sensitive-data-pending'` → print `reason` and stop. Otherwise print `result.report`, which ends with the pre-apply tag and `result.revertLine`.
 
 ## Lib symbols this command calls
 
 From `${CLAUDE_PLUGIN_ROOT}/tools/lib/migrate-memory.js`:
-- `parseMigrateArgs(argv)` → `{apply, force, workStore?, key?}` — flag parse; dry-run default.
+- `parseMigrateArgs(argv)` → `{apply, force, workStore?, key?, also?}` — flag parse; dry-run default. `also` is one `{id, reason, words}` per `--also`.
 - `probeGitState(baseDir, {force})` → `{mode, proceed, dirty, warnings, reason?}` — the git-state refuse/proceed/downgrade decision.
 - `runMigrate(baseDir, {apply, force, expectedHash})` — the orchestration entry; dry-run returns `{plan, inputHash}`, apply delegates to `applyMigrate`.
 - `renderDryRun(baseDir, {boundaryDate, milestoneOf, dateStr})` → string — the human-facing three-tier dry-run (the faithfulness diff the user approves). On a v2→v3-pending project it also enumerates the inbox/ledger rename, the BACKLOG create, and the append-log evict (a **summary**, not a diff — a verbatim move has no semantic change), i.e. the SAME steps apply performs. The evict inputs default to the real-run derivation (`deriveBoundaryDate` / `defaultMilestoneOf`); the CLI calls with `baseDir` only.
@@ -113,7 +141,7 @@ From `${CLAUDE_PLUGIN_ROOT}/tools/lib/migrate-memory.js`:
 - `relocateFaithful(...)` / `verifyFaithful(...)` / `conserves(...)` — the faithfulness gate (S1.t3): WORD conservation is the vector-1 gate; `verifyFaithful` is the ID/date/status-token backstop.
 
 From `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-migrate-lists.js` (`--work-store` only):
-- `runWorkStoreMigrate(baseDir, {apply, force, key, expectedHash, confirmCloses, acknowledgeSensitive})` — `expectedHash` (the dry run's `inputHash`) is required with `apply`: without it the apply is refused. `confirmCloses` is the user's yes to the proposed closes. Returns refusals, a sensitive-data stop (`{aborted, hits}`), dry run (`{key, files, items, dates, proposedCloses, sensitiveHits, inputHash, report}`) or apply (`{tag, revertLine, written, archived, records, flagged, closesConfirmed, report}`).
+- `runWorkStoreMigrate(baseDir, {apply, force, key, also, expectedHash, confirmCloses, confirmUnitCloses, acknowledgeSensitive})` — `expectedHash` (the dry run's `inputHash`) is required with `apply`: without it the apply is refused. `confirmCloses` is the user's yes to the proposed item closes, `confirmUnitCloses` their yes to the proposed legacy closes of units. Returns refusals, a sensitive-data stop (`{aborted, hits}`), dry run (`{key, files, items, dates, proposedCloses, units, proposedUnitCloses, sensitiveHits, inputHash, report}`) or apply (`{tag, revertLine, written, archived, records, flagged, closesConfirmed, units, unitClosesConfirmed, report}`). On a project already on the store with no unit records the results carry `unitsOnly: true` and only the unit fields.
 - `proposeKey(folderName)` → a valid key or `null` — what the dry run proposes.
 
 Supporting (pure cores + read-only sensing helpers the command uses; the mutating cores compose under the ONE coarse lock inside `runMigrate`/`applyMigrate`): `senseState`/`senseProject` (auto-sense), `deproseFrontmatter`/`locateFrontmatterProse` (vector-1), `planVector2` (vector-2), `stampOnConformance` (the stamp), `scanDanglingLinks`/`computeDanglingDelta` (dangling baseline). Vector-3 evict + archive-tree + link-rewrite + the full-corpus brain land in **S2**; the FR7.2 upgrade banner + SessionStart hook in **S3**.

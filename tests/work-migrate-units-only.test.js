@@ -464,3 +464,35 @@ describe('hostile text and names, through the command (t7.5)', () => {
     expect(checkUnits(base)).toEqual([]);
   }, 120_000);
 });
+
+// ── The command file says what the library does ─────────────────────────────
+
+describe('docs-migrate.md — the --work-store section covers units', () => {
+  const doc = readFileSync(new URL('../plugin/commands/docs-migrate.md', import.meta.url), 'utf-8');
+
+  it('names both ways in, the --also flag, and the one-yes rule', () => {
+    expect(doc).toMatch(/^args: .*--also ID:dropped:WORDS/m);
+    expect(doc).toMatch(/### Unit records \(`M6\.E16`\)/);
+    expect(doc).toMatch(/A project already on the store with no `work\/units\/`.*adds the unit records and\s+changes nothing else/s);
+    expect(doc).toMatch(/unit records are already on/);
+    expect(doc).toMatch(/`--also <ID>:dropped:<words>`/);
+    expect(doc).toMatch(/one list,\s+confirmed by one yes/);
+    expect(doc).toMatch(/milestone file is never given markers by this command/);
+  });
+
+  it('the flow passes the options the library reads, and asks one question per list', () => {
+    expect(doc).toMatch(/runWorkStoreMigrate\(baseDir, \{apply: false, key, also\}\)/);
+    expect(doc).toMatch(/runWorkStoreMigrate\(baseDir, \{apply: true, force, key: dry\.key, also, expectedHash: dry\.inputHash, confirmCloses, confirmUnitCloses, acknowledgeSensitive\}\)/);
+    expect(doc).toMatch(/second, separate yes\/no/);
+    expect(doc).toMatch(/dry\.proposedUnitCloses/);
+    expect(doc).toMatch(/dry\.unitsOnly/);
+  });
+
+  it('every result field the file names is one the library returns', async () => {
+    const base = await unitsStore({ repo: true });
+    const dry = await dryRun(base);
+    for (const k of ['unitsOnly', 'units', 'proposedUnitCloses', 'sensitiveHits', 'inputHash', 'report']) expect(dry, k).toHaveProperty(k);
+    const r = await applyWith(base, dry);
+    for (const k of ['unitsOnly', 'tag', 'revertLine', 'units', 'unitClosesConfirmed', 'report']) expect(r, k).toHaveProperty(k);
+  });
+});
