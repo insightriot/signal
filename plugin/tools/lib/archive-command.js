@@ -43,6 +43,7 @@ import { deriveUnits } from './work-units.js';
  *   plan: Array<{unit: string, dir: string, files: string[]}>,
  *   moves: Array<{from: string, to: string}>,
  *   refusals: Array<{unit: string, status: string, reason: string}>,
+ *   settled: string[],
  *   ungrouped: string[],
  *   dropped: Array<{unit: string, reason: string}>,
  *   stateReadable: boolean,
@@ -52,7 +53,7 @@ import { deriveUnits } from './work-units.js';
  */
 export async function buildArchiveReport(baseDir) {
   const empty = {
-    plan: [], moves: [], refusals: [], ungrouped: [], dropped: [],
+    plan: [], moves: [], refusals: [], settled: [], ungrouped: [], dropped: [],
     stateReadable: false, reason: null,
     counts: { units: 0, archiving: 0, refused: 0, files: 0 },
   };
@@ -91,6 +92,7 @@ export async function buildArchiveReport(baseDir) {
     return {
       plan: [],
       moves: [],
+      settled: [],
       refusals: closures.units.map((u) => ({
         unit: u.unit,
         status: u.status,
@@ -141,24 +143,44 @@ export async function buildArchiveReport(baseDir) {
   // EVERY unit the resolver knows about that is not archiving is a refusal with
   // its reason. This is the S1 finding: previously only `cannotDetermine` was
   // surfaced, so open and stub-vetoed units vanished from the output entirely.
+  //
+  // With unit records (M6.E16 t6.2) two more things can be true of a unit that
+  // is not archiving. It is HELD — closed, and its files stay: a refusal, with
+  // the hold reason (AC5.2). Or its record is closed and nothing of it is left
+  // in `.planning/` to move: that is not a refusal — nothing was declined — so
+  // it is listed in `settled` and counted in neither bucket.
   const droppedReason = new Map((sense.dropped ?? []).map((d) => [d.unit, d.reason]));
+  const heldReason = new Map((sense.held ?? []).map((h) => [h.unit, h.reason]));
   const refusals = [];
+  const settled = [];
   for (const u of closures.units) {
     if (archiving.has(u.unit)) continue;
-    refusals.push({ unit: u.unit, status: u.status, reason: refusalReason(u, droppedReason) });
+    if (heldReason.has(u.unit) && u.source === 'record') {
+      refusals.push({
+        unit: u.unit,
+        status: 'held',
+        reason: `${u.unit} is closed and held, so nothing of it moves — ${heldReason.get(u.unit)}`,
+      });
+    } else if (u.source === 'record' && u.status === CLOSURE.CLOSED && !droppedReason.has(u.unit)) {
+      settled.push(u.unit);
+    } else {
+      refusals.push({ unit: u.unit, status: u.status, reason: refusalReason(u, droppedReason) });
+    }
   }
   refusals.sort((a, b) => a.unit.localeCompare(b.unit));
+  settled.sort((a, b) => a.localeCompare(b));
 
   return {
     plan,
     moves: sense.moves,
     refusals,
+    settled,
     ungrouped,
     dropped: sense.dropped ?? [],
     stateReadable: closures.stateReadable,
     reason: closures.reason,
     counts: {
-      units: closures.units.length,
+      units: closures.units.length - settled.length,
       archiving: plan.length,
       refused: refusals.length,
       files: sense.moves.length,
@@ -180,7 +202,7 @@ function refusalReason(u, droppedReason) {
   if (droppedReason.has(u.unit)) {
     return `${u.reason} — but it is NOT archiving: ${droppedReason.get(u.unit)}`;
   }
-  if (u.status === CLOSURE.CLOSED) {
+  if (u.status === CLOSURE.CLOSED && u.source !== 'record') {
     return (
       `${u.reason} — but it is NOT archiving: its retrospective is a stub ` +
       '(a file existing is not the unit being finished)'
@@ -205,6 +227,7 @@ export function renderArchiveReport(report, opts = {}) {
   const applied = opts.apply === true;
   const L = [];
   const { plan, refusals, ungrouped, dropped, stateReadable, reason, counts } = report;
+  const settled = report.settled ?? [];
 
   L.push(applied ? '== Archive — applied ==' : '== Archive — dry run (nothing written) ==', '');
 
@@ -243,6 +266,11 @@ export function renderArchiveReport(report, opts = {}) {
     L.push(`Not archived (${refusals.length}) — each was checked and declined:`);
     for (const r of refusals) L.push(`  ${r.unit}  [${r.status}]  ${r.reason}`);
     L.push('');
+  }
+
+  // Unit records only: closed by its record, and no file of it left to move.
+  if (settled.length > 0) {
+    L.push(`Closed, with nothing left to move (${settled.length}): ${settled.join(', ')}`, '');
   }
 
   // FR5 — unconditional, including at zero, AND labelled. S1 found that the

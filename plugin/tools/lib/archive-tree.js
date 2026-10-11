@@ -45,7 +45,7 @@ import { PLANNING_DIR, EPIC_ID_STRICT_RE, compareEpicIds } from './state.js';
 import { atomicWrite } from './atomic-write.js';
 import { deriveEpicArchiveDir } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
-import { resolveClosures } from './closure.js';
+import { readUnitRecords, resolveClosures } from './closure.js';
 import { INBOX_NEW, INBOX_LEGACY, LEDGER_NEW, LEDGER_LEGACY } from './inbox-path.js';
 import { acquireLock } from './file-lock.js';
 import { isGeneratedText } from './work-marker.js';
@@ -450,9 +450,14 @@ function assertInsidePlanning(baseDir, destAbs) {
  * them, as before). `renameFroms` is surfaced so the migrate's residual-flat-path
  * scan can apply the same archive exemption.
  *
+ * On a project with unit records a unit that has a record is closed when its
+ * record says so, and a held unit is never moved: `held` names each closed,
+ * held unit with its hold reason (always `[]` without unit records).
+ *
  * @param {string} baseDir
- * @param {{scaffoldSuffixes?: string[], v3Rename?: boolean}} [opts]
- * @returns {Promise<{moves: Array, moveMap: Map, closedEpicIds: string[], files: string[], editsByFile: Map<string, Array>, renameFroms: Set<string>}>}
+ * @param {{scaffoldSuffixes?: string[], v3Rename?: boolean, closedUnits?: string[]}} [opts]
+ * @returns {Promise<{moves: Array, moveMap: Map, closedEpicIds: string[], closedUnits: string[], files: string[],
+ *   editsByFile: Map<string, Array>, renameFroms: Set<string>, dropped: Array, held: Array<{unit: string, reason: string}>}>}
  */
 export async function senseArchiveTree(baseDir, opts = {}) {
   const retros = await enumerateRetros(baseDir);
@@ -485,6 +490,17 @@ export async function senseArchiveTree(baseDir, opts = {}) {
   //
   // Fail-open: closure resolution is additive here, so if it throws the mover
   // falls back to exactly the retro-derived behaviour rather than losing moves.
+  //
+  // WITH UNIT RECORDS (M6.E16 t6.2, `D-M6E16-2`) a unit that has a record is
+  // closed here only when its RECORD is closed — `resolveClosures` answers it
+  // from the record, and keeps the current unit open. For such a unit a filled
+  // retrospective is not closure (`SIG-288`), a stub does not veto, and where
+  // its VERIFICATION sits does not matter (`SIG-289`). A unit whose record does
+  // not read is not closed. The union above still decides a unit with NO
+  // record. And if closure resolution throws, a unit with a record does not
+  // fall back to its retrospective: it is not archived.
+  const unitRecords = readUnitRecords(baseDir);
+  const hasRecord = (unit) => unitRecords !== null && (unitRecords.byId.has(unit) || unitRecords.broken.has(unit));
   let closedUnits = opts.closedUnits;
   if (!closedUnits) {
     const stubbed = new Set(retros.filter((r) => r.isStub).map((r) => r.epicId));
@@ -492,12 +508,24 @@ export async function senseArchiveTree(baseDir, opts = {}) {
     try {
       const resolved = await resolveClosures(baseDir);
       verdictClosed = resolved.units
-        .filter((u) => u.status === 'closed' && !stubbed.has(u.unit))
+        .filter((u) => u.status === 'closed' && (u.source === 'record' || !stubbed.has(u.unit)))
         .map((u) => u.unit);
     } catch {
       verdictClosed = [];
     }
-    closedUnits = [...new Set([...closedEpicIds, ...verdictClosed])];
+    closedUnits = [...new Set([...closedEpicIds.filter((id) => !hasRecord(id)), ...verdictClosed])];
+  }
+
+  // A HELD unit never moves, whoever named it closed (AC5.2, `SIG-255`): it is
+  // taken out of the set here, after `opts.closedUnits`, and returned in `held`
+  // with its reason so a caller can say why nothing of it moved.
+  const held = [];
+  if (unitRecords !== null) {
+    for (const u of unitRecords.byId.values()) {
+      if (u.held && u.status === 'closed') held.push({ unit: u.id, reason: u.hold_reason });
+    }
+    held.sort((a, b) => a.unit.localeCompare(b.unit));
+    closedUnits = closedUnits.filter((unit) => unitRecords.byId.get(unit)?.held !== true);
   }
 
   const files = await walkPlanningMd(baseDir);
@@ -543,7 +571,7 @@ export async function senseArchiveTree(baseDir, opts = {}) {
   // callers and tests read it as "which Epics have a finished retrospective".
   // `closedUnits` is what actually drove the moves. Two names because they are
   // two facts; collapsing them would be the drift this Epic keeps finding.
-  return { moves, moveMap, closedEpicIds, closedUnits, files, editsByFile, renameFroms, dropped };
+  return { moves, moveMap, closedEpicIds, closedUnits, files, editsByFile, renameFroms, dropped, held };
 }
 
 /**
