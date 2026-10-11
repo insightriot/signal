@@ -9,7 +9,8 @@
 //
 // Every change to a unit record goes through a writer here and appends
 // exactly one event (AC2.1; `tests/unit-records-inventory.test.js` runs each
-// one). Writers take the store's ONE lock through the shared helpers in
+// one) — except `rerequestUnitClose`, which appends two real events in one
+// write. Writers take the store's ONE lock through the shared helpers in
 // `work-write.js` — the same lock item writers take, so a unit write and an
 // item write exclude each other.
 //
@@ -532,6 +533,17 @@ function assertProof(id, proof, what) {
   }
 }
 
+// A short hash that more than one commit starts with names none of them
+// (best effort: with no repository the request is accepted).
+function assertOneCommit(baseDir, id, proof, opts) {
+  if (proof.length >= 40) return;
+  const n = commitsStartingWith(baseDir, proof, opts.execFn ?? execFileSync);
+  if (n > 1) {
+    throw new WorkStoreError('SCHEMA', `${id}: the proof ${proof} is the start of ${n} commits or tags, so it names none of them — `
+      + 'use a longer hash (git rev-parse <commit>). Nothing was written.');
+  }
+}
+
 const KEEP_FILE = '.keep';
 
 const NO_UNITS_DIR = (id) => `${id}: this project has no unit records (${UNITS_REL}/ does not exist) — nothing was written. `
@@ -679,18 +691,61 @@ export async function requestUnitClose(baseDir, id, request = {}, opts = {}) {
   assertShape(id);
   assertProof(id, proof, 'a close request');
   assertWritable(baseDir);
-  if (proof.length < 40) {
-    const n = commitsStartingWith(baseDir, proof, opts.execFn ?? execFileSync);
-    if (n > 1) {
-      throw new WorkStoreError('SCHEMA', `${id}: the proof ${proof} is the start of ${n} commits or tags, so it names none of them — `
-        + 'use a longer hash (git rev-parse <commit>). Nothing was written.');
-    }
-  }
+  assertOneCommit(baseDir, id, proof, opts);
   const pending = sensitivePending([pr, release], opts);
   if (pending) return pending;
   return withUnitLock(baseDir, async (handle) => {
     if (typeof opts.gate === 'function') await opts.gate(handle);
     return appendEvent(handle, id, { type: 'close_requested', at, by, proof, pr, release }, opts);
+  });
+}
+
+/**
+ * Ask again for a close that is already requested, with another commit
+ * (M6.E16 t5.0a): `/sig:ship` re-run after review fixes were pushed. The unit
+ * is *closing* on the earlier commit; this appends TWO events in one write —
+ * `reopened`, its reason naming the earlier proof and that the close was
+ * requested again, then a new `close_requested` — and the unit reads
+ * *closing* on the new commit. Both events are real and both stay in the
+ * history: no event replaces a proof. The one writer here that appends more
+ * than one event.
+ *
+ * Refused (CONFLICT) unless the unit is *closing*, and when `proof` is the
+ * commit it is already closing on (nothing to ask again).
+ *
+ * `proof`, `pr`, `release` and `opts.gate` are `requestUnitClose`'s. `pr` and
+ * `release` are this request's own: nothing is copied from the earlier one.
+ *
+ * @param {string} baseDir
+ * @param {string} id
+ * @param {{proof: string, pr?: string, release?: string, by: string, at?: string}} request
+ * @param {{renameFn?: Function, execFn?: Function, acknowledgeSensitive?: boolean,
+ *   gate?: (handle: {baseDir: string, key: string}) => void|Promise<void>}} [opts]
+ * @returns {Promise<object>} the entry, with `previous_proof` (the commit the earlier request named), or `{aborted, sensitiveHits}`
+ */
+export async function rerequestUnitClose(baseDir, id, request = {}, opts = {}) {
+  const { proof, pr, release, by, at = nowIso() } = request;
+  assertShape(id);
+  assertProof(id, proof, 'a close request');
+  assertWritable(baseDir);
+  assertOneCommit(baseDir, id, proof, opts);
+  const pending = sensitivePending([pr, release], opts);
+  if (pending) return pending;
+  return withUnitLock(baseDir, async (handle) => {
+    if (typeof opts.gate === 'function') await opts.gate(handle);
+    const current = readForWrite(handle, id).entry;
+    if (current.status !== 'closing') {
+      throw new WorkStoreError('CONFLICT', `${id}: no close is outstanding (the unit is ${current.status}) — nothing was written. `
+        + 'A close is requested again only while an earlier request is waiting.');
+    }
+    const previous = current.closing_proof;
+    if (previous === proof) {
+      throw new WorkStoreError('CONFLICT', `${id}: the close was already requested with ${proof} — nothing was written.`);
+    }
+    const reason = `the close was requested again with the commit ${proof}; the earlier request named ${previous}`;
+    const reopened = withEvent(current, { type: 'reopened', at, by, reason });
+    const next = withEvent({ record: reopened }, pruneUndefined({ type: 'close_requested', at, by, proof, pr, release }));
+    return { ...(await writeRecord(handle, next, opts)), previous_proof: previous };
   });
 }
 

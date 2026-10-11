@@ -264,7 +264,7 @@ Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib
 
 - **`{status: 'close-requested', commit, unit}`** — the unit now reads *closing*. It reads *closed* only once `commit` is on the default branch: §6.9, `/sig:docs-sweep`, or a later SHIP confirms it, as for an item. Stage the unit's record into the SHIP commit. `created: true` means the Epic had no unit record and this call made one first; say so.
 - **`{status: 'already-requested'}`** (this commit, a re-run) and **`{status: 'already-closed'}`** — nothing changed; say so and continue.
-- **`CONFLICT` naming two commits** — a close was already requested with another commit. **HALT** and show the message.
+- **`{status: 're-requested', commit, previous}`** — a close was already requested with another commit (`previous`): the normal case when SHIP is re-run after review fixes were pushed. The earlier request was reopened and the close requested again with `commit` — two events on the unit's record, behind the same refusals as a first request. Say so, naming both commits, and stage the unit's record.
 
 Items 1, 5 and 6 below apply as written; items 2, 3 and 4 are for a project with no unit records.
 

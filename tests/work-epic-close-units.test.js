@@ -303,14 +303,53 @@ describe('closeEpic with unit records — a unit that is not open', () => {
     expect(await unitBytes(EPIC)).toBe(before);
   });
 
-  it('already closing with another commit: CONFLICT naming both, nothing written', async () => {
+  // t5.0a: SHIP re-run after review fixes were pushed. Until S5 this was a
+  // CONFLICT, and no command could undo the request.
+  it('already closing with another commit (SHIP re-run after new commits): re-requested, two events, both commits returned', async () => {
     const head = await project();
-    await closeEpic(root, EPIC, { by, at: AT });
+    await closeEpic(root, EPIC, { by, pr: '#412', at: AT });
     await put('later.txt', 'x\n');
     git('add', 'later.txt');
     git('commit', '-q', '-m', 'later');
     const later = git('rev-parse', 'HEAD');
-    await refused(() => closeEpic(root, EPIC, { by, at: AT }), 'CONFLICT', new RegExp(`${head}.*${later}`, 's'));
+    const out = await closeEpic(root, EPIC, { by, pr: '#412', release: 'v9.9.9', at: AT });
+    expect(out).toEqual({
+      status: 're-requested',
+      epic: EPIC,
+      commit: later,
+      previous: head,
+      created: false,
+      retro: RETRO,
+      items: ['SIG-1'],
+      closingOnBranch: [],
+      unit: { id: EPIC, path: `${UNITS}/${EPIC}.json`, status: 'closing', held: false, closing_proof: later, close: null },
+    });
+    expect(getUnit(root, EPIC).record.events).toEqual([
+      U.opened,
+      { type: 'close_requested', at: AT, by, proof: head, pr: '#412' },
+      { type: 'reopened', at: AT, by, reason: expect.stringMatching(new RegExp(`${head}.*requested again|requested again.*${head}`, 's')) },
+      { type: 'close_requested', at: AT, by, proof: later, pr: '#412', release: 'v9.9.9' },
+    ]);
+  });
+
+  it('a re-request runs the Epic\'s gate again: an item opened since refuses it, nothing written', async () => {
+    await project();
+    await closeEpic(root, EPIC, { by, at: AT });
+    await put(records.recordPath('SIG-9'), serializeRecord({ id: 'SIG-9', type: 'FEAT', title: 'found in review', events: [ev.created, ev.triaged, ev.queued] }));
+    await regenerateViews(root);
+    git('add', '-A');
+    git('commit', '-q', '-m', 'a review finding');
+    await refused(() => closeEpic(root, EPIC, { by, at: AT }), 'OPEN_ITEMS', /SIG-9/);
+    expect(getUnit(root, EPIC).record.events).toHaveLength(2);
+  });
+
+  it('a re-request with the retrospective gone back to a stub is refused, nothing written', async () => {
+    await project();
+    await closeEpic(root, EPIC, { by, at: AT });
+    await put(RETRO, STUB_RETRO);
+    git('add', '-A');
+    git('commit', '-q', '-m', 'retro emptied');
+    await refused(() => closeEpic(root, EPIC, { by, at: AT }), 'CONFLICT', /still a stub/);
   });
 });
 

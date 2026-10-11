@@ -273,9 +273,11 @@ const kindOf = (rel) => RECORD_KINDS.find((k) => k.re.test(rel));
  * `RECORD_KINDS`: a changed record
  * gained exactly one event with the old ones an unchanged prefix; no record
  * moved or vanished; a new record sits at its recordPath with `newEvents`
- * events (default 1); and at least one record changed.
+ * events (default 1); and at least one record changed. `appended` (default 1)
+ * is how many events a CHANGED record gains: 2 only for a writer declared to
+ * record two real events in one write (`rerequestUnitClose`, M6.E16 t5.0a).
  */
-export async function checkWriter(base, name, { run, newEvents = 1 }) {
+export async function checkWriter(base, name, { run, newEvents = 1, appended = 1 }) {
   const before = snapshotTree(base);
   await run(base);
   const after = snapshotTree(base);
@@ -318,7 +320,7 @@ export async function checkWriter(base, name, { run, newEvents = 1 }) {
       continue;
     }
     const added = cur.length - old.length;
-    if (added !== 1) out.push(`${name}: ${rel} changed with ${added} events appended (exactly 1 required)`);
+    if (added !== appended) out.push(`${name}: ${rel} changed with ${added} events appended (exactly ${appended} required)`);
   }
   if (touched === 0) out.push(`${name}: changed no record — its scenario does not exercise it`);
   return out;

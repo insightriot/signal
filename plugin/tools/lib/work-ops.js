@@ -30,7 +30,7 @@ import { assertRealInsidePlanning } from './path-confine.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, setCurrentEpic, StateSchemaError, stringifyFrontmatter } from './state.js';
 import { deriveRetroPath } from './retrospective.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
-import { assertUnitId, getUnit, hasUnitsSafe, openUnit, reopenUnit, requestUnitClose, unitClosure } from './unit-records.js';
+import { assertUnitId, getUnit, hasUnitsSafe, openUnit, reopenUnit, requestUnitClose, rerequestUnitClose, unitClosure } from './unit-records.js';
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
 import { assertNoHandKeptLists, EPIC_README } from './work-generate.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -297,20 +297,25 @@ function removeEmptyTree(dir) {
  *   | {status: 'close-requested', epic: string, commit: string, created: boolean, retro: string, items: string[],
  *       closingOnBranch: string[], unit: {id, path, status: 'closing', held, closing_proof, close: null}}
  *   | {status: 'already-requested', epic: string, commit: string, unit: object}
+ *   | {status: 're-requested', epic: string, commit: string, previous: string, created: false, retro: string,
+ *       items: string[], closingOnBranch: string[], unit: object}
  *   | {status: 'already-closed', epic: string, unit: object}>}
  *   `rewritten` — live files outside the folder whose links into it were
  *   retargeted at the archive, relative to `baseDir` — or `{aborted, sensitiveHits}` (the sensitive-data rule, over pr/release).
- *   The last three are the unit-records answers: the close was requested;
- *   it had already been requested with this commit (nothing written); the
- *   unit is already closed (nothing written)
+ *   The last four are the unit-records answers: the close was requested;
+ *   it had already been requested with this commit (nothing written); it had
+ *   been requested with another commit, `previous` — the normal case when SHIP
+ *   is re-run after review fixes were pushed — so the earlier request was
+ *   reopened and the close requested again with `commit`, two events in one
+ *   write, behind the same gate (`rerequestUnitClose`, t5.0a); the unit is
+ *   already closed (nothing written)
  * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (bad ID, no `by`,
  *   a broken record or README),
  *   OPEN_ITEMS (each open item named), CONFLICT (archive folder exists, the
  *   folder holds something that is not a file or folder, or the Epic has
  *   `{EpicID}-*.md` artifacts at the `.planning/` root — each named; the
  *   retrospective and profile are expected there and do not count; with unit
- *   records: the retrospective is missing or a stub, or a close was already
- *   requested with another commit), LOCKED, IO
+ *   records: the retrospective is missing or a stub), LOCKED, IO
  */
 export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
   assertEpicId(epicId);
@@ -583,8 +588,23 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
     if (unit.status === 'closed') return { status: 'already-closed', epic: epicId, unit: unitView(unit) };
     if (unit.status === 'closing') {
       if (unit.closing_proof === proof) return { status: 'already-requested', epic: epicId, commit: proof, unit: unitView(unit) };
-      throw new WorkStoreError('CONFLICT', `${epicId}: a close was already requested with the commit ${unit.closing_proof}, `
-        + `not ${proof} — nothing was written. Reopen the unit (reopenUnit, with a reason), then re-run to request the close again.`);
+      // SHIP re-run after new commits (t5.0a): the earlier request is
+      // reopened and the close requested again, in one write, behind the
+      // same gate.
+      const again = await rerequestUnitClose(baseDir, epicId, { proof, pr: prText, release: releaseText, by, at }, {
+        execFn, renameFn: opts.renameFn, acknowledgeSensitive: opts.acknowledgeSensitive, gate,
+      });
+      return {
+        status: 're-requested',
+        epic: epicId,
+        commit: proof,
+        previous: again.previous_proof,
+        created: false,
+        retro,
+        items: checked.items,
+        closingOnBranch: checked.closingOnBranch,
+        unit: unitView(again),
+      };
     }
   }
 
