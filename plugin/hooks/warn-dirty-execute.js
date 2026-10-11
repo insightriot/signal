@@ -4,7 +4,8 @@
 // On session resume, if STATE.md shows the project is mid-EXECUTE for an
 // Epic that already looks shipped per MILESTONE.md but has no retro file,
 // emit a high-visibility additionalContext warning so the user sees the
-// gap as soon as the session opens.
+// gap as soon as the session opens. On a project with unit records "looks
+// shipped" is the unit's record reading closing or closed.
 //
 // This catches the original motivating failure mode for M4.5.E9: the
 // conversation context cleared between EXECUTE finishing and /sig:ship
@@ -15,6 +16,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { detectDirtyExecute } from '../tools/lib/retrospective.js';
+import { hasUnitsSafe } from '../tools/lib/unit-records.js';
 
 const baseDir = process.cwd();
 
@@ -45,18 +47,22 @@ const state = { phase, current_epic: currentEpic };
 
 if (!state.current_epic) process.exit(0);
 
-// Load the matching milestone file (M4.5.E9 → MILESTONE-4.5.md).
-const milestoneNum = state.current_epic.replace(/^M/, '').replace(/\.E\d+$/, '');
-const milestonePath = resolve(
-  baseDir,
-  '.planning',
-  `MILESTONE-${milestoneNum}.md`,
-);
+// Load the matching milestone file (M4.5.E9 → MILESTONE-4.5.md) — only on a
+// project with no unit records. With unit records the trigger is the unit's
+// record (M6.E16 t4.3, D-M6E16-10) and the milestone file is not opened.
 let milestoneContent = '';
-try {
-  milestoneContent = readFileSync(milestonePath, 'utf-8');
-} catch {
-  process.exit(0);
+if (!hasUnitsSafe(baseDir).has) {
+  const milestoneNum = state.current_epic.replace(/^M/, '').replace(/\.E\d+$/, '');
+  const milestonePath = resolve(
+    baseDir,
+    '.planning',
+    `MILESTONE-${milestoneNum}.md`,
+  );
+  try {
+    milestoneContent = readFileSync(milestonePath, 'utf-8');
+  } catch {
+    process.exit(0);
+  }
 }
 
 const warning = detectDirtyExecute({

@@ -15,6 +15,7 @@ import { join } from 'node:path';
 
 import { EPIC_ID_STRICT_RE, PHASES, detectMode } from './state.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
+import { getUnit, hasUnitsSafe } from './unit-records.js';
 
 // Pre-SHIP work phases in canonical order — everything in PHASES between
 // CALIBRATE and SHIP (both exclusive). Derived from PHASES (state.js:16) so the
@@ -734,22 +735,49 @@ export function checkStateFrontmatterShape(args) {
  * Returns a banner message to inject into additionalContext, or null when
  * the state is clean.
  *
+ * On a project with unit records (`hasUnitsSafe`) "looks like it should have
+ * shipped" is read from the current unit's record — closing or closed — and
+ * the milestone file is not read (M6.E16 t4.3). Never throws there.
+ *
  * @param {object} args
  * @param {{current_epic?: string|null, phase?: string}} args.state
- * @param {string} args.milestoneContent
+ * @param {string} args.milestoneContent — read only on a project with no unit records
  * @param {string} args.baseDir
  * @param {(p: string) => boolean} [args.fileExistsFn] — DI for testing
  * @returns {string | null}
  */
 export function detectDirtyExecute(args) {
-  const { state, milestoneContent, baseDir, fileExistsFn } = args;
+  const { state, baseDir, fileExistsFn } = args;
   if (!state || state.phase !== 'EXECUTE') return null;
   if (!state.current_epic) return null;
-  // Only warn when MILESTONE.md shows the Epic IS at close (per
-  // isEpicCloseShip) but STATE.md still says EXECUTE — that's the gap the
-  // hook exists to surface.
-  if (!isEpicCloseShip(state, milestoneContent)) return null;
-  const retroPath = expectedRetroPath(state);
+  // With unit records (M6.E16 t4.3, `D-M6E16-10`) the trigger is the unit's
+  // record, not the milestone row: it reads closing or closed while STATE.md
+  // still says EXECUTE. `args.milestoneContent` is not read on this path.
+  // This runs inside a hook, so nothing here may throw: a `units/` layout the
+  // library refuses reads as no unit records (`hasUnitsSafe`), and a missing
+  // or broken record is no trigger.
+  const byRecord = hasUnitsSafe(baseDir).has;
+  let unitStatus = null;
+  if (byRecord) {
+    try {
+      unitStatus = getUnit(baseDir, state.current_epic).status;
+    } catch {
+      return null;
+    }
+    if (unitStatus !== 'closing' && unitStatus !== 'closed') return null;
+  } else if (!isEpicCloseShip(state, args.milestoneContent)) {
+    // Only warn when MILESTONE.md shows the Epic IS at close (per
+    // isEpicCloseShip) but STATE.md still says EXECUTE — that's the gap the
+    // hook exists to surface.
+    return null;
+  }
+  let retroPath;
+  try {
+    retroPath = expectedRetroPath(state);
+  } catch (err) {
+    if (byRecord) return null;
+    throw err;
+  }
   if (!retroPath) return null;
   const abs = join(baseDir, retroPath);
   const exists = fileExistsFn ? fileExistsFn(abs) : defaultFileExists(abs);
@@ -777,9 +805,12 @@ export function detectDirtyExecute(args) {
       ? `the retro at \`${retroPath}\` is still a stub (it holds \`[FILL IN]\` placeholders)`
       : `no retro file exists at \`${retroPath}\``;
 
+  const looksClosed = byRecord
+    ? `reads ${unitStatus} in its unit record`
+    : 'looks closed in MILESTONE.md';
   return (
     `[signal] M4.5.E9 enforcement reminder: Epic ${state.current_epic} ` +
-    `looks closed in MILESTONE.md but STATE.md still says EXECUTE, and ` +
+    `${looksClosed} but STATE.md still says EXECUTE, and ` +
     `${problem}. Before \`/sig:ship\` can ` +
     `close this Epic, ${status === RETRO_STATUS.STUB ? 'fill it in' : 'create the retro from the tier-appropriate template'} ` +
     `(see \`references/retrospective-template.md\`). The SHIP command will ` +
@@ -815,11 +846,13 @@ function defaultFileExists(path) {
  * @param {object} args
  * @param {{current_epic?: string|null} | null} args.state
  * @param {{tier: string}} args.profile
- * @param {string} args.milestoneContent — full content of MILESTONE-{N}.md
+ * @param {string} args.milestoneContent — full content of MILESTONE-{N}.md; not read on a
+ *   project with unit records, where `isEpicCloseByState` is the only signal
+ *   and `stale-milestone-row` cannot be returned (M6.E16 t4.3)
  * @param {string} args.baseDir
  */
 export async function shipFR1Check(args) {
-  const { state, profile, milestoneContent, baseDir } = args;
+  const { state, profile, baseDir } = args;
 
   // (1) No STATE at all is a broken project, not a linear one — still halts.
   if (!state) {
@@ -869,6 +902,13 @@ export async function shipFR1Check(args) {
   // isEpicCloseShip is false — the gate silently skipped. Fall back to STATE,
   // but ONLY when the row is ABSENT, so a maintained "pending"/"in flight" row
   // still wins for a legit per-slice ship (not a pure OR).
+  //
+  // With unit records (M6.E16 t4.3, AC4.6, `D-M6E16-10`) STATE.md alone says
+  // whether this SHIP closes the Epic: no milestone row is read —
+  // `args.milestoneContent` is not touched — so the row can neither win nor
+  // be stale. `rowStatus` is null there, which is the row-absent case below.
+  const byRecords = hasUnitsSafe(baseDir).has;
+  const milestoneContent = byRecords ? null : args.milestoneContent;
   const rowStatus = milestoneContent
     ? findEpicStatusRow(milestoneContent, state.current_epic)
     : null;
@@ -913,7 +953,7 @@ export async function shipFR1Check(args) {
   const synthState = aboutToClose ? synthIfClosing : null;
 
   const isEpicClose =
-    isEpicCloseShip(state, milestoneContent) ||
+    (!byRecords && isEpicCloseShip(state, milestoneContent)) ||
     (rowStatus === null && isEpicCloseByState(state, profile)) ||
     (aboutToClose && isEpicCloseByState(synthState, profile));
   if (!isEpicClose) {
