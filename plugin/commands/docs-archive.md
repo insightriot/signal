@@ -41,6 +41,12 @@ failed the way warnings fail.
 So closure is a **gate**, not a note: a unit that is not provably closed is **not moved**, and the
 run says so rather than moving it with a caveat attached.
 
+**With unit records** (`.planning/work/units/` exists), a unit that has a record is closed when its
+**record** is closed — a retrospective, a verdict line or where its VERIFICATION sits does not decide
+it. A closed unit that is **held** is declined: the dry run prints it as `[held]` with the hold
+reason, and `--apply` moves nothing of it. A unit with no record is judged from its files, as the
+rest of this page describes.
+
 ## Workflow
 
 ### 1. Pre-flight
@@ -61,7 +67,9 @@ comes back as a **reported refusal** (`stateReadable: false` plus `reason`), bec
 dies cannot tell you why it archived nothing.
 
 Every unit lands in **exactly one** of `plan` or `refusals`, and every refusal carries the reason
-its resolver produced.
+its resolver produced. With unit records there is a third list, `settled`: units whose record is
+closed and that have nothing left in `.planning/` to move. They were not declined, so they are
+printed on their own line, not among the refusals.
 
 ### 3. Render
 
@@ -99,6 +107,7 @@ nothing is re-proposed.
 | "Archive a unit whose closure I could not read — it's probably done." | No. `cannotDetermine` is a refusal. **9 of 30** terminal artifacts carried no readable verdict when M5.E18 measured the real corpus (2026-08-04 — inherited figure, not re-derived here); guessing at that rate is how the retired tool proposed archiving live work. |
 | "A retrospective file exists, so the unit is closed." | No — a **stub** retro still holding `[FILL IN]` is not closure (`B64`). The file existing is not the unit being finished, and this is the refusal most likely to surprise, so it is reported with its reason rather than silently. |
 | "Skip the ungrouped line when it's zero — it's noise." | No. An empty collection must stay distinguishable from one that was never computed (`B39`). It renders at 0. |
+| "It is closed, so move it — the hold is only a note." | No. A held unit's files stay where they are until the hold is released (`releaseUnit`, `tools/lib/unit-records.js`). Print the reason; do not work around it. |
 | "Archive the current unit; it looks finished." | No. The unit named by `STATE.md`'s `current_epic` is mid-flight by definition. Without a readable `STATE.md` there is no way to know which unit that is, which is why an unreadable STATE refuses *everything*. |
 | "Move files first, rewrite links after — if a link rewrite fails, the moves are already good." | No. `applyArchiveTree` owns the ordering (move + read-back assert, then rewrite). Do not reimplement it here. |
 | "Test it against a real project to be sure." | **Never.** Use `examples/sandbox/`, which exists for exactly this. Production repos are not test beds, `--apply` or not. |
@@ -106,7 +115,7 @@ nothing is re-proposed.
 ## Gate: Archive Complete
 
 - [ ] Dry-run wrote nothing (verify: no `.planning/` mtime changed without `--apply`)
-- [ ] Every unit appears exactly once — in the plan or in the refusals
+- [ ] Every unit appears exactly once — in the plan, in the refusals, or (unit records only) in `settled`
 - [ ] Every refusal shows its reason
 - [ ] The ungrouped count rendered, including at zero
 - [ ] On `--apply`: a second run is a clean no-op
