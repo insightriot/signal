@@ -232,13 +232,17 @@ function listDates(baseDir, rel, execFn) {
 //     flag, and each proposed close with its wording and evidence. The lists
 //     can stay byte-identical while this moves — a commit, a fetch into the
 //     default branch, a checkout, a retrospective added — and a yes given to one
-//     list of closes must never close another.
-function inputHashOf(stateText, texts, shown, dates) {
+//     list of closes must never close another. The units are in this half too
+//     (t7.4): what each unit is named by, and what is proposed for it.
+function inputHashOf(stateText, texts, shown, dates, unitsHash) {
   const parts = [['STATE.md', stateText], ...GENERATED_FILES.map((n) => [n, texts[n] ?? null])];
   const inputs = hashState(parts.map(([n, t]) => `${n}\0${t === null ? '\u0001absent' : t}\0`).join('') + JSON.stringify(GENERATED_FILES.map((n) => [dates[n]?.first, dates[n]?.last])));
   const outcome = hashState(JSON.stringify({
     items: shown.manifest.items.map((it) => [it.id, it.status, it.flag]),
     proposed: shown.proposedCloses.map((c) => [c.id, c.legacyId, c.reason, c.wording, c.evidence, c.proof]),
+    // The unit plan's own hash (M6.E16 t7.4): every source a unit is named
+    // by, the `--also` list, and every unit's proposal and evidence.
+    units: unitsHash,
   }));
   return `${inputs}:${outcome}`;
 }
@@ -250,8 +254,9 @@ function hashDriftReason(expected, actual) {
     return `${STATE_REL} or a list (${GENERATED_FILES.join(', ')}) changed since the dry run, so nothing was written. Re-run the dry run.`;
   }
   return 'What the dry run showed changed since the dry run, though the lists and STATE.md did not: this repository\'s history '
-    + 'or retrospectives now give a different outcome — an item\'s status or flag, or the proposed closes or their evidence '
-    + '(a commit, a fetch, a checkout or a retrospective since then). Nothing was written. Re-run the dry run and confirm what it shows now.';
+    + 'or retrospectives now give a different outcome — an item\'s status or flag, the proposed closes or their evidence, '
+    + 'or what is proposed for a unit (a commit, a fetch, a checkout, a retrospective, a milestone row, a unit\'s files or the --also list '
+    + 'since then). Nothing was written. Re-run the dry run and confirm what it shows now.';
 }
 
 // Everything both modes decide before writing: the refusals, the key, the
@@ -300,7 +305,7 @@ async function assess(baseDir, opts) {
   // repository, and every list a regular file (t4.6).
   // The lock files too (REVIEW I5): `file-lock.js` reads a lock it finds, and
   // a held lock's first line is printed as its pid.
-  for (const rel of [WORK_MD_REL, `${ITEMS_REL}/x`, `${HISTORY_REL}/x`, MANIFEST_REL, WORK_LOCK_REL, ADD_LOCK_REL]) {
+  for (const rel of [WORK_MD_REL, `${ITEMS_REL}/x`, `${UNITS_REL}/x`, `${HISTORY_REL}/x`, MANIFEST_REL, WORK_LOCK_REL, ADD_LOCK_REL]) {
     try {
       confineView(baseDir, rel);
     } catch (err) {
@@ -372,8 +377,8 @@ async function assess(baseDir, opts) {
 
   // Never overwrite: a store file or an archive copy already where this run
   // would put one.
-  const taken = [ITEMS_REL, HISTORY_REL, VIEW_PATHS.epics, MANIFEST_REL, ...archived.map((x) => x.to)]
-    .filter((rel) => existsSync(join(baseDir, rel)));
+  const taken = [ITEMS_REL, UNITS_REL, HISTORY_REL, VIEW_PATHS.epics, MANIFEST_REL, ...archived.map((x) => x.to)]
+    .filter((rel) => onDisk(baseDir, rel));
   if (taken.length > 0) {
     return refuse(`${taken.join(', ')} already exist${taken.length === 1 ? 's' : ''}; this run never overwrites one, so nothing was written. `
       + 'Move it aside (or remove it), commit, then re-run.');
@@ -406,11 +411,22 @@ async function assess(baseDir, opts) {
     }
   }
 
+  // The units (M6.E16 t7.4): proposed in the same dry run, inside the same
+  // hash, written by the same apply.
+  const unitsPlan = await planUnits(baseDir, { also: opts.also, storeKey: key });
+  if (unitsPlan.refusal) return refuse(unitsPlan.refusal);
+  if (unitsPlan.milestone !== null && (unitsPlan.milestone.markers === 'ok' || unitsPlan.milestone.markers === 'broken')) {
+    return refuse(`${unitsPlan.milestone.rel} already carries the Epic-table markers, which belong to a project that has unit records — and this `
+      + 'run builds the store beside the project, where that file is not. Take the two marker lines out, commit, run this again, then put '
+      + 'them back: the next change to a unit fills the table. Nothing was written.');
+  }
+  sensitiveHits = [...sensitiveHits, ...unitSensitiveHits(unitsPlan)];
+
   const files = present.map((name) => {
     const f = plan.manifest.files[name] ?? { items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
     return { file: `.planning/${name}`, items: f.items, open: f.open, closed: f.closed, flagged: f.flagged, regions: f.regions.map((r) => r.name) };
   });
-  return { key, keySource, folder, files, archived, dates, texts, plan, shown, sensitiveHits, evidence, inputHash: inputHashOf(stateText, texts, shown, dates) };
+  return { key, keySource, folder, files, archived, dates, texts, plan, shown, unitsPlan, sensitiveHits, evidence, inputHash: inputHashOf(stateText, texts, shown, dates, unitsPlan.inputHash) };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -704,14 +720,18 @@ function dryRunReport(a) {
       lines.push(`  ${c.id}  ${c.legacyId ?? '—'}  ${c.title}  — wording ${quote(clip(c.wording))}; evidence ${c.evidence.join('; ')}`);
     }
   }
+  lines.push('', ...unitsReportLines(a.unitsPlan));
   if (a.sensitiveHits.length > 0) {
     lines.push('', `Sensitive data found — the apply stops here until you decide (keep the text as it is, or abort and edit the list first):`);
     for (const h of a.sensitiveHits) lines.push(`  ${h.id} (${h.file}): ${h.type} "${masked(h.match)}"`);
   }
+  const uc = unitCounts(a.unitsPlan);
   lines.push('', `--apply moves ${a.files.length > 0 ? 'each list' : 'nothing'}${a.files.length > 0 ? ` to ${PRE_STORE_ARCHIVE_REL}/ (with MANIFEST.json)` : ''}, `
     + `writes ${items.length} record${items.length === 1 ? '' : 's'}, ${WORK_MD_REL} and the generated views `
     + `(${Object.values(VIEW_PATHS).join(', ')}, plus .planning/work/history/ for closes more than 30 days old), `
-    + `regenerates .planning/INDEX.md if the project has one, and leaves them staged, not committed.`);
+    + `creates ${UNITS_REL}/ with ${count(uc.made, 'unit record')}`
+    + (uc.proposed > 0 ? ` (${uc.proposed} of them closed as legacy only if you confirm that list; otherwise open)` : '')
+    + `, regenerates .planning/INDEX.md if the project has one, and leaves them staged, not committed.`);
   return lines.map(printable).join('\n');
 }
 
@@ -733,12 +753,16 @@ function revertLineFor(probe, force, tag, created, archived, indexRegenerated) {
 }
 
 // The store at `root`, checked: `errors` says why it is not the `count`
-// records the plan made ([] when it is); `records` and `checks` are what was
-// measured (the record count read, `checkRecords`' findings).
-function verifyBuilt(root, count) {
+// records and `unitCount` unit records the plan made ([] when it is);
+// `records` and `checks` are what was measured (the record count read,
+// `checkRecords`' findings).
+function verifyBuilt(root, count, unitCount) {
   const errors = [];
   const listed = listRecords(root);
   const checks = checkRecords(root);
+  const units = listUnits(root);
+  if (units.units.length !== unitCount) errors.push(`the store holds ${units.units.length} unit records, not ${unitCount}`);
+  for (const f of checkUnits(root)) errors.push(`checkUnits ${f.code}${f.id ? ` ${f.id}` : ''}: ${f.message}`);
   if (listed.version !== 2) errors.push(`the store reads as v${listed.version}, not v2`);
   if (listed.records.length !== count) errors.push(`the store holds ${listed.records.length} records, not ${count}`);
   for (const b of listed.broken) errors.push(`record ${b.id ?? b.path} is broken: ${b.error}`);
@@ -787,6 +811,7 @@ function restore(baseDir, done) {
   };
   for (const rel of done.views) quietly(() => { if (isGeneratedFile(join(baseDir, rel))) unlinkSync(join(baseDir, rel)); });
   if (done.items) quietly(() => rmSync(join(baseDir, ITEMS_REL), { recursive: true, force: true }));
+  if (done.units) quietly(() => rmSync(join(baseDir, UNITS_REL), { recursive: true, force: true }));
   if (done.workMd) quietly(() => unlinkSync(join(baseDir, WORK_MD_REL)));
   if (done.manifest) quietly(() => unlinkSync(join(baseDir, MANIFEST_REL)));
   if (done.index !== null) quietly(() => writeFileSync(join(baseDir, INDEX_REL), done.index));
@@ -830,15 +855,21 @@ async function buildAndSwap(baseDir, a, ctx) {
   const aside = join(baseDir, ctx.asideRel);
   const records = a.plan.records;
   await buildAside(aside, records, workMd(a.key, a.archived));
+  // The unit records (M6.E16 t7.4), through their own writer, into the store
+  // being built aside: it has its own WORK.md, so the lock taken there is the
+  // aside's, not the project's (which this run holds). The folder is made even
+  // when no unit is planned (`D-M6E16-16`).
+  const unitList = unitImportList(a.unitsPlan, { confirmCloses: ctx.confirmUnitCloses === true, at: ctx.at });
+  await importUnits(aside, unitList, { ensureDir: true, acknowledgeSensitive: true, regenerate: async () => {} });
   const { written } = await regenerateViews(aside);
-  const built = verifyBuilt(aside, records.length).errors;
+  const built = verifyBuilt(aside, records.length, unitList.length).errors;
   if (built.length > 0) {
     throw new WorkStoreError('SCHEMA', `the store built aside did not verify, so the project was not changed:\n  ${built.join('\n  ')}`);
   }
 
   const step = (name) => ctx.onSwapStep?.(name);
   // `index`: INDEX.md's bytes before it was regenerated, or null.
-  const done = { archived: [], views: [], made: [], items: false, workMd: false, manifest: false, index: null };
+  const done = { archived: [], views: [], made: [], items: false, units: false, workMd: false, manifest: false, index: null };
   let index = null; // 'regenerated' | 'foreign' | 'not-a-file' | null
   try {
     step('archive');
@@ -863,6 +894,9 @@ async function buildAndSwap(baseDir, a, ctx) {
       renameSync(join(aside, ITEMS_REL), join(baseDir, ITEMS_REL));
       done.items = true;
     }
+    step('units');
+    moveInNew(join(aside, UNITS_REL), baseDir, UNITS_REL); // never over a folder that appeared there
+    done.units = true;
     step('views');
     for (const rel of written) {
       confineView(baseDir, rel);
@@ -871,7 +905,7 @@ async function buildAndSwap(baseDir, a, ctx) {
       done.views.push(rel);
     }
     step('verify');
-    const after = verifyBuilt(baseDir, records.length);
+    const after = verifyBuilt(baseDir, records.length, unitList.length);
     if (after.errors.length > 0) throw new WorkStoreError('SCHEMA', `the migrated store did not verify:\n  ${after.errors.join('\n  ')}`);
     if (a.archived.length > 0) {
       const manifest = {
@@ -920,7 +954,7 @@ async function buildAndSwap(baseDir, a, ctx) {
     restore(baseDir, done);
     throw err;
   }
-  return { written, items: records.length > 0, manifest: a.archived.length > 0, index };
+  return { written, items: records.length > 0, manifest: a.archived.length > 0, index, units: unitList.length };
 }
 
 /**
@@ -974,7 +1008,8 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
     for (const c of a.shown.proposedCloses) if (c.evidence.length > 3) c.evidence = [...c.evidence.slice(0, 3), `… and ${c.evidence.length - 3} more`]; // shown capped; the hash, taken, keeps all
     return {
       applied: false, dryRun: true, key: a.key, files: a.files, items: a.shown.manifest.items, dates: a.dates,
-      proposedCloses: a.shown.proposedCloses, sensitiveHits: maskHits(a.sensitiveHits), inputHash: a.inputHash, report: dryRunReport(a),
+      proposedCloses: a.shown.proposedCloses, units: a.unitsPlan.units, proposedUnitCloses: a.unitsPlan.proposedCloses,
+      sensitiveHits: maskHits(a.sensitiveHits), inputHash: a.inputHash, report: dryRunReport(a),
     };
   }
   // The apply is bound to what a person read in the dry run (AC6.4): without
@@ -1029,7 +1064,10 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
     if (stop === null) {
       if (probe.mode === 'git') tag = tagPreApply(baseDir, `pre-work-store-${stamp}`, execFn);
       try {
-        swapped = await buildAndSwap(baseDir, b, { asideRel, onSwapStep: opts.onSwapStep });
+        swapped = await buildAndSwap(baseDir, b, {
+          asideRel, onSwapStep: opts.onSwapStep, confirmUnitCloses: opts.confirmUnitCloses,
+          at: typeof opts.at === 'string' ? opts.at : new Date().toISOString().slice(0, 10),
+        });
       } catch (err) {
         failed = true;
         if (tag) {
@@ -1063,7 +1101,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   if (stop !== null) return stop;
 
   const { written } = swapped;
-  const created = [WORK_MD_REL, ...(swapped.items ? [ITEMS_REL] : []), ...written, ...(swapped.manifest ? [MANIFEST_REL] : [])];
+  const created = [WORK_MD_REL, ...(swapped.items ? [ITEMS_REL] : []), UNITS_REL, ...written, ...(swapped.manifest ? [MANIFEST_REL] : [])];
   // INDEX.md is staged but never in `created`: the undo line removes those.
   const indexRegenerated = swapped.index === 'regenerated';
   if (probe.mode === 'git') stagePaths(baseDir, [...created, ...b.archived.map((x) => x.to), ...(indexRegenerated ? [INDEX_REL] : [])], execFn);
@@ -1077,6 +1115,8 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
     : confirmedN > 0
       ? [`Closed ${confirmedN} proposed close${confirmedN === 1 ? '' : 's'}, as confirmed (each a legacy close; its proof is the wording and the evidence).`]
       : [`${proposedN} proposed close${proposedN === 1 ? ' was' : 's were'} not confirmed: left open, flagged looks-finished.`];
+  const uc = unitCounts(b.unitsPlan);
+  const unitsConfirmed = opts.confirmUnitCloses === true;
   const report = [
     `/sig:docs-migrate --work-store — the work store is on (key ${b.key})`,
     '',
@@ -1087,6 +1127,14 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
     ...(swapped.index === 'not-a-file' ? [`${INDEX_REL} is a symbolic link or not a regular file, so it was not regenerated: run /sig:docs-index.`] : []),
     ...(swapped.index === 'foreign' ? [`${INDEX_REL} is hand-written, so it was left as it is: reconcile it with /sig:docs-index.`] : []),
     ...proposedLine,
+    `Wrote ${count(swapped.units, 'unit record')} under ${UNITS_REL}/ — unit records are on.`,
+    ...(uc.proposed === 0 ? []
+      : unitsConfirmed
+        ? [`Recorded ${count(uc.proposed, 'proposed legacy close')} as closed, as confirmed (each a legacy close: its record carries what was found, and its old row).`]
+        : [`${count(uc.proposed, 'proposed legacy close')} ${uc.proposed === 1 ? 'was' : 'were'} not confirmed: each unit was created open, with a note saying it looked finished.`]),
+    ...(uc.dropped > 0 ? [`Recorded ${count(uc.dropped, 'declared unit')} as closed (dropped).`] : []),
+    ...(b.unitsPlan.flagged.length > 0 ? [`${count(b.unitsPlan.flagged.length, 'unit is', 'units are')} flagged — created open, with a note: ${b.unitsPlan.flagged.map((u) => u.id).join(', ')}.`] : []),
+    ...(b.unitsPlan.refused.length > 0 ? [`${count(b.unitsPlan.refused.length, 'name was', 'names were')} refused and got no unit record: ${b.unitsPlan.refused.map((u) => u.id).join(', ')}.`] : []),
     ...(flagged > 0 ? [`${flagged} item${flagged === 1 ? ' is' : 's are'} flagged for a person's look (each carries a migration_note saying why): triage with /sig:item.`] : []),
     probe.mode === 'git' ? 'Staged, not committed — review with `git diff --cached`, then commit.' : 'Not a git checkout: nothing staged.',
     ...(tag ? [`Pre-apply tag: ${tag}`] : []),
@@ -1094,7 +1142,8 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   ].join('\n');
   return {
     applied: true, key: b.key, mode: probe.mode, tag, revertLine, written, archived: b.archived,
-    records: items.length, flagged, closesConfirmed: confirmedN, warnings: probe.warnings, report,
+    records: items.length, flagged, closesConfirmed: confirmedN, units: swapped.units,
+    unitClosesConfirmed: unitsConfirmed ? uc.proposed : 0, warnings: probe.warnings, report,
   };
 }
 
