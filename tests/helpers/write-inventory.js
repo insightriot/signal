@@ -7,6 +7,7 @@ import { join, relative, sep } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
 import { recordPath } from '../../plugin/tools/lib/work-records.js';
+import { unitPath } from '../../plugin/tools/lib/unit-records.js';
 
 // ── Static: who takes the lock, and who calls whom ──────────────────────────
 
@@ -258,10 +259,12 @@ export async function checkReaders(base, readers) {
 }
 
 // The record kinds a writer is judged on (a list since M6.E16.S1): `re` matches
-// a record file's path, `pathOf` is that kind's one path resolver. Items only,
-// until a second kind's library exists.
+// a record file's path, `pathOf(id, base)` is that kind's one path resolver
+// (a unit's takes the project: its ID rule reads the store). Items, and since
+// M6.E16.S2 units.
 const RECORD_KINDS = [
-  { re: /^\.planning\/work\/items\/[^/]+\/[^/]+\.json$/, pathOf: recordPath },
+  { re: /^\.planning\/work\/items\/[^/]+\/[^/]+\.json$/, pathOf: (id) => recordPath(id) },
+  { re: /^\.planning\/work\/units\/[^/]+\.json$/, pathOf: (id, base) => unitPath(base, id) },
 ];
 const kindOf = (rel) => RECORD_KINDS.find((k) => k.re.test(rel));
 
@@ -297,7 +300,7 @@ export async function checkWriter(base, name, { run, newEvents = 1 }) {
     if (!before.has(rel)) {
       let expected;
       try {
-        expected = kindOf(rel).pathOf(now.id);
+        expected = kindOf(rel).pathOf(now.id, base);
       } catch {
         expected = null;
       }
