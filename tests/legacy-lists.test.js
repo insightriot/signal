@@ -218,6 +218,7 @@ describe('legacy-lists — the write path and the v2 modules do not import it (A
   const V2_MODULES = [
     'work-marker.js', 'atomic-write.js', 'work-record.js', 'work-records.js', 'work-views.js',
     'work-convert.js', 'work-write-guard.js', 'scrub.js', 'work-errors.js', 'close-confirm.js',
+    'unit-record.js', // M6.E16.S2: the unit record
   ];
 
   for (const mod of V2_MODULES) {

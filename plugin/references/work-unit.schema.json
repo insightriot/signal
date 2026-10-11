@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "events"],
+  "properties": {
+    "id": { "$ref": "#/$defs/unit_id" },
+    "title": { "type": "string", "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$" },
+    "summary": { "$ref": "#/$defs/text" },
+    "legacy_row": { "type": "array", "items": { "type": "string" } },
+    "migration_note": { "type": "string" },
+    "events": { "type": "array", "items": { "type": "object" } }
+  },
+  "$defs": {
+    "unit_id": { "type": "string", "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._-]{0,99}$" },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{7,64}$" },
+    "at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z)?$"
+    },
+    "text": { "type": "string", "pattern": "\\S" },
+    "value": { "type": ["string", "number", "null"] },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "$ref": "#/$defs/value" },
+        "to": { "$ref": "#/$defs/value" }
+      }
+    },
+    "changes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "$ref": "#/$defs/change" },
+        "summary": { "$ref": "#/$defs/change" },
+        "migration_note": { "$ref": "#/$defs/change" }
+      }
+    },
+    "opened": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "at", "by"],
+      "properties": {
+        "type": { "const": "opened" },
+        "at": { "$ref": "#/$defs/at" },
+        "by": { "$ref": "#/$defs/text" }
+      }
+    },
+    "close_requested": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "at", "by", "proof"],
+      "properties": {
+        "type": { "const": "close_requested" },
+        "at": { "$ref": "#/$defs/at" },
+        "by": { "$ref": "#/$defs/text" },
+        "proof": { "$ref": "#/$defs/commit" }
+      }
+    },
+    "closed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "at", "by", "reason"],
+      "properties": {
+        "type": { "const": "closed" },
+        "at": { "$ref": "#/$defs/at" },
+        "by": { "$ref": "#/$defs/text" },
+        "reason": { "enum": ["shipped", "dropped", "legacy"] },
+        "proof": { "$ref": "#/$defs/commit" },
+        "pr": { "$ref": "#/$defs/text" },
+        "release": { "$ref": "#/$defs/text" },
+        "words": { "$ref": "#/$defs/text" }
+      }
+    },
+    "reopened": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "at", "by", "reason"],
+      "properties": {
+        "type": { "const": "reopened" },
+        "at": { "$ref": "#/$defs/at" },
+        "by": { "$ref": "#/$defs/text" },
+        "reason": { "$ref": "#/$defs/text" }
+      }
+    },
+    "held": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "at", "by", "reason"],
+      "properties": {
+        "type": { "const": "held" },
+        "at": { "$ref": "#/$defs/at" },
+        "by": { "$ref": "#/$defs/text" },
+        "reason": { "$ref": "#/$defs/text" }
+      }
+    },
+    "released": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "at", "by"],
+      "properties": {
+        "type": { "const": "released" },
+        "at": { "$ref": "#/$defs/at" },
+        "by": { "$ref": "#/$defs/text" }
+      }
+    },
+    "edited": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "at", "by", "changes"],
+      "properties": {
+        "type": { "const": "edited" },
+        "at": { "$ref": "#/$defs/at" },
+        "by": { "$ref": "#/$defs/text" },
+        "changes": { "$ref": "#/$defs/changes" }
+      }
+    }
+  }
+}

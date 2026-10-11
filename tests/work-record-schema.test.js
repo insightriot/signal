@@ -293,6 +293,17 @@ describe('schema guard — only the supported keyword subset', () => {
     expect(out).toEqual([]);
   });
 
+  // M6.E16.S2: the unit schema is read by the same validator, so the same guard walks it.
+  it('the shipped unit schema uses only supported keywords, and every $ref in it resolves', () => {
+    const unit = JSON.parse(readFileSync(join(process.cwd(), 'plugin', 'references', 'work-unit.schema.json'), 'utf8'));
+    const out = [];
+    walk(unit, '#', out, true);
+    expect(out).toEqual([]);
+    const refs = [...JSON.stringify(unit).matchAll(/"\$ref":"#\/\$defs\/([A-Za-z_]+)"/g)].map((m) => m[1]);
+    expect(refs.length).toBeGreaterThan(0);
+    for (const name of refs) expect(unit.$defs).toHaveProperty(name);
+  });
+
   it('the guard itself fires on an unsupported keyword (oneOf, minLength, nested)', () => {
     const out = [];
     walk({ type: 'object', oneOf: [], properties: { a: { type: 'string', minLength: 1 } } }, '#', out, true);
