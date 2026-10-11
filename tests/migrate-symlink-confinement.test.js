@@ -43,6 +43,8 @@ const NOTES_BODY = 'Project notes. See [the plan](M6.E1-PLAN.md) for details.\n'
 async function writePlanningDocs(planning) {
   await writeFile(join(planning, 'STATE.md'), STATE_CONFORMANT, 'utf-8');
   await writeFile(join(planning, 'M6.E1-RETROSPECTIVE.md'), '# M6.E1 retro\n', 'utf-8');
+  // SIG-286: closure needs a readable PASS verdict, not a retro alone.
+  await writeFile(join(planning, 'M6.E1-VERIFICATION.md'), '# M6.E1 verification\n\n**Verdict:** PASS\n', 'utf-8');
   await writeFile(join(planning, 'M6.E1-PLAN.md'), PLAN_BODY, 'utf-8');
   await writeFile(join(planning, 'NOTES.md'), NOTES_BODY, 'utf-8');
 }

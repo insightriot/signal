@@ -22,7 +22,8 @@
 // that cut the hand-kept lists into entries, and the lossless and count checks
 // (work-migrate / work-roundtrip tests) run on them. A plan's items are still
 // v1-shaped (`validateItem`, a status folder); turning another project's lists
-// into records is `/sig:docs-migrate`'s, in a later release.
+// into records is `/sig:docs-migrate --work-store`'s (`work-migrate-lists.js`,
+// M6.E15), which reads them through these segmenters.
 //
 // ── Which lines are entries: the SHIPPED readers decide, not this module ────
 //
@@ -90,15 +91,24 @@ function tile(lines, rows, nameOf, splitAt = new Set()) {
   });
   if (cursor <= total) stretches.push({ from: cursor, to: total, first: rows.length === 0, last: true });
 
-  // Break stretches at forced split lines.
-  for (let k = 0; k < stretches.length; k++) {
-    const s = stretches[k];
-    const cut = [...splitAt].filter((l) => l > s.from && l <= s.to).sort((x, y) => x - y)[0];
-    if (cut === undefined) continue;
-    stretches.splice(k, 1, { ...s, to: cut - 1, last: false }, { from: cut, to: s.to, first: false, last: s.last });
+  // Break stretches at forced split lines. One walk over both sorted lists
+  // (REVIEW pass 3 suggestion: a filter of every split line per stretch, and a
+  // splice per cut, made OPEN-QUESTIONS.md with many `##` groups quadratic).
+  const cuts = [...splitAt].sort((x, y) => x - y);
+  const pieces = [];
+  let ci = 0;
+  for (const s0 of stretches) {
+    let s = s0;
+    while (ci < cuts.length && cuts[ci] <= s.from) ci++;
+    while (ci < cuts.length && cuts[ci] <= s.to) {
+      pieces.push({ ...s, to: cuts[ci] - 1, last: false });
+      s = { from: cuts[ci], to: s.to, first: false, last: s.last };
+      ci++;
+    }
+    pieces.push(s);
   }
 
-  for (const s of stretches) {
+  for (const s of pieces) {
     let a = s.from;
     let b = s.to;
     while (a <= b && isGapLine(lines[a - 1])) a++;
@@ -113,6 +123,25 @@ function tile(lines, rows, nameOf, splitAt = new Set()) {
     if (b < s.to) gaps.push({ line: b + 1, endLine: s.to, text: sliceLines(lines, b + 1, s.to) });
   }
   return { orphans, gaps };
+}
+
+// The old ID a heading LEADS with, in another project's schemes (M6.E15
+// t2.3, t2.4; `D-M6E15-2`): `#99`, `Issue #45`, `R3`, `NFR-04`. A letter ID
+// counts only when a separator (`—`, `–`, `:`, ` - `) follows it, so a title
+// that merely starts with a word and a number is not read as one. A unit ID
+// (`M9.E1 …`) is not an old ID — `M9` is followed by `.` — and neither is a
+// `B{n}`: in a list other than BUGS.md it names the bug, not this entry
+// (`leadingId` still carries both). The decoration run is bounded, as in
+// `leading-id.js`, so a non-matching heading cannot backtrack.
+//
+// In BUGS.md a `##` heading's leading `B{n}` DOES name the entry itself, so
+// there (`{bugs: true}`, REVIEW S2) a `B{n}` counts like any other letter ID.
+const LEGACY_ID_RE = /^[\s`*_~]{0,10}(?:(Issue #\d+|#\d+)\b|((?!B\d)[A-Z]{1,5}-?\d+)(?=\s{0,3}(?:—|–|:|-\s)))/;
+const BUGS_LEGACY_ID_RE = /^[\s`*_~]{0,10}(?:(Issue #\d+|#\d+)\b|([A-Z]{1,5}-?\d+)(?=\s{0,3}(?:—|–|:|-\s)))/;
+
+export function legacyIdOf(heading, { bugs = false } = {}) {
+  const m = String(heading).match(bugs ? BUGS_LEGACY_ID_RE : LEGACY_ID_RE);
+  return m ? (m[1] ?? m[2]) : null;
 }
 
 // A readable name for an orphan from its first line: markdown decoration
@@ -146,6 +175,30 @@ const BUG_ROW_RE = /^\|\s*B(\d+)\s*\|([^|]*)\|([^|]*)\|/;
 const H2_RE = /^## /;
 const TALLY_RE = /^\*\s*\d+\s+needs-triage\b/;
 const ENTRY_STATUS_RE = /^\*\*Status:\*\*\s*(.*)$/;
+// A markdown table separator row (`|---|---|`), and any row's first three cells.
+const TABLE_SEP_RE = /^\|(?:\s*:?-{3,}:?\s*\|)+\s*$/;
+const ANY_ROW_RE = /^\|([^|]*)\|([^|]*)\|([^|]*)\|/;
+// What a bug table's ID cell may hold (REVIEW S3, legacy_id hygiene): one
+// short token with a digit — `B1`, `BUG-7`, `NFR-04`, `#99`, `Issue #45`, a
+// bare `1` (REVIEW pass 2 I-B) — at most 40 characters, no spaces (but
+// `Issue #`), no control characters.
+const ID_CELL_RE = /^(?=[^\d]{0,39}\d)(?:Issue #\d{1,9}|#\d{1,9}|\d{1,9}|[A-Za-z][A-Za-z0-9._-]{0,39})$/;
+
+// The ID inside a decorated cell (REVIEW pass 2 I-C): strike-through and
+// code/bold markup off, a markdown link unwrapped to its text
+// (`[B1](notes/b1.md)` → `B1`), a trailing tick or emoji dropped (`B1 ✅`). A
+// cell longer than any ID is returned as it is (and then reads as no ID), so
+// no pattern runs over a long one.
+const ID_CELL_MAX = 200;
+const ID_LINK_RE = /^\[([^\][]{1,60})\]\([^()\s]{0,500}\)$/;
+const ID_TAIL_RE = /(?:\s|\p{Extended_Pictographic}|[\u2713\u2714]|\uFE0F|\u200D){1,20}$/u;
+function idCellText(raw) {
+  if (raw.length > ID_CELL_MAX) return raw;
+  let t = raw.replace(/~~/g, '').replace(/[`*]/g, '').trim().replace(ID_TAIL_RE, '');
+  const link = t.match(ID_LINK_RE);
+  if (link) t = link[1].trim().replace(ID_TAIL_RE, '');
+  return t.replace(/_/g, '');
+}
 
 // Where does a summary cell's text begin? Right after the fourth `|` of the
 // first line — i.e. after the id, status and priority cells.
@@ -179,6 +232,9 @@ export function segmentBugs(text) {
   const isBoundary = (i) => tableStarts.has(i) || (!inFence[i - 1] && (H2_RE.test(lines[i - 1]) || TALLY_RE.test(lines[i - 1])));
 
   const rows = [];
+  // The line of each `## ` entry taken so far: a lookup, not a scan of `rows`
+  // per heading (headings × rows on a hostile file).
+  const entryAt = new Set();
   for (const e of entries) {
     if (e.kind === 'row') {
       let end = e.line;
@@ -217,12 +273,13 @@ export function segmentBugs(text) {
     if (h < 1) {
       throw new WorkStoreError('SCHEMA', `BUGS.md:${e.line}: a **Status:** line with no \`## \` heading above it`);
     }
-    if (rows.some((r) => r.kind === 'entry' && r.line === h)) {
+    if (entryAt.has(h)) {
       throw new WorkStoreError('SCHEMA', `BUGS.md:${h}: an entry carries two **Status:** lines (second at line ${e.line})`);
     }
     let end = h + 1;
     while (end <= lines.length && !isBoundary(end) && !(lines[end - 1].trim() === '---' && !inFence[end - 1])) end++;
     end = trimRowEnd(lines, h, end - 1);
+    entryAt.add(h);
     rows.push({
       source: 'BUGS.md',
       kind: 'entry',
@@ -238,14 +295,114 @@ export function segmentBugs(text) {
     });
   }
 
-  // Every `## ` heading must be an entry: a heading with no status line is a
-  // shape this segmenter does not know, and it must not become orphan text
-  // without anyone noticing.
+  // Every `## ` heading is an entry. One with no **Status:** line (another
+  // project's shape, M6.E15 t2.2) is an open entry with `statusRaw: null`,
+  // ending where a status-line entry would; what that means is the planner's.
   lines.forEach((l, i) => {
-    if (!inFence[i] && H2_RE.test(l) && !rows.some((r) => r.kind === 'entry' && r.line === i + 1)) {
-      throw new WorkStoreError('SCHEMA', `BUGS.md:${i + 1}: \`## \` heading with no **Status:** line — not a bug entry this migration can read`);
-    }
+    const h = i + 1;
+    if (inFence[i] || !H2_RE.test(l) || entryAt.has(h)) return;
+    let end = h + 1;
+    while (end <= lines.length && !isBoundary(end) && !(lines[end - 1].trim() === '---' && !inFence[end - 1])) end++;
+    end = trimRowEnd(lines, h, end - 1);
+    rows.push({
+      source: 'BUGS.md',
+      kind: 'entry',
+      id: null,
+      n: null,
+      line: h,
+      endLine: end,
+      text: sliceLines(lines, h, end),
+      heading: l.replace(H2_RE, '').trim(),
+      statusRaw: null,
+      priority: null,
+      summary: null,
+    });
   });
+
+  // Table rows whose ID is not `B{n}`, or that have none (M6.E15 t2.2, AC7.1).
+  // Only in a table BODY (after a `|---|` separator, so a header is never an
+  // item) and only outside every row and entry above — a table quoted inside
+  // an entry's body is that entry's text. `walkBugEntries` is not changed: the
+  // tally, sweep and advise read B-rows through it.
+  //
+  // Only a BUG table's rows are bugs (REVIEW S3): a table at least one of
+  // whose body rows opens with an ID (`ID_CELL_RE`, a `B{n}` row included) or
+  // a dash. Any other table (a legend, a glossary) is text between rows. The
+  // ID is read from the first line of the first cell only; a cell that is not
+  // ID-shaped gives no `id` and sets `idUnreadable` (legacy_id hygiene).
+  //
+  // Linear time (REVIEW I4): claimed lines are a lookup array, and each line's
+  // next closing line (one ending in `|`) and next stop (a boundary or a
+  // claimed line) are found once, back to front — not by a scan per row.
+  const n = lines.length;
+  const claimedAt = new Uint8Array(n + 2);
+  for (const r of rows) for (let k = r.line; k <= r.endLine; k++) claimedAt[k] = 1;
+  const nextClose = new Int32Array(n + 2).fill(n + 1);
+  const nextStop = new Int32Array(n + 2).fill(n + 1);
+  for (let k = n; k >= 1; k--) {
+    nextClose[k] = lines[k - 1].trimEnd().endsWith('|') ? k : nextClose[k + 1];
+    nextStop[k] = claimedAt[k] || isBoundary(k) ? k : nextStop[k + 1];
+  }
+  const bRowStarts = new Set(rows.filter((r) => r.kind === 'table').map((r) => r.line));
+  const tableHasId = [];
+  const candidates = [];
+  let table = -1;
+  let inTable = false;
+  for (let ln = 1; ln <= n; ln++) {
+    const l = lines[ln - 1];
+    if (inFence[ln - 1]) {
+      inTable = false;
+      continue;
+    }
+    if (TABLE_SEP_RE.test(l)) {
+      inTable = true;
+      tableHasId[++table] = false;
+      continue;
+    }
+    if (claimedAt[ln]) {
+      if (inTable && bRowStarts.has(ln)) tableHasId[table] = true;
+      continue;
+    }
+    if (!l.startsWith('|')) {
+      inTable = false;
+      continue;
+    }
+    if (!inTable) continue;
+    // A row that does not close on its first line continues to the first line
+    // that does, when one comes before a boundary; otherwise it is one line.
+    const close = nextClose[ln];
+    const end = close <= n && close < nextStop[ln + 1] ? close : ln;
+    const rowText = sliceLines(lines, ln, end);
+    const m = l.match(ANY_ROW_RE);
+    const rawId = (l.split('|')[1] ?? '').trim();
+    const idCell = idCellText(rawId);
+    const none = /^[-—–]*$/.test(idCell);
+    const idShaped = !none && ID_CELL_RE.test(idCell);
+    if (none || idShaped) tableHasId[table] = true;
+    const start = m ? m[0].length : 1;
+    const last = rowText.lastIndexOf('|');
+    candidates.push({
+      table,
+      row: {
+        source: 'BUGS.md',
+        kind: 'table',
+        id: idShaped ? idCell : null,
+        ...(none || idShaped ? {} : { idUnreadable: true }),
+        // A struck ID cell (`~~B1~~`) is a strike marker, read like a struck
+        // heading (the planner's `readMarkers`).
+        ...(idShaped && rawId.includes('~~') ? { struckId: rawId } : {}),
+        n: null,
+        line: ln,
+        endLine: end,
+        text: rowText,
+        statusRaw: m ? m[2].trim() : null,
+        priority: m ? m[3].trim() : null,
+        summary: (last >= start ? rowText.slice(start, last) : rowText.slice(start)).trim(),
+      },
+    });
+    ln = end;
+  }
+  for (const c of candidates) if (tableHasId[c.table]) rows.push(c.row);
 
   rows.sort((a, b) => a.line - b.line);
   const { orphans, gaps } = tile(lines, rows, (core, ctx) => {
@@ -287,6 +444,29 @@ function liveBacklogHeadings(lines, maxDepth) {
   return out;
 }
 
+// A row's heading as a title (M6.E15 t2.4): strike-through removed, and the
+// trailing ` · **tag** · size` and ` · **DONE — …**` segments dropped, last
+// first. Nothing else is touched — a leading `#99 — ` stays (the old ID is
+// `legacyId` too). The raw heading stays on the row and as its text's first line.
+//
+// Linear on any heading (REVIEW pass 2 I-D): the tails are cut from the end by
+// moving an index, each one matched in a bounded window ending there — never
+// a pattern over the whole heading once per tail.
+const TITLE_TAIL_RE = /·\s{0,40}(?:\*\*[^*]{1,200}\*\*|small|medium|large)$/i;
+const TITLE_TAIL_WINDOW = 260;
+
+function backlogTitle(heading) {
+  const t = heading.replace(/~~/g, '');
+  let end = t.length;
+  for (;;) {
+    while (end > 0 && /\s/.test(t[end - 1])) end--;
+    const m = t.slice(Math.max(0, end - TITLE_TAIL_WINDOW), end).match(TITLE_TAIL_RE);
+    if (!m) break;
+    end -= m[0].length;
+  }
+  return t.slice(0, end).trim();
+}
+
 /**
  * @param {string} text — BACKLOG.md content
  */
@@ -317,6 +497,8 @@ export function segmentBacklog(text) {
       heading: r.text,
       depth: r.depth,
       leadingId: r.leadingId,
+      legacyId: legacyIdOf(r.text),
+      title: backlogTitle(r.text),
       discharged: r.discharged,
       dischargedBy: r.dischargedBy,
       dischargedAt: r.dischargedAt,
@@ -339,10 +521,23 @@ export function segmentBacklog(text) {
 // entry (the trigger watchlist) is not a work item (`D-M6E11-18`); it is
 // returned on its own so the generator can re-emit it verbatim.
 
-function lineOfOffset(text, offset) {
-  let n = 1;
-  for (let i = 0; i < offset; i++) if (text.charCodeAt(i) === 10) n++;
-  return n;
+// The 1-based line of a character offset, from the line starts computed once
+// per file (REVIEW pass 2 I-D: a scan from the top per entry was quadratic).
+function lineStarts(text) {
+  const starts = [0];
+  for (let i = text.indexOf('\n'); i !== -1; i = text.indexOf('\n', i + 1)) starts.push(i + 1);
+  return starts;
+}
+
+function lineOfOffset(starts, offset) {
+  let lo = 0;
+  let hi = starts.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (starts[mid] <= offset) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo + 1;
 }
 
 /**
@@ -351,12 +546,13 @@ function lineOfOffset(text, offset) {
 export function segmentInbox(text) {
   const src = String(text);
   const lines = src.split('\n');
+  const starts = lineStarts(src);
   const rows = [];
   let watchlist = null;
   for (const e of parseEntries(src)) {
-    const start = lineOfOffset(src, e.range.start);
+    const start = lineOfOffset(starts, e.range.start);
     // `range.end` is the first byte of the next heading line (or EOF).
-    const endExclusive = e.range.end >= src.length ? lines.length + 1 : lineOfOffset(src, e.range.end);
+    const endExclusive = e.range.end >= src.length ? lines.length + 1 : lineOfOffset(starts, e.range.end);
     const end = trimRowEnd(lines, start, endExclusive - 1);
     const region = { line: start, endLine: end, text: sliceLines(lines, start, end) };
     if (e.standing) {
@@ -384,15 +580,185 @@ export function segmentInbox(text) {
 // whichever comes first; text after a `---` and before the next heading (the
 // italic re-entry note) belongs to no entry. Answered = struck heading that
 // says ANSWERED — both, because either alone is ordinary prose.
+//
+// TWO LEVELS (M6.E15 t2.3). Another project groups its questions: `##`
+// headings (`Currently blocking`, `Resolved during …`, `Last Updated`) over
+// `###` entries. A file with any `### ` heading is read that way — the `###`
+// are the entries and EVERY `##` is a named non-item region (`section: …`),
+// its text kept, whether or not it has entries under it. Each entry records
+// the `##` it sits under and that heading's finished word, for the planner.
+// A file with no `### ` heading splits exactly as before.
 
-const ANSWERED_RE = /~~[^~]+~~.*\bANSWERED\b/;
+// Answered = a struck span, then ANSWERED somewhere after it. Two linear
+// steps (REVIEW pass 2 I-D): `~~[^~]+~~.*\bANSWERED\b` backtracked from every
+// struck span to the end of the line.
+const STRUCK_SPAN_RE = /~~[^~]+~~/;
+const ANSWERED_WORD_RE = /\bANSWERED\b/;
+function isAnswered(heading) {
+  const m = heading.match(STRUCK_SPAN_RE);
+  return m !== null && ANSWERED_WORD_RE.test(heading.slice(m.index + m[0].length));
+}
+const H3_RE = /^### /;
+const GROUP_WORDS = new Set(['resolved', 'done', 'closed']);
+
+// ── The finished wording (M6.E15 REVIEW C1, C1 residue; D-M6E15-24) ────────
+//
+// ONE rule for "does this text say the entry is finished", used for every
+// marker the planner reads (a heading's bold annotation, the text after a
+// struck span, a `**Status:**` line, a bug table cell, a backlog body line
+// that opens bold) and for a question's grouping heading here. It is an
+// ALLOW-list (D-M6E15-24): a deny-list of words leaks by construction, which
+// is what REVIEW pass 2 measured. Read in order, on the text with markup
+// (`*_~` and backticks) and leading punctuation off:
+//
+//   1. Never a marker: "done when …", "… of done" (`**Done when:**`,
+//      `**Definition of done:**` — a criterion, not a verdict).
+//   2. No finish word anywhere → not a marker.
+//   3. Unclear: a `?`, `-ish`, or a word that undoes or qualifies a finish
+//      (not, no, yet, until, but, still, reverted, reopened / re-opened,
+//      rolled-back, regressed, cannot, any `n't`, TBD, wrong, in theory, …)
+//      ANYWHERE in the text. The three specific markers are masked first, so
+//      `not-a-bug` is not a negation.
+//   4. The finish word must LEAD, after at most one affirming word (`Fully
+//      resolved.`): done / resolved / answered / fixed / closed / shipped →
+//      `fixed`; not-a-bug → `rejected`; won't-fix → `wontdo`; superseded →
+//      `stale`. A finish word later in the text ("Half are fixed") is not a
+//      marker.
+//   5. After the finish word, only: a date (`2026-03-02`, `on 2026-03-02`,
+//      `, 2026-03-02`) or `in <ref>` (a reference shape, rule 6: `in M9.E2`,
+//      `in PR #12`, `in v2`), any number of times; then the end of the text,
+//      a sentence end (`.` before a space or the end), an em/en dash or
+//      ` - `, or `(`. Anything else — `:`, `,` then words, `by …`, `at …`,
+//      `during …`, a bare version — is unclear: open and flagged.
+//   6. After that start, NO free text (REVIEW pass 3 C1, D-M6E15-25):
+//      only dates, references (`TAIL_REF_RE`'s shapes: `#157`, `PR #12`,
+//      `M9.E1`, a slice tag `(S5)`, `v2`, a commit), `[<reference>](url)`
+//      links, `/pull/N` or `/commit/<hex>` URLs, finish words, and `in`/`on`. "Fixed — regressed in
+//      v3", "Done — needs QA", "Closed. Nothing to do." are unclear. An
+//      allow-list: three review passes each found a new phrasing a deny-list
+//      let through.
+//
+// A generic lead refined by a specific word that opens a later ` — ` part
+// (`Closed — superseded`) is that specific reason.
+//
+// Returns `{reasons: Set<string>, unclear: boolean, word: string|null}`;
+// `word` is the leading generic finish word, lower case.
+const FINISH_WORDS = 'done|resolved|answered|fixed|closed|shipped';
+const SPECIFIC_FINISH = [
+  [/not[- ]a[- ]bug\b/iy, /\bnot[- ]a[- ]bug\b/gi, 'rejected'],
+  [/won['’]?t[- ]?fix\b/iy, /\bwon['’]?t[- ]?fix\b/gi, 'wontdo'],
+  [/superseded\b/iy, /\bsuperseded\b/gi, 'stale'],
+];
+const AFFIRM_RE = /^(?:fully|completely|already|now)\s+/i;
+const GENERIC_LEAD_RE = new RegExp(`^(${FINISH_WORDS})\\b`, 'i');
+const FINISH_ANY_RE = new RegExp(`\\b(?:${FINISH_WORDS})\\b`, 'i');
+const NEVER_MARKER_RE = /\bdone\s+when\b|\bof\s+done\b/i;
+const UNDOING_RE = new RegExp('\\?|-ish\\b|\\b(?:'
+  + 'not|no|never|yet|until|when|once|pending|blocked|waiting|will|to\\s+be|'
+  + 'partially|partly|mostly|largely|but|though|although|except|still|broken|wrong|'
+  + 'tbd|todo|theory|maybe|probably|unclear|unknown|unverified|cannot|'
+  + 're-?open(?:ed|s|ing)?|revert(?:ed|s|ing)?|rolled[\\s-]+back|un-?done|un-?fixed|un-?resolved|regress(?:ed|es|ing|ion)?'
+  + ')\\b|n[\'’]t\\b', 'i');
+// A question's own plain heading, read when the entry carries a finish marker
+// (REVIEW pass 3 I-1): words that say the state was undone or is still open.
+// Narrower than UNDOING_RE on purpose — a question heading ends with `?` and
+// uses "when", "will", "no" as ordinary words, so those are not here.
+const STATE_UNDOING_RE = new RegExp('\\b(?:'
+  + 're-?open(?:ed|s|ing)?|revert(?:ed|s|ing)?|rolled[\\s-]+back|un-?done|un-?fixed|un-?resolved|unanswered|'
+  + 'regress(?:ed|es|ing|ion)?|still|blocked|blocking|pending|open\\s+again|'
+  + 'not\\s+(?:yet\\s+)?(?:resolved|answered|done|fixed|closed|settled|decided)'
+  + ')\\b|n[\'’]t\\b', 'i');
+
+export function headingUndoes(text) {
+  const plain = String(text).replace(/[*_~`]/g, ' ');
+  return STATE_UNDOING_RE.test(plain) || finishedLead(plain).unclear;
+}
+
+// The steps rule 5 allows right after the finish word, and how what is left
+// may start.
+const DATE_STEP_RE = /^\s{0,3},?\s{0,3}(?:on\s{1,3})?\d{4}-\d{2}-\d{2}\b/i;
+const NOTE_START_RE = /^(?:\s*$|\.(?:\s|$)|\s{0,3}[(—–]|\s{1,3}-\s)/;
+// What may follow a note start (REVIEW pass 3 C1, D-M6E15-25): no free text.
+// The tail is split on separators — whitespace, dashes, `,`, `;`, `(`, `)`,
+// a `.` that ends a sentence — after markdown links lose their URL (the link
+// text is read) and `/pull/N` or `/commit/<hex>` URLs go. Every token left must be a date, a reference (`TAIL_REF_RE`: `#157`, `M9.E1`, `S5`,
+// `v2`, a commit hash) — `in`/`on`/`PR`/`pull request` only right before one
+// — or a finish word.
+const TAIL_LINK_G = /\[([^\][]{0,200})\]\([^()\s]{0,500}\)/g;
+const TAIL_URL_G = /\bhttps?:\/\/[^\s()<>\]]{1,500}?\/(?:pull\/\d{1,7}|commit\/[0-9a-f]{7,40})(?=[.,;]?(?:[\s)]|$))/gi;
+const TAIL_SPECIFIC_G = /\bnot[- ]a[- ]bug\b|\bwon['’]?t[- ]?fix\b/gi;
+// "Resolved — PR" alone is a word, not a reference: the lead-ins go only when
+// a token with a digit follows.
+const TAIL_LEAD_IN_G = /\b(?:PR|pull\s{1,3}request|in|on)\s{1,3}(?=#?[\w.#/-]{0,60}\d)/gi;
+const TAIL_SPLIT_RE = /[\s—–,;()]+|\.(?=\s|$)|(?<=\s)-(?=\s)/;
+const TAIL_REF_RE = /^(?:(?:PR\s{0,3})?#\d{1,7}|(?=[0-9a-f]{0,39}[a-f])(?=[0-9a-f]{0,39}\d)[0-9a-f]{7,40}|M\d{1,4}(?:\.\d{1,4}){0,4}\.E\d{1,4}|S\d{1,4}|v\d{1,4}(?:\.\d{1,4}){0,4}|\d{4}-\d{2}-\d{2}|[A-Z]{1,5}-?\d{1,7})$/;
+const IN_REF_STEP_RE = new RegExp(`^\\s{1,3}(?:in|In|IN)\\s{1,3}(?:(?:[Pp][Rr]|[Pp]ull\\s{1,3}[Rr]equest)\\s{1,3})?${TAIL_REF_RE.source.slice(1, -1)}(?![\\w#/-]|\\.\\w)`);
+const TAIL_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TAIL_WORD_RE = new RegExp(`^(?:${FINISH_WORDS}|superseded|\u0001)$`, 'i');
+function tailIsPlain(rest) {
+  const t = rest.replace(TAIL_LINK_G, ' $1 ').replace(TAIL_URL_G, ' ').replace(TAIL_SPECIFIC_G, ' \u0001 ').replace(TAIL_LEAD_IN_G, ' ');
+  return t.split(TAIL_SPLIT_RE).every((tok) => tok === '' || tok === '-' || TAIL_DATE_RE.test(tok) || TAIL_REF_RE.test(tok) || TAIL_WORD_RE.test(tok));
+}
+
+export function finishedLead(text) {
+  const none = { reasons: new Set(), unclear: false, word: null };
+  const unclear = { ...none, unclear: true };
+  const plain = String(text).replace(/[*_~`]/g, '').replace(/^[\s\p{P}\p{S}]+/u, '').trim();
+  if (plain === '' || NEVER_MARKER_RE.test(plain)) return none;
+
+  let masked = plain;
+  for (const [, g] of SPECIFIC_FINISH) masked = masked.replace(g, ' ');
+  if (!FINISH_ANY_RE.test(plain) && masked === plain) return none;
+  if (UNDOING_RE.test(masked)) return unclear;
+
+  const lead = plain.replace(AFFIRM_RE, '');
+  const specificAt = (s) => {
+    for (const [y, , reason] of SPECIFIC_FINISH) {
+      y.lastIndex = 0;
+      const m = y.exec(s);
+      if (m) return { reason, length: m[0].length };
+    }
+    return null;
+  };
+  const sp = specificAt(lead);
+  const g = sp ? null : lead.match(GENERIC_LEAD_RE);
+  if (!sp && !g) return none;
+
+  let rest = lead.slice(sp ? sp.length : g[0].length);
+  for (let m = rest.match(DATE_STEP_RE) ?? rest.match(IN_REF_STEP_RE); m; m = rest.match(DATE_STEP_RE) ?? rest.match(IN_REF_STEP_RE)) {
+    rest = rest.slice(m[0].length);
+  }
+  if (!NOTE_START_RE.test(rest)) return unclear;
+  if (!tailIsPlain(rest)) return unclear;
+
+  if (sp) return { ...none, reasons: new Set([sp.reason]) };
+  const refined = new Set(lead.split(/\s[—–-]\s/).slice(1).map((part) => specificAt(part.replace(/^[\s(]+/, ''))?.reason).filter(Boolean));
+  return { reasons: refined.size > 0 ? refined : new Set(['fixed']), unclear: false, word: g[1].toLowerCase() };
+}
+
+// The dates a marker writes BESIDE a finish word (REVIEW S1; D-M6E15-19):
+// `fixed 2026-10-04`, `DONE — M9.E1, 2026-10-08`, `closed on 2026-03-02`. Only
+// punctuation, an optional `on`/`in`, and at most one ID-like token (letters,
+// digits and dots, with a digit: `M9.E1`, `v2.6`; or a PR reference: `#23`,
+// `PR #23`) may come between the word and the date. Any other date in the text ("a regression from the 2025-11-01
+// release") is not the close date. Returns the distinct dates, in order.
+const MARKER_DATE_G = new RegExp(
+  `\\b(?:${FINISH_WORDS}|not[- ]a[- ]bug|won['’]?t[- ]?fix|superseded)\\b[\\s*_~\`—–:,(-]{0,12}(?:(?:on|in)\\s{1,3})?`
+    + `(?:(?:(?:PR\\s{0,3})?#\\d{1,7}|[A-Za-z][\\w.]{0,20}\\d[\\w.]{0,20})[\\s*_~\`,;)—–:-]{1,12})?(\\d{4}-\\d{2}-\\d{2})\\b`,
+  'gi'
+);
+
+export function markerDates(text) {
+  return [...new Set([...String(text).matchAll(MARKER_DATE_G)].map((m) => m[1]))];
+}
 
 /**
  * @param {string} text — OPEN-QUESTIONS.md content
  */
 export function segmentQuestions(text) {
   const lines = String(text).split('\n');
-  const heads = [];
+  const h2 = [];
+  const h3 = [];
   let fence = false;
   const topSep = new Set();
   lines.forEach((l, i) => {
@@ -401,16 +767,41 @@ export function segmentQuestions(text) {
       return;
     }
     if (fence) return;
-    if (H2_RE.test(l)) heads.push(i + 1);
+    if (H2_RE.test(l)) h2.push(i + 1);
+    if (H3_RE.test(l)) h3.push(i + 1);
     if (l.trim() === '---') topSep.add(i + 1);
   });
+  const grouped = h3.length > 0;
+  const heads = grouped ? h3 : h2;
+  const allHeads = [...h2, ...h3].sort((a, b) => a - b);
+  // One pass over the sorted headings (REVIEW pass 3 suggestion: a filter
+  // and a find per entry were quadratic — 16k entries, 1.4 s): each heading's
+  // next heading and the `##` it sits under, each group heading read once.
+  const nextOf = new Map(allHeads.map((x, i) => [x, allHeads[i + 1]]));
+  const groupAt = new Map();
+  const groupInfo = new Map();
+  let lastH2;
+  const h2Set = new Set(h2);
+  for (const x of allHeads) {
+    if (h2Set.has(x)) {
+      lastH2 = x;
+      const groupHeading = lines[x - 1].replace(H2_RE, '').trim();
+      const { word } = finishedLead(groupHeading);
+      groupInfo.set(x, { groupHeading, groupWord: GROUP_WORDS.has(word) ? word : null });
+    } else if (lastH2 !== undefined) groupAt.set(x, lastH2);
+  }
+  const groupOf = (h) => {
+    const g = grouped ? groupAt.get(h) : undefined;
+    return g === undefined ? { groupHeading: null, groupWord: null } : groupInfo.get(g);
+  };
 
-  const rows = heads.map((h, k) => {
-    const limit = k + 1 < heads.length ? heads[k + 1] - 1 : lines.length;
+  const rows = heads.map((h) => {
+    const nextHead = nextOf.get(h);
+    const limit = nextHead !== undefined ? nextHead - 1 : lines.length;
     let end = h;
     while (end < limit && !topSep.has(end + 1)) end++;
     end = trimRowEnd(lines, h, end);
-    const heading = lines[h - 1].replace(H2_RE, '').trim();
+    const heading = lines[h - 1].replace(grouped ? H3_RE : H2_RE, '').trim();
     return {
       source: 'OPEN-QUESTIONS.md',
       kind: 'question',
@@ -418,10 +809,21 @@ export function segmentQuestions(text) {
       endLine: end,
       text: sliceLines(lines, h, end),
       heading,
-      answered: ANSWERED_RE.test(heading),
+      answered: isAnswered(heading),
+      legacyId: legacyIdOf(heading),
+      ...groupOf(h),
     };
   });
-  const { orphans, gaps } = tile(lines, rows, (core, ctx) => (ctx.first ? 'preamble' : `note: ${nameFromFirstLine(core.text, 40)}`));
+  const sections = new Map(grouped ? h2.map((g) => [g, lines[g - 1].replace(H2_RE, '').trim()]) : []);
+  const { orphans, gaps } = tile(
+    lines,
+    rows,
+    (core, ctx) => {
+      if (sections.has(core.line)) return `section: ${sections.get(core.line)}`;
+      return ctx.first ? 'preamble' : `note: ${nameFromFirstLine(core.text, 40)}`;
+    },
+    new Set(sections.keys())
+  );
   return { rows, orphans, gaps };
 }
 
@@ -443,7 +845,7 @@ const TITLE_MAX = 120;
 
 const stripMd = (s) => s.replace(/\*\*/g, '').replace(/~~/g, '').trim();
 
-function clip(s, max = TITLE_MAX) {
+export function clip(s, max = TITLE_MAX) {
   const t = s.replace(/\s+/g, ' ').trim();
   if (t.length <= max) return t;
   const cut = t.slice(0, max - 1);
@@ -463,7 +865,7 @@ function firstSentence(s) {
   return m ? m[1] : s;
 }
 
-function bugTitle(summary) {
+export function bugTitle(summary) {
   let rest = summary.trim();
   for (;;) {
     const m = rest.match(/^\*\*([\s\S]+?)\*\*/);
@@ -505,7 +907,7 @@ const FOLD_RE = /\b(?:FOLDED INTO|absorbed into)\b/;
 const KEPT_RE = /\bKEPT\b/i;
 const TARGET_TOKEN_RE = /\b(M\d+(?:\.\d+)?\.E\d+|B\d+)\b|`([^`]+)`/;
 
-const TAG_TYPES = {
+export const TAG_TYPES = {
   roadmap: 'FEAT',
   hygiene: 'CHORE',
   verification: 'CHORE',
@@ -515,7 +917,7 @@ const TAG_TYPES = {
 const HEADING_TAG_RE = /\*\*(roadmap|hygiene|verification|product call|fix lane)\*\*/i;
 const BODY_TAG_RE = /^\*\*Tag:\*\*\s*([a-z][a-z ]*?)(?=\s*(?:·|\(|$))/im;
 
-function backlogTag(row) {
+export function backlogTag(row) {
   const h = row.heading.match(HEADING_TAG_RE);
   if (h) return h[1].toLowerCase();
   const b = row.text.match(BODY_TAG_RE);

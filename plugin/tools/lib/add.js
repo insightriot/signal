@@ -55,7 +55,7 @@ export const BODY_LENGTH_SOFT_CAP = 4000;
 // waiting for user input, so 30s is the right TTL here. state.js writes use
 // the file-lock default (5s).
 const LOCK_TTL_MS = 30_000;
-const LOCK_FILE = '.planning/.add.lock';
+export const LOCK_FILE = '.planning/.add.lock';
 // The inbox path is NOT a hardcoded const — it routes through
 // `resolveInboxPath(baseDir)` so a legacy (`FUTURE-IDEAS.md`) and a v3
 // (`ISSUES-INBOX.md`) repo both work without branching (FR1 / R1).

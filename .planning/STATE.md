@@ -2,41 +2,55 @@
 schema_version: 1
 docs_layout_version: 3
 phase: SHIP
-current_epic: M6.E14
+current_epic: M6.E15
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-10-07)
-  - PLAN (2026-10-07)
-  - EXECUTE (2026-10-07)
-  - VERIFY (2026-10-07)
-  - REVIEW (2026-10-08)
-  - SHIP (2026-10-08)
+  - DISCUSS (2026-10-09)
+  - PLAN (2026-10-09)
+  - EXECUTE (2026-10-10)
+  - VERIFY (2026-10-10)
+  - REVIEW (2026-10-10)
+  - EXECUTE (2026-10-10)
+  - VERIFY (2026-10-10)
+  - REVIEW (2026-10-10)
+  - EXECUTE (2026-10-10)
+  - VERIFY (2026-10-10)
+  - REVIEW (2026-10-10)
+  - EXECUTE (2026-10-10)
+  - VERIFY (2026-10-10)
+  - REVIEW (2026-10-10)
+  - SHIP (2026-10-10)
 blockers: []
 last_completed_task:
-  id: r3.fix
+  id: S5
   status: done
-  commit: 74d6bfb
-  completedAt: 2026-10-08T00:10:16.683Z
-last_decision_at: 2026-10-08T00:10:16.683Z
-last_updated_commit: 4d176ca
-last_updated: 2026-10-08T01:04:19.124Z
+  commit: 006b84b
+  completedAt: 2026-10-10T00:40:29.810Z
+last_decision_at: 2026-10-10T00:40:29.810Z
+last_updated_commit: dd6eaad
+last_updated: 2026-10-10T23:43:52.020Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-07)
+### ▶ WHERE THE WORK IS — read this first (2026-10-10)
 
-**`M6.E14` — *"harden the work store"* — at SHIP: PR #292 open, waiting for Brett's merge.**
-`/sig:advise` priority 1 (picked 2026-10-06). Eight work-store defects fixed (`SIG-251`, `-252`,
-`-276` … `-280`) before priority 2 — moving other projects onto the store — which depends on it.
-The first `/sig:drive` run to start at DISCUSS (`SIG-163`'s missing proof): one floor halt (PLAN
-inbox), then DISCUSS → REVIEW without a stop, halting at SHIP's floors. VERIFY and REVIEW each failed
-once on fresh-context readers and looped; a fix's own reader found the Epic's worst defect (`bba6f44`).
-Tests 5362 → 5425. Retro: [`M6.E14-RETROSPECTIVE.md`](M6.E14-RETROSPECTIVE.md). Decisions
-`D-M6E14-1` … `D-M6E14-10`. The seven bugs read *closing* (proof `adcd45e`) until the merge; the next
-SHIP or `/sig:docs-sweep` confirms them. **After the merge:** a release PR, then priority 2.
+**`M6.E15` — *"move other projects onto the work store"* — at SHIP: PR #296 open, waiting for Brett's
+merge (`--merge`; it releases `v0.1.50`).** `/sig:docs-migrate --work-store` moves a project's hand-kept
+lists onto the store: old IDs kept, originals archived byte-for-byte, nothing closed on its own —
+entries that look finished, with evidence from the default branch, are proposed and one yes closes
+them (`D-M6E15-25`, Brett's call at the REVIEW loop ceiling). REVIEW passes 1–3 failed on a wording
+rule closing open entries; pass 4 found 0 Critical. Tests 5426 → 5968. Retro:
+[`M6.E15-RETROSPECTIVE.md`](M6.E15-RETROSPECTIVE.md). Decisions `D-M6E15-1` … `-25`. `SIG-274` and
+`SIG-286` read *closing* until the merge. **After the merge:** update and restart, then Brett runs it on
+corpus project 1 at an Epic boundary, on its default branch.
+
+### Previously (2026-10-07)
+
+**`M6.E14` — *"harden the work store"* — SHIPPED in `v0.1.49` (PR #292).** Eight work-store defects
+fixed before other projects depended on it. Retro: [`M6.E14-RETROSPECTIVE.md`](M6.E14-RETROSPECTIVE.md).
 
 ### Previously (2026-10-04)
 

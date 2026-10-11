@@ -21,27 +21,3 @@
 | Option C concerns block (calibration granularity) | Users hand-edit dials against tier defaults, or want a rigor level their tier doesn't offer | ✅ **FIRED on the first half — measured, not inferred.** Checked 2026-08-01 (M5.E16 PLAN drain). Three Epic-scoped profiles exist, **all `created_by: hand`, all overriding tier defaults**: `M5.E7-PROFILE.md`, `M5.E17-PROFILE.md`, `M5.E16-PROFILE.md`. The last states the motive outright — *"`nyquist_enforcement` goes to `strict` — a level above M5.E17's `basic`. This is deliberate and it is the one dial that matters here."* That is the condition's first clause verbatim. **But the remedy Option C proposed is not what is needed**, so this is decided rather than promoted: hand-editing dials is not a workaround here, it is the **supported mechanism** (Epic-scoped PROFILE, M4.5.E11 FR3), and it works. **What the practice actually exposed is that nothing validated the hand-edits** — `B59`, found the same day at this Epic's own PLAN preamble: `M5.E16-PROFILE.md` carried two out-of-enum values and the Epic that declared FEATURE ran DISCUSS at FULL. **That gap is now closed twice over** — `tests/own-profiles-parse.test.js` for Signal's own repo, and **M5.E16 check (g)** for every invoking project. **Row closed as decided.** A concerns block remains a v2 idea with no live pull; re-open only if someone wants a rigor level the four tiers genuinely cannot express, which is the second clause and has **never** been observed. |
 
 ---
-
-## CI does not run lint, so a lint error can reach main unnoticed
-
-**Status:** untriaged (N) · SIG-283
-
-Found 2026-10-07 at M6.E14 REVIEW. .github/workflows/test.yml runs the test suite only; there is no `npm run lint` step. During M6.E14, commit ac79e0c added tools/measure-views-preflight.mjs using `performance` without importing it (no-undef), and the VERIFY report recorded lint as clean because the result was read from an empty last line of output instead of the exit code. Nothing between the session and main would have caught it. Fix: add a lint step to the test workflow (or a separate required check).
-
----
-
-## /sig:advise and tools/cut-release.js stamp dates with the UTC date, not the local one
-
-**Status:** untriaged (N) · SIG-284
-
-Found 2026-10-06 (evening, US Eastern). plugin/tools/lib/advise-record.js:74 stamps the pick with new Date().toISOString().slice(0, 10), which is the UTC date. The advisory .planning/BACKLOG-REVIEW-2026-10-06.md is named with the local date and its "Picked by you" line reads "picked on 2026-10-07". Fix: use the same local-date source as the advisory's filename.
-
----
-
-## SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'
-
-**Status:** untriaged (N) · SIG-285
-
-Found 2026-10-07 at M6.E14 SHIP on PR #292. readReviewerEffort (plugin/tools/lib/pr-review-findings.js, added in #284) reads the claude-review run on the PR head commit only. On #292 the first two runs reviewed in full (12 turns / $1.96 on adcd45e; 9 turns / $1.41 on a6e0175) and posted a finding; the run on the next push (b486691) stopped after 2 turns / $0.10, because the upstream review command stops once Claude has already commented on the PR. SHIP printed "PR reviewer ran but did NOT review" — a false alarm. Fix: when the head run is short, look at the earlier completed runs for the same PR and report "reviewed at <sha> (N turns, $X); later pushes not re-reviewed", which is itself worth saying, since the later commits were not reviewed.
-
----

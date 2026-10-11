@@ -2365,9 +2365,9 @@ Seen 2026-10-01 during M6.E12 EXECUTE. plugin/references/anti-rationalization-fo
 
 Found 2026-10-03 on the second outside-Signal /sig:advise run (eval-project, run 1). The maintainer picked priority 1 AND a four-step order (1, then a polish batch, then versioning work, then a DISCUSS). recordChoice can record one pick only, so the agent recorded it as "Something else" with its own summary of the order — the advisory now reads as a miss although priority 1 was picked. For the outcome oracle (D-M6E12-12) count that run as priority 1. Fix: an optional `order` recorded alongside the pick.
 
-### No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13) · SIG-274
+### No path turns the work store on for a new project any more (the v1 enable script was retired in M6.E13) · SIG-274 · closing
 
-**Status:** triaged (T)
+**Status:** closing — a fixed close waiting for its commit on the default branch
 
 Found 2026-10-04 at M6.E13 t6.2. The only path that turns a store on is node tools/work-migrate.mjs (v1, maintainer script). After M6.E13 the v2 library refuses writes on a v1 store, so a project that enables the store gets one it cannot use until it runs tools/work-migrate-v2.mjs too. Belongs with the other-projects Epic (/sig:docs-migrate), but the gap is real from this release.
 
@@ -2384,3 +2384,35 @@ Evidence: on #284 (227 changed lines, the first PR after #283 merged) the review
 Unknown: why it stops. The log shows only the result summary, not the conversation, so the cause cannot be read from it. A guess, not checked: the upstream /code-review command's first step can decide a PR needs no review and exit early. Another guess: the plugin command is not loading.
 
 Next step: turn on the action's full output (show_full_output) on a test PR to see what the reviewer did, then fix the cause.
+
+### /sig:docs-migrate --work-store: support corpus project 2 list shapes (prose roadmap backlog, long write-ups with status in the text) · SIG-290
+
+**Status:** triaged (T)
+
+Deferred from M6.E15 by D-M6E15-17 (land on corpus project 1 first). Shapes recorded in .planning/M6.E15-REQUIREMENTS.md (Why now table) and M6.E15-RESEARCH.md §1: a BACKLOG that is a prose roadmap with a numbered list and no headings (today it would become one flagged non-item entry); bugs as `##` write-ups with status in bold prose; inbox (217 lines) and open questions (383 lines) as long `##` write-ups whose finished ones are struck through with RESOLVED <date>. Run the migration dry run on a scratch clone first and file what it gets wrong.
+
+### Jev second opinion on migrated closes (flag-only) — build only if a migrated close proves wrong · SIG-291
+
+**Status:** triaged (T)
+
+Parked by Brett, 2026-10-10, after D-M6E15-24.
+
+The work-store migration (/sig:docs-migrate --work-store) closes a hand-kept entry only when its wording plainly says finished AND a cited reference resolves in the repo (commit, PR in a commit subject, Epic with a retrospective). The remaining gap is an entry whose wording and reference both pass but whose text admits the work is partial — e.g. "Done in <Epic> (S6): desktop-only notice … real responsive layout not done".
+
+Idea: when TYPESAFE_API_KEY is set, ask Jev (plugin/tools/lib/jev.js askChoice) per closed entry "finished / partial / not finished"; a disagreement only adds a flag to the dry run, never closes and never refuses (same contract as bug-fixed-jev.js).
+
+Brett's caution, recorded: if Jev disagrees often, the fault is upstream (the rule or the lists), not something Jev can fix. So it is worth building only on evidence.
+
+Trigger: Brett's triage after the first real migration (corpus project 1) finds at least one entry the rule closed that was not finished. If triage finds none, close this as wontdo.
+
+### Two speed tests use a 4× size step with an 8× ratio limit, which CI timing noise can cross · SIG-293 · closing
+
+**Status:** closing — a fixed close waiting for its commit on the default branch
+
+On PR #296 the M6.E15 REVIEW pass 4 test "segmentQuestions stays linear with a ## group every 5 entries" failed on CI at ratio 8.25 against a limit of 8 (one of two runs; the other passed). It was rewritten to a 16× size step (2000 → 32000) with a 64× limit: this code measures 19–20×, the pre-fix code 195×.
+
+Two tests keep the narrow shape and have passed on CI so far:
+- tests/work-migrate-propose.test.js — "segmentQuestions is linear … 4000 → 16 000 entries costs well under 8×" (this code ~4–5×).
+- tests/work-migrate-hostile.test.js — "inbox segmentation is linear: 5 000 → 20 000 entries costs well under 8×" (old code measured 29.4×).
+
+Fix shape: the same 16× step / 64× limit, each re-checked against the pre-fix code so it still fails there.
