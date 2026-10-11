@@ -1,41 +1,31 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: SHIP
-current_epic: M6.E15
+phase: DISCUSS
+current_epic: M6.E16
 current_wave: null
 current_tasks: []
-completed_phases:
-  - DISCUSS (2026-10-09)
-  - PLAN (2026-10-09)
-  - EXECUTE (2026-10-10)
-  - VERIFY (2026-10-10)
-  - REVIEW (2026-10-10)
-  - EXECUTE (2026-10-10)
-  - VERIFY (2026-10-10)
-  - REVIEW (2026-10-10)
-  - EXECUTE (2026-10-10)
-  - VERIFY (2026-10-10)
-  - REVIEW (2026-10-10)
-  - EXECUTE (2026-10-10)
-  - VERIFY (2026-10-10)
-  - REVIEW (2026-10-10)
-  - SHIP (2026-10-10)
+completed_phases: []
 blockers: []
-last_completed_task:
-  id: S5
-  status: done
-  commit: 006b84b
-  completedAt: 2026-10-10T00:40:29.810Z
+last_completed_task: null
 last_decision_at: 2026-10-10T00:40:29.810Z
 last_updated_commit: dd6eaad
-last_updated: 2026-10-10T23:43:52.020Z
+last_updated: 2026-10-11T04:54:47.787Z
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-10)
+### ▶ WHERE THE WORK IS — read this first (2026-10-11)
+
+**`M6.E16` — *"Epics and units as records"* — DISCUSS done, PLAN next.** Branch
+`feat/m6.e16-epics-units-as-records`. A unit record holds existence, membership, close with proof and
+a hold; phase progress stays in this file (`D-M6E16-1`). Requirements:
+[`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md). Decisions `D-M6E16-1` … `-9`. The list of code it
+touches: [`M6.E16-INVENTORY.md`](M6.E16-INVENTORY.md) — four findings checked by hand, the rest is an
+agent's report that PLAN re-derives. Not done from the small-fix batch: `SIG-285`, `SIG-139`.
+
+### Previously (2026-10-10)
 
 **`M6.E15` — *"move other projects onto the work store"* — SHIPPED in `v0.1.50`: PR #296 merged
 2026-10-10 with `--merge` (merge commit `3524cd2`), tagged and released.** `/sig:docs-migrate --work-store` moves a project's hand-kept

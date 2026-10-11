@@ -178,6 +178,8 @@
 - [M6.E15-REVIEW.md](M6.E15-REVIEW.md) — `other` — _(note pending)_
 - [M6.E15-VALIDATION.md](M6.E15-VALIDATION.md) — `other` — _(note pending)_
 - [M6.E15-VERIFICATION.md](M6.E15-VERIFICATION.md) — `other` — _(note pending)_
+- [M6.E16-INVENTORY.md](M6.E16-INVENTORY.md) — `other` — _(note pending)_
+- [M6.E16-REQUIREMENTS.md](M6.E16-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E2-CORPUS-MEASUREMENT.md](M6.E2-CORPUS-MEASUREMENT.md) — `other` — _(note pending)_
 - [M6.E2-PLAN.md](M6.E2-PLAN.md) — `other` — _(note pending)_
 - [M6.E2-PROGRESS.md](M6.E2-PROGRESS.md) — `other` — _(note pending)_
@@ -690,6 +692,7 @@
 - [archive/M6/E13/CONTEXT-2026-08-26.md](archive/M6/E13/CONTEXT-2026-08-26.md) — `other` — _(note pending)_
 - [archive/M6/E13/STATE-NARRATIVE.md](archive/M6/E13/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E14/STATE-NARRATIVE.md](archive/M6/E14/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M6/E15/STATE-NARRATIVE.md](archive/M6/E15/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E2/STATE-NARRATIVE.md](archive/M6/E2/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-PLAN.md](archive/M6/E3/AUGUST-PLAN.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-RESEARCH.md](archive/M6/E3/AUGUST-RESEARCH.md) — `other` — _(note pending)_

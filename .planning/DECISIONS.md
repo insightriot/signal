@@ -4159,3 +4159,63 @@ proposed close — is part of the dry-run hash, so the apply refuses if any of i
 from the default branch's history (`git log HEAD`), as native closes require, not `--all`. A wrong
 proposal is now visible before it is acted on, which is the property three passes could not get from
 wording rules alone. Loop 3 runs past the ceiling by Brett's choice.
+
+## 2026-10-11 — M6.E16 DISCUSS: Epics and units become records (D-M6E16-1 … D-M6E16-9)
+
+Picked by Brett as priority 1 of [`BACKLOG-REVIEW-2026-10-10.md`](BACKLOG-REVIEW-2026-10-10.md). Stage 1
+of the "after Epic 1" list in
+[`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](../analysis/STORAGE-ARCHITECTURE-PROPOSAL.md) §4. The
+list every decision below rests on is [`M6.E16-INVENTORY.md`](M6.E16-INVENTORY.md). `D-M6E16-1` … `-5`
+are Brett's, accepted as recommended in one batch (2026-10-11); `-6` … `-9` are Claude's defaults,
+stated to Brett in the same message and not objected to.
+
+### D-M6E16-1 — The unit record holds existence, membership, close and hold; phase progress stays in STATE.md (Brett)
+A unit record says that the unit exists, which items belong to it, its close (with proof), and a
+"keep live" hold. `phase`, `completed_phases` and every reader of them stay on `STATE.md` and do not
+switch in this Epic; moving them is the later `STATE.md` split stage. **Why:** including phase progress
+about doubles the Epic (roughly 27 inventoried functions switch on this line, roughly 18 stay — counts
+from the inventory, not yet hand-checked; PLAN re-derives them as lists).
+
+### D-M6E16-2 — A unit closes the way an item does; the retrospective is a condition, not the close (Brett)
+SHIP records a close request on the unit with the Epic's commit as proof. The unit reads *closed* only
+once that commit is on the default branch. A filled retrospective is something the close refuses
+without; a retrospective existing no longer *is* closure. **Supersedes `D-M5E18-3`** (closure inferred
+from files, three outcomes) for any project with unit records. `SIG-288` and `SIG-289` go by
+construction: no reader infers closure from a retro or from which folder a VERIFICATION file is in.
+
+### D-M6E16-3 — Units that shipped before this Epic are closed as `legacy` (Brett)
+Same rule as the 145 legacy items (`D-M6E13-14`, `-20`): they count as closed everywhere, and a `legacy` close can
+never be used as proof of anything. Nobody re-checks about 40 Epics.
+
+### D-M6E16-4 — The milestone Epic table is generated from the records, between markers (Brett)
+Code writes the Epic rows in `MILESTONE-*.md` from the unit records, inside a marked region. The
+hand-written text around the table is left alone. No code parses the rows again: `findEpicStatusRow`,
+`EPIC_ROW` and `parseEpicStatusRows` are removed or re-pointed at the records. Closes `SIG-132`.
+Rejected: keep the table hand-written and fix the parser — cheaper, and the table goes stale again
+(`M6.E15`'s row was missing after its own SHIP).
+
+### D-M6E16-5 — A unit keeps the project's own name as its ID (Brett)
+For the 8 of 12 corpus projects whose units are not Epic IDs, the unit record's ID is the name the
+project already uses (for example `phase-11`). The item schema's `epic_id` rule, which accepts only
+`M6.E16`-shaped IDs today, widens to accept a unit ID. Rejected: Signal-assigned IDs, which would
+rename things people already say out loud. **Supersedes `D-M5E18-2`** (units derived from filenames)
+for any project with unit records.
+
+### D-M6E16-6 — One archive layout going forward; existing folders stay where they are (Claude)
+New closes use one layout. Nothing already in `archive/epics/` or `archive/<M>/E<n>/` is moved or
+deleted in this Epic (`D-M6E11-12`: nothing is deleted). PLAN picks which layout, from which has more
+readers in the inventory.
+
+### D-M6E16-7 — The hold is a recorded event on the unit (Claude)
+`SIG-255`'s "closed, but keep it live" is an event with a reason. Archiving refuses a held unit and
+prints the reason. Another plugin's keep-live file is not read.
+
+### D-M6E16-8 — Other projects get unit records through the existing migration, proposed for one yes (Claude)
+`/sig:docs-migrate --work-store` proposes unit records and their legacy closes; the person confirms the
+list; nothing is closed on its own (`D-M6E15-25`). Not automatic, and not run by Claude on a live
+project.
+
+### D-M6E16-9 — Not re-opened here
+JSON records at fixed paths, status folded from events, one write library, the edit hook, committed
+generated views that no code reads (`D-M6E13-1` … `-22`). Typed verdicts and the `STATE.md` split are
+later stages.
