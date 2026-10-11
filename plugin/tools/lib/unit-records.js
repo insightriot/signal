@@ -18,8 +18,8 @@
 // lands, as an item writer does (M6.E16 t5.0b) — `EPICS.md` and the live
 // milestone's Epic table are rendered from these records (`work-views.js`).
 // And as for items, what the views would refuse is checked under the lock
-// BEFORE the write (`assertViewsWritable`), so no record lands that the views
-// cannot show; a regeneration that fails after the write leaves the change
+// BEFORE the write (`assertViewsWritable`, after the writer's own refusals),
+// so no record lands that the views cannot show; a regeneration that fails after the write leaves the change
 // standing and throws an error that says so (`err.changeStands`).
 // `ensureUnitsDir` writes no record and regenerates nothing.
 //
@@ -509,15 +509,20 @@ function pruneUndefined(obj) {
 }
 
 // The store's one lock (`work-write.js`), over the item library's store check:
-// one check of what may be written, not a second. Before the write, under the
-// lock, whatever the views would refuse refuses it (as `work-records.js`
-// `viewsWritableOrRefuse`; `_skipViewsCheck` is the same seam, for tests only).
-// `views: false` is `ensureUnitsDir`'s: it writes no record.
-async function withUnitLock(baseDir, opts, fn, { views = true } = {}) {
-  const beforeWrite = () => {
-    if (views && opts._skipViewsCheck !== true) assertViewsWritable(baseDir);
-  };
-  return withWorkLock(baseDir, WORK_LOCK_LABEL, { assertWritable, beforeWrite }, fn);
+// one check of what may be written, not a second.
+async function withUnitLock(baseDir, fn) {
+  return withWorkLock(baseDir, WORK_LOCK_LABEL, { assertWritable, beforeWrite: () => {} }, fn);
+}
+
+// Before a record is written, under the lock: whatever the views would refuse
+// refuses the write, so no record lands that the views cannot show (as
+// `work-records.js` `viewsWritableOrRefuse`; `_skipViewsCheck` is the same
+// seam, for tests only). Called by each writer AFTER its own refusals — the
+// record's state, the ID, a file already there — so those are still what a
+// caller is told first; an item writer runs the same check first.
+function viewsWritableOrRefuse(handle, opts) {
+  if (opts._skipViewsCheck === true) return;
+  assertViewsWritable(handle.baseDir);
 }
 
 // The error for a unit write that landed and whose views then failed to
@@ -548,7 +553,15 @@ const { recordText, readForWrite, writeRecord } = recordWriter({
 // Append one event to an existing record, under the lock.
 async function appendEvent(handle, id, event, done, opts) {
   const current = readForWrite(handle, id).entry;
-  return landed(handle, await writeRecord(handle, withEvent(current, pruneUndefined(event)), opts), done, opts);
+  return commit(handle, withEvent(current, pruneUndefined(event)), done, opts);
+}
+
+// One changed record, written: its history checked (`recordText`), then the
+// views check, then the write, then the regeneration. Returns the entry.
+async function commit(handle, next, done, opts) {
+  recordText(next); // an illegal history refuses before the views are looked at
+  viewsWritableOrRefuse(handle, opts);
+  return landed(handle, await writeRecord(handle, next, opts), done, opts);
 }
 
 // The outstanding close request of a record that reads closing.
@@ -595,7 +608,7 @@ const NO_UNITS_DIR = (id) => `${id}: this project has no unit records (${UNITS_R
  */
 export async function ensureUnitsDir(baseDir, opts = {}) {
   assertWritable(baseDir);
-  return withUnitLock(baseDir, opts, async (handle) => {
+  return withUnitLock(baseDir, async (handle) => {
     const abs = join(handle.baseDir, UNITS_REL);
     const keepRel = `${UNITS_REL}/${KEEP_FILE}`;
     const keepAbs = join(abs, KEEP_FILE);
@@ -634,7 +647,7 @@ export async function ensureUnitsDir(baseDir, opts = {}) {
       throw asWorkStoreError(err, 'IO');
     }
     return { path: UNITS_REL, created, keep: true };
-  }, { views: false });
+  });
 }
 
 /**
@@ -666,7 +679,7 @@ export async function openUnit(baseDir, id, fields = {}, opts = {}) {
   const cells = Array.isArray(legacyRow) ? legacyRow : [];
   const pending = sensitivePending([title, summary, migrationNote, ...cells], opts);
   if (pending) return pending;
-  return withUnitLock(baseDir, opts, async (handle) => {
+  return withUnitLock(baseDir, async (handle) => {
     if (confinedUnitsDir(handle.baseDir) === null) throw new WorkStoreError('CONFIG', NO_UNITS_DIR(id));
     assertUnitId(handle.baseDir, id, { storeKey: handle.key });
     const record = pruneUndefined({
@@ -677,6 +690,7 @@ export async function openUnit(baseDir, id, fields = {}, opts = {}) {
     const abs = join(handle.baseDir, rel);
     confine(handle.baseDir, abs);
     if (existsNoFollow(abs)) throw new WorkStoreError('CONFLICT', `${rel} already exists — nothing was written.`);
+    viewsWritableOrRefuse(handle, opts);
     try {
       await atomicWrite(abs, text, { renameFn: opts.renameFn });
     } catch (err) {
@@ -722,7 +736,7 @@ export async function requestUnitClose(baseDir, id, request = {}, opts = {}) {
   assertOneCommit(baseDir, id, proof, opts);
   const pending = sensitivePending([pr, release], opts);
   if (pending) return pending;
-  return withUnitLock(baseDir, opts, async (handle) => {
+  return withUnitLock(baseDir, async (handle) => {
     if (typeof opts.gate === 'function') await opts.gate(handle);
     return appendEvent(handle, id, { type: 'close_requested', at, by, proof, pr, release }, `${id} is closing (its close was requested with ${proof})`, opts);
   });
@@ -759,7 +773,7 @@ export async function rerequestUnitClose(baseDir, id, request = {}, opts = {}) {
   assertOneCommit(baseDir, id, proof, opts);
   const pending = sensitivePending([pr, release], opts);
   if (pending) return pending;
-  return withUnitLock(baseDir, opts, async (handle) => {
+  return withUnitLock(baseDir, async (handle) => {
     if (typeof opts.gate === 'function') await opts.gate(handle);
     const current = readForWrite(handle, id).entry;
     if (current.status !== 'closing') {
@@ -773,8 +787,8 @@ export async function rerequestUnitClose(baseDir, id, request = {}, opts = {}) {
     const reason = `the close was requested again with the commit ${proof}; the earlier request named ${previous}`;
     const reopened = withEvent(current, { type: 'reopened', at, by, reason });
     const next = withEvent({ record: reopened }, pruneUndefined({ type: 'close_requested', at, by, proof, pr, release }));
-    const entry = { ...(await writeRecord(handle, next, opts)), previous_proof: previous };
-    return landed(handle, entry, `${id} is closing (its close was requested again, with ${proof})`, opts);
+    const entry = await commit(handle, next, `${id} is closing (its close was requested again, with ${proof})`, opts);
+    return { ...entry, previous_proof: previous };
   });
 }
 
@@ -804,7 +818,7 @@ export async function confirmUnitClose(baseDir, id, confirm = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending([pr, release, words], opts);
   if (pending) return pending;
-  return withUnitLock(baseDir, opts, async (handle) => {
+  return withUnitLock(baseDir, async (handle) => {
     const current = readForWrite(handle, id).entry;
     if (current.status !== 'closing') {
       throw new WorkStoreError('CONFLICT', `${id}: no close was requested (the unit is ${current.status}) — nothing was written. `
@@ -818,7 +832,7 @@ export async function confirmUnitClose(baseDir, id, confirm = {}, opts = {}) {
     const event = pruneUndefined({
       type: 'closed', at, by, reason: 'shipped', proof, pr: pr ?? request?.pr, release: release ?? request?.release, words,
     });
-    return landed(handle, await writeRecord(handle, withEvent(current, event), opts), `${id} was confirmed closed`, opts);
+    return commit(handle, withEvent(current, event), `${id} was confirmed closed`, opts);
   });
 }
 
@@ -899,7 +913,7 @@ export async function closeUnit(baseDir, id, close = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending([words, pr, release], opts);
   if (pending) return pending;
-  return withUnitLock(baseDir, opts, async (handle) => (
+  return withUnitLock(baseDir, async (handle) => (
     appendEvent(handle, id, { type: 'closed', at, by, reason, proof, pr, release, words }, `${id} was closed (${reason})`, opts)
   ));
 }
@@ -926,7 +940,7 @@ export async function reopenUnit(baseDir, id, reopen = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending([reason], opts);
   if (pending) return pending;
-  return withUnitLock(baseDir, opts, async (handle) => appendEvent(handle, id, { type: 'reopened', at, by, reason }, `${id} was reopened`, opts));
+  return withUnitLock(baseDir, async (handle) => appendEvent(handle, id, { type: 'reopened', at, by, reason }, `${id} was reopened`, opts));
 }
 
 /**
@@ -951,7 +965,7 @@ export async function holdUnit(baseDir, id, hold = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending([reason], opts);
   if (pending) return pending;
-  return withUnitLock(baseDir, opts, async (handle) => appendEvent(handle, id, { type: 'held', at, by, reason }, `${id} was held`, opts));
+  return withUnitLock(baseDir, async (handle) => appendEvent(handle, id, { type: 'held', at, by, reason }, `${id} was held`, opts));
 }
 
 /**
@@ -966,7 +980,7 @@ export async function holdUnit(baseDir, id, hold = {}, opts = {}) {
 export async function releaseUnit(baseDir, id, release = {}, opts = {}) {
   const { by, at = nowIso() } = release;
   assertShape(id);
-  return withUnitLock(baseDir, opts, async (handle) => appendEvent(handle, id, { type: 'released', at, by }, `${id} was released from its hold`, opts));
+  return withUnitLock(baseDir, async (handle) => appendEvent(handle, id, { type: 'released', at, by }, `${id} was released from its hold`, opts));
 }
 
 /**
@@ -997,7 +1011,7 @@ export async function editUnit(baseDir, id, edit = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending(Object.values(changes), opts);
   if (pending) return pending;
-  return withUnitLock(baseDir, opts, async (handle) => {
+  return withUnitLock(baseDir, async (handle) => {
     const current = readForWrite(handle, id).entry;
     const diff = {};
     for (const [field, to] of Object.entries(changes)) {
@@ -1008,7 +1022,6 @@ export async function editUnit(baseDir, id, edit = {}, opts = {}) {
       throw new WorkStoreError('SCHEMA', `${id}: every field already holds its new value — nothing was written.`);
     }
     const fields = Object.fromEntries(Object.entries(diff).map(([f, c]) => [f, c.to]));
-    const entry = await writeRecord(handle, withEvent(current, { type: 'edited', at, by, changes: diff }, fields), opts);
-    return landed(handle, entry, `${id} was edited (${Object.keys(diff).join(', ')})`, opts);
+    return commit(handle, withEvent(current, { type: 'edited', at, by, changes: diff }, fields), `${id} was edited (${Object.keys(diff).join(', ')})`, opts);
   });
 }

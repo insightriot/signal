@@ -6,8 +6,8 @@
 // regenerate the views, a write can land and then throw — and that wrapping
 // would be false. The error a landed write throws is passed through as it is.
 //
-// `regenerateViews` is replaced for this file only, so the failure comes after
-// the preflight has passed, which no real fixture reaches on purpose.
+// The regeneration step is replaced for this file only, so the failure comes
+// after the views check has passed, which no real fixture reaches on purpose.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
@@ -15,13 +15,15 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const flaky = { fail: false };
-vi.mock('../plugin/tools/lib/work-views.js', async (importOriginal) => {
+// `work-write.js` is in no import cycle, so replacing its `regenerateAfter`
+// reaches every unit writer.
+vi.mock('../plugin/tools/lib/work-write.js', async (importOriginal) => {
   const real = await importOriginal();
   return {
     ...real,
-    regenerateViews: async (baseDir) => {
-      if (flaky.fail) throw new Error('the disk said no');
-      return real.regenerateViews(baseDir);
+    regenerateAfter: async (handle, done, regenerate, notRegenerated) => {
+      if (flaky.fail) throw notRegenerated(done, new Error('the disk said no'));
+      return real.regenerateAfter(handle, done, regenerate, notRegenerated);
     },
   };
 });
