@@ -17,7 +17,8 @@
 //     `rename`, `copyFile`, `cpSync`, `appendFile`, `createWriteStream`, their
 //     Sync forms, under any name an import or destructuring gives them, or an
 //     `open(…, 'w'|'a'|'r+')`).
-// Only `work-records.js` may be one, plus the reviewed exemptions below. An
+// Only the owner modules (`OWNERS`: `work-records.js`, and the write helpers
+// it runs, `work-write.js`) may be one, plus the reviewed exemptions below. An
 // exemption is not a file pass: it lists every write line it was reviewed for
 // (a new one is a violation), may name ONE function whose writes are the
 // exempt ones (the migration's build), and may pin a line the review relied on
@@ -35,7 +36,14 @@ import { join } from 'node:path';
 const ROOT = process.cwd();
 const DIRS = ['plugin/tools/lib', 'plugin/hooks'];
 
-const OWNER = 'plugin/tools/lib/work-records.js';
+// The modules that may write record files (a list since M6.E16.S1, so a second
+// record kind's library can join it). `work-records.js` owns item records;
+// its exports are checked one by one in `tests/work-records-inventory.test.js`.
+// `work-write.js` holds the write helpers every kind shares (the lock, the
+// atomic record write, the put-back); it has no writer of its own, and only an
+// owner may import it — checked below.
+const WRITE_HELPERS = 'plugin/tools/lib/work-write.js';
+const OWNERS = ['plugin/tools/lib/work-records.js', WRITE_HELPERS];
 
 const RECORD_MARKERS = [
   /\bserializeRecord\b/,
@@ -166,9 +174,9 @@ function exemptionBroken(e, text) {
   return gone ? `no longer has the line its review relied on: ${gone}` : null;
 }
 
-/** The record writers in `found` (`{file, hit, text}`) that are neither the owner nor exempt, as messages. */
+/** The record writers in `found` (`{file, hit, text}`) that are neither an owner nor exempt, as messages. */
 function violations(found) {
-  return found.filter((m) => m.file !== OWNER).flatMap((m) => {
+  return found.filter((m) => !OWNERS.includes(m.file)).flatMap((m) => {
     const e = EXEMPTIONS.find((x) => x.file === m.file);
     const why = e ? exemptionBroken(e, m.text) : `names ${m.hit.markers.join(', ')} and writes: ${m.hit.writes[0]}`;
     return why ? [`${m.file}: ${why}`] : [];
@@ -189,13 +197,18 @@ describe('no module but work-records.js writes record files (AC2.2, REVIEW I5)',
     })
     .filter((m) => m.hit);
 
-  it('scans both directories, the owner among them', () => {
-    expect(modules()).toContain(OWNER);
+  it('scans both directories, every owner among them', () => {
+    for (const owner of OWNERS) expect(modules()).toContain(owner);
     expect(modules().some((f) => f.startsWith('plugin/hooks/'))).toBe(true);
   });
 
-  it('the owner is found as a writer (the scan sees the real thing)', () => {
-    expect(found.map((m) => m.file)).toContain(OWNER);
+  it('every owner is found as a writer (the scan sees the real thing)', () => {
+    for (const owner of OWNERS) expect(found.map((m) => m.file)).toContain(owner);
+  });
+
+  it('the shared write helpers are imported by owners only', () => {
+    const importers = modules().filter((file) => /from\s*['"][^'"]*work-write\.js['"]/.test(readFileSync(join(ROOT, file), 'utf-8')));
+    expect(importers).toEqual(OWNERS.filter((f) => f !== WRITE_HELPERS));
   });
 
   it('every other record writer is a reviewed exemption', () => {
@@ -240,6 +253,14 @@ describe('the record-writer scan bites (self-test)', () => {
 
   it('a record path quoted in a comment is not a marker', () => {
     expect(recordWriter("// writes .planning/work/items/NN/KEY-n.json\nwriteFileSync(other, 'x');")).toBeNull();
+  });
+
+  it('the write helpers do not travel either: the same text in another file is a violation', () => {
+    const text = readFileSync(join(ROOT, WRITE_HELPERS), 'utf-8');
+    const hit = recordWriter(text);
+    expect(hit).not.toBeNull();
+    expect(violations([{ file: WRITE_HELPERS, hit, text }])).toEqual([]);
+    expect(violations([{ file: 'plugin/tools/lib/sweep.js', hit, text }])).toHaveLength(1);
   });
 
   it('an exemption does not travel: the same text in another file is a violation', () => {

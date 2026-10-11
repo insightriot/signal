@@ -407,6 +407,32 @@ export async function promote(b, id) { await triage(b, id); return queue(b, id);
     ]);
   });
 
+  // M6.E16.S1: the take itself moved to `work-write.js` (`withWorkLock`), so a
+  // call to that helper is a take, exactly as a call to `acquireLock` is.
+  it('a take through the shared helper withWorkLock is seen: nesting and an internal take are flagged', () => {
+    const SHARED = BAD
+      .replace("import { acquireLock } from './file-lock.js';", "import { withWorkLock } from './work-write.js';")
+      .replace("const lock = await acquireLock(baseDir + '/.lock');\n  try { return await fn(lock); } finally { await lock.released(); }",
+        'return withWorkLock(baseDir, fn);');
+    expect(SHARED).not.toContain('acquireLock');
+    expect(SHARED).toContain('return withWorkLock(baseDir, fn);');
+    expect(lockNesting(SHARED)).toEqual(lockNesting(BAD));
+  });
+
+  it('work-write.js as a namespace, aliased, or imported with no take in sight is refused', () => {
+    const NS = "import * as w from './work-write.js';\nexport async function x() { await w.withWorkLock('l'); }\n";
+    expect(lockNesting(NS).violations).toEqual(expect.arrayContaining([expect.stringMatching(/work-write\.js is imported as a namespace/)]));
+    const ALIAS = "import { withWorkLock as take } from './work-write.js';\nexport async function x() { await take('l'); }\n";
+    expect(lockNesting(ALIAS).violations).toEqual([expect.stringMatching(/withWorkLock is imported under an alias/), expect.stringMatching(/no function/)]);
+    const BLIND = "import { withWorkLock } from './work-write.js';\nexport const x = async () => { const take = withWorkLock; await take('l'); };\n";
+    expect(lockNesting(BLIND).violations).toEqual([expect.stringMatching(/work-write\.js.*no function that calls withWorkLock\(/)]);
+  });
+
+  it('the real file takes the lock through the shared helper, in one place', () => {
+    expect(SOURCE.match(/(?<![\w$.])withWorkLock\(/g)).toHaveLength(1);
+    expect(lockNesting(SOURCE).lockTaking[0]).toBe('withWorkLockV2');
+  });
+
   it('an aliased acquireLock import is refused, since the scan matches the name', () => {
     const ALIAS = "import { acquireLock as take } from './file-lock.js';\nexport async function x() { await take('l'); }\n";
     expect(lockNesting(ALIAS).violations).toEqual([expect.stringMatching(/alias/), expect.stringMatching(/no function/)]);

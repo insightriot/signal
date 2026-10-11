@@ -27,11 +27,9 @@ import { readFileSync, readdirSync, realpathSync, existsSync, lstatSync, mkdirSy
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { acquireLock } from './file-lock.js';
-import { assertRealInsidePlanning } from './path-confine.js';
 import { scrubSensitive } from './scrub.js';
-import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
-import { RECORD_SCHEMA, parseRecord, serializeRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
+import { asWorkStoreError, WorkStoreError } from './work-errors.js';
+import { ITEM_KIND, RECORD_SCHEMA, parseRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
 import { bodyDirFor, convertV1Item } from './work-convert.js';
 import { ITEM_ID_RE } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -46,11 +44,23 @@ import {
   STORE_OFF_MESSAGE,
   WORK_DIR,
   WORK_FILE,
-  WORK_LOCK_REL,
-  WORK_LOCK_TTL_MS,
 } from './work-store.js';
 import { parseFrontmatter } from './state.js';
-import { hasRemote, resolveDefaultBranch } from './branch-guard.js';
+// The write helpers every record kind shares. `regenerateAfter` comes in under
+// another name because this module keeps its own, which names the views.
+import {
+  ancestryFailure,
+  commitsStartingWith,
+  confine,
+  defaultBranchRef,
+  existsNoFollow,
+  recordWriter,
+  regenerateAfter as regenerateWith,
+  runGit,
+  shallowProbe,
+  withEvent,
+  withWorkLock,
+} from './work-write.js';
 
 const ITEMS_DIR = 'items';
 const ITEMS_REL = `.planning/${WORK_DIR}/${ITEMS_DIR}`;
@@ -526,7 +536,6 @@ function readV2One(baseDir, key, id) {
 
 const ID_GIT_PATHS = ['.planning/work/', '.planning/archive/'];
 const ID_TREE_DIRS = [join('.planning', WORK_DIR), join('.planning', 'archive')];
-const GIT_MAX_BUFFER = 256 * 1024 * 1024;
 
 // Where the cutover relocates the v1 item files (PLAN t7.3), repo-root-relative.
 export const RELOCATED_V1_REL = '.planning/archive/pre-work-store-v2';
@@ -552,10 +561,6 @@ function maxFromNames(names, key) {
     if (parsed && parsed.key === key) max = Math.max(max, parsed.n);
   }
   return max;
-}
-
-function runGit(baseDir, args, execFn) {
-  return String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: GIT_MAX_BUFFER }));
 }
 
 /**
@@ -663,20 +668,11 @@ export function findDuplicateIds(baseDir) {
 
 const WORK_LOCK_LABEL = 'work store';
 
+// The shared lock (`work-write.js`), over this store's check and its views.
+// The views are named here, at call time: `work-write.js` imports neither this
+// module nor `work-views.js`.
 async function withWorkLockV2(baseDir, label, opts, fn) {
-  const { key } = assertWritable(baseDir);
-  let lock;
-  try {
-    lock = await acquireLock(join(baseDir, WORK_LOCK_REL), { label, ttlMs: WORK_LOCK_TTL_MS });
-  } catch (err) {
-    throw lockFailure(err);
-  }
-  try {
-    viewsWritableOrRefuse(baseDir, opts);
-    return await fn({ baseDir, key });
-  } finally {
-    await lock.released();
-  }
+  return withWorkLock(baseDir, label, { assertWritable, beforeWrite: () => viewsWritableOrRefuse(baseDir, opts) }, fn);
 }
 
 // Before any record is written (SIG-280 (6), M6.E14): if the views would
@@ -690,12 +686,7 @@ function viewsWritableOrRefuse(baseDir, opts = {}) {
 }
 
 async function regenerateAfter(handle, done, opts) {
-  const run = opts.regenerate ?? regenerateViews;
-  try {
-    await run(handle.baseDir);
-  } catch (err) {
-    throw viewsNotRegenerated(done, err);
-  }
+  return regenerateWith(handle, done, opts.regenerate ?? regenerateViews, viewsNotRegenerated);
 }
 
 // Every sensitive-data hit in `texts`, each field scanned on its own (v1
@@ -725,70 +716,19 @@ function pruneUndefined(obj) {
   return obj;
 }
 
-// A record's bytes, validated and with a legal history — or a throw, before
-// anything is written. Shape errors are SCHEMA; an event not legal where it
-// stands (the transition table) is CONFLICT.
-function recordText(record) {
-  const text = serializeRecord(record);
-  const errors = checkEvents(record);
-  if (errors.length > 0) {
-    throw new WorkStoreError('CONFLICT', `${record.id}: ${errors.map((e) => e.message).join('; ')} — nothing was written.`);
-  }
-  return text;
-}
-
 function entryOf(record) {
   return { id: record.id, path: recordPath(record.id), record, status: deriveStatus(record), epic: epicOf(record) };
 }
 
-// A record as it is on disk now, under the lock: {entry, text}.
-function readForWrite(handle, id) {
-  assertItemId(id);
-  const found = readV2One(handle.baseDir, handle.key, id);
-  if (found === null) throw new WorkStoreError('NOT_FOUND', `${id}: no such item`);
-  if (found.broken.length > 0) throw new WorkStoreError('SCHEMA', found.broken.map((b) => b.error).join('; '));
-  const entry = found.records[0];
-  return { entry, text: readFileSync(join(handle.baseDir, entry.path), 'utf-8') };
-}
-
-// `assertRealInsidePlanning`, as a WorkStoreError (v1 `confine`).
-function confine(baseDir, abs) {
-  try {
-    assertRealInsidePlanning(baseDir, abs, 'work store write');
-  } catch (err) {
-    throw asWorkStoreError(err, typeof err?.code === 'string' ? 'IO' : 'CONFLICT');
-  }
-}
-
-function existsNoFollow(abs) {
-  try {
-    lstatSync(abs);
-    return true;
-  } catch (err) {
-    if (err.code === 'ENOENT') return false;
-    throw asWorkStoreError(err, 'IO');
-  }
-}
-
-// One existing record, changed: its new bytes written atomically over the old.
-async function writeRecord(handle, next, opts) {
-  const text = recordText(next);
-  const abs = join(handle.baseDir, recordPath(next.id));
-  confine(handle.baseDir, abs);
-  try {
-    await atomicWrite(abs, text, { renameFn: opts.renameFn });
-  } catch (err) {
-    throw asWorkStoreError(err, 'IO');
-  }
-  return entryOf(next);
-}
-
-// Append one event (and apply `fields`) to the record `id` holds now.
-function withEvent(current, event, fields = {}) {
-  const next = { ...current.record, ...fields, events: [...current.record.events, event] };
-  for (const k of Object.keys(fields)) if (fields[k] === undefined || fields[k] === null) delete next[k];
-  return next;
-}
+// The shared write helpers (`work-write.js`), bound to the item kind.
+const { recordText, readForWrite, writeRecord, writeRecords } = recordWriter({
+  kind: ITEM_KIND,
+  pathOf: recordPath,
+  entryOf,
+  assertId: assertItemId,
+  readOne: readV2One,
+  noun: 'item',
+});
 
 // One new item, built and checked, nothing written.
 function planNew(handle, id, spec) {
@@ -1226,34 +1166,6 @@ function planClose(handle, close, batch) {
   return { next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) };
 }
 
-// Write several changed records, all or nothing: on a failure each record
-// already written is put back to its old bytes. A put-back that fails is named.
-async function writeRecords(handle, planned, opts) {
-  const done = [];
-  try {
-    for (const p of planned) {
-      confine(handle.baseDir, p.abs);
-      await atomicWrite(p.abs, p.text, { renameFn: opts.renameFn });
-      done.push(p);
-    }
-  } catch (err) {
-    const left = [];
-    for (const p of done.reverse()) {
-      try {
-        await atomicWrite(p.abs, p.oldText);
-      } catch {
-        left.push(p.next.id);
-      }
-    }
-    const wrapped = asWorkStoreError(err, 'IO', left.length
-      ? `the write failed and ${left.join(', ')} could not be put back: `
-      : '');
-    wrapped.leftChanged = left;
-    throw wrapped;
-  }
-  return planned.map((p) => entryOf(p.next));
-}
-
 /**
  * Close items directly: ONE `work` lock, every close built and checked before
  * any is written, all or nothing (a failure part-way puts back every record
@@ -1422,21 +1334,6 @@ function headAncestry(baseDir, execFn) {
     && ancestryFailure(baseDir, proof, 'HEAD', execFn, isShallow) === null;
 }
 
-// A lazy, memoised `git rev-parse --is-shallow-repository` (false on failure).
-function shallowProbe(baseDir, execFn) {
-  let shallow;
-  return () => {
-    if (shallow === undefined) {
-      try {
-        shallow = runGit(baseDir, ['rev-parse', '--is-shallow-repository'], execFn).trim() === 'true';
-      } catch {
-        shallow = false;
-      }
-    }
-    return shallow;
-  };
-}
-
 // ── Confirming fixed closes (t2.6, AC7.2) ──────────────────────────────────
 //
 // A fixed close is requested with a commit and stays *closing* until that
@@ -1449,102 +1346,6 @@ const STALE_CLOSING_MS = 14 * 24 * 60 * 60 * 1000;
 const CONFIRM_BY = 'confirmCloses';
 
 const latestRequest = (record) => record.events.findLast((e) => e.type === 'close_requested');
-
-// The ref a confirmed commit must be an ancestor of, or why there is none.
-// The REMOTE ref (`refs/remotes/origin/<branch>`), not the local branch: a
-// local `main` can hold commits nobody merged. The ref is built here from a
-// fixed prefix, so it cannot begin with `-`.
-function defaultBranchRef(baseDir, execFn) {
-  if (!isGitRepo(baseDir, execFn)) return { reason: 'not-a-repo' };
-  const remote = hasRemote(baseDir, { execFn });
-  if (remote === null) return { reason: 'git-failed' };
-  if (remote === false) return { reason: 'no-remote' };
-  const branch = resolveDefaultBranch(baseDir, { execFn });
-  if (branch === null) return { reason: 'no-default-branch' };
-  const ref = `refs/remotes/origin/${branch}`;
-  try {
-    runGit(baseDir, ['rev-parse', '--verify', '--quiet', ref], execFn);
-  } catch {
-    return { reason: 'no-default-branch' };
-  }
-  return { ref };
-}
-
-// How many commit-like objects `prefix` abbreviates — commits, and tag objects
-// that lead to a commit, which is what git counts when it resolves
-// `<prefix>^{commit}`: two sharing the prefix make git call it ambiguous.
-// 0 when git cannot say.
-function commitsStartingWith(baseDir, prefix, execFn) {
-  let objects;
-  try {
-    objects = runGit(baseDir, ['rev-parse', `--disambiguate=${prefix}`], execFn).split('\n').map((l) => l.trim()).filter(Boolean);
-  } catch {
-    return 0;
-  }
-  // Each listed object once, counted when it is a commit or a tag (M6.E14
-  // REVIEW pass 2: counting commits only accepted a proof git itself calls
-  // ambiguous, which then could never confirm). Trees and blobs are not counted.
-  // Two are enough to answer.
-  let n = 0;
-  for (const o of new Set(objects)) {
-    try {
-      const type = runGit(baseDir, ['cat-file', '-t', '--end-of-options', o], execFn).trim();
-      // A tag counts only when it leads to a commit: git ignores one that
-      // points at a blob or a tree when it resolves `<prefix>^{commit}` (REVIEW pass 3).
-      if (type === 'commit') n += 1;
-      else if (type === 'tag') {
-        runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${o}^{commit}`], execFn);
-        n += 1;
-      }
-    } catch {
-      // not inspectable: not counted
-    }
-    if (n > 1) break;
-  }
-  return n;
-}
-
-// null when `sha` is an ancestor of `ref`; otherwise why not. `sha` has
-// already matched COMMIT_RE, so it is bare lowercase hex and never an option
-// (`--end-of-options` says so to git as well).
-//
-// The proof is resolved to a full SHA FIRST, and only that SHA is checked:
-// git resolves `<name>^{commit}` as a branch or tag before it tries an
-// abbreviated object id, so a ref named `deadbee` would otherwise stand in for
-// a commit (the M6.E13 VERIFY AC7.2 finding). A resolved SHA that does not
-// start with the proof means the proof named a ref → `proof-names-a-ref`.
-//
-// A short proof that more than one commit starts with → `ambiguous-proof`,
-// checked FIRST (SIG-276, M6.E14): a branch or tag named the shared prefix
-// makes `rev-parse` resolve the ref instead of failing, and the commit it
-// points at does start with the prefix — so without this check the proof
-// confirmed although it names two commits.
-function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
-  if (sha.length < 40 && commitsStartingWith(baseDir, sha, execFn) > 1) return 'ambiguous-proof';
-  let full;
-  try {
-    full = runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${sha}^{commit}`], execFn)
-      .trim().toLowerCase();
-  } catch {
-    // In a shallow clone a cut-off commit is simply absent, so it cannot be known.
-    return isShallow() ? 'shallow' : 'unknown-commit';
-  }
-  if (!full.startsWith(sha.toLowerCase())) return 'proof-names-a-ref';
-  try {
-    execFn('git', ['merge-base', '--is-ancestor', full, ref], {
-      cwd: baseDir,
-      stdio: ['ignore', 'ignore', 'ignore'],
-    });
-    return null;
-  } catch (err) {
-    // In a shallow clone a missing commit and a cut-off history look the same
-    // as "not an ancestor", so the answer is that it cannot be known.
-    if (isShallow()) return 'shallow';
-    if (err?.status === 1) return 'not-on-default-branch';
-    if (err?.status === 128) return 'unknown-commit';
-    return 'git-failed';
-  }
-}
 
 /**
  * Confirm fixed closes: for each record deriving *closing*, its latest
