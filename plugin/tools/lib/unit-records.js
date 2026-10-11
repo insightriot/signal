@@ -30,7 +30,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync } from 'node:fs';
-import { dirname, join, resolve, sep } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 
 import { isSafeUnitName } from './archive-tree.js';
 import { atomicWrite } from './atomic-write.js';
@@ -296,20 +296,22 @@ const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 const byPath = (a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
 
 /**
- * Does this project have unit records: is there a `units/` folder holding at
- * least one record file. The switch a reader uses to decide between the
- * records and what it did before them. A broken or linked record file counts
- * — the project has unit records and one is wrong, which `listUnits` and
- * `checkUnits` report; reading as though there were none would hide it.
+ * Does this project have unit records: does the `units/` folder exist
+ * (`D-M6E16-16`, AC1.6) — a real folder inside the project's `work/`, with or
+ * without a record in it. The switch a reader uses to decide between the
+ * records and what it did before them. The folder is the switch, as `WORK.md`
+ * is for items: with "at least one record" a new project could never get its
+ * first one. `ensureUnitsDir` (and the migration) creates it; no other writer
+ * does.
  *
  * Needs no store: false when there is no folder, and it creates nothing.
  *
  * @param {string} baseDir
  * @returns {boolean}
- * @throws {WorkStoreError} CONFLICT when `units/` is a link, or `work/` resolves outside the project
+ * @throws {WorkStoreError} CONFLICT when `units/` is a link or not a folder, or `work/` resolves outside the project
  */
 export function hasUnits(baseDir) {
-  return unitEntries(baseDir).some((e) => e.name.endsWith('.json') && !e.isDirectory());
+  return confinedUnitsDir(baseDir) !== null;
 }
 
 /**
@@ -520,6 +522,9 @@ async function appendEvent(handle, id, event, opts) {
   return writeRecord(handle, withEvent(current, pruneUndefined(event)), opts);
 }
 
+// The outstanding close request of a record that reads closing.
+const latestRequest = (record) => record.events.findLast((e) => e.type === 'close_requested');
+
 function assertProof(id, proof, what) {
   if (typeof proof !== 'string' || !COMMIT_RE.test(proof)) {
     throw new WorkStoreError('SCHEMA', `${id}: ${what}'s proof is a commit hash — lowercase hex, `
@@ -527,11 +532,80 @@ function assertProof(id, proof, what) {
   }
 }
 
+const KEEP_FILE = '.keep';
+
+const NO_UNITS_DIR = (id) => `${id}: this project has no unit records (${UNITS_REL}/ does not exist) — nothing was written. `
+  + 'The folder is what turns unit records on; /sig:docs-migrate --work-store creates it (ensureUnitsDir).';
+
+/**
+ * Turn unit records on: create `.planning/work/units/` when it is missing,
+ * with a `.keep` file inside so git carries the folder while it is empty
+ * (`D-M6E16-16`, AC1.6). After this `hasUnits` answers true.
+ *
+ * Writes no record and no event. Idempotent: a folder that is already there
+ * is left as it is, and gains a `.keep` only when it has none. Under the
+ * store's lock, as every write here.
+ *
+ * @param {string} baseDir
+ * @param {{renameFn?: Function}} [opts]
+ * @returns {Promise<{path: string, created: boolean, keep: boolean}>} `created`: the folder was made by
+ *   this call; `keep`: `.keep` was written by this call
+ * @throws {WorkStoreError} CONFIG (store off, or v1), CONFLICT (`units/` is a link or not a folder, `.keep`
+ *   is not a regular file, or `work/` resolves outside the project), LOCKED, IO
+ */
+export async function ensureUnitsDir(baseDir, opts = {}) {
+  assertWritable(baseDir);
+  return withUnitLock(baseDir, async (handle) => {
+    const abs = join(handle.baseDir, UNITS_REL);
+    const keepRel = `${UNITS_REL}/${KEEP_FILE}`;
+    const keepAbs = join(abs, KEEP_FILE);
+    let created = false;
+    if (confinedUnitsDir(handle.baseDir) === null) {
+      confine(handle.baseDir, abs);
+      try {
+        mkdirSync(abs);
+      } catch (err) {
+        throw asWorkStoreError(err, 'IO');
+      }
+      created = true;
+      confinedUnitsDir(handle.baseDir); // refuses a `work/` that resolves outside the project
+    }
+    let st = null;
+    try {
+      st = lstatSync(keepAbs);
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw asWorkStoreError(err, 'IO');
+    }
+    if (st !== null) {
+      if (!st.isFile()) throw new WorkStoreError('CONFLICT', `${keepRel} is not a regular file — nothing was written.`);
+      return { path: UNITS_REL, created, keep: false };
+    }
+    try {
+      await atomicWrite(keepAbs, '', { renameFn: opts.renameFn });
+    } catch (err) {
+      // The folder, when this call made it: removed again, so a failed call leaves the switch off.
+      if (created) {
+        try {
+          rmdirSync(abs);
+        } catch {
+          // not empty, or already gone: leave it
+        }
+      }
+      throw asWorkStoreError(err, 'IO');
+    }
+    return { path: UNITS_REL, created, keep: true };
+  });
+}
+
 /**
  * Open a unit: create its record, with one `opened` event.
  *
  * Refused when the ID fails `assertUnitId`, and when a record for it already
  * exists, open or closed — a closed unit is reopened with `reopenUnit`.
+ *
+ * Refused (CONFIG) when the project has no `units/` folder: this never creates
+ * it, so no ordinary command turns unit records on by accident
+ * (`D-M6E16-16`). `ensureUnitsDir` and the migration do.
  *
  * Sensitive data: `title`, `summary`, `migration_note` and each `legacy_row`
  * cell run through the gate items use (`sensitivePending`, `work-write.js`);
@@ -553,6 +627,7 @@ export async function openUnit(baseDir, id, fields = {}, opts = {}) {
   const pending = sensitivePending([title, summary, migrationNote, ...cells], opts);
   if (pending) return pending;
   return withUnitLock(baseDir, async (handle) => {
+    if (confinedUnitsDir(handle.baseDir) === null) throw new WorkStoreError('CONFIG', NO_UNITS_DIR(id));
     assertUnitId(handle.baseDir, id, { storeKey: handle.key });
     const record = pruneUndefined({
       id, title, summary, legacy_row: legacyRow, migration_note: migrationNote, events: [{ type: 'opened', at, by }],
@@ -562,19 +637,9 @@ export async function openUnit(baseDir, id, fields = {}, opts = {}) {
     const abs = join(handle.baseDir, rel);
     confine(handle.baseDir, abs);
     if (existsNoFollow(abs)) throw new WorkStoreError('CONFLICT', `${rel} already exists — nothing was written.`);
-    let made;
     try {
-      made = mkdirSync(dirname(abs), { recursive: true });
       await atomicWrite(abs, text, { renameFn: opts.renameFn });
     } catch (err) {
-      // The folder, when this call made it: removed again, so a failed open leaves nothing.
-      if (made) {
-        try {
-          rmdirSync(dirname(abs));
-        } catch {
-          // not empty, or already gone: leave it
-        }
-      }
       throw asWorkStoreError(err, 'IO');
     }
     return entryOf(record);
@@ -592,14 +657,19 @@ export async function openUnit(baseDir, id, fields = {}, opts = {}) {
  * is accepted). It is not run through the sensitive-data gate: it can only be
  * hex.
  *
+ * `pr` and `release` (t4.0, optional) are what the caller knows when it asks —
+ * `/sig:ship` knows the pull request, and the step that confirms the close,
+ * after the merge, does not. `confirmUnitClose` copies them into the `closed`
+ * event. Sensitive data: both run through the gate.
+ *
  * @param {string} baseDir
  * @param {string} id
- * @param {{proof: string, by: string, at?: string}} request
- * @param {{renameFn?: Function, execFn?: Function}} [opts]
- * @returns {Promise<object>} the entry
+ * @param {{proof: string, pr?: string, release?: string, by: string, at?: string}} request
+ * @param {{renameFn?: Function, execFn?: Function, acknowledgeSensitive?: boolean}} [opts]
+ * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
  */
 export async function requestUnitClose(baseDir, id, request = {}, opts = {}) {
-  const { proof, by, at = nowIso() } = request;
+  const { proof, pr, release, by, at = nowIso() } = request;
   assertShape(id);
   assertProof(id, proof, 'a close request');
   assertWritable(baseDir);
@@ -610,7 +680,11 @@ export async function requestUnitClose(baseDir, id, request = {}, opts = {}) {
         + 'use a longer hash (git rev-parse <commit>). Nothing was written.');
     }
   }
-  return withUnitLock(baseDir, async (handle) => appendEvent(handle, id, { type: 'close_requested', at, by, proof }, opts));
+  const pending = sensitivePending([pr, release], opts);
+  if (pending) return pending;
+  return withUnitLock(baseDir, async (handle) => (
+    appendEvent(handle, id, { type: 'close_requested', at, by, proof, pr, release }, opts)
+  ));
 }
 
 /**
@@ -620,6 +694,9 @@ export async function requestUnitClose(baseDir, id, request = {}, opts = {}) {
  * This function does NOT check that the commit is on the default branch. That
  * decision is the caller's, and is taken as given; what is checked here is
  * that `proof` is exactly the commit the close was requested with.
+ *
+ * `pr` and `release`, when not passed, are copied from the close request
+ * (t4.0): the request is made at SHIP, which knows them.
  *
  * Sensitive data: `pr`, `release` and `words`.
  *
@@ -646,7 +723,10 @@ export async function confirmUnitClose(baseDir, id, confirm = {}, opts = {}) {
       throw new WorkStoreError('CONFLICT', `${id}: the proof ${proof} is not the commit the close was requested with `
         + `(${current.closing_proof}) — nothing was written.`);
     }
-    const event = pruneUndefined({ type: 'closed', at, by, reason: 'shipped', proof, pr, release, words });
+    const request = latestRequest(current.record);
+    const event = pruneUndefined({
+      type: 'closed', at, by, reason: 'shipped', proof, pr: pr ?? request?.pr, release: release ?? request?.release, words,
+    });
     return writeRecord(handle, withEvent(current, event), opts);
   });
 }

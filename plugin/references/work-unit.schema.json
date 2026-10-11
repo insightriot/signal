@@ -56,7 +56,9 @@
         "type": { "const": "close_requested" },
         "at": { "$ref": "#/$defs/at" },
         "by": { "$ref": "#/$defs/text" },
-        "proof": { "$ref": "#/$defs/commit" }
+        "proof": { "$ref": "#/$defs/commit" },
+        "pr": { "$ref": "#/$defs/text" },
+        "release": { "$ref": "#/$defs/text" }
       }
     },
     "closed": {

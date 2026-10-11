@@ -78,7 +78,7 @@ const RECORD_ORDER = ['id', 'title', 'summary', 'legacy_row', 'migration_note', 
 const EVENT_HEAD = ['type', 'at', 'by'];
 const EVENT_FIELDS = {
   opened: [],
-  close_requested: ['proof'],
+  close_requested: ['proof', 'pr', 'release'],
   closed: ['reason', 'proof', 'pr', 'release', 'words'],
   reopened: ['reason'],
   held: ['reason'],

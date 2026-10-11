@@ -157,6 +157,14 @@ describe('unit record — rejections (AC1.1: an extra key or a stored status is 
     }
   });
 
+  // t4.0: what /sig:ship knows when it asks, carried to the confirm.
+  it('close_requested may carry pr and release as text, and nothing else', () => {
+    expect(validateRecord(record([{ ...EVENT_SAMPLES.close_requested, pr: '#301', release: 'v0.1.51' }]))).toEqual([]);
+    expect(validateRecord(record([{ ...EVENT_SAMPLES.close_requested, pr: ' ' }]))).toHaveLength(1);
+    expect(validateRecord(record([{ ...EVENT_SAMPLES.close_requested, release: 51 }]))).toHaveLength(1);
+    expect(validateRecord(record([{ ...EVENT_SAMPLES.close_requested, words: 'no' }]))).toHaveLength(1);
+  });
+
   it('closed: the reason is shipped, dropped or legacy', () => {
     for (const reason of ['fixed', 'wontdo', 'done', 'parked']) {
       expect(validateRecord(record([{ ...EVENT_SAMPLES.closed_legacy, reason }])), reason).toHaveLength(1);

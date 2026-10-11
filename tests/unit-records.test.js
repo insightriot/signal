@@ -102,15 +102,19 @@ describe('unitPath / hasUnits (AC1.1)', () => {
     }
   });
 
-  it('hasUnits: true with a record; false with an empty folder, no folder, or no store at all', async () => {
+  // D-M6E16-16 (t4.0, AC1.6): the folder is the switch, not a record in it.
+  it('hasUnits: true when the units folder exists, even empty; false with no folder, or no store at all', async () => {
     expect(units.hasUnits(base)).toBe(true);
     const empty = await tmp('sig-units-empty-');
     await put(empty, '.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n');
     expect(units.hasUnits(empty)).toBe(false);
+    expect(units.hasUnitsSafe(empty)).toEqual({ has: false, problem: null });
     await mkdir(join(empty, UNITS), { recursive: true });
-    expect(units.hasUnits(empty)).toBe(false);
-    await put(empty, `${UNITS}/README.md`, 'not a record\n');
-    expect(units.hasUnits(empty)).toBe(false);
+    expect(units.hasUnits(empty)).toBe(true);
+    await put(empty, `${UNITS}/.keep`, '');
+    expect(units.hasUnits(empty)).toBe(true);
+    expect(units.hasUnitsSafe(empty)).toEqual({ has: true, problem: null });
+    expect(units.listUnits(empty)).toEqual({ units: [], broken: [] });
     const bare = await tmp('sig-units-bare-');
     expect(units.hasUnits(bare)).toBe(false);
     expect(existsSync(join(bare, '.planning'))).toBe(false);
@@ -341,15 +345,31 @@ describe('openUnit', () => {
     expect(await bytes(base, 'M6.E40')).toBe(UNIT_KIND.serializeRecord(out.record));
   });
 
-  it('creates the units folder on a store that has none, and touches nothing else', async () => {
+  // D-M6E16-16 (t4.0): no ordinary writer turns unit records on. Only
+  // ensureUnitsDir (and the migration) creates the folder.
+  it('refuses on a store with no units folder, and creates nothing', async () => {
     const dir = await tmp('sig-units-first-');
     await put(dir, '.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n');
+    const before = snapshotTree(dir);
+    const err = await units.openUnit(dir, 'phase-1', { by, at: AT }).catch((e) => e);
+    expect(err).toMatchObject({ code: 'CONFIG' });
+    expect(err.message).toMatch(/no unit records/);
+    expect(err.message).toMatch(/nothing was written/);
+    expect(snapshotTree(dir)).toEqual(before);
+    expect(existsSync(join(dir, UNITS))).toBe(false);
+    expect(units.hasUnits(dir)).toBe(false);
+  });
+
+  it('writes the first record into an empty units folder, and touches nothing else', async () => {
+    const dir = await tmp('sig-units-first-');
+    await put(dir, '.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n');
+    await units.ensureUnitsDir(dir);
     const before = snapshotTree(dir);
     await units.openUnit(dir, 'phase-1', { by, at: AT });
     const after = snapshotTree(dir);
     expect([...after.keys()].filter((k) => !before.has(k))).toEqual([`${UNITS}/phase-1.json`]);
     expect(after.get('.planning/work/WORK.md')).toBe(before.get('.planning/work/WORK.md'));
-    expect(units.hasUnits(dir)).toBe(true);
+    expect(after.get(`${UNITS}/.keep`)).toBe('');
   });
 
   it('`at` defaults to now', async () => {
@@ -400,6 +420,47 @@ describe('requestUnitClose / confirmUnitClose (AC2.1)', () => {
     expect(out).toMatchObject({ status: 'closed', closing_proof: null, close: { reason: 'shipped', proof: SHA, pr: '#301', release: 'v0.1.51' } });
     expect((await onDisk(base, 'M6.E21')).events.at(-1)).toEqual({ type: 'closed', at: AT, by, reason: 'shipped', proof: SHA, pr: '#301', release: 'v0.1.51' });
     expect((await onDisk(base, 'M6.E21')).events).toHaveLength(3);
+  });
+
+  // t4.0: /sig:ship knows the pull request and the release when it asks; the
+  // step that confirms, after the merge, does not.
+  it('a request carries pr and release, in a fixed key order', async () => {
+    await units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, release: 'v0.1.51', pr: '#301', by, at: AT });
+    const event = (await onDisk(base, 'M6.E20')).events.at(-1);
+    expect(event).toEqual({ type: 'close_requested', at: AT, by, proof: OTHER_SHA, pr: '#301', release: 'v0.1.51' });
+    expect(Object.keys(event)).toEqual(['type', 'at', 'by', 'proof', 'pr', 'release']);
+    expect(units.checkUnits(base)).toEqual([]);
+  });
+
+  it('a confirm copies the request\'s pr and release into the closed event', async () => {
+    await units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, pr: '#301', release: 'v0.1.51', by, at: AT });
+    const out = await units.confirmUnitClose(base, 'M6.E20', { proof: OTHER_SHA, by: 'confirmCloses', at: AT });
+    expect(out.close).toEqual({ reason: 'shipped', at: AT, by: 'confirmCloses', proof: OTHER_SHA, pr: '#301', release: 'v0.1.51' });
+    expect((await onDisk(base, 'M6.E20')).events.at(-1))
+      .toEqual({ type: 'closed', at: AT, by: 'confirmCloses', reason: 'shipped', proof: OTHER_SHA, pr: '#301', release: 'v0.1.51' });
+  });
+
+  it('a confirm\'s own pr and release win over the request\'s; a request with neither leaves the close without them', async () => {
+    await units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, pr: '#301', release: 'v0.1.51', by, at: AT });
+    const out = await units.confirmUnitClose(base, 'M6.E20', { proof: OTHER_SHA, pr: '#302', by, at: AT });
+    expect(out.close).toMatchObject({ pr: '#302', release: 'v0.1.51' });
+    const plain = await units.confirmUnitClose(base, 'M6.E21', { proof: SHA, by, at: AT });
+    expect(Object.keys(plain.close).sort()).toEqual(['at', 'by', 'proof', 'reason']);
+  });
+
+  it('a request\'s pr and release go through the sensitive-data gate: nothing written without the acknowledgement', async () => {
+    const pending = { aborted: 'sensitive-data-pending', sensitiveHits: expect.any(Array) };
+    const before = snapshotTree(base);
+    expect(await units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, pr: AWS, by })).toEqual(pending);
+    expect(await units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, release: AWS, by })).toEqual(pending);
+    expect(snapshotTree(base)).toEqual(before);
+    const out = await units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, pr: AWS, by }, { acknowledgeSensitive: true });
+    expect(out).toMatchObject({ status: 'closing' });
+  });
+
+  it('a request refuses a blank or non-text pr or release: SCHEMA, nothing written', async () => {
+    await refused(() => units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, pr: '  ', by }), 'SCHEMA');
+    await refused(() => units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, release: 301, by }), 'SCHEMA');
   });
 
   it('a confirm is refused when the proof does not match the request, or none is given', async () => {
@@ -613,16 +674,17 @@ describe('every unit writer: one lock, the store check, atomic, nothing on a ref
     expect(await units.confirmUnitClose(base, 'M6.E20', { proof: full, by })).toMatchObject({ status: 'closed' });
   });
 
-  it('openUnit that fails part-way leaves no record and no folder it made', async () => {
+  it('openUnit that fails part-way leaves no record, and the units folder as it was', async () => {
     const dir = await tmp('sig-units-first-');
     await put(dir, '.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n');
+    await units.ensureUnitsDir(dir);
     const before = snapshotTree(dir);
     const renameFn = async () => {
       throw Object.assign(new Error('disk full'), { code: 'ENOSPC' });
     };
     await expect(units.openUnit(dir, 'M6.E1', { by }, { renameFn })).rejects.toMatchObject({ code: 'IO' });
     expect(snapshotTree(dir)).toEqual(before);
-    expect(readdirSync(join(dir, '.planning/work'))).toEqual(['WORK.md']);
+    expect(readdirSync(join(dir, UNITS))).toEqual(['.keep']);
   });
 
   it('a broken record is never written over: SCHEMA, bytes unchanged', async () => {
@@ -632,6 +694,93 @@ describe('every unit writer: one lock, the store check, atomic, nothing on a ref
       () => units.closeUnit(base, 'M6.E30', { reason: 'legacy', by }),
       () => units.editUnit(base, 'M6.E30', { changes: { title: 't' }, by }),
     ]) await refused(run, 'SCHEMA');
+  });
+});
+
+// ── ensureUnitsDir (t4.0, AC1.6, D-M6E16-16) ────────────────────────────────
+
+describe('ensureUnitsDir — the folder is the switch', () => {
+  const WORK_MD = '---\nkey: SIG\nschema_version: 2\n---\n';
+
+  it('creates units/ with a .keep on a store that has none; hasUnits then answers true; nothing else changes', async () => {
+    const dir = await tmp('sig-units-ensure-');
+    await put(dir, '.planning/work/WORK.md', WORK_MD);
+    const before = snapshotTree(dir);
+    expect(units.hasUnits(dir)).toBe(false);
+    expect(await units.ensureUnitsDir(dir)).toEqual({ path: UNITS, created: true, keep: true });
+    const after = snapshotTree(dir);
+    expect([...after.keys()].filter((k) => !before.has(k))).toEqual([`${UNITS}/.keep`]);
+    expect(after.get(`${UNITS}/.keep`)).toBe('');
+    expect(after.get('.planning/work/WORK.md')).toBe(before.get('.planning/work/WORK.md'));
+    expect(units.hasUnits(dir)).toBe(true);
+    expect(units.hasUnitsSafe(dir)).toEqual({ has: true, problem: null });
+  });
+
+  it('idempotent: a second call changes nothing', async () => {
+    const dir = await tmp('sig-units-ensure-');
+    await put(dir, '.planning/work/WORK.md', WORK_MD);
+    await units.ensureUnitsDir(dir);
+    const before = snapshotTree(dir);
+    expect(await units.ensureUnitsDir(dir)).toEqual({ path: UNITS, created: false, keep: false });
+    expect(snapshotTree(dir)).toEqual(before);
+  });
+
+  it('a folder that already holds records keeps them byte-identical and gains only .keep', async () => {
+    const before = snapshotTree(base);
+    expect(await units.ensureUnitsDir(base)).toEqual({ path: UNITS, created: false, keep: true });
+    const after = snapshotTree(base);
+    expect([...after.keys()].filter((k) => before.get(k) !== after.get(k))).toEqual([`${UNITS}/.keep`]);
+  });
+
+  it('checkUnits does not flag .keep, and an empty folder has no findings', async () => {
+    const dir = await tmp('sig-units-ensure-');
+    await put(dir, '.planning/work/WORK.md', WORK_MD);
+    await units.ensureUnitsDir(dir);
+    expect(units.checkUnits(dir)).toEqual([]);
+    await units.ensureUnitsDir(base);
+    expect(units.checkUnits(base)).toEqual([]);
+  });
+
+  it('refused with the store off, or on a v1 store: CONFIG, nothing created', async () => {
+    const off = await tmp('sig-units-ensure-off-');
+    await expect(units.ensureUnitsDir(off)).rejects.toMatchObject({ code: 'CONFIG' });
+    expect(existsSync(join(off, '.planning'))).toBe(false);
+    const v1 = await tmp('sig-units-ensure-v1-');
+    await put(v1, '.planning/work/WORK.md', '---\nkey: SIG\n---\n');
+    const before = snapshotTree(v1);
+    await expect(units.ensureUnitsDir(v1)).rejects.toMatchObject({ code: 'CONFIG' });
+    expect(snapshotTree(v1)).toEqual(before);
+  });
+
+  it('a linked units/ is refused (CONFLICT), nothing is written through it, and it still reads as off with the problem stated', async () => {
+    const dir = await tmp('sig-units-ensure-link-');
+    const outside = await tmp('sig-units-ensure-out-');
+    await put(dir, '.planning/work/WORK.md', WORK_MD);
+    await symlink(outside, join(dir, UNITS));
+    await expect(units.ensureUnitsDir(dir)).rejects.toMatchObject({ code: 'CONFLICT' });
+    expect(readdirSync(outside)).toEqual([]);
+    expect(units.hasUnitsSafe(dir)).toEqual({ has: false, problem: expect.stringMatching(/units is a symbolic link/) });
+  });
+
+  it('units is a file: refused (CONFLICT), the file untouched', async () => {
+    const dir = await tmp('sig-units-ensure-file-');
+    await put(dir, '.planning/work/WORK.md', WORK_MD);
+    await put(dir, UNITS, 'not a folder\n');
+    const before = snapshotTree(dir);
+    await expect(units.ensureUnitsDir(dir)).rejects.toMatchObject({ code: 'CONFLICT' });
+    expect(snapshotTree(dir)).toEqual(before);
+  });
+
+  it('the .keep write fails: the folder this call made is removed again, so the switch stays off', async () => {
+    const dir = await tmp('sig-units-ensure-fail-');
+    await put(dir, '.planning/work/WORK.md', WORK_MD);
+    const before = snapshotTree(dir);
+    const renameFn = async () => {
+      throw Object.assign(new Error('disk full'), { code: 'ENOSPC' });
+    };
+    await expect(units.ensureUnitsDir(dir, { renameFn })).rejects.toMatchObject({ code: 'IO' });
+    expect(snapshotTree(dir)).toEqual(before);
+    expect(units.hasUnits(dir)).toBe(false);
   });
 });
 

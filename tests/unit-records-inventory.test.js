@@ -24,7 +24,7 @@ import { tmpdir } from 'node:os';
 
 import * as units from '../plugin/tools/lib/unit-records.js';
 import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
-import { lockNesting, classify, checkReaders, checkWriter } from './helpers/write-inventory.js';
+import { lockNesting, classify, checkReaders, checkWriter, snapshotTree } from './helpers/write-inventory.js';
 
 const SOURCE = readFileSync(new URL('../plugin/tools/lib/unit-records.js', import.meta.url), 'utf-8');
 const UNITS = '.planning/work/units';
@@ -92,6 +92,14 @@ const EXEMPT = {
   // name: 'reason, reviewed by …'
 };
 
+// Exports that take the lock and change the store, but write NO record
+// (M6.E16 t4.0): each is run and must change no record file, and only the
+// paths listed. Not WRITERS — a writer must append an event to a record.
+const SETUP = {
+  // Turns unit records on: creates `units/` and its `.keep` (D-M6E16-16).
+  ensureUnitsDir: { run: (base) => units.ensureUnitsDir(base), mayChange: [`${UNITS}/.keep`] },
+};
+
 let base;
 beforeEach(async () => {
   base = await makeStore();
@@ -102,21 +110,21 @@ afterEach(async () => {
 
 describe('unit-records.js — every export is classified (AC2.3)', () => {
   it('no export is missing from the tables, and none is listed twice or stale', () => {
-    expect(classify(units, { READERS, WRITERS, EXEMPT })).toEqual([]);
+    expect(classify(units, { READERS, WRITERS, EXEMPT, SETUP })).toEqual([]);
   });
 
   it('every lock-taking export is a writer or exempt, and every writer takes the lock', () => {
     const { lockTaking } = lockNesting(SOURCE);
     const exported = lockTaking.filter((n) => n in units);
     for (const name of exported) {
-      expect(name in WRITERS || name in EXEMPT, `${name} takes the lock but is classified as a reader`).toBe(true);
+      expect(name in WRITERS || name in EXEMPT || name in SETUP, `${name} takes the lock but is classified as a reader`).toBe(true);
     }
-    expect(exported.sort()).toEqual(Object.keys(WRITERS).sort());
+    expect(exported.sort()).toEqual([...Object.keys(WRITERS), ...Object.keys(SETUP)].sort());
   });
 
   it('an export added and not classified fails', () => {
     const grown = { ...units, renameUnit: () => {} };
-    expect(classify(grown, { READERS, WRITERS, EXEMPT })).toEqual([expect.stringMatching(/^renameUnit: .*not classified/)]);
+    expect(classify(grown, { READERS, WRITERS, EXEMPT, SETUP })).toEqual([expect.stringMatching(/^renameUnit: .*not classified/)]);
   });
 });
 
@@ -130,6 +138,19 @@ describe('unit-records.js — every writer appends exactly one event to the one 
   for (const [name, spec] of Object.entries(WRITERS)) {
     it(name, async () => {
       expect(await checkWriter(base, name, spec)).toEqual([]);
+    });
+  }
+});
+
+describe('unit-records.js — a setup export writes no record, and only what it declares', () => {
+  for (const [name, spec] of Object.entries(SETUP)) {
+    it(name, async () => {
+      const before = snapshotTree(base);
+      await spec.run(base);
+      const after = snapshotTree(base);
+      const changed = [...new Set([...before.keys(), ...after.keys()])].filter((k) => before.get(k) !== after.get(k)).sort();
+      expect(changed.filter((k) => k.endsWith('.json'))).toEqual([]);
+      expect(changed).toEqual([...spec.mayChange].sort());
     });
   }
 });
