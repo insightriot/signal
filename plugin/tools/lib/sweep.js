@@ -49,6 +49,7 @@ import { backlogDischargeStatus, storeDischargeStatus, BACKLOG_DISCHARGE, REASON
 import { isStoreOn } from './work-store.js';
 import { checkRecords, listClosing, listRecords, recordPath, storeVersion } from './work-records.js';
 import { checkUnits, UNITS_REL } from './unit-records.js';
+import { unitsWithoutRecord } from './work-migrate-units.js';
 import { evictionWords, runConfirmCloses } from './close-confirm.js';
 
 const PLANNING_DIR = '.planning';
@@ -433,6 +434,37 @@ export function checkWorkStore(baseDir) {
 }
 
 /**
+ * Units the project names that have no unit record (portable, advisory —
+ * M6.E16 REVIEW pass 1, T-I2; AC6.2 as amended).
+ *
+ * With unit records, a unit that HAS a record is decided by its record alone.
+ * One with no record is still judged from its files — a retrospective, a
+ * verdict — because nothing else is known about it. That is the old rule
+ * still in force for that unit, so it is said here, once per unit, with the
+ * fix: `/sig:docs-migrate --work-store` proposes a record for each
+ * (`unitsWithoutRecord`, `work-migrate-units.js` — the same list that run adds).
+ *
+ * No store, a v1 store, or no `work/units/` folder → nothing. A `units/`
+ * folder that cannot be trusted → nothing here: `checkWorkStore` reports it.
+ *
+ * @param {string} baseDir — project root
+ * @returns {Promise<Array<{check: string, severity: string, file: string, message: string}>>}
+ */
+export async function checkUnitsWithoutRecord(baseDir) {
+  let ids;
+  try {
+    if (storeVersion(baseDir) !== 2) return [];
+    ids = await unitsWithoutRecord(baseDir);
+  } catch (err) {
+    if (err?.unitsFolder === true) return [];
+    return [mkFinding('unit-without-record', 'advisory', UNITS_REL, `the units with no record could not be listed — ${err?.message ?? String(err)}`)];
+  }
+  return ids.map((id) => mkFinding('unit-without-record', 'advisory', UNITS_REL,
+    `${id} has no unit record, so whether it is closed is still judged from its files (a retrospective, a verdict) — `
+    + 'run /sig:docs-migrate --work-store, which proposes a record for each unit that has none'));
+}
+
+/**
  * Items — and, with unit records, units (M6.E16 t5.0c) — left *closing* too
  * long (portable, advisory — M6.E13 t4.4, PLAN risk 3).
  *
@@ -771,6 +803,8 @@ export async function runSweep(baseDir = process.cwd()) {
   raw.push(...(await checkStaleInbox(baseDir)));
   raw.push(...(await checkBacklogDischarge(baseDir)));
   raw.push(...checkWorkStore(baseDir));
+  // Beside the unit-record findings: the units that have no record at all.
+  raw.push(...(await checkUnitsWithoutRecord(baseDir)));
   // The one step that writes (D-M6E13-21): confirmed closes, on a v2 store only.
   // It runs before the closing-too-long check, so an item it confirms is not
   // also reported as stuck closing in the same report (REVIEW pass 1).

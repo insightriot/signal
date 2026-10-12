@@ -4327,3 +4327,12 @@ as "off" at 24 call sites, so closure went back to the retrospective and the ver
 could read closed — a hold was lost, and an item record was blamed for the folder's fault. Every
 caller now asks one helper (`unitRecordsOn`) that answers yes or no on a sound layout and throws on
 a faulty one: a writer or a mover refuses, and a reader answers its own "cannot tell" with the fault.
+
+### D-M6E16-23 — A unit with no record is judged from its files and reported; the units-only migration adds records for new units (Claude)
+Settles REVIEW pass 1, `C-I5` / `T-I2`, and amends AC6.2. On a project whose units are not Epic IDs,
+a unit named after the migration could get no record — the migration refused once `work/units/`
+existed, and the refusal named it anyway — and such a unit was silently closed by its retrospective
+while AC6.2 said no reader did that. Reading a unit with no record as open would stop every older
+unit from archiving, so it stays judged from its files, `/sig:docs-sweep` names each one, and
+`/sig:docs-migrate --work-store` on a store that has unit records adds a record for each unit that
+has none and touches no record that exists.

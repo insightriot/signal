@@ -43,7 +43,8 @@ import { cut, printable } from './printable-text.js';
 import { retroStatusFromContent, RETRO_STATUS } from './retro-index.js';
 import { parseFrontmatter } from './state.js';
 import { compareUnitIds, epicIdParts } from './unit-record.js';
-import { assertUnitId, caseTwins, unitRecordsOn } from './unit-records.js';
+import { assertUnitId, caseTwins, listUnits, unitRecordsOn } from './unit-records.js';
+import { WorkStoreError } from './work-errors.js';
 import { epicOf } from './work-record.js';
 import { listRecords, storeVersion } from './work-records.js';
 import { isStoreOn } from './work-store.js';
@@ -519,6 +520,53 @@ export async function planUnits(baseDir, opts = {}) {
   };
 }
 
+/**
+ * A plan narrowed to the units that have no record yet (REVIEW pass 1, C-I5,
+ * `D-M6E16-23`) — for a project that already has unit records. `existing` is
+ * every ID that has a record; a unit among them is taken out of every list,
+ * and the plan gains `existing` (sorted). Nothing else changes: the proposals
+ * are the full plan's, made by the same rule.
+ *
+ * @param {object} plan — `planUnits`'s
+ * @param {string[]} existing
+ * @returns {object}
+ */
+export function planForUnitsWithoutRecord(plan, existing) {
+  const has = new Set(existing);
+  const units = plan.units.filter((u) => !has.has(u.id));
+  return {
+    ...plan,
+    units,
+    proposedCloses: units.filter((p) => p.proposal === 'legacy-close'),
+    flagged: units.filter((p) => p.flag !== null),
+    refused: units.filter((p) => p.proposal === 'refused'),
+    declared: units.filter((p) => p.proposal === 'dropped'),
+    existing: [...has].sort((a, b) => compareUnitIds(a, b)),
+  };
+}
+
+/**
+ * The units this project names — by the sources `planUnits` reads: a
+ * retrospective, an archive folder, an item's event, files in `.planning/`,
+ * `STATE.md`'s current unit — that have NO unit record, on a project that has
+ * unit records. Each is still judged from its files (AC6.2, amended at REVIEW
+ * pass 1), and `/sig:docs-migrate --work-store` proposes a record for it. A
+ * name that cannot be a unit ID is not listed: it can get no record. A record
+ * that does not read counts as a record (the sweep reports it on its own).
+ *
+ * @param {string} baseDir
+ * @returns {Promise<string[]>} by unit ID; empty on a project with no unit records
+ * @throws {WorkStoreError} when `units/` cannot be trusted or listed, or the plan is refused
+ */
+export async function unitsWithoutRecord(baseDir) {
+  if (!unitRecordsOn(baseDir)) return [];
+  const listed = listUnits(baseDir);
+  const has = new Set([...listed.units, ...listed.broken].map((u) => u.id).filter((id) => id !== null));
+  const plan = await planUnits(baseDir);
+  if (plan.refusal) throw new WorkStoreError('CONFIG', plan.refusal);
+  return plan.units.filter((u) => u.proposal !== 'refused' && !has.has(u.id)).map((u) => u.id);
+}
+
 const FLAG_WORDS = {
   'current-but-looks-finished': 'it is the current unit (STATE.md) and there is evidence it is over — a unit being worked is open',
   'row-unclear': 'its milestone row says shipped and something else, and nothing else says it is over',
@@ -598,8 +646,21 @@ const PROPOSAL_WORDS = {
 export function unitsReportLines(plan) {
   const lines = [];
   const n = plan.units.length;
-  lines.push(`Unit records — one record per Epic or unit this project names (${n} named):`);
-  if (n === 0) lines.push('  none — the folder for unit records is created empty.');
+  if (Array.isArray(plan.existing)) {
+    // A project that already has unit records: only the units with none.
+    const had = plan.existing.length;
+    lines.push(`Unit records to add — the units this project names that have no record yet (${n} listed; `
+      + `${had} unit${had === 1 ? '' : 's'} already ${had === 1 ? 'has' : 'have'} a record and ${had === 1 ? 'is' : 'are'} not touched):`);
+    if (plan.units.every((u) => u.proposal === 'refused')) {
+      lines.push('  every unit this project names that can have a record has one — there is nothing to add.');
+    }
+    // What this list cannot see, said every time (AC7.3: with unit records no milestone row is read).
+    lines.push('  A unit named only by a row of a milestone table is not listed: with unit records the rows are generated, and not read. '
+      + 'Give such a unit a record by hand (openUnit; see /sig:docs-archive, "Holding a unit"), or declare it dropped with --also.');
+  } else {
+    lines.push(`Unit records — one record per Epic or unit this project names (${n} named):`);
+    if (n === 0) lines.push('  none — the folder for unit records is created empty.');
+  }
   for (const u of plan.units) {
     const why = u.proposal === 'refused' ? u.reason
       : sentence([...(u.current ? ['the current unit'] : []), ...u.evidence, ...(u.proposal === 'open' ? u.against : [])]) || `named by ${u.sources.join(', ')}; nothing says it is over`;

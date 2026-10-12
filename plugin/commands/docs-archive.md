@@ -62,6 +62,29 @@ command does it. Place or release one only when the user asks.
 
 Each writes one event to `.planning/work/units/<ID>.json` and regenerates the views; commit them.
 
+### Opening, dropping, reopening or editing a unit by hand
+
+`/sig:discuss --epic` opens an Epic and `/sig:ship` closes one. A unit that is not an Epic ID
+(`phase-12`), and an Epic that will never ship, have no command: their unit record is written through
+the library. Do any of these only when the user asks.
+
+- **A record for each unit that has none:** `/sig:docs-migrate --work-store`. On a project that
+  already has unit records it proposes a record for every unit the project's files name that has
+  none, and changes no record that exists. Prefer it to the calls below when a unit has files.
+- **Open one unit:** `openUnit(baseDir, id, {title, summary, by})` from `tools/lib/unit-records.js`.
+  `title` and `summary` are optional. Refused when the unit already has a unit record, when the ID
+  cannot be a unit ID, and when there is no `work/units/` folder.
+- **Close as dropped:**
+  `closeUnit(baseDir, id, {reason: 'dropped', words, by})` from `tools/lib/unit-records.js` — the
+  unit stopped, or its work went elsewhere. `words` is required: say where it went, or why it
+  stopped. A `shipped` close is refused here: only `/sig:ship` requests one, and it is confirmed once
+  its commit is on the default branch.
+- **Reopen:** `reopenUnit(baseDir, id, {reason, by})` from `tools/lib/unit-records.js` — a closed
+  unit record, or one whose close has been requested, back to open. The reason is required.
+- **Edit:** `editUnit(baseDir, id, {changes, by})` from `tools/lib/unit-records.js`, where `changes`
+  is `{title, summary, migration_note}` — any of the three, `null` to remove one. The unit record's
+  status and hold do not change.
+
 Without unit records there is no hold available: both calls refuse and write nothing, and a closed
 unit is moved. Unit records are added with `/sig:docs-migrate --work-store`.
 

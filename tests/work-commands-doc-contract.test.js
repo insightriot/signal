@@ -266,6 +266,27 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
     for (const pair of ['holdUnit@unit-records.js', 'releaseUnit@unit-records.js']) expect(found.has(pair), pair).toBe(true);
   });
 
+  // REVIEW pass 1 (r1.5, C-I5): the item writers' refusal for a unit with no
+  // record, and for a closing one, points at this section — so it must say how.
+  it('docs-archive.md says how to open, drop, reopen and edit a unit by hand, with the library\'s own signatures', () => {
+    const text = sectionOf('docs-archive', '## Holding a unit', '\n## ');
+    expect(text).toContain('`openUnit(baseDir, id, {title, summary, by})` from `tools/lib/unit-records.js`');
+    expect(text).toContain("`closeUnit(baseDir, id, {reason: 'dropped', words, by})` from `tools/lib/unit-records.js`");
+    expect(text).toContain('`reopenUnit(baseDir, id, {reason, by})` from `tools/lib/unit-records.js`');
+    expect(text).toContain('`editUnit(baseDir, id, {changes, by})` from `tools/lib/unit-records.js`');
+    expect(text).toMatch(/only when the user asks/);
+    expect(text).toMatch(/\/sig:docs-migrate --work-store/);
+    const found = new Set();
+    for (const m of read('docs-archive').matchAll(FROM)) found.add(`${m[1]}@${m[2]}`);
+    for (const fn of ['openUnit', 'closeUnit', 'reopenUnit', 'editUnit']) {
+      expect(found.has(`${fn}@unit-records.js`), fn).toBe(true);
+      expect(EXPORTS_BY_MODULE.get('unit-records.js').has(fn), `${fn} is not exported`).toBe(true);
+    }
+    // The refusals that send a person here name the section by its heading.
+    const src = readFileSync(join(LIB, 'work-records.js'), 'utf-8');
+    expect(src.match(/\/sig:docs-archive, "Holding a unit"/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+
   it('docs-migrate.md: adding units to a store says the Epic table is regenerated when the milestone file has the markers', () => {
     const text = sectionOf('docs-migrate', '- **A project already on the store with no `work/units/`:**', '\n- **What is proposed');
     expect(text).toMatch(/Epic table/);

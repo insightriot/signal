@@ -53,7 +53,7 @@ rewrites only between the `adherence:ceiling` markers, so this survives every re
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-10-12 · **Commit:** `eeebb37b` · **Corpus:** 24 `commands/*.md` files
+**Computed:** 2026-10-12 · **Commit:** `4869c890` · **Corpus:** 24 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -62,15 +62,15 @@ by line.
 
 | | count | share |
 |---|---:|---:|
-| Directive lines | **685** | 100% |
-| …naming a real `tools/lib` export | 126 | 18.4% |
+| Directive lines | **693** | 100% |
+| …naming a real `tools/lib` export | 127 | 18.3% |
 | …writing a named artifact | 25 | 3.6% |
-| **Trace-measurable (either)** | **151** | **22.0%** |
-| **No observable trace** | **534** | **78.0%** |
+| **Trace-measurable (either)** | **152** | **21.9%** |
+| **No observable trace** | **541** | **78.1%** |
 
 ### What the remainder is, stated plainly
 
-The 534 directives with no observable trace are **unmeasured, not passing.**
+The 541 directives with no observable trace are **unmeasured, not passing.**
 
 They are not "probably fine", not "covered by the test suite", and not "verified by the
 fact that Signal works". Nothing in this repository establishes whether an agent follows
@@ -90,7 +90,7 @@ harness run as evidence about the whole corpus will not find it here.
 | `plan.md` | 54 | 10 | 44 |
 | `resume.md` | 31 | 10 | 21 |
 | `item.md` | 24 | 9 | 15 |
-| `docs-migrate.md` | 27 | 7 | 20 |
+| `docs-migrate.md` | 29 | 7 | 22 |
 | `init.md` | 43 | 7 | 36 |
 | `doctor.md` | 33 | 6 | 27 |
 | `new-project.md` | 10 | 6 | 4 |
@@ -103,9 +103,9 @@ harness run as evidence about the whole corpus will not find it here.
 | `verify.md` | 39 | 4 | 35 |
 | `update.md` | 11 | 3 | 8 |
 | `advise.md` | 22 | 2 | 20 |
+| `docs-archive.md` | 22 | 2 | 20 |
 | `docs-index.md` | 7 | 2 | 5 |
 | `permissions.md` | 11 | 2 | 9 |
-| `docs-archive.md` | 16 | 1 | 15 |
 | `escalate.md` | 16 | 0 | 16 |
 <!-- adherence:ceiling:end -->
 

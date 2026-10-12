@@ -109,9 +109,13 @@ describe('the apply creates the store and the unit records together', () => {
     expect(r.report).toMatch(/Recorded 5 proposed legacy closes as closed, as confirmed/);
     // The milestone files are not touched: the migration never adds markers.
     expect(read(base, MILESTONE)).toBe(milestone7());
-    // And the project is now one "already on the store, unit records already on".
+    // And the project is now one already on the store, with unit records: a
+    // second run has nothing to add. (Changed at REVIEW pass 1, r1.5: it used
+    // to be refused — "unit records are already on".)
     commitAll(base, 'the store');
-    expect((await dryRun(base)).reason).toMatch(/unit records are already on/);
+    const again = await dryRun(base);
+    expect(again).toMatchObject({ applied: false, dryRun: true, unitsOnly: true, nothingToAdd: true });
+    expect(again.report).toMatch(/has unit records.*there is nothing to add/s);
   });
 
   it('two answers: the item closes and the unit closes are confirmed separately', async () => {

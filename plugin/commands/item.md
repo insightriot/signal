@@ -70,7 +70,7 @@ Each target status is its own event:
 | Q (queued for an Epic) | `queueItem(baseDir, id, {epic, by})` | T, Q, P |
 | P (started in an Epic) | `startItem(baseDir, id, {epic, by})` | T, Q |
 
-The Epic is an Epic ID (`M6.E13`) and is required for Q and P. On a project with unit records (`.planning/work/units/`) it is any unit that has a record — an Epic ID or the project's own unit name (`phase-11`) — and a unit with no record (`NOT_FOUND`), a closed one or one whose close has been requested (*closing*; both `CONFLICT`) is refused. An item at N reaches T through `triage`, which sets its type — a bare `triageItem` on a `NEW` item is refused (`SCHEMA`). Nothing moves back to N. Closing is not a move — use `close`. Print *from → to*. The record stays where it is; only its events change.
+The Epic is an Epic ID (`M6.E13`) and is required for Q and P. On a project with unit records (`.planning/work/units/`) it is any unit that has a record — an Epic ID or the project's own unit name (`phase-11`) — and a unit with no record (`NOT_FOUND` — the message says how one is made: `/sig:discuss --epic` for an Epic, `/sig:docs-migrate --work-store` or `openUnit` for any other unit), a closed one or one whose close has been requested (*closing*; both `CONFLICT`) is refused. An item at N reaches T through `triage`, which sets its type — a bare `triageItem` on a `NEW` item is refused (`SCHEMA`). Nothing moves back to N. Closing is not a move — use `close`. Print *from → to*. The record stays where it is; only its events change.
 
 ### `close <ID> <reason> [proof]` — close an item
 

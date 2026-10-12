@@ -1008,8 +1008,9 @@ async function refuseUnavailableEpic(baseDir, id, epic, verb) {
   const closure = units.unitClosure(baseDir, epic);
   if (closure === 'no-record') {
     throw new WorkStoreError('NOT_FOUND', `${id}: there is no unit ${epic} (no record ${units.UNITS_REL}/${epic}.json) — `
-      + `nothing was ${verb}. An Epic's record is created when it is opened (/sig:discuss --epic); `
-      + 'another unit\'s is created by /sig:docs-migrate --work-store.');
+      + `nothing was ${verb}. An Epic's record is created when it is opened (/sig:discuss --epic). For any other unit: `
+      + '/sig:docs-migrate --work-store adds a record for each unit this project\'s files name that has none; or open one by hand '
+      + 'with openUnit(baseDir, id, {title, by}) in tools/lib/unit-records.js (see /sig:docs-archive, "Holding a unit").');
   }
   if (closure !== 'open') {
     throw new WorkStoreError('CONFLICT', `${id}: ${epic} is closed (${units.UNITS_REL}/${epic}.json) — `

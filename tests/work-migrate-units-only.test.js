@@ -225,6 +225,15 @@ describe('WORK.md is not rewritten; the run prints the line to add (t10.4)', () 
 });
 
 describe('refusals — nothing written, no tag', () => {
+  // As `untouched`, for a project whose units folder is already there.
+  const untouched2 = async (base, run, pattern) => {
+    const before = bytesOf(base);
+    const r = await run();
+    expect(r.refused, JSON.stringify(r).slice(0, 300)).toBe(true);
+    expect(r.reason).toMatch(pattern);
+    expect(bytesOf(base)).toEqual(before);
+    expect(tags(base)).toEqual([]);
+  };
   const untouched = async (base, run, pattern) => {
     const before = bytesOf(base);
     const r = await run();
@@ -270,28 +279,45 @@ describe('refusals — nothing written, no tag', () => {
     expect(tags(base)).toEqual([]);
   });
 
-  it('applying twice: the second is refused — unit records are already on', async () => {
+  // Changed at REVIEW pass 1 (r1.5, C-I5, `D-M6E16-23`): both cases below
+  // pinned a refusal, "unit records are already on". With the folder there the
+  // run now adds records for the units that have none
+  // (tests/work-migrate-units-add.test.js); what is pinned here is that a
+  // second run writes nothing when there is nothing to add.
+  it('applying twice: the first dry run\'s hash is stale, and a fresh run has nothing to add — nothing is written', async () => {
     const base = await unitsStore({ repo: true });
     const dry = await dryRun(base);
     await applyWith(base, dry, { confirmUnitCloses: true });
     commitAll(base, 'unit records');
     const before = bytesOf(base);
-    for (const run of [() => dryRun(base), () => applyWith(base, dry, { confirmUnitCloses: true, stamp: 'T2' })]) {
-      const r = await run();
-      expect(r.refused).toBe(true);
-      expect(r.reason).toMatch(/already on the store, and unit records are already on: .*\.planning\/work\/units\/ exists.*nothing was written/s);
-    }
+    const stale = await applyWith(base, dry, { confirmUnitCloses: true, stamp: 'T2' });
+    expect(stale.refused).toBe(true);
+    expect(stale.reason).toMatch(/changed since the dry run.*Nothing was written/s);
+    const again = await dryRun(base);
+    expect(again).toMatchObject({ applied: false, dryRun: true, nothingToAdd: true });
+    const second = await applyWith(base, again, { confirmUnitCloses: true, stamp: 'T2' });
+    expect(second.refused).toBe(true);
+    expect(second.reason).toMatch(/has unit records, and there is nothing to add.*Nothing was written/s);
     expect(bytesOf(base)).toEqual(before);
     expect(tags(base)).toEqual(['pre-work-store-units-T1']);
   });
 
-  it('an empty units folder already there is "already on" too', async () => {
+  it('an empty units folder made by hand: refused until the Epic index is regenerated, then every unit is proposed', async () => {
     const base = await unitsStore({ repo: true });
     put(base, `${UNITS}/.keep`, '');
     commitAll(base);
+    // The folder turns unit records on, and work/EPICS.md was rendered without them: the store does not check clean.
+    await untouched2(base, () => dryRun(base), /already on the store.*does not check clean.*EPICS\.md/s);
+    const { regenerateViews } = await import('../plugin/tools/lib/work-views.js');
+    await regenerateViews(base);
+    commitAll(base, 'views');
     const r = await dryRun(base);
-    expect(r.refused).toBe(true);
-    expect(r.reason).toMatch(/unit records are already on/);
+    expect(r.refused).toBeUndefined();
+    // All but the two a milestone row alone names: with unit records on, no milestone row is read (AC7.3).
+    const rowOnly = ['M6.E1', 'M7.E4'];
+    expect(r.units.filter((u) => u.proposal !== 'refused').map((u) => u.id).sort()).toEqual(UNIT_FILES.filter((id) => !rowOnly.includes(id)).sort());
+    expect(r.report).toMatch(/has unit records.*0 units already have a record/s);
+    expect(r.report).toMatch(/A unit named only by a row of a milestone table is not listed/);
   });
 
   it('units/ already there as a symbolic link', async () => {
@@ -513,7 +539,9 @@ describe('docs-migrate.md — the --work-store section covers units', () => {
     expect(doc).toMatch(/^args: .*--also ID:dropped:WORDS/m);
     expect(doc).toMatch(/### Unit records \(`M6\.E16`\)/);
     expect(doc).toMatch(/A project already on the store with no `work\/units\/`.*adds the unit records and\s+changes nothing else/s);
-    expect(doc).toMatch(/unit records are already on/);
+    // Changed at REVIEW pass 1 (r1.5): the file said such a store is refused.
+    expect(doc).toMatch(/A store that already has\s+`work\/units\/`\*\* gets the same run, narrowed.*a record for each unit the project names\s+that has \*\*none\*\*/s);
+    expect(doc).not.toMatch(/unit records are already on/);
     expect(doc).toMatch(/`--also <ID>:dropped:<words>`/);
     expect(doc).toMatch(/one list,\s+confirmed by one yes/);
     expect(doc).toMatch(/milestone file is never given markers by this command/);

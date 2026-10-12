@@ -117,7 +117,7 @@ import { bodyDirFor } from './work-convert.js';
 import { lockFailure, WorkStoreError } from './work-errors.js';
 import { GENERATED_FILES } from './work-generate.js';
 import { rewriteRelativeLinks } from './work-links.js';
-import { planUnits, unitImportList, unitImportTexts, unitsReportLines } from './work-migrate-units.js';
+import { planForUnitsWithoutRecord, planUnits, unitImportList, unitImportTexts, unitsReportLines } from './work-migrate-units.js';
 import {
   backlogTag,
   bugTitle,
@@ -464,8 +464,15 @@ function unitSensitiveHits(plan) {
   return unitImportTexts(plan).flatMap(({ id, text }) => sensitiveHits(text).map((h) => ({ id, file: 'unit', type: h.type, match: h.match })));
 }
 
-// Everything both modes decide before writing, for a store with no unit
-// records: the refusals and the plan. Reads only.
+// Everything both modes decide before writing, for a project already on the
+// store: the refusals and the plan. Reads only.
+//
+// With no `work/units/` folder the plan is every unit the project names, and
+// the apply turns unit records on. With the folder already there (REVIEW pass
+// 1, C-I5, `D-M6E16-23`) the plan is narrowed to the units that have NO record
+// (`existing` lists the ones that do): a project whose units are not Epic IDs
+// has no other command that gives a new unit its record. An existing record is
+// never touched, and never proposed again.
 async function assessUnitsOnly(baseDir, opts) {
   const refuse = (reason) => ({ refusal: reason });
   let unitsOn;
@@ -473,10 +480,6 @@ async function assessUnitsOnly(baseDir, opts) {
     unitsOn = unitRecordsOn(baseDir);
   } catch (err) {
     return refuse(`${ALREADY_ON}, so nothing was written. Unit records cannot be added: ${err.message}`);
-  }
-  if (unitsOn) {
-    return refuse(`This project is already on the store, and unit records are already on: ${WORK_MD_REL} and ${UNITS_REL}/ exists, `
-      + 'so nothing was written. A unit is opened with /sig:discuss --epic and closed by /sig:ship.');
   }
   let key;
   try {
@@ -505,13 +508,43 @@ async function assessUnitsOnly(baseDir, opts) {
       + `${clip(printable(findings[0].message), 300)}). Nothing was written. Unit records are added only to a store with no finding, so that nothing `
       + 'else in it changes: run /sig:docs-sweep, fix what it reports, commit, then re-run.');
   }
-  const plan = await planUnits(baseDir, { also: opts.also, storeKey: key });
-  if (plan.refusal) return refuse(plan.refusal);
+  // With unit records on, which units have a record must be known: a record
+  // that does not read has no ID to trust, so the run stops until it does.
+  let existing = null;
+  if (unitsOn) {
+    let unitFindings;
+    let listed = { units: [] };
+    try {
+      unitFindings = checkUnits(baseDir);
+      listed = listUnits(baseDir);
+    } catch (err) {
+      unitFindings = [{ message: err.message }];
+    }
+    if (unitFindings.length > 0) {
+      return refuse(`${ALREADY_ON}, with unit records, and they do not check clean (${unitFindings.length} finding${unitFindings.length === 1 ? '' : 's'}; `
+        + `the first: ${clip(printable(unitFindings[0].message), 300)}). Nothing was written. A record is added only beside records that all read: `
+        + 'run /sig:docs-sweep, fix what it reports, commit, then re-run.');
+    }
+    existing = listed.units.map((u) => u.id);
+  }
+  const full = await planUnits(baseDir, { also: opts.also, storeKey: key });
+  if (full.refusal) return refuse(full.refusal);
+  if (existing !== null) {
+    const again = full.declared.find((d) => existing.includes(d.id));
+    if (again) return refuse(`--also ${again.id}: ${again.id} already has a unit record (${UNITS_REL}/${again.id}.json), so it cannot be declared. Nothing was written.`);
+  }
+  const plan = existing === null ? full : planForUnitsWithoutRecord(full, existing);
   if (plan.milestone?.markers === 'broken') {
     return refuse(`${plan.milestone.rel}: its Epic-table markers are broken (${plan.milestone.problem}), so its table could not be written from the `
       + 'unit records. Nothing was written. Fix the markers (one begin, one end, in that order) or take them out, commit, then re-run.');
   }
-  return { unitsOnly: true, key, plan, sensitiveHits: unitSensitiveHits(plan), inputHash: `units:${plan.inputHash}` };
+  // The hash also covers which units already have a record: one written after
+  // the dry run changes what this run would add.
+  const inputHash = existing === null ? `units:${plan.inputHash}` : `units:${hashState(JSON.stringify([plan.inputHash, plan.existing]))}`;
+  return {
+    unitsOnly: true, key, plan, sensitiveHits: unitSensitiveHits(plan), inputHash,
+    nothingToAdd: existing !== null && plan.units.every((u) => u.proposal === 'refused'),
+  };
 }
 
 const count = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -531,31 +564,44 @@ function sensitiveLines(hits) {
 function unitsDryRunReport(baseDir, a) {
   const c = unitCounts(a.plan);
   const table = a.plan.milestone?.markers === 'ok' ? `, and the Epic table in ${a.plan.milestone.rel}` : '';
+  const adding = Array.isArray(a.plan.existing); // unit records are already on
+  const ifConfirmed = c.proposed > 0 ? ` (${c.proposed} of them closed as legacy only if you confirm the list above; otherwise open)` : '';
   return [
     '/sig:docs-migrate --work-store — unit records, dry run (nothing written)',
     '',
-    `This project is already on the store (key ${a.key}) and has no unit records: this run adds them, and changes nothing else in the store.`,
+    adding
+      ? `This project is already on the store (key ${a.key}) and has unit records: this run adds a record for each unit it names that has none, `
+        + 'and changes no record that exists and nothing else in the store.'
+      : `This project is already on the store (key ${a.key}) and has no unit records: this run adds them, and changes nothing else in the store.`,
     '',
     ...unitsReportLines(a.plan),
     ...sensitiveLines(a.sensitiveHits),
     '',
-    `--apply creates ${UNITS_REL}/ with ${count(c.made, 'unit record')}`
-      + (c.proposed > 0 ? ` (${c.proposed} of them closed as legacy only if you confirm the list above; otherwise open)` : '')
-      + `, regenerates ${VIEW_PATHS.epics}${table}, and leaves them staged, not committed. No item and no other view is changed.`,
+    a.nothingToAdd
+      ? '--apply would write nothing: there is no record to add.'
+      : adding
+        ? `--apply adds ${count(c.made, 'unit record')} under ${UNITS_REL}/${ifConfirmed}, regenerates ${VIEW_PATHS.epics}${table}, and leaves `
+          + 'them staged, not committed. No existing record, no item and no other view is changed.'
+        : `--apply creates ${UNITS_REL}/ with ${count(c.made, 'unit record')}${ifConfirmed}`
+          + `, regenerates ${VIEW_PATHS.epics}${table}, and leaves them staged, not committed. No item and no other view is changed.`,
     ...workMdUnitsNote(baseDir, 'is'),
   ].map(printable).join('\n');
 }
 
-// The undo line for a units-only apply.
-function unitsRevertLine(probe, force, tag, paths) {
-  const views = paths.filter((rel) => rel !== UNITS_REL);
+// The undo line for a units-only apply. `added`: the record files this run
+// wrote, when unit records were already on — then the undo removes those files
+// only, never the folder, which holds records this run did not write.
+function unitsRevertLine(probe, force, tag, paths, added = null) {
+  const records = added ?? [UNITS_REL];
+  const views = paths.filter((rel) => !records.includes(rel));
+  const remove = added === null ? `rm -rf -- ${UNITS_REL}` : `rm -f -- ${added.join(' ')}`;
   if (probe.mode !== 'git') {
-    return `# nothing staged (.planning/ is not under git): undo with rm -rf -- ${UNITS_REL}, then make any /sig:item change to regenerate `
+    return `# nothing staged (.planning/ is not under git): undo with ${remove}, then make any /sig:item change to regenerate `
       + `${VIEW_PATHS.epics}` + (views.length > 1 ? '; a milestone file\'s Epic table has no copy to go back to' : '');
   }
   if (probe.dirty && force) {
     return '# --force on a dirty tree: do NOT \'git reset --hard\' (it would discard your other uncommitted work). '
-      + `Undo only this migration: git reset -q -- ${paths.join(' ')} && rm -rf -- ${UNITS_REL} && git checkout -- ${views.join(' ')}`;
+      + `Undo only this migration: git reset -q -- ${paths.join(' ')} && ${remove} && git checkout -- ${views.join(' ')}`;
   }
   return `git reset --hard ${tag ?? '<pre-apply-commit>'}   # discards the staged unit records`;
 }
@@ -569,7 +615,7 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
     return {
       applied: false, dryRun: true, unitsOnly: true, key: a.key, units: a.plan.units, proposedUnitCloses: a.plan.proposedCloses,
       flagged: a.plan.flagged, refusedUnits: a.plan.refused, declared: a.plan.declared, sensitiveHits: maskHits(a.sensitiveHits),
-      inputHash: a.inputHash, report: unitsDryRunReport(baseDir, a),
+      inputHash: a.inputHash, report: unitsDryRunReport(baseDir, a), ...(a.nothingToAdd ? { nothingToAdd: true } : {}),
     };
   }
   if (typeof opts.expectedHash !== 'string' || opts.expectedHash === '') {
@@ -579,6 +625,10 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
   const drift = 'What the dry run showed changed since the dry run — a unit\'s files, a milestone row, a retrospective, STATE.md\'s current unit, '
     + 'an item\'s unit, or the --also list — so the plan is no longer the one that was read. Nothing was written. Re-run the dry run and confirm what it shows now.';
   if (opts.expectedHash !== a.inputHash) return refused(drift);
+  if (a.nothingToAdd) {
+    return refused(`This project is already on the store and has unit records, and there is nothing to add: every unit it names that can have a `
+      + `record has one (${UNITS_REL}/). Nothing was written.`);
+  }
   if (a.sensitiveHits.length > 0 && !opts.acknowledgeSensitive) return sensitiveStop(a.sensitiveHits);
 
   const probe = probeGitState(baseDir, { execFn, force });
@@ -623,7 +673,8 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
         opts.onSwapStep?.('units-verify');
         const errors = [];
         const listed = listUnits(baseDir);
-        if (listed.units.length !== list.length) errors.push(`the store holds ${listed.units.length} unit records, not ${list.length}`);
+        const want = (a.plan.existing?.length ?? 0) + list.length;
+        if (listed.units.length !== want) errors.push(`the store holds ${listed.units.length} unit records, not ${want}`);
         for (const f of checkUnits(baseDir)) errors.push(`checkUnits ${f.code}${f.id ? ` ${f.id}` : ''}: ${f.message}`);
         for (const f of checkRecords(baseDir)) errors.push(`checkRecords ${f.code}${f.id ? ` ${f.id}` : ''}: ${f.message}`);
         if (errors.length > 0) throw new WorkStoreError('SCHEMA', `the unit records did not verify:\n  ${errors.join('\n  ')}`);
@@ -638,15 +689,18 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
   }
 
   const table = a.plan.milestone?.markers === 'ok' ? [a.plan.milestone.rel] : [];
-  const paths = [UNITS_REL, VIEW_PATHS.epics, ...table];
+  // With unit records already on, only the records this run added are staged
+  // and named in the undo line: the folder holds records it did not write.
+  const added = Array.isArray(a.plan.existing) ? list.map((u) => `${UNITS_REL}/${u.id}.json`) : null;
+  const paths = [...(added ?? [UNITS_REL]), VIEW_PATHS.epics, ...table];
   if (probe.mode === 'git') stagePaths(baseDir, paths, execFn);
-  const revertLine = unitsRevertLine(probe, force, tag, paths);
+  const revertLine = unitsRevertLine(probe, force, tag, paths, added);
   const c = unitCounts(a.plan);
   const report = [
-    `/sig:docs-migrate --work-store — unit records are on (key ${a.key})`,
+    added === null ? `/sig:docs-migrate --work-store — unit records are on (key ${a.key})` : `/sig:docs-migrate --work-store — unit records added (key ${a.key})`,
     '',
-    `Wrote ${count(list.length, 'unit record')} under ${UNITS_REL}/ and regenerated ${VIEW_PATHS.epics}${table.length > 0 ? ` and the Epic table in ${table[0]}` : ''}. `
-      + 'No item and no other view was changed.',
+    `${added === null ? 'Wrote' : 'Added'} ${count(list.length, 'unit record')} under ${UNITS_REL}/ and regenerated ${VIEW_PATHS.epics}${table.length > 0 ? ` and the Epic table in ${table[0]}` : ''}. `
+      + (added === null ? 'No item and no other view was changed.' : 'No existing record, no item and no other view was changed.'),
     ...(c.proposed === 0 ? []
       : confirmed
         ? [`Recorded ${count(c.proposed, 'proposed legacy close')} as closed, as confirmed (each a legacy close: its record carries what was found, and its old row).`]

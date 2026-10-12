@@ -81,9 +81,14 @@ The same command gives every Epic or unit the project names one record under `.p
   already carries the markers, the Epic table between them. A marker counts only on a line of its
   own. Everything between the two marker lines is replaced, so the dry run lists each line there that
   is not a table row, by line number — move it outside the markers to keep it — and a line added
-  between them after the dry run refuses the apply. A store that already has the folder
-  is refused (*"unit records are already on"*); so is one `/sig:docs-sweep` has findings for, and a
-  `WORK.md` with no `items/` folder. `WORK.md` itself is not rewritten: when its folder list does not
+  between them after the dry run refuses the apply. **A store that already has
+  `work/units/`** gets the same run, narrowed: it proposes a record for each unit the project names
+  that has **none**, by name, in the same dry run with the same one yes for legacy closes, and the
+  apply adds only those — no existing unit record is touched or proposed again. When every unit has a
+  record the dry run says there is nothing to add and an apply writes nothing. A unit named only by a
+  milestone table row is not seen there (with unit records the rows are generated, not read).
+  Refused either way: a store `/sig:docs-sweep` has findings for, a unit record that does not read,
+  and a `WORK.md` with no `items/` folder. `WORK.md` itself is not rewritten: when its folder list does not
   name `units/`, the dry run and the apply print the one line to add by hand.
 - **What is proposed for each unit**, from its milestone table row, its retrospective, its files in
   `.planning/`, its archive folder, the items queued in it and `STATE.md`: **open** — the current unit,

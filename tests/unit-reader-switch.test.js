@@ -275,7 +275,11 @@ describe('AC6.2 — with an open record, no switched reader calls the unit close
     });
   }
 
-  it('the control: with no record, a filled retrospective and a PASS verdict do close it for these readers', async () => {
+  // Pins AC6.2 as amended at REVIEW pass 1 (T-I2, `D-M6E16-23`): with unit
+  // records present, a unit that HAS a record is decided by its record alone;
+  // a unit with NO record is still judged from its files — and the sweep
+  // reports it (`checkUnitsWithoutRecord`, tests/work-migrate-units-add.test.js).
+  it('AC6.2 as amended — a unit with no record is still judged from its files: a filled retrospective and a PASS verdict close it for these readers', async () => {
     const base = tempProject();
     put(base, '.planning/STATE.md', state());
     put(base, '.planning/M7.E1-PLAN.md', '# plan\n');
