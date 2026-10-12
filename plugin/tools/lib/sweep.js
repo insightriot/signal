@@ -528,7 +528,7 @@ export async function confirmClosesInSweep(baseDir, opts = {}) {
       'advisory',
       `${UNITS_REL}/${id}.json`,
       `${id} confirmed closed — the commit its close was requested with is on the default branch. ` +
-        'The sweep wrote its closed event; commit its record.'
+        'The sweep wrote its closed event and regenerated the views; commit them.'
     ));
   return [...items, ...units];
 }

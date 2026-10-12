@@ -415,6 +415,8 @@ describe('the sweep names a unit record it confirmed (t4.2)', () => {
       ['closes-confirmed', 'advisory', `${UNITS}/M7.E3.json`],
     ]);
     expect(got[1].message).toMatch(/^M7\.E3 confirmed closed/);
+    // The views are regenerated with the record, so both are to commit (t9.0).
+    expect(got[1].message).toMatch(/wrote its closed event and regenerated the views; commit them\.$/);
     expect(units.getUnit(work, 'M7.E3').status).toBe('closed');
   });
 });
