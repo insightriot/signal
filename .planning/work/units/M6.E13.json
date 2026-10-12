@@ -1,0 +1,18 @@
+{
+  "id": "M6.E13",
+  "legacy_row": [
+    "`M6.E13`",
+    "**shipped** — `v0.1.48`, 2026-10-05 (PR #280)",
+    "Work items are JSON records that never move; status comes from recorded events; one write library and a hook blocking hand edits. Signal's own store cut over."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-6.md:35: “**shipped** — `v0.1.48`, 2026-10-05 (PR #280)”); its retrospective is complete (.planning/M6.E13-RETROSPECTIVE.md). Also found: today's closure check reads it as one it cannot determine (M6.E13 has 1 terminal artifact(s) but none states a readable verdict (M6.E13-VERIFICATION.md)).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

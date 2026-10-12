@@ -1,0 +1,18 @@
+{
+  "id": "M5.E2",
+  "legacy_row": [
+    "**E2**",
+    "✅ shipped 2026-07-18 (unreleased)",
+    "**Auto-sensing migrate command + doc-layout stamp/banner** (FR6, FR7) — *pulled forward*. `/sig:migrate-memory`: relocate-never-delete, dry-run-default, git-reversible, all 3 bloat vectors + archive-tree + FR7 stamp/hook/banner. Un-sticks live bloated projects (B8 auto-remediation; eval-project-A 546 KB→1.3 KB, 0 words dropped). REVIEW PASS-WITH-FIXES (3-specialist panel; SHIP-blocking rollback gap caught + fixed). ≈1071→1300 tests. Retro: [`M5.E2-RETROSPECTIVE.md`](M5.E2-RETROSPECTIVE.md). Landed on `main` unreleased — release batched with E3 (D-M5E2-6)."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-5.md:31: “✅ shipped 2026-07-18 (unreleased)”); its retrospective is complete (.planning/M5.E2-RETROSPECTIVE.md).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

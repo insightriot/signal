@@ -1,0 +1,18 @@
+{
+  "id": "M4.5.E4",
+  "legacy_row": [
+    "**E4 — Worked example + comparison page**",
+    "**✓ shipped 2026-06-03 (closed lightweight; `[Unreleased]` — batches with E5)**",
+    "`examples/url-shortener/` (runnable, zero runtime deps, annotated tour, currency guard) + `docs/vs.md` (toolbox-framed prose guide). 3 slices, 10 tasks. `node:sqlite`→JSON-store pivot; AC-count reconciled (24 = 17+7); `vs.md` tone reframe. Root suite 762 → 764; validator green. See `M4.5.E4-RETROSPECTIVE.md`."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-4.5.md:38: “**✓ shipped 2026-06-03 (closed lightweight; `[Unreleased]` — batches with E5)**”); its retrospective is complete (.planning/M4.5.E4-RETROSPECTIVE.md).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

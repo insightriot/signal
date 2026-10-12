@@ -1,0 +1,18 @@
+{
+  "id": "M6.E14",
+  "legacy_row": [
+    "`M6.E14`",
+    "**shipped** — 2026-10-07, PR #292",
+    "The work store hardened before other projects use it: eight defects (`SIG-251`, `-252`, `-276` … `-280`). First `/sig:drive` run from DISCUSS. 5362 → 5425 tests."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-6.md:36: “**shipped** — 2026-10-07, PR #292”); its retrospective is complete (.planning/M6.E14-RETROSPECTIVE.md). Also found: today's closure check reads it as one it cannot determine (M6.E14 has 1 terminal artifact(s) but none states a readable verdict (M6.E14-VERIFICATION.md)).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

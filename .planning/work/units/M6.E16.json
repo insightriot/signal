@@ -1,0 +1,11 @@
+{
+  "id": "M6.E16",
+  "summary": "Epics and units become records: existence, membership, close with proof, and a hold. Phase progress stays in `STATE.md`.",
+  "events": [
+    {
+      "type": "opened",
+      "at": "2026-10-12",
+      "by": "migration"
+    }
+  ]
+}

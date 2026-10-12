@@ -1,0 +1,18 @@
+{
+  "id": "M4.5.E10",
+  "legacy_row": [
+    "**E10 — Resume trust & capture integrity**",
+    "**✓ shipped 2026-07-05 (v0.1.5)**",
+    "6 items → 5 slices, 13 tasks (`0c0ca54..dfc4bf7`): FR2 origin-drift (`isStaleVsOrigin`) + FR3 STATE freshness · FR1 Epic-prefix resolver · FR4 capture-pipe guards · FR5 schema-drift banner (status/resume, AD2) · FR6 hook harness + `references/hooks-api.md` + SD3 privacy fix. DISCUSS→SHIP at FULL/strict; VERIFY 31/31 ACs; REVIEW PASS-WITH-FIXES (2 agents caught the F1 crash — staleness checks threw on a schema-drifted STATE.md; 7 findings fixed). 777 → 854 tests, no new deps. See `M4.5.E10-RETROSPECTIVE.md`."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-4.5.md:40: “**✓ shipped 2026-07-05 (v0.1.5)**”); its retrospective is complete (.planning/M4.5.E10-RETROSPECTIVE.md).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

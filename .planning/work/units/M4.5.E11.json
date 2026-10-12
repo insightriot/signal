@@ -1,0 +1,18 @@
+{
+  "id": "M4.5.E11",
+  "legacy_row": [
+    "**E11 — Epic-native flow**",
+    "**✓ shipped 2026-07-15 (v0.1.7)**",
+    "Makes Epic mode first-class over a byte-identical linear default. 4 slices: S1 (`current_epic` write-half + `detectMode` + retro-gate hook fail-open + linear golden fixture), S2 (`artifactName` + thread into 6 commands + Epic golden fixture), S3 (`readEffectiveProfile` + `formatTierLine` + 6-command gate-read retrofit + calibrate/escalate targeting), S4 (bootstrap dogfood + e2e fixture + docs). FR1 `current_epic` write-half (`setCurrentEpic`/`deriveNextEpicId`), FR2 Epic-scoped artifact naming, FR3 per-Epic `{EpicID}-PROFILE.md` calibration, FR4 mode detection. DISCUSS→SHIP at FULL/strict; VERIFY PASS (no unmapped AC); REVIEW PASS-WITH-FIXES (2 agents, 1 Important fixed, 1 Suggestion rejected-with-reason — narrowing the read regex would break `v0.1.6-*` back-compat). 894 → 999 tests, no new deps. `references/epic-native-flow.md`. See `M4.5.E11-RETROSPECTIVE.md`."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-4.5.md:41: “**✓ shipped 2026-07-15 (v0.1.7)**”); its retrospective is complete (.planning/M4.5.E11-RETROSPECTIVE.md).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

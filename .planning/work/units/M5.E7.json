@@ -1,0 +1,18 @@
+{
+  "id": "M5.E7",
+  "legacy_row": [
+    "**E7**",
+    "✅ shipped 2026-07-26 (**no version cut — no code**)",
+    "**The v2 direction audit (BR-8).** Deliverable is a decision: [`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md) — **45 candidates verbed (11 builds / 16 continue / 19 abandon)**, sequenced **M5.E8–M5.E12** and landed in [`BACKLOG.md`](BACKLOG.md) with triggers + first slices (the enforcement half — D-M5E7-8b). Ran under Signal's **first Epic-scoped PROFILE** (`M5.E7-PROFILE.md` — *\"strict thinking, zero test theater\"*). **Headline: Signal cannot detect whether its own interventions work** — no test asserts a prompt instruction was obeyed, against 7-of-12 adherence and a 7.12× output spread on byte-identical code; **M5.E8 is unconditional-next.** **Not one straight port survived** — COMPOUND cut on a falsified premise, `<HARD-GATE>` cut because it isn't a mechanism (**C3**), and **C6** found a locked decision resting on a ~4.5×-wrong date. Suite unchanged at **1623** (correctly — no code). VERIFY PASS (30 ACs, 22 re-derived); REVIEW **PASS-WITH-FIXES** (repurposed per AC7.4 to attack the reasoning — cut §6.1's self-defence from three arguments to one, dated the falsifier, caught **B41**). Retro: [`M5.E7-RETROSPECTIVE.md`](M5.E7-RETROSPECTIVE.md). Decisions D-M5E7-1…12; **§ \"Candidate v2 feature-port scope\" below is SUPERSEDED by this Epic.** New carry-over **B41** (P2) → M5.E9."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-5.md:36: “✅ shipped 2026-07-26 (**no version cut — no code**)”); its retrospective is complete (.planning/M5.E7-RETROSPECTIVE.md); today's closure check reads it closed (M5.E7-VERIFICATION.md records a PASS, and M5.E7 is not the current unit).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

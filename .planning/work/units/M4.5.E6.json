@@ -1,0 +1,18 @@
+{
+  "id": "M4.5.E6",
+  "legacy_row": [
+    "**E6 — Resume reliability (STATE.md schema + auto-update + `/sig:checkpoint`)**",
+    "**✓ shipped 2026-05-18 (v0.1.2)**",
+    "All 5 slices + S6 REVIEW loop-back (5 IMPORTANT findings resolved pre-publish). YAML-frontmatter STATE.md + auto-state-protocol + new `/sig:checkpoint` + staleness banner + orphan UI in `/sig:resume`. 225 → 366 tests; no new runtime deps."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-4.5.md:42: “**✓ shipped 2026-05-18 (v0.1.2)**”). Also found: its retrospective is a stub (.planning/M4.5.E6-RETROSPECTIVE.md).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

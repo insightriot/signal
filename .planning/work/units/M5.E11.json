@@ -1,0 +1,12 @@
+{
+  "id": "M5.E11",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "dropped",
+      "words": "never ran under this ID; the work opened as M6.E7 (SIG-191)"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "M5.E15",
+  "legacy_row": [
+    "**E15**",
+    "✅ shipped as **v0.1.19** (2026-08-06)",
+    "**The control arm, made real (`B55`).** The adherence harness deleted the measured instruction from **one** command file while four others still ordered the same call — so the arm labelled *\"instruction deleted\"* contained it four more times, and no run could distinguish *\"the instruction works\"* from *\"the agent found it elsewhere.\"* The canary now declares all five directive sites and the control arm deletes every one; an **independent leak walk** verifies the tree **without consulting `canary.deletions`**, because a check that reads the deletion list can only find sites the list already knows. `B41-phase-entry` re-ran **`OBEYED`** — treatment 3/3, control 0/3, seam PASS — **the first verdict this harness has produced that means what it says**, and the one that re-earns the provenance `E8`'s row withdrew. Six criteria were verified by **mutation** rather than RED-first and are recorded as a *declared deviation*, never counted as strict-Nyquist compliance. Closed `B55`, `B80`, `B83`. Retro: [`M5.E15-RETROSPECTIVE.md`](M5.E15-RETROSPECTIVE.md)."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-5.md:43: “✅ shipped as **v0.1.19** (2026-08-06)”); its retrospective is complete (.planning/M5.E15-RETROSPECTIVE.md). Also found: today's closure check reads it as one it cannot determine (M5.E15 has 1 terminal artifact(s) but none states a readable verdict (M5.E15-VERIFICATION.md)).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

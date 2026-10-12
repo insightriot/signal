@@ -1,0 +1,18 @@
+{
+  "id": "M4.5.E9",
+  "legacy_row": [
+    "**E9 — Retro Foundations (SHIP enforcement + RETROSPECTIVES.md index)**",
+    "**✓ shipped 2026-05-26 (released in v0.1.3 on 2026-05-31)**",
+    "DISCUSS + PLAN closed 2026-05-25; EXECUTE 2026-05-26 (Waves 1-5, 19/19 tasks); VERIFY PASS 23/23 ACs; REVIEW PASS-WITH-FIXES (1 Important + 3 Suggestions fixed in-phase). Layered enforcement per D-E9-8 (command-internal + PreToolUse + SessionStart-resume hooks). 5 backfilled stub retros (E1, E2, E3, E6, E7) + E9 own substantive retro + RETROSPECTIVES.md index live. Tests 397 → 535 (+138). 24 atomic commits. See § E9 below."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-4.5.md:45: “**✓ shipped 2026-05-26 (released in v0.1.3 on 2026-05-31)**”); its retrospective is complete (.planning/M4.5.E9-RETROSPECTIVE.md).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

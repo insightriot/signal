@@ -1,0 +1,18 @@
+{
+  "id": "M5.E6",
+  "legacy_row": [
+    "**E6**",
+    "✅ shipped as **v0.1.11** (2026-07-25)",
+    "**Doc-runtime close-out — the maintenance-command half.** `/sig:sweep` (read-only invoking-project hygiene) + roster 17→18 + `docs/map` ship line + FR7 close-out & **B31** (add-vs-drain cross-lock) + cleared the four M5.E5 carry-overs (B27/B28 flag-not-abort, B29 `_afterRead` guard, B30 retro-gate timing). **Finishes the doc-runtime so its self-maintenance is locked before the re-audit (BR-8).** 1561→1623 tests; VERIFY PASS (strict, mutation proof-of-fail); REVIEW PASS (3-specialist panel, 0 false-greens). Retro: [`M5.E6-RETROSPECTIVE.md`](M5.E6-RETROSPECTIVE.md). Decisions D-M5E6-1…5; new carry-overs B32–B36 → `needs-triage` (incl. **B36** — the FR1 gate's own stale-row skip, surfaced dogfooding this SHIP)."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-5.md:35: “✅ shipped as **v0.1.11** (2026-07-25)”); its retrospective is complete (.planning/M5.E6-RETROSPECTIVE.md); today's closure check reads it closed (M5.E6-VERIFICATION.md records a PASS, and M5.E6 is not the current unit).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

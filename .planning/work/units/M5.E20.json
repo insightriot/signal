@@ -1,0 +1,12 @@
+{
+  "id": "M5.E20",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "dropped",
+      "words": "parked, never ran; renumbered from M5.E16; tracked as SIG-192"
+    }
+  ]
+}

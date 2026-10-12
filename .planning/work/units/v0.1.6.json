@@ -1,0 +1,13 @@
+{
+  "id": "v0.1.6",
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its retrospective is complete (.planning/v0.1.6-RETROSPECTIVE.md); today's closure check reads it closed (v0.1.6-VERIFICATION.md records a PASS, and v0.1.6 is not the current unit).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

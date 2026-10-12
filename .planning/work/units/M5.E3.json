@@ -1,0 +1,18 @@
+{
+  "id": "M5.E3",
+  "legacy_row": [
+    "**E3**",
+    "✅ **SHIPPED as v0.1.8** (2026-07-20, combined E1+E2+E3)",
+    "**All-docs hygiene runtime + living `BACKLOG.md` + append-log eviction** (FR4, FR5, +FR1/2/3/6) — *deferred from E2*, **folded into the release** (D-M5E2-6): the doc-runtime ships as ONE `0.1.x` = E1+E2+E3. 7 slices / 5 waves at FULL/strict. Shipped: `ISSUES-INBOX.md` rename + `--bug` (FR1), auto-`/sig:index` + D-ID map (FR3), living `BACKLOG.md` + drain classify (FR2), all-docs hygiene guard (FR4), append-log evict-with-anchors (FR5), v2→v3 migrate + born-on-v3 + Curator retired (FR6). **Signal dogfooded to v3** (DECISIONS 178 KB→33 KB, 0 dropped). Stamp-null rollout fix (existing projects converge). 1300→**1492 tests** (through SHIP). VERIFY 28/28 ACs; REVIEW PASS-WITH-FIXES (3-specialist panel, 4 Important fixed in-phase); findings B18–B23. Retro: [`M5.E3-RETROSPECTIVE.md`](M5.E3-RETROSPECTIVE.md). **Released as v0.1.8 (2026-07-20).**"
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-5.md:32: “✅ **SHIPPED as v0.1.8** (2026-07-20, combined E1+E2+E3)”); its retrospective is complete (.planning/M5.E3-RETROSPECTIVE.md); today's closure check reads it closed (M5.E3-VERIFICATION.md records a PASS, and M5.E3 is not the current unit).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

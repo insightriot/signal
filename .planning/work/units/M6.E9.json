@@ -1,0 +1,18 @@
+{
+  "id": "M6.E9",
+  "legacy_row": [
+    "`M6.E9`",
+    "**shipped** — `v0.1.40`, 2026-09-10",
+    "Every agent carries a determination: 7 dispatched, 19 dormant; `plan.md` stopped naming agents that did not exist."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-6.md:31: “**shipped** — `v0.1.40`, 2026-09-10”); its retrospective is complete (.planning/M6.E9-RETROSPECTIVE.md); today's closure check reads it closed (M6.E9-VERIFICATION.md records a PASS, and M6.E9 is not the current unit).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

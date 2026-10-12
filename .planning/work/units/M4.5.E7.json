@@ -1,0 +1,18 @@
+{
+  "id": "M4.5.E7",
+  "legacy_row": [
+    "**E7 — Synthesizer prose-quality + install-UX hardening**",
+    "**✓ shipped 2026-05-23 (released in v0.1.3 on 2026-05-31)**",
+    "DISCUSS + PLAN closed 2026-05-21 (commit `015525e`); EXECUTE 2026-05-22 → 2026-05-23 (per-task atomic commits S1.t1 → S2.t8). Two-layer synthesizer fix: new `embedSection` helper in `tools/lib/landscape.js` (eliminates LLM verbatim-copy as failure mode) + `commands/init.md` long-line splits (reduces dense-prose generation pressure). `docs/install-troubleshooting.md` with 5 symptom sections + Quick Triage + Canonical Clean Reinstall. R1+ rerun on Mac Studio 2026-05-23 verified clean (`docs/install-verification.md` § R1+). Tests 366 → 384; validator green. CHANGELOG [0.1.3] section. See § E7 below + `docs/install-verification.md` R1 for original motivation."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-4.5.md:43: “**✓ shipped 2026-05-23 (released in v0.1.3 on 2026-05-31)**”). Also found: its retrospective is a stub (.planning/M4.5.E7-RETROSPECTIVE.md).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}
