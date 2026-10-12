@@ -193,7 +193,7 @@ describe('importUnits — many records, one write', () => {
     expect(record(base, 'M9.E3')).toEqual({ id: 'M9.E3', summary: 'The one in flight', events: [{ type: 'opened', at: AT, by }] });
     const epics = read(base, EPICS);
     expect(epics).toMatch(/### M9\.E3 — open/);
-    expect(epics).toMatch(/### M8\.E1 — closed 2026-10-11 \(legacy\)/);
+    expect(epics).toMatch(/### M8\.E1 — closed \(legacy\) — old row: shipped$/m);
     expect(epics).toMatch(/### M8\.E2 — closed 2026-10-11 \(dropped\) — the work moved to another unit/);
     expect(units.checkUnits(base)).toEqual([]);
   });

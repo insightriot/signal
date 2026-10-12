@@ -101,7 +101,7 @@ describe('the apply creates the store and the unit records together', () => {
     expect(checkUnits(base)).toEqual([]);
     expect(checkRecords(base)).toEqual([]);
     expect(read(base, EPICS)).toMatch(/### M7\.E9 — open/);
-    expect(read(base, EPICS)).toMatch(/### M7\.E1 — closed 2026-10-11 \(legacy\)/);
+    expect(read(base, EPICS)).toMatch(/### M7\.E1 — closed \(legacy\) — old row: \*\*shipped\*\* — `v1\.2`, 2026-09-01 \(PR #12\)$/m);
     for (const id of UNIT_IDS) expect(staged(base)).toContain(`${UNITS}/${id}.json`);
     expect(staged(base)).toContain(`${UNITS}/.keep`);
     expect(r.revertLine).toBe('git reset --hard pre-work-store-T1   # discards the staged work-store changes');
