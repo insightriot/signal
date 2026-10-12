@@ -24,31 +24,41 @@ records now.
   commit, its PR and its release. The Epic reads *closing* until that commit is on the default
   branch; `/sig:docs-sweep` or a later SHIP then confirms it and it reads closed. The close is
   refused while an item of the Epic is open or its retrospective is missing or still a placeholder.
+  A *closing* Epic takes no new item — queueing, starting or reopening one into it is refused — and
+  it is confirmed only when every item of it is closed. Without a commit passed, the proof is HEAD;
+  that is refused when HEAD is already on the default branch and the project has uncommitted
+  changes, because such a commit says nothing about the Epic.
 - **A finished Epic's narrative leaves `STATE.md` when its close is confirmed** (`SIG-295`). The step
   that confirms the close — `/sig:docs-sweep`, or a later SHIP — moves the narrative to its archive
   file and says so beside the confirmation: moved, nothing to move, or kept and why (held, or a
   retrospective that does not cover it). A narrative that is kept never undoes the close.
 - **How to place and release a hold is written down** (`SIG-255`): `/sig:docs-archive` has a
   *Holding a unit* section naming `holdUnit` and `releaseUnit`. The reason is required and is printed
-  every time the unit is declined. There is still no slash command for it.
+  every time the unit is declined. There is still no slash command for it. The same section says how
+  to open a unit that is not an Epic ID, close one as dropped, reopen one and edit one, by hand.
 - **Opening an Epic creates its record.** `/sig:discuss --epic` and `/sig:new-project --epic` refuse
   an Epic whose record is closed, unless you say you mean to reopen it, which is recorded.
 - **`/sig:docs-migrate --work-store` creates unit records for a project already on Signal** — in the
   same run as the items for a project not yet on the store, or on their own for a project that is.
   Units that look finished are proposed as legacy closes in one list and closed on one yes; on no,
   each is created open with a note. `--also <ID>:dropped:<words>` declares a unit no file names.
+  On a project that already has unit records the same command adds a record for each unit that has
+  none and touches no record that exists; `/sig:docs-sweep` names the units that have none.
 
 #### Changed
 - **`work/EPICS.md` and the Epic table in the current milestone file are generated from the
   records.** The table is written between `signal:epics` markers; text outside them is left alone,
-  and a milestone file without markers is not touched. `/sig:docs-sweep` reports a view that does
+  and a milestone file without markers is not touched. A marker counts only on a line of its own —
+  one mentioned in a sentence or a code example is text — and `/sig:docs-migrate`'s dry run lists
+  any line between the markers that is not a table row, since the apply replaces it. `/sig:docs-sweep` reports a view that does
   not match its records.
   A unit closed as legacy prints no close date in `work/EPICS.md` — the date on that record is the
   day it was written — and prints its old milestone row's status words instead.
 - **Everything that asks "is this unit closed?" reads the record** when `work/units/` exists:
   archiving, the Done-Epic guard in `/sig:discuss`, `/sig:drive`'s open-Epic list, moving or
-  reopening an item of the unit, the narrative eviction in `/sig:checkpoint`. A retrospective
-  existing, a verdict line, a milestone row or a file's folder no longer decides it.
+  reopening an item of the unit, the narrative eviction in `/sig:checkpoint`. For a unit that has a
+  record, a retrospective existing, a verdict line, a milestone row or a file's folder no longer
+  decides it. A unit with no record is still judged from its files, and `/sig:docs-sweep` says so.
   `/sig:docs-archive` declines a held unit and prints the reason. SHIP no longer reads the milestone
   row to decide whether it closes the Epic, and the next Epic ID counts records as well as filenames.
 - **A project without `work/units/` gets the same closure answers, file moves and refusals as on
@@ -71,6 +81,10 @@ records now.
   characters, with a line break made a space, and cut at a limit; `work/EPICS.md` and the milestone
   table do the same to whatever they read and take a comment opener apart; and the unit schema
   refuses such a value, so `/sig:docs-sweep` reports a record that was not written by the library.
+- **A `work/units/` folder that cannot be trusted is an error, not "no unit records".** When it is
+  a symbolic link, a file, or cannot be listed, commands that write or move refuse and name the
+  folder, and everything that asks whether a unit is closed answers that it cannot tell. No unit is
+  read from its retrospective in that state, and a held unit does not move.
 - **Signal's own Epics are records:** 48 of them — 1 open, 43 closed as legacy (shipped before this
   release, confirmed as one list), 4 Epic IDs that never ran recorded as dropped.
 
@@ -92,7 +106,13 @@ records now.
 - If the narrative is kept at that point (the retrospective does not cover it, say), no later sweep,
   SHIP or `/sig:checkpoint` retries it for an Epic that is no longer current: fix the retrospective,
   then call `evictEpicNarrative` (`tools/lib/evict.js`).
-- A hold is placed by calling `holdUnit`; there is no slash command for it.
+- A hold is placed by calling `holdUnit`; there is no slash command for it. Neither is there one to
+  open a unit that is not an Epic ID, drop a unit or edit one: `/sig:docs-archive` names the calls.
+- A pull request merged by squash or rebase never confirms an Epic's close: the branch commit does
+  not reach the default branch. Re-run `/sig:ship`'s close step on the default branch after the merge.
+- On a project with unit records, a unit named only by a row of a milestone table is not proposed by
+  `/sig:docs-migrate --work-store` (the rows are generated there, and not read).
+- While `work/units/` cannot be trusted, nothing lists or writes work items either, until it is fixed.
 - A project without unit records still has the behaviour `SIG-132`, `SIG-288` and `SIG-289` describe.
 
 ## [0.1.50] — 2026-10-10 — other projects can move onto the work store

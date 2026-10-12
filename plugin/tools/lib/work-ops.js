@@ -50,7 +50,7 @@ import {
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
 import { assertNoHandKeptLists, EPIC_README } from './work-generate.js';
 import { rewriteRelativeLinks } from './work-links.js';
-import { assertWritable, closeEpicCheck } from './work-records.js';
+import { assertWritable, closeEpicCheck, headProvesNothing } from './work-records.js';
 import { assertViewsWritable, regenerateViews, viewsNotRegenerated } from './work-views.js';
 import { isGeneratedText } from './work-marker.js';
 import { FOLDERS, isGitRepo, walkFiles, WORK_DIR, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
@@ -292,7 +292,10 @@ function removeEmptyTree(dir) {
  * t4.1, `D-M6E16-2`, `-14`) none of the folder work above happens. The close
  * is a `close_requested` event on the Epic's unit record, with a commit as
  * proof — `close.commit`, or the branch HEAD — and `pr` and `release` beside
- * it. The unit then reads *closing*; `confirmCloses` (`work-records.js`)
+ * it. HEAD is refused as the proof (CONFLICT, nothing written) when it is
+ * already on the default branch and the project has uncommitted or untracked
+ * changes: it would then say nothing about the Epic (REVIEW pass 1, C-I2). A
+ * clean tree there is allowed, and so is an explicit `commit`. The unit then reads *closing*; `confirmCloses` (`work-records.js`)
  * closes it once that commit is on the default branch. Order: the arguments,
  * the store, the sensitive-data gate, the proof; then, under the store's lock
  * (`requestUnitClose`'s `gate`), `closeEpicCheck` and the retrospective —
@@ -561,6 +564,19 @@ function assertRetroComplete(baseDir, epicId) {
   return rel;
 }
 
+// HEAD as proof must be able to say something about the Epic (REVIEW pass 1,
+// C-I2, `D-M6E16-21`): refused when `headProvesNothing` (`work-records.js`)
+// finds it already on the default branch with the project's work uncommitted.
+// An explicit `commit` never comes here: it is trusted.
+function refuseHeadThatProvesNothing(baseDir, epicId, head, execFn) {
+  const stale = headProvesNothing(baseDir, head, { execFn });
+  if (stale === null) return;
+  throw new WorkStoreError('CONFLICT', `${epicId}: the close would record HEAD (${head.slice(0, 12)}) as its proof, and that commit is `
+    + `already on the default branch (${stale.ref.replace(/^refs\/remotes\//, '')}) while this project has uncommitted or untracked changes — `
+    + 'so it says nothing about this Epic, and the next confirm step would call the Epic closed. Nothing was written. '
+    + 'Commit the Epic\'s work first, then re-run; or pass `commit` with the commit that holds it.');
+}
+
 const unitView = (unit) => ({
   id: unit.id, path: unit.path, status: unit.status, held: unit.held, closing_proof: unit.closing_proof, close: unit.close,
 });
@@ -596,10 +612,18 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
     retro = assertRetroComplete(baseDir, epicId);
   };
 
+  // HEAD taken as the proof (no `commit` passed) is checked before each write
+  // below — and before the store's lock is taken: the lock is a file under the
+  // project, and would itself read as an untracked change.
+  const headProof = () => {
+    if (commit === undefined || commit === null) refuseHeadThatProvesNothing(baseDir, epicId, proof, execFn);
+  };
+
   let created = false;
   if (unitClosure(baseDir, epicId) === 'no-record') {
     // Unit records were turned on while this Epic was open: its record is
     // created here, after everything that can refuse has been checked once.
+    headProof();
     gate();
     assertUnitId(baseDir, epicId);
     try {
@@ -619,6 +643,7 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
       // SHIP re-run after new commits (t5.0a): the earlier request is
       // reopened and the close requested again, in one write, behind the
       // same gate.
+      headProof();
       const again = await rerequestUnitClose(baseDir, epicId, { proof, pr: prText, release: releaseText, by, at }, {
         execFn, renameFn: opts.renameFn, acknowledgeSensitive: opts.acknowledgeSensitive, gate,
       });
@@ -637,6 +662,7 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
     }
   }
 
+  if (!created) headProof();
   let out;
   try {
     out = await requestUnitClose(baseDir, epicId, { proof, pr: prText, release: releaseText, by, at }, {

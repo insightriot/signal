@@ -102,6 +102,8 @@ const READERS = {
   checkRecords: (base) => records.checkRecords(base),
   listClosing: (base) => records.listClosing(base, { now: AT }),
   probeCloses: (base) => records.probeCloses(base, { now: AT }),
+  // Asks git two questions and reads nothing of the store (r1.2, C-I2).
+  headProvesNothing: (base) => records.headProvesNothing(base, '0123abc'),
   // t7.3 prep: v1 work-ops.js's triage readers, ported to records.
   triageNext: (base) => records.triageNext(base),
   listNeedsReview: (base) => records.listNeedsReview(base),

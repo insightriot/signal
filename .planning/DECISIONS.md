@@ -4314,12 +4314,19 @@ left as it is (AC7.2). It is the same kind, and is named in kind (a) with the dr
 count; after this amendment it compares more, and the number is in AC6.4. It also no longer takes
 out every message: one `v0.1.50` worded the same way is compared word for word.
 
-### D-M6E16-21 — A closing unit takes no items, and its close is confirmed only with every item closed (Claude)
+### D-M6E16-21 — A closing unit takes no items; the proof must postdate the default branch or the tree must be clean (Claude)
 Settles REVIEW pass 1, `C-I1`. The close request checked the unit's items once, and nothing checked
 them again: an item queued, started or reopened into a *closing* unit, or a record that arrived by a
 merge, left a unit reading closed with an open item in it. So `queueItem`, `startItem` and
 `reopenItem` refuse on a closing unit as they do on a closed one, and `confirmCloses` leaves a unit
 closing (`open-items`) until each of its items is closed or confirmed in the same write.
+
+*The proof, same decision (`C-I2`).* `closeEpic` takes HEAD as the proof when no commit is passed, and
+on a checkout whose HEAD was already on the default branch, with the Epic's work uncommitted, the
+same SHIP run confirmed the close on a commit from before that work. So the proof must postdate the
+default branch or the tree must be clean: HEAD already on the default branch with uncommitted or
+untracked changes is refused, a clean tree there (the recovery after a squash merge) and an explicit
+commit are not.
 
 ### D-M6E16-22 — A `work/units/` folder that cannot be trusted is an error, never "no unit records" (Claude)
 Settles REVIEW pass 1, `C-I4` / `S-M6` / `T-I1`. A folder that was a link, a file or unreadable read

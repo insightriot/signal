@@ -1414,6 +1414,45 @@ export function closeEpicCheck(baseDir, epicId, opts = {}) {
   return { epic: epicId, items: mine.map((r) => r.id), closingOnBranch, archived: isEpicArchived(baseDir, epicId) };
 }
 
+/**
+ * Would HEAD, taken as the proof of an Epic's close, say nothing about the
+ * Epic (REVIEW pass 1, C-I2, `D-M6E16-21`)? Yes when BOTH hold: `head` is
+ * already an ancestor of the remote's default branch
+ * (`refs/remotes/origin/<default>`, `confirmCloses`' ref), and the project
+ * has uncommitted or untracked changes. HEAD is then a commit from before
+ * that work, and the next confirm step would find it on the default branch
+ * and call the Epic closed with its work in nobody's history.
+ *
+ * No: a clean tree (on the default branch after a merge, HEAD is the merge —
+ * the recovery when a branch commit never landed); a HEAD that is not on the
+ * default branch (the normal SHIP, on a branch); and whenever git cannot
+ * answer — not a repository, no remote, no default-branch ref, an ancestry
+ * question git cannot settle, a status that fails. `git status` is asked about the project's
+ * folder only (`-- .`, from `baseDir`), so another package's changes in the
+ * same repository do not count. Reads only; never fetches.
+ *
+ * Call it BEFORE taking the store's lock: the lock is a file under the
+ * project and would itself read as an untracked change.
+ *
+ * @param {string} baseDir
+ * @param {string} head — a commit hash (HEAD's)
+ * @param {{execFn?: Function}} [opts]
+ * @returns {{ref: string}|null} the default-branch ref `head` is already on, or null
+ */
+export function headProvesNothing(baseDir, head, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  const target = defaultBranchRef(baseDir, execFn);
+  if (target.ref === undefined) return null;
+  if (ancestryFailure(baseDir, head, target.ref, execFn, shallowProbe(baseDir, execFn)) !== null) return null;
+  let status;
+  try {
+    status = runGit(baseDir, ['status', '--porcelain', '--untracked-files=all', '--', '.'], execFn);
+  } catch {
+    return null;
+  }
+  return status.trim() === '' ? null : { ref: target.ref };
+}
+
 // `proof => boolean`: is this proof a commit in the current HEAD? Fail-closed —
 // anything but `merge-base --is-ancestor` exiting 0 (no repo, an invalid
 // proof, a shallow clone, an unknown commit) answers false. `HEAD` is a fixed
