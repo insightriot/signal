@@ -75,6 +75,8 @@ const READERS = {
   unitClosure: (base) => units.unitClosure(base, 'M6.E23'),
   checkUnits: (base) => units.checkUnits(base),
   caseTwins: () => units.caseTwins(['a', 'A']),
+  // Pure: a `pr` or `release` as a writer stores it (r1.6, C-S1).
+  storedRef: () => units.storedRef('#301'),
   // Builds the closes `confirmCloses` writes, under ITS lock; writes nothing itself (t4.2).
   planUnitConfirms: (base) => units.planUnitConfirms({ baseDir: base, key: 'SIG' }, [{ id: 'M6.E21', proof: SHA }], { at: AT, by, openItems: () => [] }),
 };
@@ -82,7 +84,6 @@ const READERS = {
 const WRITERS = {
   openUnit: { run: (base) => units.openUnit(base, 'M6.E30', { title: 'n', by }) },
   requestUnitClose: { run: (base) => units.requestUnitClose(base, 'M6.E20', { proof: SHA, by }) },
-  confirmUnitClose: { run: (base) => units.confirmUnitClose(base, 'M6.E21', { proof: SHA, by }) },
   // Two real events in one write: `reopened`, then a new `close_requested` (t5.0a).
   rerequestUnitClose: { run: (base) => units.rerequestUnitClose(base, 'M6.E21', { proof: 'fedcba9', by }), appended: 2 },
   closeUnit: { run: (base) => units.closeUnit(base, 'M6.E20', { reason: 'dropped', words: 'moved', by }) },

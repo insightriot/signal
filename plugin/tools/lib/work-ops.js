@@ -44,7 +44,9 @@ import { assertRealInsidePlanning } from './path-confine.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, setCurrentEpic, StateSchemaError, stringifyFrontmatter } from './state.js';
 import { deriveRetroPath } from './retrospective.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
-import { assertUnitId, getUnit, hasUnitsSafe, openUnit, reopenUnit, requestUnitClose, rerequestUnitClose, unitClosure } from './unit-records.js';
+import {
+  assertUnitId, getUnit, hasUnitsSafe, openUnit, reopenUnit, requestUnitClose, rerequestUnitClose, storedRef, unitClosure,
+} from './unit-records.js';
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
 import { assertNoHandKeptLists, EPIC_README } from './work-generate.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -565,7 +567,10 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
   const text = (v) => (v === undefined || v === null ? undefined : String(v));
   const prText = text(pr);
   const releaseText = text(release);
-  const pending = sensitivePending([prText, releaseText], opts);
+  // Scanned as the unit writers store them (`storedRef`): a hit that shows
+  // only once invisible characters are gone stops the close here, before a
+  // record is created for it (REVIEW pass 1, C-S1).
+  const pending = sensitivePending([storedRef(prText), storedRef(releaseText)], opts);
   if (pending) return pending;
 
   const proof = commit ?? headCommit(baseDir, execFn);
@@ -614,6 +619,7 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
       const again = await rerequestUnitClose(baseDir, epicId, { proof, pr: prText, release: releaseText, by, at }, {
         execFn, renameFn: opts.renameFn, acknowledgeSensitive: opts.acknowledgeSensitive, gate,
       });
+      if (again?.aborted) return again;
       return {
         status: 're-requested',
         epic: epicId,
@@ -646,6 +652,7 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
     if (err?.retro) wrapped.retro = err.retro;
     throw wrapped;
   }
+  if (out?.aborted) return out;
   return {
     status: 'close-requested',
     epic: epicId,

@@ -404,7 +404,9 @@ describe('openUnit', () => {
   });
 });
 
-describe('requestUnitClose / confirmUnitClose (AC2.1)', () => {
+// `confirmUnitClose` was removed at REVIEW pass 1 (C-S3): a shipped close is
+// written only by `confirmCloses` (tests/unit-close-confirm.test.js).
+describe('requestUnitClose (AC2.1)', () => {
   it('a request appends close_requested and the unit reads closing', async () => {
     const out = await units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, by, at: AT });
     expect(out).toMatchObject({ status: 'closing', closing_proof: OTHER_SHA });
@@ -420,13 +422,6 @@ describe('requestUnitClose / confirmUnitClose (AC2.1)', () => {
     await refused(() => units.requestUnitClose(base, 'M6.E99', { proof: SHA, by }), 'NOT_FOUND');
   });
 
-  it('a confirm appends the shipped close with the request\'s proof, and what the caller knows of it', async () => {
-    const out = await units.confirmUnitClose(base, 'M6.E21', { proof: SHA, pr: '#301', release: 'v0.1.51', by, at: AT });
-    expect(out).toMatchObject({ status: 'closed', closing_proof: null, close: { reason: 'shipped', proof: SHA, pr: '#301', release: 'v0.1.51' } });
-    expect((await onDisk(base, 'M6.E21')).events.at(-1)).toEqual({ type: 'closed', at: AT, by, reason: 'shipped', proof: SHA, pr: '#301', release: 'v0.1.51' });
-    expect((await onDisk(base, 'M6.E21')).events).toHaveLength(3);
-  });
-
   // t4.0: /sig:ship knows the pull request and the release when it asks; the
   // step that confirms, after the merge, does not.
   it('a request carries pr and release, in a fixed key order', async () => {
@@ -435,22 +430,6 @@ describe('requestUnitClose / confirmUnitClose (AC2.1)', () => {
     expect(event).toEqual({ type: 'close_requested', at: AT, by, proof: OTHER_SHA, pr: '#301', release: 'v0.1.51' });
     expect(Object.keys(event)).toEqual(['type', 'at', 'by', 'proof', 'pr', 'release']);
     expect(units.checkUnits(base)).toEqual([]);
-  });
-
-  it('a confirm copies the request\'s pr and release into the closed event', async () => {
-    await units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, pr: '#301', release: 'v0.1.51', by, at: AT });
-    const out = await units.confirmUnitClose(base, 'M6.E20', { proof: OTHER_SHA, by: 'confirmCloses', at: AT });
-    expect(out.close).toEqual({ reason: 'shipped', at: AT, by: 'confirmCloses', proof: OTHER_SHA, pr: '#301', release: 'v0.1.51' });
-    expect((await onDisk(base, 'M6.E20')).events.at(-1))
-      .toEqual({ type: 'closed', at: AT, by: 'confirmCloses', reason: 'shipped', proof: OTHER_SHA, pr: '#301', release: 'v0.1.51' });
-  });
-
-  it('a confirm\'s own pr and release win over the request\'s; a request with neither leaves the close without them', async () => {
-    await units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, pr: '#301', release: 'v0.1.51', by, at: AT });
-    const out = await units.confirmUnitClose(base, 'M6.E20', { proof: OTHER_SHA, pr: '#302', by, at: AT });
-    expect(out.close).toMatchObject({ pr: '#302', release: 'v0.1.51' });
-    const plain = await units.confirmUnitClose(base, 'M6.E21', { proof: SHA, by, at: AT });
-    expect(Object.keys(plain.close).sort()).toEqual(['at', 'by', 'proof', 'reason']);
   });
 
   it('a request\'s pr and release go through the sensitive-data gate: nothing written without the acknowledgement', async () => {
@@ -480,17 +459,6 @@ describe('requestUnitClose / confirmUnitClose (AC2.1)', () => {
     await refused(() => units.requestUnitClose(base, 'M6.E20', { proof: OTHER_SHA, release: 301, by }), 'SCHEMA');
   });
 
-  it('a confirm is refused when the proof does not match the request, or none is given', async () => {
-    await refused(() => units.confirmUnitClose(base, 'M6.E21', { proof: OTHER_SHA, by }), 'CONFLICT', new RegExp(`${SHA}.*${OTHER_SHA}|${OTHER_SHA}.*${SHA}`));
-    await refused(() => units.confirmUnitClose(base, 'M6.E21', { by }), 'SCHEMA', /commit hash/);
-    await refused(() => units.confirmUnitClose(base, 'M6.E21', { proof: 'main', by }), 'SCHEMA', /commit hash/);
-  });
-
-  it('a confirm is refused when no close was requested: open, closed, or no record', async () => {
-    await refused(() => units.confirmUnitClose(base, 'M6.E20', { proof: SHA, by }), 'CONFLICT', /no close .*requested/);
-    await refused(() => units.confirmUnitClose(base, 'M6.E22', { proof: SHA, by }), 'CONFLICT', /no close .*requested/);
-    await refused(() => units.confirmUnitClose(base, 'M6.E99', { proof: SHA, by }), 'NOT_FOUND');
-  });
 });
 
 describe('closeUnit — dropped and legacy', () => {
@@ -599,7 +567,6 @@ const AWS = `AKIA${'ABCDEFGH'.repeat(2)}`; // shaped like a key; not one
 const MUTATIONS = {
   openUnit: (b, o, text = 'A title') => units.openUnit(b, 'M6.E60', { title: text, by, at: AT }, o),
   requestUnitClose: (b, o) => units.requestUnitClose(b, 'M6.E20', { proof: SHA, by, at: AT }, o),
-  confirmUnitClose: (b, o, text = '#301') => units.confirmUnitClose(b, 'M6.E21', { proof: SHA, pr: text, by, at: AT }, o),
   closeUnit: (b, o, text = 'moved') => units.closeUnit(b, 'M6.E20', { reason: 'dropped', words: text, by, at: AT }, o),
   reopenUnit: (b, o, text = 'back') => units.reopenUnit(b, 'M6.E22', { reason: text, by, at: AT }, o),
   holdUnit: (b, o, text = 'keep') => units.holdUnit(b, 'M6.E22', { reason: text, by, at: AT }, o),
@@ -607,7 +574,7 @@ const MUTATIONS = {
   editUnit: (b, o, text = 'Renamed') => units.editUnit(b, 'M6.E20', { changes: { title: text }, by, at: AT }, o),
 };
 // The writers that take free text (their third argument above replaces it).
-const TAKES_TEXT = ['openUnit', 'confirmUnitClose', 'closeUnit', 'reopenUnit', 'holdUnit', 'editUnit'];
+const TAKES_TEXT = ['openUnit', 'closeUnit', 'reopenUnit', 'holdUnit', 'editUnit'];
 
 describe('every unit writer: one lock, the store check, atomic, nothing on a refusal (AC2.1, NFR failure)', () => {
   it('the table is every lock-taking export of the library', () => {
@@ -679,8 +646,6 @@ describe('every unit writer: one lock, the store check, atomic, nothing on a ref
     expect(await units.openUnit(base, 'M6.E61', { summary: AWS, by })).toEqual(pending);
     expect(await units.openUnit(base, 'M6.E61', { migration_note: AWS, by })).toEqual(pending);
     expect(await units.openUnit(base, 'M6.E61', { legacy_row: ['a', AWS], by })).toEqual(pending);
-    expect(await units.confirmUnitClose(base, 'M6.E21', { proof: SHA, release: AWS, by })).toEqual(pending);
-    expect(await units.confirmUnitClose(base, 'M6.E21', { proof: SHA, words: AWS, by })).toEqual(pending);
     expect(await units.closeUnit(base, 'M6.E20', { reason: 'legacy', words: AWS, by })).toEqual(pending);
     expect(await units.closeUnit(base, 'M6.E20', { reason: 'legacy', pr: AWS, by })).toEqual(pending);
     expect(await units.editUnit(base, 'M6.E20', { changes: { summary: AWS }, by })).toEqual(pending);
@@ -690,7 +655,6 @@ describe('every unit writer: one lock, the store check, atomic, nothing on a ref
   it('a commit hash as proof is not treated as a secret: a full SHA is accepted', async () => {
     const full = 'a'.repeat(40);
     expect(await units.requestUnitClose(base, 'M6.E20', { proof: full, by })).toMatchObject({ status: 'closing', closing_proof: full });
-    expect(await units.confirmUnitClose(base, 'M6.E20', { proof: full, by })).toMatchObject({ status: 'closed' });
   });
 
   it('openUnit that fails part-way leaves no record, and the units folder as it was', async () => {

@@ -61,7 +61,6 @@ const WRITERS = {
   openUnit: (opts) => units.openUnit(base, 'M7.E9', { by, at: AT }, opts),
   requestUnitClose: (opts) => units.requestUnitClose(base, 'M7.E1', { proof: SHA, by, at: AT }, opts),
   rerequestUnitClose: (opts) => units.rerequestUnitClose(base, 'M7.E2', { proof: OTHER, by, at: AT }, opts),
-  confirmUnitClose: (opts) => units.confirmUnitClose(base, 'M7.E2', { proof: SHA, by, at: AT }, opts),
   closeUnit: (opts) => units.closeUnit(base, 'M7.E1', { reason: 'dropped', words: 'moved elsewhere', by, at: AT }, opts),
   reopenUnit: (opts) => units.reopenUnit(base, 'M7.E3', { reason: 'it came back', by, at: AT }, opts),
   holdUnit: (opts) => units.holdUnit(base, 'M7.E3', { reason: 'keep', by, at: AT }, opts),

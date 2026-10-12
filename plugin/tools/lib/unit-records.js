@@ -530,6 +530,16 @@ const kept = (text, max) => cut(printableText(text), max);
 const clean = (value, max) => (typeof value === 'string' ? kept(value.replace(/\s*[\r\n]+\s*/g, ' '), max) : value);
 // A `legacy_row`, as `importUnits` keeps one: each cell `kept`.
 const cleanCells = (cells) => (Array.isArray(cells) ? cells.map((c) => (typeof c === 'string' ? kept(c, LEGACY_CELL_MAX) : c)) : cells);
+/**
+ * A close's `pr` or `release` as a writer here stores it (`clean`, at
+ * `UNIT_REF_MAX`) — for a caller that runs the sensitive-data gate before it
+ * calls the writer (`closeEpic`, `work-ops.js`), so both scan the same text
+ * (REVIEW pass 1, C-S1). Anything that is not text comes back as it is.
+ *
+ * @param {unknown} value
+ * @returns {unknown}
+ */
+export const storedRef = (value) => clean(value, UNIT_REF_MAX);
 // The limit of each field an `edited` event may change, and that a record may open with.
 const FIELD_MAX = { title: UNIT_TITLE_MAX, summary: UNIT_SUMMARY_MAX, migration_note: UNIT_NOTE_MAX };
 
@@ -743,7 +753,7 @@ export async function openUnit(baseDir, id, fields = {}, opts = {}) {
 export { CLOSE_WORDS_MAX, LEGACY_CELL_MAX };
 
 const SHIPPED_NOT_DIRECT = (id) => `${id}: a shipped close goes through requestUnitClose (with the commit) and is `
-  + 'confirmed by confirmUnitClose — it cannot be recorded directly';
+  + 'confirmed by confirmCloses (work-records.js) once that commit is on the default branch — it cannot be recorded directly';
 
 // One entry of an import list → its record (not yet validated). Throws for
 // what can be refused before the store is read: the ID's shape, the close.
@@ -951,7 +961,7 @@ export async function importUnits(baseDir, list, opts = {}) {
 /**
  * Ask to close a unit as shipped: a `close_requested` event (legal from
  * open), deriving *closing*. It becomes closed only through
- * `confirmUnitClose`.
+ * `confirmCloses` (`work-records.js`).
  *
  * `proof` is a bare commit hash, lowercase hex, 7 to 64 characters. A short
  * hash that more than one commit starts with is refused when git can say so
@@ -961,7 +971,7 @@ export async function importUnits(baseDir, list, opts = {}) {
  *
  * `pr` and `release` (t4.0, optional) are what the caller knows when it asks —
  * `/sig:ship` knows the pull request, and the step that confirms the close,
- * after the merge, does not. `confirmUnitClose` copies them into the `closed`
+ * after the merge, does not. `confirmCloses` copies them into the `closed`
  * event. Sensitive data: both run through the gate.
  *
  * `opts.gate` (t4.1) is a caller's own condition for the close — `closeEpic`
@@ -1045,64 +1055,18 @@ export async function rerequestUnitClose(baseDir, id, request = {}, opts = {}) {
 }
 
 /**
- * Confirm a requested close: a `closed` event with reason `shipped`, carrying
- * the request's proof (legal from *closing* only).
- *
- * This function does NOT check that the commit is on the default branch. That
- * decision is the caller's, and is taken as given; what is checked here is
- * that `proof` is exactly the commit the close was requested with.
- *
- * `pr` and `release`, when not passed, are copied from the close request
- * (t4.0): the request is made at SHIP, which knows them.
- *
- * Sensitive data: `pr`, `release` and `words`.
- *
- * @param {string} baseDir
- * @param {string} id
- * @param {{proof: string, pr?: string, release?: string, words?: string, by: string, at?: string}} confirm
- * @param {{renameFn?: Function, acknowledgeSensitive?: boolean}} [opts]
- * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
- */
-export async function confirmUnitClose(baseDir, id, confirm = {}, opts = {}) {
-  const { proof, by, at = nowIso() } = confirm;
-  const pr = clean(confirm.pr, UNIT_REF_MAX);
-  const release = clean(confirm.release, UNIT_REF_MAX);
-  const words = clean(confirm.words, CLOSE_WORDS_MAX);
-  assertShape(id);
-  assertProof(id, proof, 'a confirmed close');
-  assertWritable(baseDir);
-  const pending = sensitivePending([pr, release, words], opts);
-  if (pending) return pending;
-  return withUnitLock(baseDir, async (handle) => {
-    const current = readForWrite(handle, id).entry;
-    if (current.status !== 'closing') {
-      throw new WorkStoreError('CONFLICT', `${id}: no close was requested (the unit is ${current.status}) — nothing was written. `
-        + 'A shipped close confirms a request.');
-    }
-    if (proof !== current.closing_proof) {
-      throw new WorkStoreError('CONFLICT', `${id}: the proof ${proof} is not the commit the close was requested with `
-        + `(${current.closing_proof}) — nothing was written.`);
-    }
-    const request = latestRequest(current.record);
-    const event = pruneUndefined({
-      type: 'closed', at, by, reason: 'shipped', proof, pr: pr ?? request?.pr, release: release ?? request?.release, words,
-    });
-    return commit(handle, withEvent(current, event), `${id} was confirmed closed`, opts);
-  });
-}
-
-/**
  * The shipped closes `confirmCloses` (`work-records.js`) is about to write,
  * built and checked and NOT written (M6.E16 t4.2). It confirms item closes and
  * unit closes in one call, under one take of the store's lock, and writes both
- * all or nothing — so it cannot call `confirmUnitClose`, which takes the lock
- * itself. This is that function's body up to the write: each record is
- * re-read under the caller's lock (`handle`), and planned only if it is still
- * closing on the same proof. The event is `confirmUnitClose`'s: reason
- * `shipped`, the request's proof, and its `pr` and `release`.
+ * all or nothing — so the unit side is planned here and written there. Each
+ * record is re-read under the caller's lock (`handle`), and planned only if it
+ * is still closing on the same proof. The event: `closed`, reason `shipped`,
+ * the request's proof, and its `pr` and `release`.
  *
- * Reads only. As `confirmUnitClose`, it does not check that the commit is on
- * the default branch: the caller has.
+ * This is the ONLY place a shipped close is built (REVIEW pass 1, C-S3: the
+ * exported `confirmUnitClose`, which wrote one with no ancestry check and had
+ * no caller, was removed). Reads only. It does not check that the commit is
+ * on the default branch: its one caller, `confirmCloses`, has.
  *
  * The unit's items are checked again here (REVIEW pass 1, C-I1, AC4.3):
  * `openItems(id)` — the caller's, read under the same lock — names the unit's
@@ -1153,7 +1117,7 @@ export function planUnitConfirms(handle, candidates, { at, by, openItems }) {
  * `words` required) or as `legacy` (it was over before unit records existed;
  * `words`, `pr` and `release` carry what was written down at the time). Legal
  * from open and from closing. `shipped` is refused: it goes through
- * `requestUnitClose` and `confirmUnitClose`.
+ * `requestUnitClose` and `confirmCloses` (`work-records.js`).
  *
  * Appends to an existing record only. A record that begins with a close (a
  * unit recorded as already over, never opened) is not created here.
@@ -1173,8 +1137,7 @@ export async function closeUnit(baseDir, id, close = {}, opts = {}) {
   const release = clean(close.release, UNIT_REF_MAX);
   assertShape(id);
   if (reason === 'shipped') {
-    throw new WorkStoreError('SCHEMA', `${id}: a shipped close goes through requestUnitClose (with the commit) and is `
-      + 'confirmed by confirmUnitClose — it cannot be recorded directly. Nothing was closed.');
+    throw new WorkStoreError('SCHEMA', `${SHIPPED_NOT_DIRECT(id)}. Nothing was closed.`);
   }
   if (!DIRECT_CLOSE_REASONS.includes(reason)) {
     throw new WorkStoreError('SCHEMA', `${id}: close reason must be one of ${DIRECT_CLOSE_REASONS.join(', ')} `
