@@ -81,6 +81,8 @@ records now.
   characters, with a line break made a space, and cut at a limit; `work/EPICS.md` and the milestone
   table do the same to whatever they read and take a comment opener apart; and the unit schema
   refuses such a value, so `/sig:docs-sweep` reports a record that was not written by the library.
+  An old row keeps at most 32 cells (a longer one is cut and ends `…`), and a long run of spaces in a
+  record no longer makes every write to the store slow.
 - **A `work/units/` folder that cannot be trusted is an error, not "no unit records".** When it is
   a symbolic link, a file, or cannot be listed, commands that write or move refuse and name the
   folder, and everything that asks whether a unit is closed answers that it cannot tell. No unit is

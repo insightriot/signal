@@ -23,9 +23,9 @@
 // no file is read or written here. `work-views.js` finds the current
 // milestone's file and writes it.
 
-import { cut, printable } from './printable-text.js';
+import { cut, oneLine, printable } from './printable-text.js';
 import {
-  CLOSE_WORDS_MAX, LEGACY_CELL_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, UNIT_SUMMARY_MAX, compareUnitIds, epicIdParts,
+  CLOSE_WORDS_MAX, LEGACY_CELL_MAX, LEGACY_CELLS_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, UNIT_SUMMARY_MAX, compareUnitIds, epicIdParts,
 } from './unit-record.js';
 import { WorkStoreError } from './work-errors.js';
 
@@ -44,7 +44,7 @@ export const noComment = (text) => text.replaceAll('<!--', '<\\!--');
 // (`printable-text.js`), then it is cut at `max`. A writer has done this
 // already; a record that came by a merge or a shell command has not, so the
 // text is not trusted here either.
-const line = (v, max) => cut(printable(String(v).replace(/\s*[\r\n]+\s*/g, ' ')), max);
+const line = (v, max) => cut(printable(oneLine(String(v))), max);
 
 // One table cell of recorded text: one line (`line`), and an unescaped `|` is
 // escaped (an already-escaped one is kept), so one unit is always one row.
@@ -104,7 +104,8 @@ export function renderEpicTable(units, { milestone }) {
     .sort((a, b) => compareUnitIds(a.id, b.id))
     .map((u) => {
       const legacy = u.record.legacy_row;
-      if (Array.isArray(legacy) && legacy.length > 0) return `| ${legacy.map(legacyCell).join(' | ')} |`;
+      // At most `LEGACY_CELLS_MAX` cells are printed: a record that came by a merge may hold more than a writer keeps.
+      if (Array.isArray(legacy) && legacy.length > 0) return `| ${legacy.slice(0, LEGACY_CELLS_MAX).map(legacyCell).join(' | ')} |`;
       return `| \`${u.id}\` | ${statusText(u)} | ${cell(u.record.summary ?? u.record.title ?? '', UNIT_SUMMARY_MAX)} |`;
     });
   return [...HEADER, ...rows].join('\n');

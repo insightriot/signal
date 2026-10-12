@@ -122,6 +122,9 @@ export function makeRecordKind({
         else if (node.additionalProperties === false) errors.push(`${join(path, key)} is not a known field`);
       }
     }
+    if (Array.isArray(value) && node.maxItems !== undefined && value.length > node.maxItems) {
+      errors.push(`${where} must have at most ${node.maxItems} entries (got ${value.length})`);
+    }
     if (Array.isArray(value) && node.items !== undefined) {
       value.forEach((item, i) => check(node.items, item, `${path}[${i}]`, errors));
     }
@@ -210,7 +213,7 @@ export function makeRecordKind({
  * The validator is hand-rolled because `plugin/` ships exactly one dependency
  * (Decision 7). It supports ONLY these keywords: `type`, `properties`,
  * `required`, `additionalProperties: false`, `enum`, `const`, `pattern`,
- * `items`, and `$ref` to `#/$defs/…`. `tests/work-record-schema.test.js` fails
+ * `items`, `maxItems`, and `$ref` to `#/$defs/…`. `tests/work-record-schema.test.js` fails
  * if the schema uses anything else, because an unsupported keyword would be
  * silently ignored here.
  *

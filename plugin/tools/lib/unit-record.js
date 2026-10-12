@@ -51,6 +51,8 @@ export const UNIT_SCHEMA = deepFreeze(
 // (`tests/unit-text-hostile.test.js` pins the three to each other).
 /** A `legacy_row` cell; a longer one is cut and ends in `…`. */
 export const LEGACY_CELL_MAX = 8000;
+/** How many cells a `legacy_row` may hold (the schema's `maxItems`); a writer cuts a longer row. */
+export const LEGACY_CELLS_MAX = 32;
 /** A close's `words`. */
 export const CLOSE_WORDS_MAX = 2000;
 /** A hold's or a reopen's `reason`. */

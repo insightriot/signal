@@ -267,6 +267,7 @@ describe('schema guard — only the supported keyword subset', () => {
     'const',
     'pattern',
     'items',
+    'maxItems',
     '$ref',
   ]);
   // Root-only declarations: `$schema` names the draft, `$defs` holds the

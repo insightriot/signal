@@ -7,7 +7,7 @@
     "id": { "$ref": "#/$defs/unit_id" },
     "title": { "type": "string", "pattern": "^(?=.*\\S)[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{1,200}$" },
     "summary": { "$ref": "#/$defs/long_text" },
-    "legacy_row": { "type": "array", "items": { "type": "string", "pattern": "^[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{0,8000}$" } },
+    "legacy_row": { "type": "array", "maxItems": 32, "items": { "type": "string", "pattern": "^[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{0,8000}$" } },
     "migration_note": { "type": "string", "pattern": "^[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{0,2000}$" },
     "events": { "type": "array", "items": { "type": "object" } }
   },

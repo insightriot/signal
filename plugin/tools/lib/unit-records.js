@@ -42,11 +42,11 @@ import {
 import { join, resolve, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { cut, printable as printableText } from './printable-text.js';
+import { cut, oneLine, printable as printableText } from './printable-text.js';
 import { PHASES } from './state.js';
 import { isSafeUnitName } from './unit-name.js';
 import {
-  CLOSE_WORDS_MAX, LEGACY_CELL_MAX, UNIT_KIND, UNIT_NOTE_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, UNIT_SCHEMA, UNIT_SUMMARY_MAX,
+  CLOSE_WORDS_MAX, LEGACY_CELL_MAX, LEGACY_CELLS_MAX, UNIT_KIND, UNIT_NOTE_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, UNIT_SCHEMA, UNIT_SUMMARY_MAX,
   UNIT_TITLE_MAX, foldUnit,
 } from './unit-record.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
@@ -386,7 +386,12 @@ export function unitRecordsOn(baseDir) {
   try {
     return hasUnits(baseDir);
   } catch (cause) {
-    const problem = String(cause?.message ?? cause).replace(/[.\s]*$/, '');
+    // The fault without the full stops and spaces at its end. A loop, not a
+    // pattern: the message can carry a path from the disk (REVIEW pass 1, S-M1).
+    let problem = String(cause?.message ?? cause);
+    let to = problem.length;
+    while (to > 0 && (problem[to - 1] === '.' || problem[to - 1].trim() === '')) to -= 1;
+    problem = problem.slice(0, to);
     const err = new WorkStoreError(cause instanceof WorkStoreError ? cause.code : 'IO', `${UNITS_REL}/ cannot be trusted, so whether this `
       + `project has unit records is not known: ${problem}. Make ${UNITS_REL}/ a real folder inside the project that can be read (or `
       + 'remove it, if this project has no unit records), then re-run. /sig:docs-sweep reports the same fault.');
@@ -575,9 +580,12 @@ const kept = (text, max) => cut(printableText(text), max);
 // A free-text field as every writer here stores it (M6.E16 v2.3): `kept`, with
 // a line break made a space first, so the words on either side stay apart.
 // Anything that is not text is passed on as it is, for the schema to refuse.
-const clean = (value, max) => (typeof value === 'string' ? kept(value.replace(/\s*[\r\n]+\s*/g, ' '), max) : value);
-// A `legacy_row`, as `importUnits` keeps one: each cell `kept`.
-const cleanCells = (cells) => (Array.isArray(cells) ? cells.map((c) => (typeof c === 'string' ? kept(c, LEGACY_CELL_MAX) : c)) : cells);
+const clean = (value, max) => (typeof value === 'string' ? kept(oneLine(value), max) : value);
+// A `legacy_row`, as `importUnits` keeps one: each cell `kept`, and at most
+// `LEGACY_CELLS_MAX` of them — a longer row is cut as a longer cell is, its
+// last kept cell `…` in place of the cells left out.
+const cutCells = (cells) => (cells.length > LEGACY_CELLS_MAX ? [...cells.slice(0, LEGACY_CELLS_MAX - 1), '…'] : cells);
+const cleanCells = (cells) => (Array.isArray(cells) ? cutCells(cells).map((c) => (typeof c === 'string' ? kept(c, LEGACY_CELL_MAX) : c)) : cells);
 /**
  * A close's `pr` or `release` as a writer here stores it (`clean`, at
  * `UNIT_REF_MAX`) — for a caller that runs the sensitive-data gate before it
@@ -798,7 +806,7 @@ export async function openUnit(baseDir, id, fields = {}, opts = {}) {
 
 // ── Importing units that predate their records (t7.1) ───────────────────────
 
-export { CLOSE_WORDS_MAX, LEGACY_CELL_MAX };
+export { CLOSE_WORDS_MAX, LEGACY_CELL_MAX, LEGACY_CELLS_MAX };
 
 const SHIPPED_NOT_DIRECT = (id) => `${id}: a shipped close goes through requestUnitClose (with the commit) and is `
   + 'confirmed by confirmCloses (work-records.js) once that commit is on the default branch — it cannot be recorded directly';
@@ -819,7 +827,7 @@ function importedRecord(entry) {
   if (legacyRow !== undefined && (!Array.isArray(legacyRow) || legacyRow.some((c) => typeof c !== 'string'))) {
     throw new WorkStoreError('SCHEMA', `${id}: legacy_row is a list of strings — the cells of the unit's old row. Nothing was written.`);
   }
-  const cells = legacyRow?.map((c) => kept(c, LEGACY_CELL_MAX));
+  const cells = cleanCells(legacyRow);
   let event;
   if (opened !== undefined) {
     event = { type: 'opened', at: opened?.at ?? nowIso(), by: opened?.by };
@@ -900,7 +908,8 @@ export async function importUnit(baseDir, unit, opts = {}) {
  *
  * Kept text: each `legacy_row` cell and a close's `words` lose control and
  * invisible characters (`printable-text.js`) and are cut at `LEGACY_CELL_MAX`
- * and `CLOSE_WORDS_MAX`. Nothing else about a cell changes. Every other text
+ * and `CLOSE_WORDS_MAX`; a `legacy_row` of more than `LEGACY_CELLS_MAX` cells
+ * is cut to that many, the last one `…`. Nothing else about a cell changes. Every other text
  * field is kept the same way, as by every writer here (see *Writing*).
  *
  * Sensitive data: every text field of every entry runs through the gate; with
