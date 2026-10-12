@@ -40,8 +40,12 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
 - **stdin:** **ignored** (AD9). The lever is `process.cwd()`, not the payload.
 - **Reads:** `.planning/STATE.md` + the matching `.planning/MILESTONE-{N}.md`
   (derived from `current_epic`, e.g. `M4.5.E3` → `MILESTONE-4.5.md`) in the cwd.
+  **On a project with unit records** (`.planning/work/units/` exists, M6.E16) the
+  milestone file is not opened: it reads the current Epic's unit record
+  (`.planning/work/units/<EpicID>.json`) instead.
 - **What it does:** if the project is mid-`EXECUTE` for an Epic that the milestone
-  shows shipped but which has **no retro file**, it emits a high-visibility
+  shows shipped — with unit records, one whose record reads *closing* or closed —
+  but which has **no retro file** (or only a stub still holding `[FILL IN]`), it emits a high-visibility
   warning so the gap surfaces the moment the session opens (the D-E9-8 layer-3
   net for "context cleared between EXECUTE finishing and `/sig:ship`").
 - **stdout / exit:** on a dirty match, one line of JSON:
@@ -53,7 +57,8 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   `exit 0` is required for the `additionalContext` to be injected. On no match
   (or any missing/unreadable file), it writes nothing and exits 0.
 - **Fail-open:** no STATE.md / no frontmatter / no `current_epic` / no milestone
-  file → silent `exit 0`.
+  file → silent `exit 0`. With unit records: no record for the Epic, or one that
+  does not read → silent `exit 0`.
 - **Covered by:** `tests/hook-warn-dirty-execute.test.js` (spawn harness) proves
   the stdout/exit contract; `tests/hook-state-write.test.js` proves the
   `detectDirtyExecute` decision logic.
@@ -167,7 +172,9 @@ the hook scripts, or on a new Claude Code version:
 1. In a scratch project, plant a **dirty-EXECUTE** state: `.planning/STATE.md`
    with `phase: EXECUTE` + a `current_epic` (e.g. `M4.5.E3`); a
    `.planning/MILESTONE-4.5.md` row showing that Epic **shipped**; and **no**
-   `.planning/M4.5.E3-RETROSPECTIVE.md`.
+   `.planning/M4.5.E3-RETROSPECTIVE.md`. (That is a project without unit
+   records. With them, the row is not read: the Epic's unit record must read
+   *closing* or closed.)
 2. Open Claude Code in that project directory and **resume** a session (the
    `resume` source — not a fresh `startup`).
 3. **Expect:** the session's opening context contains the `[signal]` dirty-EXECUTE

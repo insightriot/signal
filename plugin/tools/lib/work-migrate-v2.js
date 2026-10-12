@@ -315,7 +315,8 @@ function v2WorkBody(key) {
 This file switches the work-item store on for this project. Every bug, backlog row, inbox capture and open question is one **record**, \`.planning/work/items/NN/${key}-n.json\` (NN is the item number divided by 1000, two digits), with its body beside it as \`${key}-n.md\`. **A record never moves.** Its status is not stored: it is derived from the record's own events — \`created\` → N, \`triaged\` → T, \`queued\` → Q, \`started\` → P, \`close_requested\` → *closing*, \`closed\` → C, \`reopened\` → T.
 
 - \`items/\` — every record and its body, by number
-- \`epics/<EpicID>/\` — an Epic's documents; its items are the records whose events name the Epic
+- \`units/\` — one record per Epic or unit, \`<ID>.json\`, when the project has unit records (this folder existing is what turns them on). A unit's status is derived from its own events too: open, *closing*, closed — and a closed unit can be held
+- \`epics/<EpicID>/\` — an Epic's documents, when a folder was made for it by hand; an Epic's items are the records whose events name it, folder or not
 - \`history/YYYY.md\` — closes from more than 30 days before the newest event (a view)
 
 \`key\` is the prefix of every item ID (\`${key}-412\`). The standing trigger watchlist lives next to this file in \`WATCHLIST.md\`.

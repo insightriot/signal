@@ -1,14 +1,28 @@
-// The Epic close — the one `work-ops.js` entry left (M6.E11 t5.3, narrowed
-// at M6.E13 t7.4).
+// Opening and closing an Epic — the two `work-ops.js` entries (`closeEpic`:
+// M6.E11 t5.3, narrowed at M6.E13 t7.4; `openEpic` and the unit-records path
+// of `closeEpic`: M6.E16).
 //
 // Until M6.E13 this was `/sig:item`'s v1 library: every change to an item
 // FILE (capture, move, close, reopen, triage) went through here, and each
 // moved the file between status folders. The cutover made items JSON records
 // that never move, written by `work-records.js`, and t7.4 retired the v1
-// mutations and readers. What stays is `closeEpic`: SHIP §6.8 archives the
-// Epic's folder — documents only on a v2 store — after `work-records.js`
-// `closeEpicCheck` says every record of the Epic is done. It runs only on a v2
-// store; a v1 store refuses (CONFIG, naming `node tools/work-migrate-v2.mjs`).
+// mutations and readers. What stays is the Epic's two ends, and each has two
+// paths, chosen by whether the project has unit records (`hasUnitsSafe` —
+// `.planning/work/units/` exists):
+//
+// - `openEpic` — what `/sig:discuss --epic` and `/sig:new-project --epic`
+//   call. Without unit records it only calls `setCurrentEpic`. With them it
+//   refuses a closed Epic (unless forced, which records a reopen), calls
+//   `setCurrentEpic`, then creates the Epic's unit record if it has none.
+// - `closeEpic` — SHIP §6.8, after `work-records.js` `closeEpicCheck` says
+//   every record of the Epic is done. Without unit records it archives the
+//   Epic's folder (documents only on a v2 store). With them it does no folder
+//   work: it records a close request on the Epic's unit record with a commit
+//   as proof, and `confirmCloses` closes the unit once that commit is on the
+//   default branch.
+//
+// `closeEpic`, and `openEpic` with unit records, run only on a v2 store; a v1
+// store refuses (CONFIG, naming `node tools/work-migrate-v2.mjs`).
 //
 // ── The `work` lock (D-M6E11-27) ────────────────────────────────────────────
 //

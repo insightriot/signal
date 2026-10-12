@@ -4,7 +4,9 @@
 //     WORK.md                  frontmatter `key:` — the opt-in switch (D-M6E11-3);
 //                              `schema_version: 2` for a store of records
 //     items/NN/SIG-n.json      the records (`work-records.js`, M6.E13)
-//     epics/<EpicID>/          an Epic's documents
+//     units/<ID>.json          one record per Epic or unit (`unit-records.js`, M6.E16);
+//                              the folder existing turns unit records on
+//     epics/<EpicID>/          an Epic's documents, when a folder was made by hand
 //
 // Until M6.E13 this module also allocated v1 item IDs (`nextId`), mapped a
 // status to its folder (`folderFor`) and checked that every item file sat in
