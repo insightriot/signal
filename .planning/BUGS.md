@@ -181,5 +181,8 @@
 | SIG-292 | `fixed` | P2 | **Work-store migration: a backlog row absorbs a folded <details> block below it, so its evidence check can borrow a sibling's PR reference** |
 | SIG-294 | `confirmed` | P3 | **SHIP's first check accepts a retrospective with a placeholder line, and closeEpic refuses it later in the same SHIP** |
 | SIG-295 | `closing` | P2 | **With unit records, a finished Epic's STATE narrative is not evicted once the next Epic is opened** |
+| SIG-296 | `confirmed` | P3 | **A unit narrative whose eviction was refused at the confirm is never retried** |
+| SIG-297 | `confirmed` | P3 | **Without unit records, an Epic whose VERIFICATION was archived still reads open** |
+| SIG-298 | `confirmed` | P3 | **Narrative eviction knows Epic IDs only; a unit named another way reports nothing to move** |
 
-*0 needs-triage · 51 confirmed · 6 closing · 121 closed (178 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 54 confirmed · 6 closing · 121 closed (181 total) · closes more than 30 days before the newest event are in `work/history/`*

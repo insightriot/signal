@@ -18,14 +18,26 @@ last_updated: 2026-10-11T16:10:45.527Z
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-11)
+### ▶ WHERE THE WORK IS — read this first (2026-10-12)
 
-**`M6.E16` — *"Epics and units as records"* — PLAN done, EXECUTE next (wave 1: S0 baseline, S1 reuse refactor).** Plan: [`M6.E16-PLAN.md`](M6.E16-PLAN.md), ten slices in eight waves; S8 (Signal's own cutover) stops for Brett to read the diff. Branch
-`feat/m6.e16-epics-units-as-records`. A unit record holds existence, membership, close with proof and
-a hold; phase progress stays in this file (`D-M6E16-1`). Requirements:
-[`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md). Decisions `D-M6E16-1` … `-15`. The list of code it
-touches: [`M6.E16-INVENTORY.md`](M6.E16-INVENTORY.md) — four findings checked by hand, the rest is an
-agent's report that PLAN re-derives. Not done from the small-fix batch: `SIG-285`, `SIG-139`.
+**`M6.E16` — *"Epics and units as records"* — EXECUTE done, VERIFY next.** Branch
+`feat/m6.e16-epics-units-as-records`, pushed. Eleven slices (S0–S10) in nine waves; progress in
+[`M6.E16-PROGRESS.md`](M6.E16-PROGRESS.md). Suite: 326 files, 7002 passed, 1 skipped; lint clean.
+
+- **Signal's own cutover is done** (`010262f7`, 2026-10-12): 48 unit records under `work/units/` —
+  `M6.E16` open, 43 legacy closes Brett confirmed, 4 Epic IDs closed as dropped (`M5.E11`, `M5.E12`,
+  `M5.E14`, `M5.E20`). The Epic table in `MILESTONE-6.md` and `work/EPICS.md` are generated from the
+  records. The diff Brett read: [`M6.E16-MIGRATION-DIFF.md`](M6.E16-MIGRATION-DIFF.md).
+- **A unit record** holds existence, membership, close with proof and a hold; phase progress stays in
+  this file (`D-M6E16-1`). A project without `work/units/` behaves as on `v0.1.50`.
+- **S10 was added after S9** for three gaps: a finished Epic's narrative is now evicted when its
+  close is confirmed (`SIG-295`, `D-M6E16-19`), `/sig:docs-archive` says how to place a hold
+  (`SIG-255`), and one stale archive message (`SIG-289`).
+- **Closing, proof not yet on `main`:** `SIG-132`, `SIG-255`, `SIG-288`, `SIG-289`, `SIG-295`.
+  Filed and open: `SIG-294`, `SIG-296`, `SIG-297`, `SIG-298`.
+- Requirements: [`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md). Plan:
+  [`M6.E16-PLAN.md`](M6.E16-PLAN.md). Decisions `D-M6E16-1` … `-19`.
+- Not done from the small-fix batch: `SIG-285`, `SIG-139`.
 
 ### Previously (2026-10-10)
 
@@ -117,7 +129,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-None. `M6.E13` shipped in `v0.1.48`.
+`M6.E16` — see the resume pointer above.
 
 ## Blockers
 

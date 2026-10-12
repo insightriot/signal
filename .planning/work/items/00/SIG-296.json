@@ -1,0 +1,20 @@
+{
+  "id": "SIG-296",
+  "type": "BUG",
+  "title": "A unit narrative whose eviction was refused at the confirm is never retried",
+  "theme": "ship",
+  "priority": "P3",
+  "source": "M6.E16 S10",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-12T17:38:31.869Z",
+      "by": "claude (M6.E16 S10)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-12T17:38:31.869Z",
+      "by": "claude (M6.E16 S10)"
+    }
+  ]
+}
