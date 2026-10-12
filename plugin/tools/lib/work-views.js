@@ -41,6 +41,7 @@ import { dirname, join, posix } from 'node:path';
 import { atomicWrite } from './atomic-write.js';
 import { epicMarkers, renderEpicTable, upsertEpicTable } from './milestone-table.js';
 import { assertRealInsidePlanning, linkedComponent, readRegularFile, regularFileRefusal } from './path-confine.js';
+import { cut, printable } from './printable-text.js';
 import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, PLANNING_DIR, StateSchemaError } from './state.js';
 import { compareUnitIds, epicIdParts } from './unit-record.js';
 // A cycle, by design: unit-records.js regenerates the views after a write.
@@ -296,19 +297,42 @@ function renderEpics(items, epics) {
 
 // ── work/EPICS.md, from unit records (M6.E16 t5.1, AC7.1) ───────────────────
 
+// The most of an old row's status cell a heading prints. The longest real one
+// in this repository is 130 characters.
+const LEGACY_STATUS_MAX = 200;
+
+// What a legacy unit's old milestone row said in its status cell (the second
+// cell: Epic, Status, Summary), as one printable line cut at
+// `LEGACY_STATUS_MAX` — or null when there is no such text. The cell is text a
+// person wrote in another file, kept as recorded; it is not trusted here.
+function legacyStatus(record) {
+  const said = Array.isArray(record?.legacy_row) ? record.legacy_row[1] : null;
+  if (typeof said !== 'string') return null;
+  // Line breaks become a space before the control characters go, so no two words run together.
+  return cut(oneLine(printable(oneLine(said))), LEGACY_STATUS_MAX) || null;
+}
+
 // A unit's close as its heading says it: the date and the reason, then the PR
 // and the release when recorded, then the words (a dropped close has them).
-function unitCloseLine(close) {
-  const parts = [`closed ${String(close.at).slice(0, 10)} (${close.reason})`];
+//
+// A legacy close prints no date: the one it carries is the day the record was
+// written, not the day the unit shipped (as `milestone-table.js` `statusText`).
+// It prints the old row's status words instead, which carry the real date and
+// release, and the close's own words only when there is no old row.
+function unitCloseLine(close, record) {
+  const legacy = close.reason === 'legacy';
+  const parts = [legacy ? 'closed (legacy)' : `closed ${String(close.at).slice(0, 10)} (${close.reason})`];
   if (close.pr) parts.push(`PR ${oneLine(close.pr)}`);
   if (close.release) parts.push(oneLine(close.release));
+  const said = legacy ? legacyStatus(record) : null;
+  if (said !== null) return `${parts.join(' · ')} — old row: ${said}`;
   return parts.join(' · ') + (close.words ? ` — ${oneLine(close.words)}` : '');
 }
 
 function unitStateLine(unit) {
   let state = 'open';
   if (unit.status === 'closing') state = `closing · proof ${unit.closing_proof}`;
-  if (unit.status === 'closed') state = unitCloseLine(unit.close);
+  if (unit.status === 'closed') state = unitCloseLine(unit.close, unit.record);
   return unit.held ? `${state} · held: ${oneLine(unit.hold_reason)}` : state;
 }
 

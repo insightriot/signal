@@ -43,6 +43,8 @@ records now.
   records.** The table is written between `signal:epics` markers; text outside them is left alone,
   and a milestone file without markers is not touched. `/sig:docs-sweep` reports a view that does
   not match its records.
+  A unit closed as legacy prints no close date in `work/EPICS.md` — the date on that record is the
+  day it was written — and prints its old milestone row's status words instead.
 - **Everything that asks "is this unit closed?" reads the record** when `work/units/` exists:
   archiving, the Done-Epic guard in `/sig:discuss`, `/sig:drive`'s open-Epic list, moving or
   reopening an item of the unit, the narrative eviction in `/sig:checkpoint`. A retrospective

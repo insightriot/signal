@@ -90,7 +90,7 @@ describe('renderViews with unit records — work/EPICS.md (AC7.1)', () => {
       '### M7.E6 — closed 2026-09-30 (shipped)',
       '### M7.E5 — closed 2026-09-28 (dropped) — became M7.E10',
       '### M7.E3 — closed 2026-09-20 (shipped) · PR #41 · v9.9.1',
-      '### M6.5.E1 — closed 2026-08-01 (legacy) · PR #12 · v9.0.0',
+      '### M6.5.E1 — closed (legacy) · PR #12 · v9.0.0 — old row: shipped',
       '## No unit record',
       '### M9.E1',
     ]);
@@ -154,6 +154,54 @@ describe('renderViews with unit records — work/EPICS.md (AC7.1)', () => {
       '## Closed',
       '### M7.E2 — closed 2026-09-28 (dropped) — gone ### M7.E99 — open',
     ]);
+  });
+
+  // VERIFY loop 1 (AC7.1's limit): a legacy close's `at` is the day the record was written, not the day
+  // the unit shipped — `milestone-table.js` withholds it for that reason, and this view printed it.
+  describe('a legacy close is not dated at the day it was recorded', () => {
+    const WORDS = 'over before unit records existed; recorded when they were added';
+    const legacyUnit = (id, row, extra = {}) =>
+      unit(id, [U.legacy('2026-10-12', { words: WORDS, ...extra })], row === undefined ? {} : { legacy_row: row });
+    const heading = (u) => headings(render([u], []))[1];
+
+    it('with an old row: says legacy and prints the row\'s own status words, which carry the real date', () => {
+      const h = heading(legacyUnit('M7.E1', ['`M7.E1`', '**shipped** — `v9.9.0`, 2026-08-03 (PR #31)', 'a summary']));
+      expect(h).toBe('### M7.E1 — closed (legacy) — old row: **shipped** — `v9.9.0`, 2026-08-03 (PR #31)');
+      expect(h).not.toContain('2026-10-12');
+    });
+
+    it('with no old row: says legacy and the close\'s words, and no date', () => {
+      const h = heading(legacyUnit('v9.8.7'));
+      expect(h).toBe(`### v9.8.7 — closed (legacy) — ${WORDS}`);
+      expect(h).not.toContain('2026-10-12');
+    });
+
+    it('a row with no status cell, or one that is not text, prints as no old row', () => {
+      for (const row of [['`M7.E1`'], ['`M7.E1`', '   '], ['`M7.E1`', 7], []]) {
+        expect(heading(legacyUnit('M7.E1', row))).toBe(`### M7.E1 — closed (legacy) — ${WORDS}`);
+      }
+    });
+
+    it('a shipped and a dropped close keep their own date', () => {
+      expect(heading(unit('M7.E1', [U.opened(), U.closing(), U.shipped('2026-09-20T09:00:00.000Z')]))).toBe('### M7.E1 — closed 2026-09-20 (shipped)');
+      expect(heading(unit('M7.E1', [U.opened(), U.dropped('2026-09-28', 'never ran')]))).toBe('### M7.E1 — closed 2026-09-28 (dropped) — never ran');
+    });
+
+    it('a held legacy unit says both', () => {
+      const u = unit('M7.E1', [U.legacy('2026-10-12'), U.held('still read')], { legacy_row: ['`M7.E1`', 'shipped 2026-08-03', ''] });
+      expect(heading(u)).toBe('### M7.E1 — closed (legacy) — old row: shipped 2026-08-03 · held: still read');
+    });
+
+    it('a hostile old row stays one bounded, printable line', () => {
+      const hostile = `shipped\n\n## Injected\r\n### M7.E99 — open \u202eevil\u200b\u0007\u001b[31m ${'x'.repeat(10000)}`;
+      const text = render([legacyUnit('M7.E1', ['`M7.E1`', hostile, 'a summary'])], []);
+      expect(headings(text)).toHaveLength(2); // '## Closed' and the unit: nothing injected
+      const h = headings(text)[1];
+      expect(h.startsWith('### M7.E1 — closed (legacy) — old row: shipped ## Injected ### M7.E99 — open evil[31m xxx')).toBe(true);
+      expect(h).not.toMatch(/[\p{Cc}\p{Cf}\u2028\u2029]/u);
+      expect(h.endsWith('…')).toBe(true);
+      expect(h.length).toBeLessThanOrEqual('### M7.E1 — closed (legacy) — old row: '.length + 200);
+    });
   });
 
   it('the same units in any order give the same bytes', () => {
