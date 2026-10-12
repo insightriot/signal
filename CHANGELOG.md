@@ -92,6 +92,9 @@ records now.
 - **`/sig:docs-migrate --work-store` scans the text it will store.** Its sensitive-data check read a
   milestone row as written and the record kept it without invisible characters, so a key split by
   one passed the check and was stored whole. The check now reads the cleaned text.
+- **The undo line after `--force` on a dirty tree no longer discards your edits to the milestone
+  file.** It restores only generated files, and says that the Epic table was regenerated between its
+  markers and that `git diff` shows the old rows.
 - **A `work/units/` folder that cannot be trusted is an error, not "no unit records".** When it is
   a symbolic link, a file, or cannot be listed, commands that write or move refuse and name the
   folder, and everything that asks whether a unit is closed answers that it cannot tell. No unit is

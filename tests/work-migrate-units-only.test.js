@@ -6,6 +6,7 @@
 // Every name is invented (AC9.3: nothing here points at a real project).
 
 import { describe, it, expect, afterEach } from 'vitest';
+import { execSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -472,6 +473,42 @@ describe('outside git, and with --force', () => {
     expect(r.revertLine).toMatch(/do NOT 'git reset --hard'/);
     expect(r.revertLine).toMatch(/git reset -q -- \.planning\/work\/units \.planning\/work\/EPICS\.md && rm -rf -- \.planning\/work\/units && git checkout -- \.planning\/work\/EPICS\.md/);
     expect(readFileSync(join(base, 'notes.txt'), 'utf-8')).toBe('uncommitted\n');
+  });
+
+  // REVIEW pass 1, S-M4: the line used to end `git checkout -- <EPICS.md> <the milestone file>`,
+  // which threw away whatever the person had not committed in the milestone file.
+  it('--force with uncommitted notes in the milestone file: running the printed undo keeps the notes', async () => {
+    const base = await unitsStore({ repo: true, markers: true });
+    const epicsAtHead = read(base, EPICS);
+    const committed = read(base, MILESTONE);
+    const NOTES = '\nA note I have not committed yet.\n';
+    put(base, MILESTONE, committed + NOTES);
+    const dry = await dryRun(base);
+    const r = await applyWith(base, dry, { force: true, confirmUnitCloses: true });
+    expect(r.applied).toBe(true);
+    const applied = read(base, MILESTONE);
+    expect(applied).toContain(NOTES);
+    expect(applied).not.toBe(committed + NOTES); // the table between the markers was regenerated
+
+    // Run what the line prints, first: the notes must survive it.
+    expect(r.revertLine).toMatch(/^# --force on a dirty tree/);
+    const command = r.revertLine.split('Undo only this migration: ')[1];
+    execSync(command, { cwd: base, stdio: 'ignore' });
+    expect(read(base, MILESTONE)).toContain(NOTES);
+    expect(read(base, MILESTONE)).toBe(applied); // not one byte of the person's file changed
+    expect(existsSync(join(base, UNITS))).toBe(false);
+    expect(read(base, EPICS)).toBe(epicsAtHead);
+    expect(git(base, ['diff', '--cached', '--name-only'])).toBe('');
+
+    // The command names the milestone file only to unstage it, and the line says where the old rows are.
+    expect(command).toBe(`git reset -q -- ${UNITS} ${EPICS} ${MILESTONE} && rm -rf -- ${UNITS} && git checkout -- ${EPICS}`);
+    expect(r.revertLine).toContain(`The Epic table in ${MILESTONE} was regenerated between its markers`);
+    expect(r.revertLine).toContain(`\`git diff -- ${MILESTONE}\` shows the old rows`);
+    // And they are there: each old row is still in the file, or is a removed line of that diff.
+    const diff = git(base, ['diff', '--', MILESTONE]);
+    const removed = Object.values(ROWS).filter((row) => diff.includes(`-${row}`));
+    expect(removed.length).toBeGreaterThan(0);
+    for (const row of Object.values(ROWS)) expect(applied.includes(row) || removed.includes(row), row).toBe(true);
   });
 });
 

@@ -600,8 +600,16 @@ function unitsRevertLine(probe, force, tag, paths, added = null) {
       + `${VIEW_PATHS.epics}` + (views.length > 1 ? '; a milestone file\'s Epic table has no copy to go back to' : '');
   }
   if (probe.dirty && force) {
+    // Only a generated file is restored from HEAD (REVIEW pass 1, S-M4). A
+    // milestone file is a person's document with one generated table in it,
+    // and on a dirty tree it may hold their uncommitted edits: no command
+    // printed here touches its bytes, and the line says where the old rows are.
+    const generated = views.filter((rel) => rel === VIEW_PATHS.epics);
+    const tables = views.filter((rel) => rel !== VIEW_PATHS.epics);
     return '# --force on a dirty tree: do NOT \'git reset --hard\' (it would discard your other uncommitted work). '
-      + `Undo only this migration: git reset -q -- ${paths.join(' ')} && ${remove} && git checkout -- ${views.join(' ')}`;
+      + tables.map((rel) => `The Epic table in ${rel} was regenerated between its markers, and no command here changes that file, `
+        + `which may hold your own edits: after the undo, \`git diff -- ${rel}\` shows the old rows, to put back by hand. `).join('')
+      + `Undo only this migration: git reset -q -- ${paths.join(' ')} && ${remove} && git checkout -- ${generated.join(' ')}`;
   }
   return `git reset --hard ${tag ?? '<pre-apply-commit>'}   # discards the staged unit records`;
 }
