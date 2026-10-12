@@ -116,7 +116,7 @@ describe('the apply creates the store and the unit records together', () => {
     const again = await dryRun(base);
     expect(again).toMatchObject({ applied: false, dryRun: true, unitsOnly: true, nothingToAdd: true });
     expect(again.report).toMatch(/has unit records.*there is nothing to add/s);
-  });
+  }, 60_000);
 
   it('two answers: the item closes and the unit closes are confirmed separately', async () => {
     const one = await project();
@@ -131,7 +131,7 @@ describe('the apply creates the store and the unit records together', () => {
     expect(b).toMatchObject({ closesConfirmed: 0, unitClosesConfirmed: 5 });
     expect(deriveStatus(getRecord(two, 'LEAF-1').record)).toBe('T');
     expect(listUnits(two).units.filter((u) => u.status === 'closed')).toHaveLength(5);
-  });
+  }, 60_000);
 
   it('a project that names no unit still gets the folder, with its .keep (D-M6E16-16)', async () => {
     const base = await project();

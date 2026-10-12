@@ -16,7 +16,6 @@ import {
   initState,
   readState,
   setCurrentEpic,
-  setCurrentTask,
   StateWriteError,
 } from '../plugin/tools/lib/state.js';
 import { deriveRetroPath, isEpicDone } from '../plugin/tools/lib/retrospective.js';

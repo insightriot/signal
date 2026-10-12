@@ -15,6 +15,9 @@ import {
   AT, cleanupUnitsStores, MILESTONE, milestone7, put, read, retro, ROWS, stateText, unitsStore,
 } from './helpers/units-store-fixture.js';
 
+// Built, not written as a literal: a control character in a pattern is a lint error, and an invisible one in source is unreadable.
+const INVISIBLE = new RegExp(`[\u200b\u202e${String.fromCharCode(7)}]|\u{e0041}`, 'u');
+
 afterEach(cleanupUnitsStores);
 
 const byId = (plan) => Object.fromEntries(plan.units.map((u) => [u.id, u]));
@@ -325,7 +328,7 @@ describe('planUnits — hostile input (NFR input)', () => {
     put(base, MILESTONE, milestone7([`| \`M7.E1\` | ${hidden} | ${'n'.repeat(10_000)} |`, `| \`M7.E2\` | shipped ${'s'.repeat(10_000)} | x |`]));
     const plan = await planUnits(base);
     const text = unitsReportLines(plan).join('\n');
-    expect(text).not.toMatch(/[\u200b\u202e\u0007]|\u{e0041}/u);
+    expect(text).not.toMatch(INVISIBLE);
     expect(Math.max(...text.split('\n').map((l) => l.length))).toBeLessThan(1200);
     expect(byId(plan)['M7.E1'].evidence[0]).toBe('its milestone row says shipped (MILESTONE-7.md:7: “**shipped** now”)');
     expect(byId(plan)['M7.E2'].evidence[0].length).toBeLessThan(220);

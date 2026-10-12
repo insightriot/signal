@@ -22,6 +22,9 @@ import {
 
 afterEach(cleanupUnitsStores);
 
+// Built, not written as a literal: a control character in a pattern is a lint error, and an invisible one in source is unreadable.
+const INVISIBLE = new RegExp(`[\u200b\u202e${String.fromCharCode(7)}]|\u{e0041}`, 'u');
+
 const AT = '2026-10-11';
 const dryRun = (base, opts = {}) => runWorkStoreMigrate(base, { apply: false, ...opts });
 const applyWith = (base, dry, opts = {}) => runWorkStoreMigrate(base, { apply: true, expectedHash: dry.inputHash, stamp: 'T1', at: AT, ...opts });
@@ -537,18 +540,18 @@ describe('--also on the command line', () => {
 describe('hostile text and names, through the command (t7.5)', () => {
   it('invisible characters and a 10 kB cell: the confirm text is printable and cut; the record keeps the cell, cut at its limit', async () => {
     const base = await unitsStore({ repo: true });
-    const hidden = '**shipped**​ ‮now\u0007 \u{e0041}';
+    const hidden = '**shipped**\u200b \u202enow\u0007 \u{e0041}';
     put(base, MILESTONE, milestone7([`| \`M7.E1\` | ${hidden} | ${'n'.repeat(10_000)} |`, ROWS['M7.E9']]));
     commitAll(base);
     const dry = await dryRun(base);
-    expect(dry.report).not.toMatch(/[​‮\u0007]|\u{e0041}/u);
+    expect(dry.report).not.toMatch(INVISIBLE);
     expect(Math.max(...dry.report.split('\n').map((l) => l.length))).toBeLessThan(1200);
     const r = await applyWith(base, dry, { confirmUnitCloses: true });
-    expect(r.report).not.toMatch(/[​‮\u0007]|\u{e0041}/u);
+    expect(r.report).not.toMatch(INVISIBLE);
     const row = getUnit(base, 'M7.E1').record.legacy_row;
     expect(row[1]).toBe('**shipped** now ');
     expect(row[2]).toHaveLength(8000);
-    expect(readFileSync(join(base, UNITS, 'M7.E1.json'), 'utf-8')).not.toMatch(/[​‮\u0007]|\u{e0041}/u);
+    expect(readFileSync(join(base, UNITS, 'M7.E1.json'), 'utf-8')).not.toMatch(INVISIBLE);
   });
 
   it('no unit name reaches a git argument, in the dry run or the apply', async () => {

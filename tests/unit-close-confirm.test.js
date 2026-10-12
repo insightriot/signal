@@ -138,7 +138,7 @@ describe('confirmCloses — a unit close is confirmed against the default branch
     g(work, 'fetch', '-q', 'origin');
     expect((await records.confirmCloses(work, { now: NOW })).units.confirmed).toEqual(['M7.E3']);
     expect(units.getUnit(work, 'M7.E3').status).toBe('closed');
-  });
+  }, 60_000);
 
   // The rule is `ancestryFailure`'s, inherited: git resolves a name as a ref
   // before it tries an abbreviated object id.

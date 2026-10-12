@@ -2,8 +2,10 @@
 // cutover (AC8.1, AC8.4). See .planning/M6.E16-VALIDATION.md rows AC8.1, AC8.4.
 //
 // Read-only, and live: it reads `.planning/work/units/` and the snapshot S0
-// took of the milestone tables before any reader changed
-// (`.planning/M6.E16-BASELINE.json`). Nothing here counts the units or says
+// took of the milestone tables before any reader changed — a copy of
+// `.planning/M6.E16-BASELINE.json` kept as a fixture
+// (`tests/fixtures/unit-baseline/`, REVIEW pass 1, T-S6), so that planning
+// file can be archived without breaking this test. Nothing here counts the units or says
 // which one is open — both move as the repository does. What it pins is what
 // the two criteria say about the units that were over before unit records
 // existed:
@@ -27,10 +29,16 @@ import { deriveNextEpicId } from '../plugin/tools/lib/milestones.js';
 
 const REPO = fileURLToPath(new URL('..', import.meta.url));
 
-const baseline = JSON.parse(readFileSync(join(REPO, '.planning/M6.E16-BASELINE.json'), 'utf-8'));
+const baseline = JSON.parse(readFileSync(join(REPO, 'tests/fixtures/unit-baseline/M6.E16-BASELINE.json'), 'utf-8'));
 const SHIPPED_RE = /shipped/i;
 const shippedRows = baseline.units.filter((u) => u.milestone_row && SHIPPED_RE.test(u.milestone_row.cells[1]));
 const NEVER_RAN = ['M5.E11', 'M5.E12', 'M5.E14', 'M5.E20'];
+
+// The first close a record holds, or null. What these criteria pin is how a
+// unit that was over before unit records was RECORDED — not what it reads
+// today: reopening one later is allowed, and must not fail this file
+// (REVIEW pass 1, T-S7).
+const firstClose = (unit) => unit.record.events?.find((e) => e.type === 'closed') ?? null;
 
 // A unit as the record reads, or what stopped it being read.
 const read = (id) => {
@@ -47,11 +55,11 @@ describe('AC8.1 — every Epic that shipped before unit records is closed as leg
     expect(shippedRows.length).toBe(baseline.counts.shipped_rows);
   });
 
-  it('each shipped row has a record that reads closed, with reason legacy', () => {
+  it('each shipped row has a record whose first close is a legacy close', () => {
     const wrong = shippedRows
       .map((row) => read(row.id))
-      .filter((u) => u.status !== 'closed' || u.close?.reason !== 'legacy')
-      .map((u) => `${u.id}: ${u.status}${u.close ? ` (${u.close.reason})` : ''}`);
+      .filter((u) => firstClose(u)?.reason !== 'legacy')
+      .map((u) => `${u.id}: ${u.status}; first close ${firstClose(u)?.reason ?? 'none'}`);
     expect(wrong).toEqual([]);
   });
 
@@ -61,8 +69,8 @@ describe('AC8.1 — every Epic that shipped before unit records is closed as leg
     }
   });
 
-  it('v0.1.6, a unit that is not an Epic ID, reads closed as legacy', () => {
-    expect(read('v0.1.6')).toMatchObject({ status: 'closed', close: { reason: 'legacy' } });
+  it('v0.1.6, a unit that is not an Epic ID, was first closed as legacy', () => {
+    expect(firstClose(read('v0.1.6'))).toMatchObject({ reason: 'legacy' });
   });
 
   it('no unit record is broken', () => {
@@ -72,10 +80,10 @@ describe('AC8.1 — every Epic that shipped before unit records is closed as leg
 
 describe('AC8.4 — the Epic IDs that never ran are closed as dropped, and are not handed out again', () => {
   for (const id of NEVER_RAN) {
-    it(`${id} reads closed as dropped, with a sentence`, () => {
-      const unit = read(id);
-      expect(unit).toMatchObject({ status: 'closed', close: { reason: 'dropped' } });
-      expect(unit.close.words).toMatch(/\p{L}{2,}/u);
+    it(`${id} was first closed as dropped, with a sentence`, () => {
+      const close = firstClose(read(id));
+      expect(close).toMatchObject({ reason: 'dropped' });
+      expect(close.words).toMatch(/\p{L}{2,}/u);
     });
   }
 

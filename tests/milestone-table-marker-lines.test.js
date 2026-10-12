@@ -12,6 +12,7 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { join } from 'node:path';
+import { performance } from 'node:perf_hooks';
 
 import { epicMarkers, upsertEpicTable, EPICS_BEGIN, EPICS_END } from '../plugin/tools/lib/milestone-table.js';
 import { runWorkStoreMigrate } from '../plugin/tools/lib/work-migrate-lists.js';
@@ -117,7 +118,7 @@ describe('the migration\'s dry run lists what the apply removes between the mark
 
   it('a line between the markers that is not a table row is named, with its line number, cleaned and cut', async () => {
     const base = await unitsStore({ repo: true });
-    const note = `A note a person left​ here. ${'x'.repeat(600)}`;
+    const note = `A note a person left\u200b here. ${'x'.repeat(600)}`;
     put(base, MILESTONE, marked([ROWS['M7.E1'], '', note, ROWS['M7.E9'], '- and a list item']));
     commitAll(base);
     const dry = await dryRun(base);

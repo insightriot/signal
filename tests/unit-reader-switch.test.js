@@ -232,7 +232,7 @@ describe('AC6.1 — each reader follows the files without unit records and the r
       expect(r.on, 'the record must contradict the files, or the check shows nothing').not.toEqual(r.off);
       expect((await r.run({ units: false })).sort(), 'without unit records: the files').toEqual(r.off);
       expect((await r.run({ units: true })).sort(), 'with unit records: the record').toEqual(r.on);
-    });
+    }, 60_000); // the branch-work row builds two git repositories (REVIEW pass 1, T-S8)
   }
 });
 

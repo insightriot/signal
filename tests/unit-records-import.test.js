@@ -331,7 +331,7 @@ describe('free text kept from a hand-written source (NFR input, AC8.1)', () => {
     expect(one.events[0].words).toBe('shipped now');
     const words = record(base, 'M8.E2').events[0].words;
     expect(words.length).toBe(units.CLOSE_WORDS_MAX);
-    expect(JSON.stringify(units.listUnits(base).units)).not.toMatch(/[\u200b\u202e\u0007]/);
+    expect(JSON.stringify(units.listUnits(base).units)).not.toMatch(new RegExp(`[\u200b\u202e${String.fromCharCode(7)}]`));
   });
 
   it('dropped words that are only invisible characters are no words', async () => {
@@ -344,7 +344,7 @@ describe('free text kept from a hand-written source (NFR input, AC8.1)', () => {
   // cutover test (AC8.1, `unit-records-live-cutover.test.js`) compares each legacy record's cells with these, so
   // what the import does to a cell must leave every real one as it is.
   it('every milestone-row cell in the S0 baseline survives the import unchanged', () => {
-    const baseline = JSON.parse(readFileSync(new URL('../.planning/M6.E16-BASELINE.json', import.meta.url), 'utf-8'));
+    const baseline = JSON.parse(readFileSync(new URL('./fixtures/unit-baseline/M6.E16-BASELINE.json', import.meta.url), 'utf-8'));
     const cells = baseline.units.filter((u) => u.milestone_row).flatMap((u) => u.milestone_row.cells);
     expect(cells.length).toBeGreaterThan(100);
     for (const cell of cells) expect(cut(printable(cell), units.LEGACY_CELL_MAX)).toBe(cell);

@@ -285,8 +285,8 @@ describe('assertUnitId (AC1.3)', () => {
       }
       expect(caught).toMatchObject({ name: 'WorkStoreError', code: 'SCHEMA' });
       expect(caught.message.length).toBeLessThan(400);
-      // A RegExp from a string: a line separator inside a regex literal breaks the parse.
-      expect(caught.message).not.toMatch(new RegExp('[\\u0000-\\u001f\\u007f-\\uffff]'));
+      // Every character is printable ASCII: no control character, no line separator, nothing invisible.
+      expect(caught.message).toMatch(/^[\x20-\x7e]*$/);
     });
   }
 

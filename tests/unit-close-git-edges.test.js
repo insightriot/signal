@@ -1,0 +1,282 @@
+// M6.E16 REVIEW pass 1, T-S5 — the git answers a unit close meets that no test
+// held: a shallow clone, a remote with no default-branch ref, a default branch
+// that is not `main`, a detached HEAD when the close is requested and when it
+// is confirmed, and a put-back that fails after a write fails.
+// See .planning/M6.E16-VALIDATION.md row "T-S5".
+//
+// Temp repositories, real git; one write failure is injected and says so.
+// Unit names are invented.
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { chmodSync } from 'node:fs';
+import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { join, dirname } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { tmpdir } from 'node:os';
+
+import { closeEpic } from '../plugin/tools/lib/work-ops.js';
+import * as records from '../plugin/tools/lib/work-records.js';
+import { serializeRecord } from '../plugin/tools/lib/work-record.js';
+import { getUnit } from '../plugin/tools/lib/unit-records.js';
+import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
+import { regenerateViews } from '../plugin/tools/lib/work-views.js';
+
+const AT = '2026-10-11T10:00:00.000Z';
+const NOW = '2026-10-12T10:00:00.000Z';
+const by = 'claude';
+const EPIC = 'M7.E3';
+const UNITS = '.planning/work/units';
+const RETRO = '# Retrospective\n\n## Timeline\n\nIt shipped.\n';
+const opened = { type: 'opened', at: AT, by };
+const request = (proof) => ({ type: 'close_requested', at: AT, by, proof });
+const isRoot = typeof process.getuid === 'function' && process.getuid() === 0;
+// This file's own git calls run without the user's git configuration (REVIEW pass 1, N4).
+const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+
+function g(cwd, ...args) {
+  const r = spawnSync('git', ['-c', 'commit.gpgsign=false', '-c', 'user.email=t@t.co', '-c', 'user.name=T', ...args], { cwd, encoding: 'utf8', env: GIT_ENV });
+  if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
+  return r.stdout.trim();
+}
+
+let root;
+beforeEach(async () => {
+  root = await mkdtemp(join(tmpdir(), 'sig-unit-git-edges-'));
+});
+afterEach(async () => {
+  await rm(root, { recursive: true, force: true });
+});
+
+async function put(dir, rel, content) {
+  const p = join(dir, rel);
+  await mkdir(dirname(p), { recursive: true });
+  await writeFile(p, content, 'utf-8');
+}
+
+// The store's files, with the unit's record as given.
+async function store(dir, unitEvents, items = []) {
+  await put(dir, '.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n');
+  await put(dir, `${UNITS}/.keep`, '');
+  for (const r of items) await put(dir, records.recordPath(r.id), serializeRecord(r));
+  if (unitEvents) await put(dir, `${UNITS}/${EPIC}.json`, UNIT_KIND.serializeRecord({ id: EPIC, events: unitEvents }));
+}
+const unitText = (dir) => readFile(join(dir, `${UNITS}/${EPIC}.json`), 'utf-8');
+
+// A bare remote whose default branch is `branch`, with `n` commits on it.
+async function plantRemote(branch = 'main', n = 3) {
+  const remote = join(root, 'remote.git');
+  const seed = join(root, 'seed');
+  await mkdir(seed, { recursive: true });
+  g(root, 'init', '-q', '--bare', '-b', branch, remote);
+  g(seed, 'init', '-q', '-b', branch);
+  const shas = [];
+  for (let i = 0; i < n; i += 1) {
+    g(seed, 'commit', '-q', '--allow-empty', '-m', `c${i}`);
+    shas.push(g(seed, 'rev-parse', 'HEAD'));
+  }
+  g(seed, 'remote', 'add', 'origin', remote);
+  g(seed, 'push', '-q', '-u', 'origin', branch);
+  return { remote, seed, shas };
+}
+
+describe('a shallow clone: the commit is there and git cannot say whether it is on the default branch', () => {
+  it('a local commit on top of the one commit a depth-1 clone holds stays closing as `shallow`, not `not-on-default-branch`', async () => {
+    const { remote } = await plantRemote();
+    const work = join(root, 'work');
+    g(root, 'clone', '-q', '--depth', '1', pathToFileURL(remote).href, work);
+    expect(g(work, 'rev-parse', '--is-shallow-repository')).toBe('true');
+    g(work, 'checkout', '-q', '-b', 'feat/x');
+    g(work, 'commit', '-q', '--allow-empty', '-m', 'local work');
+    const local = g(work, 'rev-parse', 'HEAD');
+    await store(work, [opened, request(local)]);
+    const before = await unitText(work);
+    const out = await records.confirmCloses(work, { now: NOW });
+    expect(out.units).toEqual({ confirmed: [], stillClosing: [{ id: EPIC, reason: 'shallow' }], stale: [] });
+    expect(await unitText(work)).toBe(before);
+  });
+
+  it('a commit cut off by the depth stays closing as `shallow` too, and the one the clone holds on origin/main confirms', async () => {
+    const { remote, shas } = await plantRemote();
+    const work = join(root, 'work');
+    g(root, 'clone', '-q', '--depth', '1', pathToFileURL(remote).href, work);
+    await store(work, [opened, request(shas[0])]);
+    expect((await records.confirmCloses(work, { now: NOW })).units.stillClosing).toEqual([{ id: EPIC, reason: 'shallow' }]);
+    await put(work, `${UNITS}/${EPIC}.json`, UNIT_KIND.serializeRecord({ id: EPIC, events: [opened, request(shas[2])] }));
+    expect((await records.confirmCloses(work, { now: NOW, regenerate: async () => {} })).units.confirmed).toEqual([EPIC]);
+  });
+});
+
+describe('a remote with no default-branch ref', () => {
+  it('a remote that was added and never fetched: the unit stays closing as `no-default-branch`, nothing written', async () => {
+    const { remote } = await plantRemote();
+    const work = join(root, 'work');
+    await mkdir(work, { recursive: true });
+    g(work, 'init', '-q', '-b', 'main');
+    g(work, 'commit', '-q', '--allow-empty', '-m', 'local');
+    g(work, 'remote', 'add', 'origin', remote);
+    await store(work, [opened, request(g(work, 'rev-parse', 'HEAD'))]);
+    const before = await unitText(work);
+    const out = await records.confirmCloses(work, { now: NOW });
+    expect(out.units).toEqual({ confirmed: [], stillClosing: [{ id: EPIC, reason: 'no-default-branch' }], stale: [] });
+    expect(await unitText(work)).toBe(before);
+  });
+
+  it('a clone whose origin/<default> ref was deleted: `no-default-branch`', async () => {
+    const { remote, shas } = await plantRemote();
+    const work = join(root, 'work');
+    g(root, 'clone', '-q', remote, work);
+    g(work, 'update-ref', '-d', 'refs/remotes/origin/main');
+    await store(work, [opened, request(shas[0])]);
+    const out = await records.confirmCloses(work, { now: NOW });
+    expect(out.units.confirmed).toEqual([]);
+    expect(out.units.stillClosing).toEqual([{ id: EPIC, reason: 'no-default-branch' }]);
+  });
+});
+
+describe('a default branch that is not called main', () => {
+  it('the remote\'s default is `trunk`: a commit on origin/trunk confirms; one only on a local branch named main does not', async () => {
+    const { remote, shas } = await plantRemote('trunk');
+    const work = join(root, 'work');
+    g(root, 'clone', '-q', remote, work);
+    g(work, 'checkout', '-q', '-b', 'main');
+    g(work, 'commit', '-q', '--allow-empty', '-m', 'on a local main, never pushed');
+    const localMain = g(work, 'rev-parse', 'HEAD');
+    await store(work, [opened, request(localMain)]);
+    expect((await records.confirmCloses(work, { now: NOW })).units.stillClosing).toEqual([{ id: EPIC, reason: 'not-on-default-branch' }]);
+    await put(work, `${UNITS}/${EPIC}.json`, UNIT_KIND.serializeRecord({ id: EPIC, events: [opened, request(shas[1])] }));
+    expect((await records.confirmCloses(work, { now: NOW, regenerate: async () => {} })).units.confirmed).toEqual([EPIC]);
+    expect(getUnit(work, EPIC).close).toMatchObject({ reason: 'shipped', proof: shas[1] });
+  });
+
+  it('renamed on the remote after the clone (main → trunk): the clone still compares with the ref it has, origin/main', async () => {
+    const { remote, seed, shas } = await plantRemote('main');
+    const work = join(root, 'work');
+    g(root, 'clone', '-q', remote, work);
+    // The remote renames its default branch and gains a commit the clone never fetches.
+    g(seed, 'branch', '-m', 'main', 'trunk');
+    g(seed, 'commit', '-q', '--allow-empty', '-m', 'after the rename');
+    g(seed, 'push', '-q', 'origin', 'trunk');
+    g(remote, 'symbolic-ref', 'HEAD', 'refs/heads/trunk');
+    const afterRename = g(seed, 'rev-parse', 'HEAD');
+    // A commit that was on main before the rename still confirms: origin/main is what this clone knows.
+    await store(work, [opened, request(shas[2])]);
+    expect((await records.confirmCloses(work, { now: NOW, regenerate: async () => {} })).units.confirmed).toEqual([EPIC]);
+    // One that exists only on the renamed branch is unknown here until a fetch: it stays closing, with a reason.
+    await put(work, `${UNITS}/${EPIC}.json`, UNIT_KIND.serializeRecord({ id: EPIC, events: [opened, request(afterRename)] }));
+    const out = await records.confirmCloses(work, { now: NOW });
+    expect(out.units.confirmed).toEqual([]);
+    expect(out.units.stillClosing).toEqual([{ id: EPIC, reason: 'unknown-commit' }]);
+  });
+});
+
+// A project with unit records, the Epic open and its retrospective written,
+// committed and pushed to a bare origin whose default branch is main; then
+// one more commit on a branch (the Epic's work), and HEAD detached on it.
+async function detachedProject() {
+  const repo = join(root, 'work');
+  await mkdir(repo, { recursive: true });
+  g(repo, 'init', '-q', '-b', 'main');
+  await store(repo, [opened]);
+  await put(repo, `.planning/${EPIC}-RETROSPECTIVE.md`, RETRO);
+  await regenerateViews(repo);
+  g(repo, 'add', '-A');
+  g(repo, 'commit', '-q', '-m', 'before the Epic\'s work');
+  const bare = join(root, 'remote.git');
+  g(root, 'init', '-q', '--bare', '-b', 'main', bare);
+  g(repo, 'remote', 'add', 'origin', bare);
+  g(repo, 'push', '-q', '-u', 'origin', 'main');
+  g(repo, 'remote', 'set-head', 'origin', 'main');
+  g(repo, 'checkout', '-q', '-b', 'feat/epic');
+  await put(repo, 'src/work.txt', 'the Epic\'s work\n');
+  g(repo, 'add', '-A');
+  g(repo, 'commit', '-q', '-m', 'the Epic\'s work');
+  const head = g(repo, 'rev-parse', 'HEAD');
+  g(repo, 'checkout', '-q', '--detach', head);
+  expect(spawnSync('git', ['symbolic-ref', '-q', 'HEAD'], { cwd: repo, env: GIT_ENV }).status).not.toBe(0); // detached
+  return { repo, bare, head };
+}
+
+describe('a detached HEAD', () => {
+  it('at the close request: closeEpic takes the detached commit as the proof, and the unit reads closing', async () => {
+    const { repo, head } = await detachedProject();
+    const out = await closeEpic(repo, EPIC, { by, at: AT });
+    expect(out).toMatchObject({ status: 'close-requested', epic: EPIC, commit: head });
+    expect(getUnit(repo, EPIC)).toMatchObject({ status: 'closing', closing_proof: head });
+  }, 60_000);
+
+  it('at the confirm: the remote ref is what is compared — not on it, closing; once it is there, confirmed, HEAD still detached', async () => {
+    const { repo, head } = await detachedProject();
+    await closeEpic(repo, EPIC, { by, at: AT });
+    expect((await records.confirmCloses(repo, { now: NOW })).units.stillClosing).toEqual([{ id: EPIC, reason: 'not-on-default-branch' }]);
+    g(repo, 'push', '-q', 'origin', `${head}:refs/heads/main`);
+    g(repo, 'fetch', '-q', 'origin');
+    expect(spawnSync('git', ['symbolic-ref', '-q', 'HEAD'], { cwd: repo, env: GIT_ENV }).status).not.toBe(0); // still detached
+    const out = await records.confirmCloses(repo, { now: NOW });
+    expect(out.units.confirmed).toEqual([EPIC]);
+    expect(getUnit(repo, EPIC).close).toMatchObject({ reason: 'shipped', proof: head });
+  }, 60_000);
+});
+
+describe('a put-back that fails (injected): the error names what was left changed', () => {
+  it.skipIf(isRoot)('the unit write fails and the item written before it cannot be put back → `leftChanged` names the item', async () => {
+    const { remote, shas } = await plantRemote();
+    const work = join(root, 'work');
+    g(root, 'clone', '-q', remote, work);
+    const item = { id: 'SIG-1', type: 'BUG', title: 't', events: [{ type: 'created', at: AT, by }, { type: 'close_requested', at: AT, by, reason: 'fixed', proof: shas[0] }] };
+    await store(work, [opened, request(shas[0])], [item]);
+    const itemAbs = join(work, records.recordPath('SIG-1'));
+    const itemDir = dirname(itemAbs);
+    const unitBefore = await unitText(work);
+    let renames = 0;
+    // Injected: the first rename (the item's record) goes through; the second
+    // (the unit's) fails — and by then the item's folder cannot be written, so
+    // the put-back of the item, which uses the real rename, fails too.
+    const renameFn = async (from, to) => {
+      renames += 1;
+      if (renames === 1) {
+        const { rename } = await import('node:fs/promises');
+        return rename(from, to);
+      }
+      chmodSync(itemDir, 0o555);
+      throw Object.assign(new Error('injected: the disk is full'), { code: 'ENOSPC' });
+    };
+    let err = null;
+    try {
+      await records.confirmCloses(work, { now: NOW, renameFn });
+    } catch (e) {
+      err = e;
+    } finally {
+      chmodSync(itemDir, 0o755);
+    }
+    expect(renames).toBe(2);
+    expect(err).toMatchObject({ name: 'WorkStoreError' });
+    expect(err.leftChanged).toEqual(['SIG-1']);
+    expect(err.message).toMatch(/the write failed and SIG-1 could not be put back/);
+    // What stands is what the error says: the item's close landed, the unit's did not.
+    expect(JSON.parse(await readFile(itemAbs, 'utf-8')).events.at(-1)).toMatchObject({ type: 'closed', proof: shas[0] });
+    expect(await unitText(work)).toBe(unitBefore);
+  });
+
+  it('the control: the same failure with a put-back that works leaves nothing changed, and says so', async () => {
+    const { remote, shas } = await plantRemote();
+    const work = join(root, 'work');
+    g(root, 'clone', '-q', remote, work);
+    const item = { id: 'SIG-1', type: 'BUG', title: 't', events: [{ type: 'created', at: AT, by }, { type: 'close_requested', at: AT, by, reason: 'fixed', proof: shas[0] }] };
+    await store(work, [opened, request(shas[0])], [item]);
+    const itemBefore = await readFile(join(work, records.recordPath('SIG-1')), 'utf-8');
+    let renames = 0;
+    const renameFn = async (from, to) => {
+      renames += 1;
+      if (renames === 1) {
+        const { rename } = await import('node:fs/promises');
+        return rename(from, to);
+      }
+      throw Object.assign(new Error('injected: the disk is full'), { code: 'ENOSPC' });
+    };
+    const err = await records.confirmCloses(work, { now: NOW, renameFn }).catch((e) => e);
+    expect(err).toMatchObject({ name: 'WorkStoreError' });
+    expect(err.leftChanged).toEqual([]);
+    expect(await readFile(join(work, records.recordPath('SIG-1')), 'utf-8')).toBe(itemBefore);
+  });
+});

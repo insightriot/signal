@@ -112,7 +112,7 @@ describe('a close request refuses a short proof that names more than one commit 
 describe('closeEpic scans pr and release as they will be stored (C-S1)', () => {
   // A key with a zero-width space inside it: the raw text is no hit, the
   // stored text (invisible characters removed) is.
-  const HIDDEN = `AKIA​${'ABCDEFGH'.repeat(2)}`;
+  const HIDDEN = `AKIA\u200b${'ABCDEFGH'.repeat(2)}`;
 
   it.each([['pr'], ['release']])('a hit only in the cleaned %s stops the close with {aborted}; nothing is written', async (field) => {
     await project([['M7.E3', [opened]]]);

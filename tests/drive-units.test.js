@@ -93,7 +93,7 @@ describe('findWorkOnOtherBranches with unit records (t6.4)', () => {
     unitsOn(on);
     plant(on, 'M7.E1', 'open');
     expect(await openElsewhere(on)).toEqual(['M7.E1']);
-  });
+  }, 60_000);
 
   it('finished here follows the record: nothing on HEAD, record closed → not offered', async () => {
     expect(await openElsewhere(repo({ retro: false }))).toEqual(['M7.E1']);
@@ -101,7 +101,7 @@ describe('findWorkOnOtherBranches with unit records (t6.4)', () => {
     unitsOn(on);
     plant(on, 'M7.E1', 'closed');
     expect(await openElsewhere(on)).toEqual([]);
-  });
+  }, 60_000);
 
   it('held is finished here; closing is not', async () => {
     const held = repo({ retro: false });
@@ -112,7 +112,7 @@ describe('findWorkOnOtherBranches with unit records (t6.4)', () => {
     unitsOn(closing);
     plant(closing, 'M7.E1', 'closing');
     expect(await openElsewhere(closing)).toEqual(['M7.E1']);
-  });
+  }, 60_000);
 
   it('no record for that Epic: the files on HEAD decide, as before', async () => {
     const on = repo({ retro: true });

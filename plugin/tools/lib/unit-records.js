@@ -190,6 +190,28 @@ export function caseTwins(ids) {
     .sort((a, b) => (a[0] < b[0] ? -1 : 1));
 }
 
+/**
+ * `checkUnits`' `duplicate-id` findings for a list of unit IDs: one per set
+ * that differs only by letter case (`caseTwins`), naming every record's path.
+ * Pure — it reads no disk — so the finding can be tested on a machine whose
+ * disk cannot hold both files (REVIEW pass 1, T-S3).
+ *
+ * @param {string[]} ids
+ * @returns {Array<{code: 'duplicate-id', id: string, path: string, paths: string[], message: string}>}
+ */
+export function caseTwinFindings(ids) {
+  return caseTwins(ids).map((group) => {
+    const paths = group.map(relOf);
+    return {
+      code: 'duplicate-id',
+      id: group[0],
+      path: paths[0],
+      paths,
+      message: `${paths[0]}: ${group.join(', ')} differ only by case (${paths.join(', ')}) — on a disk that ignores case they are one file`,
+    };
+  });
+}
+
 // ── Reading ─────────────────────────────────────────────────────────────────
 
 const LINK_REFUSED = 'is a symbolic link — refused; a unit record is read only as a regular file';
@@ -530,16 +552,7 @@ export function checkUnits(baseDir) {
     if (collision) findings.push({ code: 'invalid', id: file.id, path: file.rel, message: `${file.rel}: ${collision}` });
   }
 
-  for (const group of caseTwins(walked.files.map((f) => f.id))) {
-    const paths = group.map(relOf);
-    findings.push({
-      code: 'duplicate-id',
-      id: group[0],
-      path: paths[0],
-      paths,
-      message: `${paths[0]}: ${group.join(', ')} differ only by case (${paths.join(', ')}) — on a disk that ignores case they are one file`,
-    });
-  }
+  findings.push(...caseTwinFindings(walked.files.map((f) => f.id)));
 
   return findings.sort((a, b) => {
     if ((a.id === null) !== (b.id === null)) return a.id === null ? 1 : -1;
