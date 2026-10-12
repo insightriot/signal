@@ -79,9 +79,10 @@ describe('AC8.4 — the Epic IDs that never ran are closed as dropped, and are n
     });
   }
 
-  it('the next Epic ID under milestone 5 is past every dropped one (M5.E21 at the cutover) and names no existing unit', async () => {
+  // Milestone 5 is closed, so nothing will open `M5.E21` and the literal stays true.
+  it('the next Epic ID under milestone 5 is M5.E21: past every dropped one, and no existing unit', async () => {
     const next = await deriveNextEpicId(REPO, { milestone: '5' });
-    expect(next).toMatch(/^M5\.E\d+$/);
+    expect(next).toBe('M5.E21');
     const highestDropped = Math.max(...NEVER_RAN.map((id) => Number(id.split('.E')[1])));
     expect(Number(next.split('.E')[1])).toBeGreaterThan(highestDropped);
     expect(listUnits(REPO).units.map((u) => u.id)).not.toContain(next);
