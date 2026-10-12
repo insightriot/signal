@@ -7,19 +7,12 @@
 // them is either overwritten at the next regeneration or, for a record, an
 // edit the event log never saw. Bodies (`items/**/*.md`) stay editable.
 // Unit records (`work/units/*.json`, M6.E16/t2.5, AC2.2) are guarded as item
-// records are; they are written by unit-records.js, not by `/sig:item`. On a
-// project that HAS `work/units`, every other path under it is guarded too,
-// whatever its name (REVIEW pass 1, C-S4 / S-L4): nothing but the library
-// writes in that folder, its `.keep` included (`ensureUnitsDir`, which no hook
-// sees).
-//
-// ⚠ NOT guarded: a path under `work/units/` that is not `*.json`, on a project
-// where `work/units` does not exist. A `Write` of `units/notes.md` there
-// creates the folder, and the folder existing is what turns unit records on.
-// Blocking it is a new refusal for a project without unit records, which
-// AC6.4 does not name and `tests/unit-records-off-parity.test.js` pins as
-// allowed (`hook.unitsFolderNote`) — so it is left as on `v0.1.50` until that
-// criterion says otherwise. `unitsFolderThere` below is the one condition.
+// records are; they are written by unit-records.js, not by `/sig:item`. Every
+// other path under `work/units/` is guarded too, whatever its name and whether
+// or not the folder exists (REVIEW pass 1, C-S4 / S-L4; AC6.4 kind a): nothing
+// but the library writes in that folder, its `.keep` included (`ensureUnitsDir`,
+// which no hook sees), and a `Write` of `units/notes.md` on a project without
+// the folder would create it — the folder existing is what turns unit records on.
 // `work/WORK.md` is guarded too, with its own message (REVIEW I7), but only
 // against the two edits that matter: one that would change or remove
 // `schema_version: 2`, which would switch this guard off, and one that would
@@ -53,7 +46,7 @@
 // Windows `M6.E16.json.`, `M6.E16.json ` and `M6.E16.json::$DATA` all open
 // `M6.E16.json`, so each of those spellings is that file here.
 
-import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 import { shownName } from './printable-text.js';
@@ -105,19 +98,6 @@ const isUnitRecord = (rel) => {
   return segs[0] === '.planning' && segs[1] === 'work' && segs[2] === 'units';
 };
 const isWorkMd = (rel) => relSegs(rel).join('/') === '.planning/work/work.md';
-// A path under `work/units/` that is not a record's (`*.json`), or `work/units` itself.
-const isUnitsOther = (rel) => isUnitRecord(rel) && !relSegs(rel).at(-1).endsWith('.json') && !rel.toLowerCase().endsWith('.json');
-
-// Is there anything at `.planning/work/units` — a folder, a file or a link?
-function unitsFolderThere(baseDir) {
-  try {
-    lstatSync(join(baseDir, '.planning', 'work', 'units'));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 // Is `segs` (lower-cased, after `.planning/`) a protected target?
 function isTarget(segs) {
   if (segs.length === 1) return VIEWS.has(segs[0]);
@@ -249,8 +229,6 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
       try {
         const { storeVersion } = await import('./work-records.js');
         if (storeVersion(baseDir) !== 2) continue;
-        // See the header: without the folder, only a record's path is guarded.
-        if (isUnitsOther(rel) && !unitsFolderThere(baseDir)) continue;
         if (!isWorkMd(rel)) return { block: true, reason: BLOCK_MESSAGE(rel) };
         if (await changesVersionOrKey(abs, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
       } catch {

@@ -164,18 +164,18 @@ describe('work write guard — v2 store', () => {
     }
   });
 
-  // ⚠ This case pins a gap, on purpose. Without `work/units`, a Write of
-  // `units/notes.md` creates the folder and so turns unit records on (C-S4).
-  // Blocking it is a new refusal for a project without unit records: AC6.4 does
-  // not name it and tests/unit-records-off-parity.test.js pins it as allowed
-  // (`hook.unitsFolderNote`). Left as on v0.1.50 until AC6.4 is amended; when it
-  // is, this case flips to 2 and `unitsFolderThere` goes.
-  it('without the folder, a record\'s path is blocked and any other path under units/ is still allowed (as on v0.1.50)', () => {
+  // Without `work/units`, a Write of `units/notes.md` would create the folder
+  // and so turn unit records on (C-S4). AC6.4 kind (a): guarded, folder or not.
+  it('without the folder, every path under units/ is blocked, and so is the folder\'s own path', () => {
     rmSync(join(dir, '.planning', 'work', 'units'), { recursive: true, force: true });
-    expect(runHook(write(join(dir, '.planning/work/units/M7.E1.json'))).status).toBe(2);
-    expect(runHook(write(join(dir, '.planning/work/units/M7.E1.json::$DATA'))).status).toBe(2);
-    for (const rel of ['.planning/work/units/notes.md', '.planning/work/units/.keep', '.planning/work/units']) {
-      expect(runHook(write(join(dir, rel))).status, rel).toBe(0);
+    for (const rel of [
+      '.planning/work/units/M7.E1.json',
+      '.planning/work/units/M7.E1.json::$DATA',
+      '.planning/work/units/notes.md',
+      '.planning/work/units/.keep',
+      '.planning/work/units',
+    ]) {
+      expect(runHook(write(join(dir, rel))).status, rel).toBe(2);
     }
   });
 

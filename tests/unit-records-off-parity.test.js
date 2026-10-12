@@ -138,6 +138,7 @@ const withoutKindsAAndB = (capture) => {
 
   // (a) what this Epic adds
   delete out['hook.unitRecord']; // the edit hook guards `work/units/` paths, folder or not (AC2.2)
+  delete out['hook.unitsFolderNote']; // …every path there: writing one would create the folder and turn unit records on
   delete out['migrate.dryRun']; // the dry run on a store-on project proposes unit records (AC9.2)…
   delete out['migrate.applyWithoutHash']; // …so its apply is refused for the missing hash, not for the store being there
   delete out.senseArchiveTree.held; // a new key, empty without unit records
@@ -284,13 +285,13 @@ describe('no work/units/: with only the kinds of difference AC6.4 names taken ou
 });
 
 describe('store on, no work/units/: (a) what this Epic adds', () => {
-  it('the edit hook blocks a write to work/units/*.json though the folder does not exist; v0.1.50 allowed it (AC2.2)', () => {
+  it('the edit hook blocks a write under work/units/ though the folder does not exist; v0.1.50 allowed it (AC2.2)', () => {
     expect(V0150['hook.unitRecord']).toEqual({ block: false });
     expect(now['hook.unitRecord'].block).toBe(true);
     expect(now['hook.unitRecord'].message).toMatch(/unit record/);
-    // Another file in that folder is not a record, and is not blocked.
-    expect(now['hook.unitsFolderNote']).toEqual(V0150['hook.unitsFolderNote']);
-    expect(now['hook.unitsFolderNote'].block).toBe(false);
+    // Another file in that folder: writing it would create the folder, so it is blocked too.
+    expect(V0150['hook.unitsFolderNote']).toEqual({ block: false });
+    expect(now['hook.unitsFolderNote'].block).toBe(true);
   });
 
   it('the migration\'s dry run on a store-on project proposes unit records; v0.1.50 refused "already on the store" (AC9.2)', () => {

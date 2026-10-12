@@ -84,13 +84,11 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   `.planning`, it lazy-loads `tools/lib/work-write-guard.js`. That **blocks** a
   hand edit of `.planning/work/items/**/*.json`, `BUGS.md`, `BACKLOG.md`,
   `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `work/EPICS.md`, `work/history/*.md`
-  and (M6.E16/t2.5) a unit record, `.planning/work/units/*.json`, and — on a
-  project where `.planning/work/units` is there — every
-  other path under `.planning/work/units/` and that path itself (nothing is
-  written in the folder by hand; its `.keep` is the library's). **Not blocked:**
-  a path under `work/units/` that is not `*.json` while the folder does not
-  exist, although writing one creates the folder and so turns unit records on —
-  blocking it would be a new refusal for a project without unit records
+  and (M6.E16/t2.5) a unit record, `.planning/work/units/*.json`, every
+  other path under `.planning/work/units/` and that path itself, whether or not
+  the folder exists (nothing is written in the folder by hand; its `.keep` is
+  the library's, and writing a file there creates the folder and so turns unit
+  records on)
   — **only** when `.planning/work/WORK.md` reads `schema_version: 2` — naming
   `/sig:item`; for a unit record the message adds that `/sig:item` does not
   change one and that unit records change only through Signal's own commands
