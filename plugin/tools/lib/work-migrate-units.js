@@ -43,7 +43,7 @@ import { cut, printable } from './printable-text.js';
 import { retroStatusFromContent, RETRO_STATUS } from './retro-index.js';
 import { parseFrontmatter } from './state.js';
 import { compareUnitIds, epicIdParts } from './unit-record.js';
-import { assertUnitId, caseTwins, listUnits, unitRecordsOn } from './unit-records.js';
+import { assertUnitId, caseTwins, importUnitsTexts, listUnits, unitRecordsOn } from './unit-records.js';
 import { WorkStoreError } from './work-errors.js';
 import { epicOf } from './work-record.js';
 import { listRecords, storeVersion } from './work-records.js';
@@ -619,12 +619,23 @@ export function unitImportList(plan, { confirmCloses = false, at, by = 'migratio
   return out;
 }
 
-// Every text an import of this plan would write, for the sensitive-data scan.
+// Every text an import of this plan would write, for the sensitive-data scan
+// — as the writer stores it (`importUnitsTexts`, which cleans each text with
+// the function `importUnits` uses), not as the project's files hold it
+// (REVIEW pass 1, S-M3): the raw cell and the stored cell differ by every
+// invisible character, and a key split by one passed a scan of the raw cell.
+// Both lists are scanned, the confirmed one and the unconfirmed one: which is
+// written depends on an answer given after the scan, and they hold different
+// fields of the same row (the whole old row, or its third cell as a summary).
 export function unitImportTexts(plan) {
-  return unitImportList(plan, { confirmCloses: true, at: '2000-01-01' }).flatMap((u) => [
-    { id: u.id, text: u.migration_note }, { id: u.id, text: u.summary }, { id: u.id, text: u.close?.words },
-    ...(u.legacy_row ?? []).map((text) => ({ id: u.id, text })),
-  ]).filter((t) => typeof t.text === 'string' && t.text !== '');
+  const seen = new Set();
+  return [true, false].flatMap((confirmCloses) => importUnitsTexts(unitImportList(plan, { confirmCloses, at: '2000-01-01' })))
+    .filter((t) => {
+      const key = `${t.id}\u0000${t.text}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 const PROPOSAL_WORDS = {

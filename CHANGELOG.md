@@ -89,6 +89,9 @@ records now.
   hook's message. A refusal echoes at most 300 characters of a record's value. A record file over
   4 MB is reported as broken by name and is not read. The refusal to open a closed Epic no longer
   prints the close's free-text words.
+- **`/sig:docs-migrate --work-store` scans the text it will store.** Its sensitive-data check read a
+  milestone row as written and the record kept it without invisible characters, so a key split by
+  one passed the check and was stored whole. The check now reads the cleaned text.
 - **A `work/units/` folder that cannot be trusted is an error, not "no unit records".** When it is
   a symbolic link, a file, or cannot be listed, commands that write or move refuse and name the
   folder, and everything that asks whether a unit is closed answers that it cannot tell. No unit is

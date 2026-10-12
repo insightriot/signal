@@ -384,6 +384,23 @@ describe('refusals — nothing written, no tag', () => {
     expect(bytesOf(base)).toEqual(before);
     expect((await applyWith(base, dry, { confirmUnitCloses: true, acknowledgeSensitive: true })).applied).toBe(true);
   });
+
+  // REVIEW pass 1, S-M3: the scan read the raw cell and the writer stored the
+  // cleaned one, so a key split by an invisible character passed and was stored whole.
+  it('a key hidden by a zero-width space in a row is found: the scan reads the text that will be stored', async () => {
+    const base = await unitsStore({ repo: true });
+    const hidden = `AKIA${String.fromCharCode(0x200b)}IOSFODNN7EXAMPLE`;
+    put(base, MILESTONE, milestone7([`| \`M7.E1\` | **shipped** | key ${hidden} |`]));
+    commitAll(base);
+    const dry = await dryRun(base);
+    expect(dry.sensitiveHits).toEqual([{ id: 'M7.E1', file: 'unit', type: 'aws-key', match: 'AKIAIO…' }]);
+    expect(dry.report).toMatch(/Sensitive data found/);
+    const before = bytesOf(base);
+    expect(await applyWith(base, dry, { confirmUnitCloses: true })).toMatchObject({ applied: false, aborted: 'sensitive-data-pending' });
+    expect(bytesOf(base)).toEqual(before);
+    expect((await applyWith(base, dry, { confirmUnitCloses: true, acknowledgeSensitive: true })).applied).toBe(true);
+    expect(getUnit(base, 'M7.E1').record.legacy_row[2]).toBe('key AKIAIOSFODNN7EXAMPLE');
+  });
 });
 
 describe('a failure part-way puts everything back', () => {

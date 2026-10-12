@@ -860,6 +860,26 @@ const importedTexts = (records) => records.flatMap((r) => [
   r.title, r.summary, r.migration_note, ...(r.legacy_row ?? []), r.events[0].words, r.events[0].pr, r.events[0].release,
 ]);
 
+/**
+ * Every text `importUnits` would STORE for a list, each with its unit's ID —
+ * for a caller that runs its own sensitive-data scan before it calls
+ * `importUnits` with `acknowledgeSensitive` (the migration; REVIEW pass 1,
+ * S-M3). The texts are the cleaned ones (`importedRecord`, the function the
+ * writer uses), so the scan reads what will be on disk: a key with an
+ * invisible character inside is stored without it, and is scanned without it.
+ * Reads nothing and writes nothing.
+ *
+ * @param {object[]} list — as `importUnits` takes
+ * @returns {Array<{id: string, text: string}>}
+ * @throws {WorkStoreError} SCHEMA — what `importUnits` refuses before it reads the store
+ */
+export function importUnitsTexts(list) {
+  return list.flatMap((entry) => {
+    const record = importedRecord(entry);
+    return importedTexts([record]).filter((text) => typeof text === 'string' && text !== '').map((text) => ({ id: record.id, text }));
+  });
+}
+
 // A file's bytes, or null when nothing is there. Read for the put-back only.
 function bytesOrNull(abs) {
   try {
