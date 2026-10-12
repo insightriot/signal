@@ -51,8 +51,12 @@ records now.
   existing, a verdict line, a milestone row or a file's folder no longer decides it.
   `/sig:docs-archive` declines a held unit and prints the reason. SHIP no longer reads the milestone
   row to decide whether it closes the Epic, and the next Epic ID counts records as well as filenames.
-- **A project without `work/units/` behaves as it did on `v0.1.50`.** Every reader keeps its old
-  path, and the existing tests for those projects pass unchanged.
+- **A project without `work/units/` gets the same answers, refusals and file moves as on
+  `v0.1.50`.** Every reader keeps its old path, and the existing tests for those projects pass
+  unchanged. Four things differ, and a test pins the list: the message when an item is queued for a
+  unit name that is not an Epic ID (still refused); the item schema accepts such a name in an event;
+  the archive report object has a `settled` list and count (empty; the printed report is the same);
+  and one sentence of `/sig:docs-migrate`'s dry run was corrected (below, `SIG-289`).
 - **Signal's own Epics are records:** 48 of them — 1 open, 43 closed as legacy (shipped before this
   release, confirmed as one list), 4 Epic IDs that never ran recorded as dropped.
 

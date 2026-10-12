@@ -4280,3 +4280,11 @@ Settles `SIG-295`. With unit records SHIP only requests the close and `/sig:chec
 finished Epic's narrative. The confirm step (`runConfirmCloses`, at SHIP and in the sweep) is the one
 place that knows a unit has just become closed, so it evicts there and reports the result; a refusal
 leaves the confirmation standing.
+
+### D-M6E16-20 — "Exactly as `v0.1.50`" means the same answers, refusals and moves; four named differences are accepted (Claude)
+Amends AC6.4, at VERIFY loop 1. Run side by side against `main`, a project with no unit records got
+identical closure answers, refusals and file moves, and differed in four places: one refusal's
+wording, the item schema's wider unit-name rule (declared under Blast radius), two new empty fields
+on the archive report, and one dry-run sentence corrected because it was false. Restoring the old
+text and shape would mean a second schema rule and a sentence known to be untrue, so the criterion
+names the four and `tests/unit-records-off-parity.test.js` fails on a fifth.
