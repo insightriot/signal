@@ -480,8 +480,12 @@
 - [work/items/00/SIG-296.md](work/items/00/SIG-296.md) — `other` — _(note pending)_
 - [work/items/00/SIG-297.md](work/items/00/SIG-297.md) — `other` — _(note pending)_
 - [work/items/00/SIG-298.md](work/items/00/SIG-298.md) — `other` — _(note pending)_
+- [work/items/00/SIG-299.md](work/items/00/SIG-299.md) — `other` — _(note pending)_
 - [work/items/00/SIG-3.md](work/items/00/SIG-3.md) — `other` — _(note pending)_
 - [work/items/00/SIG-30.md](work/items/00/SIG-30.md) — `other` — _(note pending)_
+- [work/items/00/SIG-300.md](work/items/00/SIG-300.md) — `other` — _(note pending)_
+- [work/items/00/SIG-301.md](work/items/00/SIG-301.md) — `other` — _(note pending)_
+- [work/items/00/SIG-302.md](work/items/00/SIG-302.md) — `other` — _(note pending)_
 - [work/items/00/SIG-31.md](work/items/00/SIG-31.md) — `other` — _(note pending)_
 - [work/items/00/SIG-32.md](work/items/00/SIG-32.md) — `other` — _(note pending)_
 - [work/items/00/SIG-33.md](work/items/00/SIG-33.md) — `other` — _(note pending)_
