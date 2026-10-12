@@ -579,5 +579,533 @@
     "status": "T",
     "epic": null
   },
-  "calls": 72
+  "firstTime.linear.dryRun": {
+    "applied": false,
+    "refused": false,
+    "dryRun": true,
+    "key": "LEAF",
+    "files": [
+      [
+        ".planning/BUGS.md",
+        2,
+        2,
+        0,
+        2
+      ]
+    ],
+    "items": [
+      [
+        "LEAF-1",
+        "B1",
+        "T",
+        "no-evidence"
+      ],
+      [
+        "LEAF-2",
+        "B2",
+        "T",
+        "status-unmapped"
+      ]
+    ],
+    "proposedCloses": [],
+    "sensitiveHits": 0,
+    "units": null,
+    "proposedUnitCloses": null,
+    "report": [
+      "/sig:docs-migrate --work-store — dry run (nothing written)",
+      "",
+      "Project key: LEAF (from --key)",
+      "Closes are checked against this repository's history — the default branch, main (1 commits, 1 retrospectives): an entry is proposed for closing only when its wording says it is finished AND a commit, pull request or Epic it cites is found there. Nothing closes unless you confirm the proposals. Anything else stays open, flagged, with a note saying what was found and not found.",
+      ".planning/BUGS.md: 2 items (2 open, 0 closed, 2 flagged), 2 non-item regions (preamble, blank) — moved to .planning/archive/pre-work-store/BUGS.md",
+      "  dates: first 2026-10-11, last 2026-10-11 (git history)",
+      "",
+      "Items — new ID, old ID, status (N new, T open, C closed), title:",
+      "  LEAF-1  B1  T  Header lost — shipped with phase-11.  [flagged: no-evidence]",
+      "  LEAF-2  B2  T  Margin wrong.  [flagged: status-unmapped]",
+      "",
+      "2 items are flagged: left open for a person's look, each with a migration_note saying why. Triage them with /sig:item after the apply.",
+      "",
+      "--apply moves each list to .planning/archive/pre-work-store/ (with MANIFEST.json), writes 2 records, .planning/work/WORK.md and the generated views (.planning/BUGS.md, .planning/BACKLOG.md, .planning/ISSUES-INBOX.md, .planning/OPEN-QUESTIONS.md, .planning/work/EPICS.md, plus .planning/work/history/ for closes more than 30 days old), regenerates .planning/INDEX.md if the project has one, and leaves them staged, not committed."
+    ]
+  },
+  "firstTime.linear.apply": {
+    "applied": true,
+    "refused": false,
+    "key": "LEAF",
+    "mode": "git",
+    "tag": "pre-work-store-fixed-stamp",
+    "revertLine": "git reset --hard pre-work-store-fixed-stamp   # discards the staged work-store changes",
+    "written": [
+      ".planning/BUGS.md",
+      ".planning/BACKLOG.md",
+      ".planning/ISSUES-INBOX.md",
+      ".planning/OPEN-QUESTIONS.md",
+      ".planning/work/EPICS.md"
+    ],
+    "archived": [
+      [
+        ".planning/BUGS.md",
+        ".planning/archive/pre-work-store/BUGS.md"
+      ]
+    ],
+    "records": 2,
+    "flagged": 2,
+    "closesConfirmed": 0,
+    "warnings": [],
+    "units": null,
+    "unitClosesConfirmed": null,
+    "report": [
+      "/sig:docs-migrate --work-store — the work store is on (key LEAF)",
+      "",
+      "Wrote 2 records under .planning/work/items/, .planning/work/WORK.md and the generated views: .planning/BUGS.md, .planning/BACKLOG.md, .planning/ISSUES-INBOX.md, .planning/OPEN-QUESTIONS.md, .planning/work/EPICS.md.",
+      "Moved .planning/BUGS.md to .planning/archive/pre-work-store/BUGS.md, byte for byte (2 items, 2 non-item regions).",
+      "Manifest: .planning/archive/pre-work-store/MANIFEST.json — where every entry went, the verification result, and where the dates came from.",
+      "2 items are flagged for a person's look (each carries a migration_note saying why): triage with /sig:item.",
+      "Staged, not committed — review with `git diff --cached`, then commit.",
+      "Pre-apply tag: pre-work-store-fixed-stamp",
+      "Undo: git reset --hard pre-work-store-fixed-stamp   # discards the staged work-store changes"
+    ]
+  },
+  "firstTime.linear.treeAfterApply": [
+    ".planning/BACKLOG.md",
+    ".planning/BUGS.md",
+    ".planning/ISSUES-INBOX.md",
+    ".planning/OPEN-QUESTIONS.md",
+    ".planning/STATE.md",
+    ".planning/archive/pre-work-store/BUGS.md",
+    ".planning/archive/pre-work-store/MANIFEST.json",
+    ".planning/phase-11-PLAN.md",
+    ".planning/phase-11-RETROSPECTIVE.md",
+    ".planning/phase-11-VERIFICATION.md",
+    ".planning/phase-12-PLAN.md",
+    ".planning/work/EPICS.md",
+    ".planning/work/WORK.md",
+    ".planning/work/items/00/LEAF-1.json",
+    ".planning/work/items/00/LEAF-1.md",
+    ".planning/work/items/00/LEAF-2.json",
+    ".planning/work/items/00/LEAF-2.md"
+  ],
+  "firstTime.linear.gitStatusAfterApply": [
+    "A  .planning/BACKLOG.md",
+    "A  .planning/ISSUES-INBOX.md",
+    "A  .planning/OPEN-QUESTIONS.md",
+    "A  .planning/archive/pre-work-store/BUGS.md",
+    "A  .planning/archive/pre-work-store/MANIFEST.json",
+    "A  .planning/work/EPICS.md",
+    "A  .planning/work/WORK.md",
+    "A  .planning/work/items/00/LEAF-1.json",
+    "A  .planning/work/items/00/LEAF-1.md",
+    "A  .planning/work/items/00/LEAF-2.json",
+    "A  .planning/work/items/00/LEAF-2.md",
+    "M  .planning/BUGS.md"
+  ],
+  "firstTime.linear.workMd": [
+    "---",
+    "key: LEAF",
+    "schema_version: 2",
+    "---",
+    "",
+    "# Work store",
+    "",
+    "This file switches the work-item store on for this project. Every bug, backlog row, inbox capture and open question is one **record**, `items/NN/LEAF-n.json` in this folder (NN is the item number divided by 1000, two digits), with its body beside it as `LEAF-n.md`. **A record never moves.** Its status is not stored: it is derived from the record's own events — `created` → N, `triaged` → T, `queued` → Q, `started` → P, `close_requested` → *closing*, `closed` → C, `reopened` → T.",
+    "",
+    "- `items/` — every record and its body, by number",
+    "- `epics/<EpicID>/` — an Epic's documents; its items are the records whose events name the Epic",
+    "- `history/YYYY.md` — closes from more than 30 days before the newest event (a view)",
+    "",
+    "`key` is the prefix of every item ID (`LEAF-1`, `LEAF-2`, …).",
+    "",
+    "`BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `work/EPICS.md` and `work/history/` are views generated from the records — do not edit them. Change an item with `/sig:item` (`new`, `triage`, `move`, `close`, `reopen`, `edit`, `show`, `list`); a hook blocks hand edits to records.",
+    "",
+    "The store was turned on by `/sig:docs-migrate --work-store`. The lists kept by hand before then are kept, byte for byte, in `.planning/archive/pre-work-store/`: `BUGS.md`, with `MANIFEST.json` saying where each entry went.",
+    ""
+  ],
+  "firstTime.epics.dryRun": {
+    "applied": false,
+    "refused": false,
+    "dryRun": true,
+    "key": "LEAF",
+    "files": [
+      [
+        ".planning/BUGS.md",
+        2,
+        2,
+        0,
+        2
+      ]
+    ],
+    "items": [
+      [
+        "LEAF-1",
+        "B1",
+        "T",
+        "looks-finished"
+      ],
+      [
+        "LEAF-2",
+        "B2",
+        "T",
+        "status-unmapped"
+      ]
+    ],
+    "proposedCloses": [
+      "LEAF-1"
+    ],
+    "sensitiveHits": 0,
+    "units": null,
+    "proposedUnitCloses": null,
+    "report": [
+      "/sig:docs-migrate --work-store — dry run (nothing written)",
+      "",
+      "Project key: LEAF (from --key)",
+      "Closes are checked against this repository's history — the default branch, main (1 commits, 1 retrospectives): an entry is proposed for closing only when its wording says it is finished AND a commit, pull request or Epic it cites is found there. Nothing closes unless you confirm the proposals. Anything else stays open, flagged, with a note saying what was found and not found.",
+      ".planning/BUGS.md: 2 items (2 open, 0 closed, 2 flagged), 2 non-item regions (preamble, blank) — moved to .planning/archive/pre-work-store/BUGS.md",
+      "  dates: first 2026-10-11, last 2026-10-11 (git history)",
+      "",
+      "Items — new ID, old ID, status (N new, T open, C closed), title:",
+      "  LEAF-1  B1  T  Header lost — shipped with M9.E1.  [flagged: looks-finished]",
+      "  LEAF-2  B2  T  Margin wrong.  [flagged: status-unmapped]",
+      "",
+      "2 items are flagged: left open for a person's look, each with a migration_note saying why. Triage them with /sig:item after the apply.",
+      "",
+      "Proposed closes (1) — confirm to close them; anything not confirmed stays open, flagged looks-finished. New ID, old ID, title, the wording, the evidence:",
+      "  LEAF-1  B1  Header lost — shipped with M9.E1.  — wording “fixed”; evidence M9.E1 → .planning/M9.E1-RETROSPECTIVE.md",
+      "",
+      "--apply moves each list to .planning/archive/pre-work-store/ (with MANIFEST.json), writes 2 records, .planning/work/WORK.md and the generated views (.planning/BUGS.md, .planning/BACKLOG.md, .planning/ISSUES-INBOX.md, .planning/OPEN-QUESTIONS.md, .planning/work/EPICS.md, plus .planning/work/history/ for closes more than 30 days old), regenerates .planning/INDEX.md if the project has one, and leaves them staged, not committed."
+    ]
+  },
+  "firstTime.epics.apply": {
+    "applied": true,
+    "refused": false,
+    "key": "LEAF",
+    "mode": "git",
+    "tag": "pre-work-store-fixed-stamp",
+    "revertLine": "git reset --hard pre-work-store-fixed-stamp   # discards the staged work-store changes",
+    "written": [
+      ".planning/BUGS.md",
+      ".planning/BACKLOG.md",
+      ".planning/ISSUES-INBOX.md",
+      ".planning/OPEN-QUESTIONS.md",
+      ".planning/work/EPICS.md"
+    ],
+    "archived": [
+      [
+        ".planning/BUGS.md",
+        ".planning/archive/pre-work-store/BUGS.md"
+      ]
+    ],
+    "records": 2,
+    "flagged": 1,
+    "closesConfirmed": 1,
+    "warnings": [],
+    "units": null,
+    "unitClosesConfirmed": null,
+    "report": [
+      "/sig:docs-migrate --work-store — the work store is on (key LEAF)",
+      "",
+      "Wrote 2 records under .planning/work/items/, .planning/work/WORK.md and the generated views: .planning/BUGS.md, .planning/BACKLOG.md, .planning/ISSUES-INBOX.md, .planning/OPEN-QUESTIONS.md, .planning/work/EPICS.md.",
+      "Moved .planning/BUGS.md to .planning/archive/pre-work-store/BUGS.md, byte for byte (2 items, 2 non-item regions).",
+      "Manifest: .planning/archive/pre-work-store/MANIFEST.json — where every entry went, the verification result, and where the dates came from.",
+      "Closed 1 proposed close, as confirmed (each a legacy close; its proof is the wording and the evidence).",
+      "1 item is flagged for a person's look (each carries a migration_note saying why): triage with /sig:item.",
+      "Staged, not committed — review with `git diff --cached`, then commit.",
+      "Pre-apply tag: pre-work-store-fixed-stamp",
+      "Undo: git reset --hard pre-work-store-fixed-stamp   # discards the staged work-store changes"
+    ]
+  },
+  "firstTime.epics.treeAfterApply": [
+    ".planning/BACKLOG.md",
+    ".planning/BUGS.md",
+    ".planning/ISSUES-INBOX.md",
+    ".planning/M9.E1-PLAN.md",
+    ".planning/M9.E1-RETROSPECTIVE.md",
+    ".planning/M9.E1-VERIFICATION.md",
+    ".planning/M9.E2-PLAN.md",
+    ".planning/M9.E9-PLAN.md",
+    ".planning/MILESTONE-9.md",
+    ".planning/OPEN-QUESTIONS.md",
+    ".planning/STATE.md",
+    ".planning/archive/pre-work-store/BUGS.md",
+    ".planning/archive/pre-work-store/MANIFEST.json",
+    ".planning/work/EPICS.md",
+    ".planning/work/WORK.md",
+    ".planning/work/items/00/LEAF-1.json",
+    ".planning/work/items/00/LEAF-1.md",
+    ".planning/work/items/00/LEAF-2.json",
+    ".planning/work/items/00/LEAF-2.md"
+  ],
+  "firstTime.epics.gitStatusAfterApply": [
+    "A  .planning/BACKLOG.md",
+    "A  .planning/ISSUES-INBOX.md",
+    "A  .planning/OPEN-QUESTIONS.md",
+    "A  .planning/archive/pre-work-store/BUGS.md",
+    "A  .planning/archive/pre-work-store/MANIFEST.json",
+    "A  .planning/work/EPICS.md",
+    "A  .planning/work/WORK.md",
+    "A  .planning/work/items/00/LEAF-1.json",
+    "A  .planning/work/items/00/LEAF-1.md",
+    "A  .planning/work/items/00/LEAF-2.json",
+    "A  .planning/work/items/00/LEAF-2.md",
+    "M  .planning/BUGS.md"
+  ],
+  "firstTime.epics.workMd": [
+    "---",
+    "key: LEAF",
+    "schema_version: 2",
+    "---",
+    "",
+    "# Work store",
+    "",
+    "This file switches the work-item store on for this project. Every bug, backlog row, inbox capture and open question is one **record**, `items/NN/LEAF-n.json` in this folder (NN is the item number divided by 1000, two digits), with its body beside it as `LEAF-n.md`. **A record never moves.** Its status is not stored: it is derived from the record's own events — `created` → N, `triaged` → T, `queued` → Q, `started` → P, `close_requested` → *closing*, `closed` → C, `reopened` → T.",
+    "",
+    "- `items/` — every record and its body, by number",
+    "- `epics/<EpicID>/` — an Epic's documents; its items are the records whose events name the Epic",
+    "- `history/YYYY.md` — closes from more than 30 days before the newest event (a view)",
+    "",
+    "`key` is the prefix of every item ID (`LEAF-1`, `LEAF-2`, …).",
+    "",
+    "`BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `work/EPICS.md` and `work/history/` are views generated from the records — do not edit them. Change an item with `/sig:item` (`new`, `triage`, `move`, `close`, `reopen`, `edit`, `show`, `list`); a hook blocks hand edits to records.",
+    "",
+    "The store was turned on by `/sig:docs-migrate --work-store`. The lists kept by hand before then are kept, byte for byte, in `.planning/archive/pre-work-store/`: `BUGS.md`, with `MANIFEST.json` saying where each entry went.",
+    ""
+  ],
+  "firstTime.archivedEpic.dryRun": {
+    "applied": false,
+    "refused": false,
+    "dryRun": true,
+    "key": "LEAF",
+    "files": [
+      [
+        ".planning/BUGS.md",
+        2,
+        2,
+        0,
+        2
+      ]
+    ],
+    "items": [
+      [
+        "LEAF-1",
+        "B1",
+        "T",
+        "looks-finished"
+      ],
+      [
+        "LEAF-2",
+        "B2",
+        "T",
+        "status-unmapped"
+      ]
+    ],
+    "proposedCloses": [
+      "LEAF-1"
+    ],
+    "sensitiveHits": 0,
+    "units": null,
+    "proposedUnitCloses": null,
+    "report": [
+      "/sig:docs-migrate --work-store — dry run (nothing written)",
+      "",
+      "Project key: LEAF (from --key)",
+      "Closes are checked against this repository's history — the default branch, main (1 commits, 1 retrospectives): an entry is proposed for closing only when its wording says it is finished AND a commit, pull request or Epic it cites is found there. Nothing closes unless you confirm the proposals. Anything else stays open, flagged, with a note saying what was found and not found.",
+      ".planning/BUGS.md: 2 items (2 open, 0 closed, 2 flagged), 2 non-item regions (preamble, blank) — moved to .planning/archive/pre-work-store/BUGS.md",
+      "  dates: first 2026-10-11, last 2026-10-11 (git history)",
+      "",
+      "Items — new ID, old ID, status (N new, T open, C closed), title:",
+      "  LEAF-1  B1  T  Header lost — shipped with M9.E1.  [flagged: looks-finished]",
+      "  LEAF-2  B2  T  Margin wrong.  [flagged: status-unmapped]",
+      "",
+      "2 items are flagged: left open for a person's look, each with a migration_note saying why. Triage them with /sig:item after the apply.",
+      "",
+      "Proposed closes (1) — confirm to close them; anything not confirmed stays open, flagged looks-finished. New ID, old ID, title, the wording, the evidence:",
+      "  LEAF-1  B1  Header lost — shipped with M9.E1.  — wording “fixed”; evidence M9.E1 → .planning/M9.E1-RETROSPECTIVE.md",
+      "",
+      "--apply moves each list to .planning/archive/pre-work-store/ (with MANIFEST.json), writes 2 records, .planning/work/WORK.md and the generated views (.planning/BUGS.md, .planning/BACKLOG.md, .planning/ISSUES-INBOX.md, .planning/OPEN-QUESTIONS.md, .planning/work/EPICS.md, plus .planning/work/history/ for closes more than 30 days old), regenerates .planning/INDEX.md if the project has one, and leaves them staged, not committed."
+    ]
+  },
+  "firstTime.archivedEpic.apply": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "the migrated store did not verify:\n  checkRecords view-stale: .planning/work/EPICS.md: differs from a regeneration of the records — edited by hand, or not regenerated"
+  },
+  "firstTime.archivedEpic.treeAfterApply": [
+    ".planning/BUGS.md",
+    ".planning/M9.E1-PLAN.md",
+    ".planning/M9.E1-RETROSPECTIVE.md",
+    ".planning/M9.E1-VERIFICATION.md",
+    ".planning/M9.E2-PLAN.md",
+    ".planning/M9.E9-PLAN.md",
+    ".planning/MILESTONE-9.md",
+    ".planning/STATE.md",
+    ".planning/archive/epics/M9.E3/README.md"
+  ],
+  "firstTime.archivedEpic.gitStatusAfterApply": [],
+  "firstTime.archivedEpic.workMd": {
+    "refused": true,
+    "code": "ENOENT",
+    "message": "ENOENT: no such file or directory, open '<project>/.planning/work/WORK.md'"
+  },
+  "v1ToV2.dryRun": {
+    "mode": "dry-run",
+    "summary": {
+      "v1Files": 3,
+      "records": 3,
+      "errors": 0,
+      "closeForms": {
+        "legacy": 1
+      },
+      "legacyCloses": 1,
+      "cellsRemoved": 0,
+      "statusLinesRemoved": 0,
+      "linksRewritten": 0,
+      "createdFromFallback": 0
+    },
+    "errors": [],
+    "items": [
+      [
+        "LEAF-2",
+        "work/backlog/LEAF-2.md",
+        ".planning/work/items/00/LEAF-2.json",
+        ".planning/archive/pre-work-store-v2/work/backlog/LEAF-2.md",
+        null
+      ],
+      [
+        "LEAF-3",
+        "work/done/2026-09/LEAF-3.md",
+        ".planning/work/items/00/LEAF-3.json",
+        ".planning/archive/pre-work-store-v2/work/done/2026-09/LEAF-3.md",
+        "legacy"
+      ],
+      [
+        "LEAF-1",
+        "work/inbox/LEAF-1.md",
+        ".planning/work/items/00/LEAF-1.json",
+        ".planning/archive/pre-work-store-v2/work/inbox/LEAF-1.md",
+        null
+      ]
+    ],
+    "closes": {
+      "requested": [],
+      "confirmed": null,
+      "stillClosing": null
+    }
+  },
+  "v1ToV2.dryRun.workMd": [
+    "---",
+    "key: LEAF",
+    "schema_version: 2",
+    "---",
+    "",
+    "# Work store",
+    "",
+    "This file switches the work-item store on for this project. Every bug, backlog row, inbox capture and open question is one **record**, `.planning/work/items/NN/LEAF-n.json` (NN is the item number divided by 1000, two digits), with its body beside it as `LEAF-n.md`. **A record never moves.** Its status is not stored: it is derived from the record's own events — `created` → N, `triaged` → T, `queued` → Q, `started` → P, `close_requested` → *closing*, `closed` → C, `reopened` → T.",
+    "",
+    "- `items/` — every record and its body, by number",
+    "- `epics/<EpicID>/` — an Epic's documents; its items are the records whose events name the Epic",
+    "- `history/YYYY.md` — closes from more than 30 days before the newest event (a view)",
+    "",
+    "`key` is the prefix of every item ID (`LEAF-412`). The standing trigger watchlist lives next to this file in `WATCHLIST.md`.",
+    "",
+    "`BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `work/EPICS.md` and `work/history/` are views generated from the records — do not edit them. Change an item with `/sig:item` (`new`, `triage`, `move`, `close`, `reopen`, `edit`, `show`, `list`); a hook blocks hand edits to records.",
+    "",
+    "This store was migrated from v1 item files (`node tools/work-migrate-v2.mjs --apply`). Those files are kept, never deleted, in `.planning/archive/pre-work-store-v2/`, with the migration's `MANIFEST.json`.",
+    ""
+  ],
+  "v1ToV2.apply": {
+    "mode": "apply",
+    "summary": {
+      "v1Files": 3,
+      "records": 3,
+      "errors": 0,
+      "closeForms": {
+        "legacy": 1
+      },
+      "legacyCloses": 1,
+      "cellsRemoved": 0,
+      "statusLinesRemoved": 0,
+      "linksRewritten": 0,
+      "createdFromFallback": 0
+    },
+    "errors": [],
+    "items": [
+      [
+        "LEAF-2",
+        "work/backlog/LEAF-2.md",
+        ".planning/work/items/00/LEAF-2.json",
+        ".planning/archive/pre-work-store-v2/work/backlog/LEAF-2.md",
+        null
+      ],
+      [
+        "LEAF-3",
+        "work/done/2026-09/LEAF-3.md",
+        ".planning/work/items/00/LEAF-3.json",
+        ".planning/archive/pre-work-store-v2/work/done/2026-09/LEAF-3.md",
+        "legacy"
+      ],
+      [
+        "LEAF-1",
+        "work/inbox/LEAF-1.md",
+        ".planning/work/items/00/LEAF-1.json",
+        ".planning/archive/pre-work-store-v2/work/inbox/LEAF-1.md",
+        null
+      ]
+    ],
+    "closes": {
+      "requested": [],
+      "confirmed": [],
+      "stillClosing": []
+    }
+  },
+  "v1ToV2.apply.workMd": [
+    "---",
+    "key: LEAF",
+    "schema_version: 2",
+    "---",
+    "",
+    "# Work store",
+    "",
+    "This file switches the work-item store on for this project. Every bug, backlog row, inbox capture and open question is one **record**, `.planning/work/items/NN/LEAF-n.json` (NN is the item number divided by 1000, two digits), with its body beside it as `LEAF-n.md`. **A record never moves.** Its status is not stored: it is derived from the record's own events — `created` → N, `triaged` → T, `queued` → Q, `started` → P, `close_requested` → *closing*, `closed` → C, `reopened` → T.",
+    "",
+    "- `items/` — every record and its body, by number",
+    "- `epics/<EpicID>/` — an Epic's documents; its items are the records whose events name the Epic",
+    "- `history/YYYY.md` — closes from more than 30 days before the newest event (a view)",
+    "",
+    "`key` is the prefix of every item ID (`LEAF-412`). The standing trigger watchlist lives next to this file in `WATCHLIST.md`.",
+    "",
+    "`BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `work/EPICS.md` and `work/history/` are views generated from the records — do not edit them. Change an item with `/sig:item` (`new`, `triage`, `move`, `close`, `reopen`, `edit`, `show`, `list`); a hook blocks hand edits to records.",
+    "",
+    "This store was migrated from v1 item files (`node tools/work-migrate-v2.mjs --apply`). Those files are kept, never deleted, in `.planning/archive/pre-work-store-v2/`, with the migration's `MANIFEST.json`.",
+    ""
+  ],
+  "v1ToV2.treeAfterApply": [
+    ".planning/BACKLOG.md",
+    ".planning/BUGS.md",
+    ".planning/ISSUES-INBOX.md",
+    ".planning/OPEN-QUESTIONS.md",
+    ".planning/archive/pre-work-store-v2/MANIFEST.json",
+    ".planning/archive/pre-work-store-v2/work/backlog/LEAF-2.md",
+    ".planning/archive/pre-work-store-v2/work/done/2026-09/LEAF-3.md",
+    ".planning/archive/pre-work-store-v2/work/inbox/LEAF-1.md",
+    ".planning/work/EPICS.md",
+    ".planning/work/WORK.md",
+    ".planning/work/history/2026.md",
+    ".planning/work/items/00/LEAF-1.json",
+    ".planning/work/items/00/LEAF-1.md",
+    ".planning/work/items/00/LEAF-2.json",
+    ".planning/work/items/00/LEAF-2.md",
+    ".planning/work/items/00/LEAF-3.json",
+    ".planning/work/items/00/LEAF-3.md"
+  ],
+  "args.workStore": {
+    "apply": true,
+    "force": false,
+    "workStore": true,
+    "key": "LEAF"
+  },
+  "args.also": {
+    "apply": false,
+    "force": false,
+    "workStore": true
+  },
+  "calls": 94
 }
