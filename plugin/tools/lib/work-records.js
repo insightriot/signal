@@ -50,7 +50,7 @@ import { EPIC_ID_STRICT_RE, parseFrontmatter } from './state.js';
 // evaluated. (The sync readers below — `listClosing`, `probeCloses` — need it
 // without an `await`.)
 import * as unitLib from './unit-records.js';
-import { hasUnitsSafe, listUnits } from './unit-records.js';
+import { hasUnitsSafe, listUnits, UNITS_REL } from './unit-records.js';
 // The write helpers every record kind shares. `regenerateAfter` comes in under
 // another name because this module keeps its own, which names the views.
 import {
@@ -272,7 +272,11 @@ const keyOf = (id) => id.slice(0, id.lastIndexOf('-'));
 // One record file → an entry, or {broken}. Never throws for content. A
 // broken entry's `code` says what kind (`path`, `unreadable`, `invalid`,
 // `events`), for `checkRecords`.
-function readOne(file, key, body) {
+//
+// `epicOnly` (M6.E16 v2.1, AC6.4): the project has no unit records, so an
+// event may name an Epic ID only, as the schema itself said on `v0.1.50`; a
+// record naming any other unit is `invalid`, as it was then.
+function readOne(file, key, body, epicOnly) {
   const fail = (error, code) => ({ broken: { id: file.id, path: file.rel, code, error } });
   if (keyOf(file.id) !== key) return fail(`${file.rel}: key ${keyOf(file.id)} is not this store's key (${key})`, 'path');
   const expected = recordPath(file.id);
@@ -286,6 +290,16 @@ function readOne(file, key, body) {
   }
   const { record, errors } = parseRecord(text, { path: file.rel });
   if (errors.length > 0) return fail(errors.join('; '), 'invalid');
+  if (epicOnly) {
+    const notEpic = record.events
+      .map((e, i) => (typeof e.epic === 'string' && !EPIC_ID_RE.test(e.epic)
+        ? `${file.rel}: events[${i}].epic does not match ${EPIC_ID_RE.source} (got ${JSON.stringify(e.epic)})` : null))
+      .filter((e) => e !== null);
+    if (notEpic.length > 0) {
+      return fail(`${notEpic.join('; ')} — not an Epic ID, and this project has no unit records `
+        + `(${UNITS_REL}/ does not exist), so an item can name an Epic only`, 'invalid');
+    }
+  }
   if (record.id !== file.id) return fail(`${file.rel}: file name says ${file.id} but the record id is ${record.id}`, 'path');
   const eventErrors = checkEvents(record);
   if (eventErrors.length > 0) return fail(`${file.rel}: ${eventErrors.map((e) => e.message).join('; ')}`, 'events');
@@ -303,6 +317,7 @@ function readOne(file, key, body) {
 
 function listV2(baseDir, key, opts) {
   const walked = walkItems(baseDir, { strict: opts.strict });
+  const epicOnly = !hasUnitsSafe(baseDir).has;
   const broken = [...walked.broken];
   const brokenBody = new Map(broken.filter((b) => b.id && b.path.endsWith('.md')).map((b) => [b.id, b]));
   const records = [];
@@ -312,7 +327,7 @@ function listV2(baseDir, key, opts) {
       if (brokenBody.has(file.id)) body = { broken: brokenBody.get(file.id) };
       else body = walked.bodies.get(file.id) ?? null;
     }
-    const r = readOne(file, key, body);
+    const r = readOne(file, key, body, epicOnly);
     if (r.entry) records.push(r.entry);
     // A refused body is already in `broken` from the walk.
     else if (!(body?.broken && r.broken.path === body.broken.path)) broken.push(r.broken);
@@ -422,7 +437,9 @@ const byNumber = (a, b) => numberOf(a.id) - numberOf(b.id) || (a.path < b.path ?
  * `broken` by ID and path, with the reason. A record is broken when its JSON
  * does not parse or validate, its file name, ID, key or bucket disagree
  * (AC1.1), its event history does not fold (`checkEvents`), or it — or its
- * body, when bodies are read — is a symbolic link.
+ * body, when bodies are read — is a symbolic link. On a project with no unit
+ * records, a record whose event names a unit that is not an Epic ID is broken
+ * too (`invalid`), as on `v0.1.50` (M6.E16 v2.1, AC6.4).
  *
  * On a v1 store every item file is read through `convertV1Item` (Decision 1),
  * and `path` is the v1 file. An item with no created date of its own takes the
@@ -522,7 +539,7 @@ function readV2One(baseDir, key, id) {
   let body = null;
   if (b?.isSymbolicLink()) body = { broken: { path: bodyRel, error: `${bodyRel} ${LINK_REFUSED}` } };
   else if (b?.isFile()) body = { rel: bodyRel, abs: join(baseDir, bodyRel) };
-  const r = readOne({ id, rel, abs: join(baseDir, rel) }, key, body);
+  const r = readOne({ id, rel, abs: join(baseDir, rel) }, key, body, !hasUnitsSafe(baseDir).has);
   return r.entry ? { records: [r.entry], broken: [] } : { records: [], broken: [r.broken] };
 }
 

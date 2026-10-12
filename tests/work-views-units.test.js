@@ -289,6 +289,10 @@ describe('regenerateViews on a project with unit records', () => {
 
   it('without a units folder the folder view is written, as before (AC6.4)', async () => {
     await mkdir(join(base, '.planning/work/epics/M7.E10'), { recursive: true });
+    // SIG-4 is queued for `phase-11`. Without unit records that record is broken,
+    // as on `v0.1.50` (v2.1), and the views refuse over a broken record.
+    await expect(regenerateViews(base)).rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/SIG-4.*phase-11/s) });
+    await rm(join(base, records.recordPath('SIG-4')));
     await regenerateViews(base);
     const text = await read(EPICS);
     expect(text).toContain('## M7.E10 — open');
