@@ -2149,6 +2149,7 @@ export async function renderDryRun(baseDir, opts = {}) {
         closures: closures.units,
         dropped: archive.dropped,
         held: archive.held,
+        unitRecords: readUnitRecords(baseDir) !== null,
         moveCount: archive.moves.length,
         stateReadable: closures.stateReadable,
         stateReason: closures.reason,

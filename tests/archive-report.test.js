@@ -406,6 +406,78 @@ describe('S7 — explainArchiveOutcome is reachable from the migrate dry-run (B6
     expect(lines.toLowerCase()).toContain('gap');
     expect(lines).toContain('1 unit(s) resolve as CLOSED');
   });
+
+  // M6.E16 t10.3 (SIG-289). The sentence under that count said the closed-set
+  // "comes from retrospectives" and that a unit closed by a verdict with no
+  // retrospective cannot be reached. Neither has been true of this dry run
+  // since SIG-286: its closed-set is the resolver's, and the one thing that
+  // holds a closed unit back is a retrospective still holding placeholders.
+  describe('the gap sentence says what this pass does (SIG-289)', () => {
+    const STATE = '---\nschema_version: 1\nphase: EXECUTE\ncurrent_epic: null\ncurrent_wave: null\n'
+      + 'current_tasks: []\ncompleted_phases: []\nblockers: []\nlast_completed_task: null\n---\n# S\n';
+    const gapOf = (args) => explainArchiveOutcome({ closures: [closed('SLICE-SSO')], moveCount: 0, ...args }).join('\n');
+
+    it('without unit records: a passing verdict closes, a placeholder retrospective holds back', () => {
+      const lines = gapOf({});
+      expect(lines).not.toMatch(/comes from retrospectives|is not reachable here/);
+      expect(lines).toContain('closed by a passing verdict');
+      expect(lines).toContain('still holds placeholders');
+      expect(lines).not.toMatch(/unit record/);
+      expect(lines).toContain('This is a gap, not a clean bill.');
+    });
+
+    it('with unit records: it says these units have no record and are read from their files', () => {
+      const lines = gapOf({ unitRecords: true });
+      expect(lines).not.toMatch(/comes from retrospectives|is not reachable here/);
+      expect(lines).toContain('no unit record');
+      expect(lines).toContain('closed by a passing verdict');
+      expect(lines).toContain('still holds placeholders');
+      expect(lines).toContain('This is a gap, not a clean bill.');
+    });
+
+    // The command seam, on both paths: the fixture is the one case that reaches
+    // the sentence — a passing verdict and a retrospective still holding
+    // `[FILL IN]`. (With no retrospective at all the unit moves.)
+    it.each([[false], [true]])('reached from the migrate dry run, unit records %s', async (unitsOn) => {
+      const { renderDryRun } = await import('../plugin/tools/lib/migrate-memory.js');
+      const dir = await mkdtemp(join(tmpdir(), 'signal-e16-t103-'));
+      try {
+        await mkdir(join(dir, P, 'work', 'units'), { recursive: true });
+        await writeFile(join(dir, P, 'STATE.md'), STATE, 'utf-8');
+        await writeFile(join(dir, P, 'M9.E1-RETROSPECTIVE.md'), '# retro\n\n[FILL IN]\n', 'utf-8');
+        await writeFile(join(dir, P, 'M9.E1-VERIFICATION.md'), '**Verdict:** PASS\n', 'utf-8');
+        await writeFile(join(dir, P, 'M9.E1-PLAN.md'), '# plan\n', 'utf-8');
+        if (unitsOn) {
+          await writeFile(join(dir, P, 'work', 'WORK.md'), '---\nkey: SIG\nschema_version: 2\n---\n', 'utf-8');
+          await writeFile(join(dir, P, 'work', 'units', '.keep'), '', 'utf-8');
+        } else {
+          await rm(join(dir, P, 'work'), { recursive: true, force: true });
+        }
+        const out = await renderDryRun(dir);
+        expect(out).toMatch(/archive-tree moves:\s+0/);
+        expect(out).toContain('1 unit(s) resolve as CLOSED');
+        expect(out).not.toMatch(/comes from retrospectives/);
+        expect(out).toContain('still holds placeholders');
+        expect(out.includes('no unit record')).toBe(unitsOn);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('with no retrospective at all the unit is moved — the old sentence said it could not be', async () => {
+      const { renderDryRun } = await import('../plugin/tools/lib/migrate-memory.js');
+      const dir = await mkdtemp(join(tmpdir(), 'signal-e16-t103-'));
+      try {
+        await mkdir(join(dir, P), { recursive: true });
+        await writeFile(join(dir, P, 'STATE.md'), STATE, 'utf-8');
+        await writeFile(join(dir, P, 'M9.E1-VERIFICATION.md'), '**Verdict:** PASS\n', 'utf-8');
+        await writeFile(join(dir, P, 'M9.E1-PLAN.md'), '# plan\n', 'utf-8');
+        expect(await renderDryRun(dir)).toMatch(/archive-tree moves:\s+2/);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  });
 });
 
 describe('AC4.5 second half — the empty bound is stated ON THE WIRED PATH', () => {
