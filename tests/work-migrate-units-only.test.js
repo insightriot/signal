@@ -185,6 +185,45 @@ describe('the apply (AC9.2)', () => {
   });
 });
 
+// M6.E16 t10.4 — `WORK.md` is the person's file once it exists (the edit hook
+// guards only its `schema_version` and `key` lines, and nothing regenerates
+// it), so adding unit records does not rewrite it: the run prints the one line
+// its folder list is missing, for the person to add.
+describe('WORK.md is not rewritten; the run prints the line to add (t10.4)', () => {
+  const WORK_MD = '.planning/work/WORK.md';
+  const LINE = '- `units/` — one record per Epic or unit, `<ID>.json`. A unit\'s status is derived from its own events too: '
+    + 'open, *closing*, closed — and a closed unit can be held';
+
+  it('a WORK.md that does not name units/: the dry run and the apply print the line, and the file is not touched', async () => {
+    const base = await unitsStore({ repo: true });
+    const was = read(base, WORK_MD);
+    expect(was).not.toContain('units/');
+    const dry = await dryRun(base);
+    expect(dry.report).toContain(`${WORK_MD} is yours to edit and is not changed. Its folder list does not name units/ — add this line by hand:\n  ${LINE}`);
+    const r = await applyWith(base, dry);
+    expect(r.applied).toBe(true);
+    expect(r.report).toContain(`${WORK_MD} is yours to edit and was not changed. Its folder list does not name units/ — add this line by hand:\n  ${LINE}`);
+    expect(read(base, WORK_MD)).toBe(was);
+    expect(staged(base)).not.toContain(WORK_MD);
+  });
+
+  it('a WORK.md that already names units/: nothing is said about it', async () => {
+    const base = await unitsStore({ repo: true });
+    put(base, WORK_MD, `${read(base, WORK_MD)}\n${LINE}\n`);
+    commitAll(base, 'the folder list names units/');
+    const dry = await dryRun(base);
+    expect(dry.report).not.toMatch(/add this line by hand/);
+    const r = await applyWith(base, dry);
+    expect(r.applied).toBe(true);
+    expect(r.report).not.toMatch(/add this line by hand/);
+  });
+
+  it('the line is the one a new store\'s WORK.md is written with', async () => {
+    const { WORK_MD_UNITS_LINE } = await import('../plugin/tools/lib/work-migrate-lists.js');
+    expect(WORK_MD_UNITS_LINE).toBe(LINE);
+  });
+});
+
 describe('refusals — nothing written, no tag', () => {
   const untouched = async (base, run, pattern) => {
     const before = bytesOf(base);

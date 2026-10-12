@@ -96,7 +96,7 @@
 // V2_MODULES): it reaches the list parsers.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, readdirSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import { acquireLock as acquireAddLock, LOCK_FILE as ADD_LOCK_REL } from './add.js';
@@ -175,6 +175,28 @@ export function proposeKey(folderName) {
   return STORE_KEY_RE.test(key) ? key : null;
 }
 
+// The folder list's line for `units/` in a new store's WORK.md. A project that
+// adds unit records to a store it already has keeps the WORK.md it has —
+// after creation the file is the person's (the edit hook guards only its
+// `schema_version` and `key` lines; nothing regenerates it) — so that run
+// prints this line for the person to add (M6.E16 t10.4).
+export const WORK_MD_UNITS_LINE = '- `units/` — one record per Epic or unit, `<ID>.json`. A unit\'s status is derived from its own events too: '
+  + 'open, *closing*, closed — and a closed unit can be held';
+
+// What a units-only run says about WORK.md: nothing when its text names
+// `units/` (or does not read), else the line to add. `did`: "is" in the dry
+// run, "was" after the apply.
+function workMdUnitsNote(baseDir, did) {
+  let text;
+  try {
+    text = readFileSync(join(baseDir, WORK_MD_REL), 'utf-8');
+  } catch {
+    return [];
+  }
+  if (text.includes('units/')) return [];
+  return ['', `${WORK_MD_REL} is yours to edit and ${did} not changed. Its folder list does not name units/ — add this line by hand:`, `  ${WORK_MD_UNITS_LINE}`];
+}
+
 // WORK.md for a project the store was turned on in by this command. Names no
 // maintainer script and no other project's history (AC7.3).
 function workMd(key, archived) {
@@ -191,7 +213,7 @@ schema_version: 2
 This file switches the work-item store on for this project. Every bug, backlog row, inbox capture and open question is one **record**, \`items/NN/${key}-n.json\` in this folder (NN is the item number divided by 1000, two digits), with its body beside it as \`${key}-n.md\`. **A record never moves.** Its status is not stored: it is derived from the record's own events — \`created\` → N, \`triaged\` → T, \`queued\` → Q, \`started\` → P, \`close_requested\` → *closing*, \`closed\` → C, \`reopened\` → T.
 
 - \`items/\` — every record and its body, by number
-- \`units/\` — one record per Epic or unit, \`<ID>.json\`. A unit's status is derived from its own events too: open, *closing*, closed — and a closed unit can be held
+${WORK_MD_UNITS_LINE}
 - \`epics/<EpicID>/\` — an Epic's documents, when a folder was made for it by hand; an Epic's items are the records whose events name it, folder or not
 - \`history/YYYY.md\` — closes from more than 30 days before the newest event (a view)
 
@@ -502,7 +524,7 @@ function sensitiveLines(hits) {
     ...hits.map((h) => `  ${h.id} (${h.file}): ${h.type} "${masked(h.match)}"`)];
 }
 
-function unitsDryRunReport(a) {
+function unitsDryRunReport(baseDir, a) {
   const c = unitCounts(a.plan);
   const table = a.plan.milestone?.markers === 'ok' ? `, and the Epic table in ${a.plan.milestone.rel}` : '';
   return [
@@ -516,6 +538,7 @@ function unitsDryRunReport(a) {
     `--apply creates ${UNITS_REL}/ with ${count(c.made, 'unit record')}`
       + (c.proposed > 0 ? ` (${c.proposed} of them closed as legacy only if you confirm the list above; otherwise open)` : '')
       + `, regenerates ${VIEW_PATHS.epics}${table}, and leaves them staged, not committed. No item and no other view is changed.`,
+    ...workMdUnitsNote(baseDir, 'is'),
   ].map(printable).join('\n');
 }
 
@@ -542,7 +565,7 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
     return {
       applied: false, dryRun: true, unitsOnly: true, key: a.key, units: a.plan.units, proposedUnitCloses: a.plan.proposedCloses,
       flagged: a.plan.flagged, refusedUnits: a.plan.refused, declared: a.plan.declared, sensitiveHits: maskHits(a.sensitiveHits),
-      inputHash: a.inputHash, report: unitsDryRunReport(a),
+      inputHash: a.inputHash, report: unitsDryRunReport(baseDir, a),
     };
   }
   if (typeof opts.expectedHash !== 'string' || opts.expectedHash === '') {
@@ -631,6 +654,7 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
     probe.mode === 'git' ? 'Staged, not committed — review with `git diff --cached`, then commit.' : 'Not a git checkout: nothing staged.',
     ...(tag ? [`Pre-apply tag: ${tag}`] : []),
     `Undo: ${revertLine}`,
+    ...workMdUnitsNote(baseDir, 'was'),
   ].map(printable).join('\n');
   return {
     applied: true, unitsOnly: true, key: a.key, mode: probe.mode, tag, revertLine, units: list.length,
