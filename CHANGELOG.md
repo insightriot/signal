@@ -51,12 +51,21 @@ records now.
   existing, a verdict line, a milestone row or a file's folder no longer decides it.
   `/sig:docs-archive` declines a held unit and prints the reason. SHIP no longer reads the milestone
   row to decide whether it closes the Epic, and the next Epic ID counts records as well as filenames.
-- **A project without `work/units/` gets the same answers, refusals and file moves as on
+- **A project without `work/units/` gets the same closure answers, file moves and refusals as on
   `v0.1.50`.** Every reader keeps its old path, and the existing tests for those projects pass
-  unchanged. Four things differ, and a test pins the list: the message when an item is queued for a
-  unit name that is not an Epic ID (still refused); the item schema accepts such a name in an event;
-  the archive report object has a `settled` list and count (empty; the printed report is the same);
-  and one sentence of `/sig:docs-migrate`'s dry run was corrected (below, `SIG-289`).
+  unchanged. Three kinds of thing differ, and a test that compares 72 library calls with `v0.1.50`
+  fails on any other: what this release adds (the edit hook also guards `work/units/*.json`;
+  `/sig:docs-migrate --work-store` on a project already on the store proposes unit records where it
+  used to refuse; some return values have new keys, empty here); the unit-name rule (the item
+  schema accepts a unit name that is not an Epic ID, the commands and the readers still refuse one
+  without unit records, and a name over 100 characters is refused everywhere); and wording (the
+  text of some refusals, and one sentence of `/sig:docs-migrate`'s dry run, corrected below,
+  `SIG-289`).
+- **Text in a unit record is cleaned where it is written and again where it is printed.** A title,
+  summary, note, PR, release, reason or old-row cell is stored without control or invisible
+  characters, with a line break made a space, and cut at a limit; `work/EPICS.md` and the milestone
+  table do the same to whatever they read and take a comment opener apart; and the unit schema
+  refuses such a value, so `/sig:docs-sweep` reports a record that was not written by the library.
 - **Signal's own Epics are records:** 48 of them — 1 open, 43 closed as legacy (shipped before this
   release, confirmed as one list), 4 Epic IDs that never ran recorded as dropped.
 

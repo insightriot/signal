@@ -4288,3 +4288,15 @@ wording, the item schema's wider unit-name rule (declared under Blast radius), t
 on the archive report, and one dry-run sentence corrected because it was false. Restoring the old
 text and shape would mean a second schema rule and a sentence known to be untrue, so the criterion
 names the four and `tests/unit-records-off-parity.test.js` fails on a fifth.
+
+*Amended at VERIFY loop 2 (2026-10-12).* The list of four was not complete: run wider (106 calls),
+five more things differed, in functions the test did not call. A closed list failed twice, so AC6.4
+now says what is identical **by kind** (closure answers, file moves, item writes and reads of a
+record `v0.1.50` accepted, refusals with their codes, printed reports) and what differs **by kind**:
+what this Epic adds (the edit hook on `work/units/` paths, the migration's dry run on a store-on
+project, new keys that are empty without unit records); the unit-name rule (a wider schema, the
+same refusals from writers and readers, and a 100-character limit kept on purpose); and wording.
+One of the five was removed in code rather than named: without unit records the readers refuse a
+record naming a unit that is not an Epic ID again, as `v0.1.50` did. The test now makes 72 calls,
+takes out only the named kinds and fails on anything else. "Four named differences" in this
+entry's title is loop 1's wording; the four are still true and are now instances of the kinds.

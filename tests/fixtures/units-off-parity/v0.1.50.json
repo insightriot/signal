@@ -1,0 +1,583 @@
+{
+  "hook.itemRecord": {
+    "block": true,
+    "message": ".planning/work/items/00/LEAF-1.json is part of this project's v2 work store (.planning/work/WORK.md has `schema_version: 2`), so a hand edit would be lost or bypass the record. Records (.planning/work/items/**/*.json) are written only through /sig:item; the views and history files are generated from the records and regenerate after every change. For prose, edit the item's body file (.planning/work/items/NN/KEY-n.md), which is not blocked."
+  },
+  "hook.itemBody": {
+    "block": false
+  },
+  "hook.view": {
+    "block": true,
+    "message": ".planning/BUGS.md is part of this project's v2 work store (.planning/work/WORK.md has `schema_version: 2`), so a hand edit would be lost or bypass the record. Records (.planning/work/items/**/*.json) are written only through /sig:item; the views and history files are generated from the records and regenerate after every change. For prose, edit the item's body file (.planning/work/items/NN/KEY-n.md), which is not blocked."
+  },
+  "hook.epicsView": {
+    "block": true,
+    "message": ".planning/work/EPICS.md is part of this project's v2 work store (.planning/work/WORK.md has `schema_version: 2`), so a hand edit would be lost or bypass the record. Records (.planning/work/items/**/*.json) are written only through /sig:item; the views and history files are generated from the records and regenerate after every change. For prose, edit the item's body file (.planning/work/items/NN/KEY-n.md), which is not blocked."
+  },
+  "hook.planningDoc": {
+    "block": false
+  },
+  "hook.unitRecord": {
+    "block": false
+  },
+  "hook.unitsFolderNote": {
+    "block": false
+  },
+  "validate.epic": true,
+  "validate.notEpic.phase-11": false,
+  "validate.notEpic.EXECUTE": false,
+  "validate.notEpic.LEAF-5": false,
+  "validate.notEpic.next": false,
+  "validate.notEpic.m9.e2": false,
+  "validate.leavesFolder": false,
+  "validate.long": true,
+  "a.list": {
+    "records": [
+      [
+        "LEAF-1",
+        "T",
+        null
+      ],
+      [
+        "LEAF-2",
+        "T",
+        null
+      ],
+      [
+        "LEAF-3",
+        "T",
+        null
+      ],
+      [
+        "LEAF-4",
+        "T",
+        null
+      ],
+      [
+        "LEAF-5",
+        "T",
+        null
+      ],
+      [
+        "LEAF-6",
+        "T",
+        null
+      ],
+      [
+        "LEAF-7",
+        "C",
+        "M9.E2"
+      ],
+      [
+        "LEAF-8",
+        "C",
+        "M9.E3"
+      ]
+    ],
+    "broken": []
+  },
+  "a.check": [],
+  "queue.epic": {
+    "status": "Q",
+    "epic": "M9.E2"
+  },
+  "queue.notEpic.phase-11": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"phase-11\")"
+  },
+  "queue.notEpic.EXECUTE": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"EXECUTE\")"
+  },
+  "queue.notEpic.LEAF-5": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"LEAF-5\")"
+  },
+  "queue.notEpic.next": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"next\")"
+  },
+  "queue.notEpic.m9.e2": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"m9.e2\")"
+  },
+  "queue.leavesFolder": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"../x\")"
+  },
+  "queue.archivedEpic": {
+    "refused": true,
+    "code": "CONFLICT",
+    "message": "LEAF-1: Epic M9.E3 is archived (.planning/archive/epics/M9.E3/) — nothing was queued. An archived Epic is finished; pick a live one."
+  },
+  "queue.notText": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic must be of type string"
+  },
+  "queue.missing": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic is required"
+  },
+  "start.epic": {
+    "status": "P",
+    "epic": "M9.E2"
+  },
+  "start.notEpic.phase-11": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"phase-11\")"
+  },
+  "start.notEpic.EXECUTE": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"EXECUTE\")"
+  },
+  "start.notEpic.LEAF-5": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"LEAF-5\")"
+  },
+  "start.notEpic.next": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"next\")"
+  },
+  "start.notEpic.m9.e2": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "invalid work record: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"m9.e2\")"
+  },
+  "start.archivedEpic": {
+    "refused": true,
+    "code": "CONFLICT",
+    "message": "LEAF-4: Epic M9.E3 is archived (.planning/archive/epics/M9.E3/) — nothing was started. An archived Epic is finished; pick a live one."
+  },
+  "reopen.inEpic": {
+    "status": "T",
+    "epic": null
+  },
+  "reopen.inArchivedEpic": {
+    "refused": true,
+    "code": "CONFLICT",
+    "message": "LEAF-8 belongs to Epic M9.E3, which is archived (.planning/archive/epics/M9.E3/) — nothing was reopened. Capture a new item and link it to LEAF-8 instead."
+  },
+  "a.listAfterWrites": {
+    "records": [
+      [
+        "LEAF-1",
+        "T",
+        null
+      ],
+      [
+        "LEAF-2",
+        "Q",
+        "M9.E2"
+      ],
+      [
+        "LEAF-3",
+        "P",
+        "M9.E2"
+      ],
+      [
+        "LEAF-4",
+        "T",
+        null
+      ],
+      [
+        "LEAF-5",
+        "T",
+        null
+      ],
+      [
+        "LEAF-6",
+        "T",
+        null
+      ],
+      [
+        "LEAF-7",
+        "T",
+        null
+      ],
+      [
+        "LEAF-8",
+        "C",
+        "M9.E3"
+      ]
+    ],
+    "broken": []
+  },
+  "a.checkAfterWrites": [],
+  "closures": [
+    [
+      "M9.E1",
+      "closed"
+    ],
+    [
+      "M9.E2",
+      "open"
+    ],
+    [
+      "M9.E9",
+      "open"
+    ]
+  ],
+  "isEpicDone.M9.E1": "done",
+  "isEpicDone.M9.E2": "not-done",
+  "isEpicDone.M9.E9": "not-done",
+  "isEpicArchived.M9.E3": true,
+  "isEpicArchived.M9.E2": false,
+  "closeEpicCheck.M9.E2": {
+    "refused": true,
+    "code": "OPEN_ITEMS",
+    "message": "M9.E2 has 2 open items in it — close each (`/sig:item close`; a closing item closes when confirmCloses finds its commit) or triage it out of the Epic, then re-run. Nothing was moved:\n  LEAF-2 (status Q) — title of LEAF-2\n  LEAF-3 (status P) — title of LEAF-3"
+  },
+  "migrateClosedUnits": [
+    "M9.E1"
+  ],
+  "nextEpicId": "M9.E10",
+  "driftChecks": [
+    [
+      "baseline-commit-off-history",
+      "not-applicable",
+      0
+    ],
+    [
+      "body-omits-current-epic",
+      "clean",
+      0
+    ],
+    [
+      "epic-id-not-strict",
+      "clean",
+      0
+    ],
+    [
+      "epic-without-retro",
+      "findings",
+      1
+    ],
+    [
+      "narrative-phase-contradicts-frontmatter",
+      "clean",
+      0
+    ],
+    [
+      "phase-behind-artifacts",
+      "clean",
+      0
+    ],
+    [
+      "phase-log-gap",
+      "findings",
+      1
+    ],
+    [
+      "profile-parses",
+      "not-applicable",
+      0
+    ]
+  ],
+  "sweep": [],
+  "listClosing": {
+    "closing": [],
+    "broken": []
+  },
+  "senseArchiveTree": {
+    "moves": [
+      [
+        ".planning/M9.E1-PLAN.md",
+        ".planning/archive/M9/E1/M9.E1-PLAN.md"
+      ],
+      [
+        ".planning/M9.E1-VERIFICATION.md",
+        ".planning/archive/M9/E1/M9.E1-VERIFICATION.md"
+      ]
+    ],
+    "closedEpicIds": [
+      "M9.E1"
+    ],
+    "closedUnits": [
+      "M9.E1"
+    ],
+    "dropped": []
+  },
+  "migrate.dryRun": {
+    "applied": false,
+    "refused": true,
+    "dryRun": false,
+    "unitsOnly": false,
+    "units": null,
+    "message": "This project is already on the store: .planning/work/WORK.md exists, so nothing was written."
+  },
+  "migrate.applyWithoutHash": {
+    "applied": false,
+    "refused": true,
+    "dryRun": false,
+    "unitsOnly": false,
+    "units": null,
+    "message": "This project is already on the store: .planning/work/WORK.md exists, so nothing was written."
+  },
+  "a.treeAfterMigrateCalls": [
+    ".planning/BACKLOG.md",
+    ".planning/BUGS.md",
+    ".planning/ISSUES-INBOX.md",
+    ".planning/M9.E1-PLAN.md",
+    ".planning/M9.E1-RETROSPECTIVE.md",
+    ".planning/M9.E1-VERIFICATION.md",
+    ".planning/M9.E2-PLAN.md",
+    ".planning/M9.E9-PLAN.md",
+    ".planning/MILESTONE-9.md",
+    ".planning/OPEN-QUESTIONS.md",
+    ".planning/STATE.md",
+    ".planning/archive/epics/M9.E3/README.md",
+    ".planning/work/EPICS.md",
+    ".planning/work/WORK.md",
+    ".planning/work/items/00/LEAF-1.json",
+    ".planning/work/items/00/LEAF-2.json",
+    ".planning/work/items/00/LEAF-3.json",
+    ".planning/work/items/00/LEAF-4.json",
+    ".planning/work/items/00/LEAF-5.json",
+    ".planning/work/items/00/LEAF-6.json",
+    ".planning/work/items/00/LEAF-7.json",
+    ".planning/work/items/00/LEAF-8.json"
+  ],
+  "archive.report": {
+    "plan": [
+      "M9.E1"
+    ],
+    "moves": [
+      [
+        ".planning/M9.E1-PLAN.md",
+        ".planning/archive/M9/E1/M9.E1-PLAN.md"
+      ],
+      [
+        ".planning/M9.E1-VERIFICATION.md",
+        ".planning/archive/M9/E1/M9.E1-VERIFICATION.md"
+      ]
+    ],
+    "refusals": [
+      "M9.E2",
+      "M9.E9"
+    ],
+    "counts": {
+      "units": 3,
+      "archiving": 1,
+      "refused": 2,
+      "files": 2
+    }
+  },
+  "archive.printed": [
+    "== Archive — dry run (nothing written) ==",
+    "",
+    "Would archive 2 file(s):",
+    "  M9.E1  →  .planning/archive/M9/E1/  (2 files)",
+    "      M9.E1-PLAN.md",
+    "      M9.E1-VERIFICATION.md",
+    "",
+    "Not archived (2) — each was checked and declined:",
+    "  M9.E2  [open]  M9.E2 has no terminal artifact — nothing claims it finished",
+    "  M9.E9  [open]  M9.E9 is the current unit — mid-flight, not closed",
+    "",
+    "Ungrouped files: 7 (not part of any unit, never archived) —",
+    "  BACKLOG.md, BUGS.md, ISSUES-INBOX.md, M9.E1-RETROSPECTIVE.md, MILESTONE-9.md, OPEN-QUESTIONS.md, STATE.md",
+    "  Retrospectives and project-level files stay in the root on purpose.",
+    "Dropped: 0 — every derived unit was considered.",
+    "",
+    "Nothing was written. Re-run with --apply to move these files."
+  ],
+  "archive.apply": {
+    "applied": true,
+    "moved": 2
+  },
+  "a.treeAfterApply": [
+    ".planning/BACKLOG.md",
+    ".planning/BUGS.md",
+    ".planning/ISSUES-INBOX.md",
+    ".planning/M9.E1-RETROSPECTIVE.md",
+    ".planning/M9.E2-PLAN.md",
+    ".planning/M9.E9-PLAN.md",
+    ".planning/MILESTONE-9.md",
+    ".planning/OPEN-QUESTIONS.md",
+    ".planning/STATE.md",
+    ".planning/archive/M9/E1/M9.E1-PLAN.md",
+    ".planning/archive/M9/E1/M9.E1-VERIFICATION.md",
+    ".planning/archive/epics/M9.E3/README.md"
+  ],
+  "gapSentence": [
+    "  ↳ 1 unit(s) resolve as CLOSED, but this pass proposes no move for them.",
+    "    Its closed-set comes from retrospectives; a unit closed by a passing verdict",
+    "    with no retrospective is not reachable here. This is a gap, not a clean bill."
+  ],
+  "b.dryRunWithoutTheSentence": [
+    "== /sig:docs-migrate — DRY RUN (nothing written) ==",
+    "",
+    "— Tier 1: counts —",
+    "  vectors:              (none — conformant)",
+    "  vector-1 relocations: 0",
+    "  vector-2 (big body):  no",
+    "  vector-3 (closed-Epic evicts): 0",
+    "  archive-tree moves:   0",
+    "<the sentence>",
+    "  ↳ Nothing was dropped: every derived unit was considered.",
+    "  append-logs (left alone): 0",
+    "  append-log evicts (FR5): 0",
+    "  BACKLOG.md (FR2):      will create",
+    "  ambiguity flags:      0",
+    "  stamp:                will set docs_layout_version: 3 on conformance",
+    "",
+    "— Tier 2: mechanical moves —",
+    "  BACKLOG.md created (sequenced roadmap; seeded from a BACKLOG-REVIEW snapshot when present, else a skeleton)",
+    "  INDEX.md → regenerated (/sig:docs-index) — mechanical rows refresh; curated notes survive by key",
+    "",
+    "— Tier 3: faithfulness diff (review each before approving) —",
+    "  (no prose to relocate)",
+    "",
+    "— Append-logs left alone (0) — grow by design (model §1 axis-2); the whole-file relocate/de-prose brain never touches them (FR5 may still evict CLOSED sections of DECISIONS.md — see Tier 2) —",
+    "  (none)",
+    "",
+    "— Pre-existing dangling links (0) — NOT caused by this migrate —",
+    "  (none)",
+    "",
+    "— Archive links to FR6-renamed targets (0) — R7-historical, flagged not aborted —",
+    "  (none)",
+    "",
+    "— At-risk anchors (0) — target section may move; verify the #heading still resolves —",
+    "  (none)",
+    "",
+    "— Reference-style / HTML links (0) — present, NOT auto-rewritten; verify manually —",
+    "  (none)"
+  ],
+  "byHand.notEpic.list": {
+    "records": [
+      [
+        "LEAF-1",
+        "T",
+        null
+      ],
+      [
+        "LEAF-3",
+        "Q",
+        "M9.E2"
+      ]
+    ],
+    "broken": [
+      {
+        "id": "LEAF-2",
+        "path": ".planning/work/items/00/LEAF-2.json",
+        "code": "invalid",
+        "message": ".planning/work/items/00/LEAF-2.json: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"phase-11\")"
+      }
+    ]
+  },
+  "byHand.notEpic.check": [
+    {
+      "code": "invalid",
+      "id": "LEAF-2",
+      "path": ".planning/work/items/00/LEAF-2.json",
+      "message": ".planning/work/items/00/LEAF-2.json: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"phase-11\")"
+    },
+    {
+      "code": "view-stale",
+      "id": null,
+      "path": ".planning/work",
+      "message": ".planning/work: the views could not be regenerated to compare: cannot generate the views — a view of part of the store would silently drop the broken records. Fix these first:\n  .planning/work/items/00/LEAF-2.json: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"phase-11\")"
+    }
+  ],
+  "byHand.notEpic.get": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": ".planning/work/items/00/LEAF-2.json: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"phase-11\")"
+  },
+  "byHand.notEpic.getAnother": {
+    "status": "Q",
+    "epic": "M9.E2"
+  },
+  "byHand.notEpic.reopen": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "nothing was written — the views cannot be regenerated as things stand: cannot generate the views — a view of part of the store would silently drop the broken records. Fix these first:\n  .planning/work/items/00/LEAF-2.json: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"phase-11\") A broken record is restored with git: `git checkout -- <path>` when HEAD holds a good copy, or `git checkout --ours <path>` / `--theirs <path>` for a merge conflict."
+  },
+  "byHand.notEpic.queueAnother": {
+    "refused": true,
+    "code": "SCHEMA",
+    "message": "nothing was written — the views cannot be regenerated as things stand: cannot generate the views — a view of part of the store would silently drop the broken records. Fix these first:\n  .planning/work/items/00/LEAF-2.json: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"phase-11\") A broken record is restored with git: `git checkout -- <path>` when HEAD holds a good copy, or `git checkout --ours <path>` / `--theirs <path>` for a merge conflict."
+  },
+  "byHand.notEpic.sweep": [
+    {
+      "check": "work-store",
+      "severity": "advisory",
+      "file": ".planning/work/items/00/LEAF-2.json",
+      "message": ".planning/work/items/00/LEAF-2.json: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"phase-11\")"
+    },
+    {
+      "check": "work-store",
+      "severity": "advisory",
+      "file": ".planning/work",
+      "message": ".planning/work: the views could not be regenerated to compare: cannot generate the views — a view of part of the store would silently drop the broken records. Fix these first:\n  .planning/work/items/00/LEAF-2.json: events[2].epic does not match ^M\\d+(\\.\\d+)*\\.E\\d+$ (got \"phase-11\")"
+    }
+  ],
+  "long.queue": {
+    "status": "Q",
+    "epic": "M9.E111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "long.start": {
+    "status": "P",
+    "epic": "M9.E111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "long.byHand.list": {
+    "records": [
+      [
+        "LEAF-1",
+        "Q",
+        "M9.E111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+      ],
+      [
+        "LEAF-2",
+        "P",
+        "M9.E111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+      ],
+      [
+        "LEAF-3",
+        "Q",
+        "M9.E2"
+      ],
+      [
+        "LEAF-9",
+        "C",
+        "M9.E111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+      ]
+    ],
+    "broken": []
+  },
+  "long.byHand.check": [
+    {
+      "code": "view-stale",
+      "id": null,
+      "path": ".planning/BACKLOG.md",
+      "message": ".planning/BACKLOG.md: differs from a regeneration of the records — edited by hand, or not regenerated"
+    },
+    {
+      "code": "view-stale",
+      "id": null,
+      "path": ".planning/work/EPICS.md",
+      "message": ".planning/work/EPICS.md: differs from a regeneration of the records — edited by hand, or not regenerated"
+    }
+  ],
+  "long.byHand.get": {
+    "status": "C",
+    "epic": "M9.E111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "long.byHand.reopen": {
+    "status": "T",
+    "epic": null
+  },
+  "calls": 72
+}
