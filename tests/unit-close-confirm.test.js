@@ -351,6 +351,9 @@ describe('runConfirmCloses — the `Closes:` line names units and items separate
       ran: true, confirmed: [], stillClosing: [], stale: [], error: null,
       line: 'Closes: units — confirmed 1 (M7.E3) — its record and the views changed; commit them',
       units: { confirmed: ['M7.E3'], stillClosing: [], stale: [] },
+      // t10.1 (SIG-295): the confirmed unit's narrative is evicted; this fixture has no STATE.md.
+      evictions: [{ id: 'M7.E3', evicted: false, reason: 'no-state-file' }],
+      evictionLine: 'Narratives: M7.E3 — nothing in STATE.md to move',
     });
   });
 

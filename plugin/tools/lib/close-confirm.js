@@ -21,11 +21,20 @@
 // closes in the same call, and the line names units and items separately. With
 // no unit involved the line is what it was.
 //
+// A unit's narrative leaves `STATE.md` when its close is confirmed (M6.E16
+// t10.1, `SIG-295`, `D-M6E16-19`): after the confirmation, `runConfirmCloses`
+// calls `evict.js` `evictEpicNarrative` for each unit this run confirmed and
+// returns what happened as `evictions` and `evictionLine`. `confirmCloses`
+// itself still writes records and views only. The eviction is a second step
+// with its own lock (`STATE.md`'s): if it refuses or throws, the confirmation
+// stands and the reason is reported.
+//
 // FAIL-OPEN by construction: neither throws nor blocks. A broken `WORK.md` or
 // a failed confirmation becomes the line, never an exception — a briefing, a
 // sweep or a release must not stop because a close could not be checked.
 
 import { confirmCloses, probeCloses, storeVersion } from './work-records.js';
+import { evictEpicNarrative } from './evict.js';
 
 const LIST_MAX = 5;
 
@@ -84,6 +93,76 @@ export function formatConfirmClosesLine(result) {
   return `Closes: ${groups.join(' · ')}`;
 }
 
+// Evict the narrative of each unit this run confirmed closed (`SIG-295`). One
+// result per unit, in the order given. Never throws: a throw from the eviction
+// is that unit's result (`reason: 'error'`, the message in `detail`).
+async function evictConfirmed(baseDir, ids, evict) {
+  const out = [];
+  for (const id of ids) {
+    try {
+      const r = await evict(baseDir, id);
+      if (r.evicted) {
+        out.push({ id, evicted: true, archivePath: r.archivePath });
+        continue;
+      }
+      const one = { id, evicted: false, reason: r.reason };
+      if (r.reason === 'held') one.holdReason = r.holdReason ?? null;
+      if (r.reason === 'lossy-card') one.missing = r.missing;
+      if (r.detail !== undefined) one.detail = r.detail;
+      out.push(one);
+    } catch (err) {
+      out.push({ id, evicted: false, reason: 'error', detail: String(err?.message ?? err) });
+    }
+  }
+  return out;
+}
+
+// Every value a coverage gate's `missing` names, flat: it is an object of
+// lists by kind.
+const missingList = (missing) => Object.values(missing ?? {}).flat().join(', ');
+
+/**
+ * What happened to one confirmed unit's narrative, in words — one of
+ * `evictions`' entries. Shared by `evictionLine` and the sweep's advisory.
+ *
+ * @param {{id: string, evicted: boolean, reason?: string, archivePath?: string, holdReason?: string|null,
+ *   missing?: object, detail?: string}} e
+ * @returns {string}
+ */
+export function evictionWords(e) {
+  if (e.evicted) return `moved out of STATE.md to ${e.archivePath}; commit both`;
+  switch (e.reason) {
+    case 'no-section':
+    case 'no-state-file':
+      return 'nothing in STATE.md to move';
+    case 'held':
+      return `kept in STATE.md: the unit is held (${e.holdReason})`;
+    case 'lossy-card':
+      return `kept in STATE.md: its retrospective does not cover it (missing: ${missingList(e.missing)}) — `
+        + 'complete the retrospective, then call evictEpicNarrative (tools/lib/evict.js)';
+    case 'no-card':
+      return 'kept in STATE.md: it has no retrospective to be checked against';
+    case 'unit-record-unreadable':
+      return `kept in STATE.md: its unit record does not read (${e.detail})`;
+    case 'error':
+      return `not moved: ${e.detail}`;
+    default:
+      return `kept in STATE.md: ${e.reason}`;
+  }
+}
+
+/**
+ * The one line for `evictions`, or `null` when no unit was confirmed in this
+ * run (so a second run says nothing).
+ *
+ * @param {Array<object>} evictions
+ * @returns {string|null}
+ */
+export function formatEvictionLine(evictions) {
+  if (!evictions || evictions.length === 0) return null;
+  return `Narratives: ${evictions.map((e) => `${e.id} — ${evictionWords(e)}`).join(' · ')}`;
+}
+
 const nothing = () => ({ ran: false, confirmed: [], stillClosing: [], stale: [], error: null, line: null });
 
 /**
@@ -99,14 +178,28 @@ const nothing = () => ({ ran: false, confirmed: [], stillClosing: [], stale: [],
  *   not confirmed — …'}`.
  * - otherwise → its result, and `line` from `formatConfirmClosesLine`.
  *
+ * **On a project with unit records it then writes a second time** (M6.E16
+ * t10.1, `SIG-295`): for each unit this run confirmed (`units.confirmed`) it
+ * calls `evictEpicNarrative`, which moves that unit's narrative out of
+ * `STATE.md` into `.planning/archive/<milestone>/<epic>/STATE-NARRATIVE.md`
+ * when its own gate passes. The result is `evictions`, one entry per confirmed
+ * unit, and `evictionLine`. A refusal (held, no retrospective, a retrospective
+ * that does not cover the narrative, an unreadable record) or a throw leaves
+ * the confirmation as it is and is that unit's entry. A run that confirms no
+ * unit evicts nothing: `evictions` is `[]` and `evictionLine` is `null`.
+ * Without unit records neither field is there and `STATE.md` is not read.
+ *
  * @param {string} baseDir
- * @param {{now?: Date|string, execFn?: Function, confirm?: Function}} [opts]
- *   `confirm`: the confirmation, injected in tests (default `confirmCloses`)
+ * @param {{now?: Date|string, execFn?: Function, confirm?: Function, evict?: Function}} [opts]
+ *   `confirm`: the confirmation, injected in tests (default `confirmCloses`);
+ *   `evict`: the eviction, injected in tests (default `evictEpicNarrative`)
  * @returns {Promise<{ran: boolean, confirmed: string[], stillClosing: Array<{id: string, reason: string}>,
  *   stale: string[], error: string|null, broken?: string[], line: string|null,
  *   units?: {confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}>}
  *   `broken`: on a refusal over broken records, their IDs (else empty).
  *   `units`: `confirmCloses`' own, present only on a project with unit records.
+ *   `evictions` (`Array<{id, evicted, archivePath?, reason?, holdReason?, missing?, detail?}>`) and
+ *   `evictionLine` (`string|null`): present only on a project with unit records.
  */
 export async function runConfirmCloses(baseDir, opts = {}) {
   let version;
@@ -133,15 +226,17 @@ export async function runConfirmCloses(baseDir, opts = {}) {
       line: `Closes not confirmed — ${err.message}`,
     };
   }
-  return {
+  const out = {
     ran: true,
     confirmed: result.confirmed,
     stillClosing: result.stillClosing,
     stale: result.stale,
     error: null,
     line: formatConfirmClosesLine(result),
-    ...(result.units ? { units: result.units } : {}),
   };
+  if (!result.units) return out;
+  const evictions = await evictConfirmed(baseDir, result.units.confirmed, opts.evict ?? evictEpicNarrative);
+  return { ...out, units: result.units, evictions, evictionLine: formatEvictionLine(evictions) };
 }
 
 const nothingReported = () => ({ ran: false, ready: [], stillClosing: [], stale: [], error: null, line: null });

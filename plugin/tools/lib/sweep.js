@@ -6,7 +6,8 @@
 // severity ∈ 'structural' (the things the test-suite guard hard-fails on) |
 // 'advisory' (nudges — bloat, stale inbox). Nothing here writes, with ONE
 // exception (`D-M6E13-21`): `confirmClosesInSweep` confirms fixed closes on a
-// v2 work store — `closed` events and the regenerated views.
+// v2 work store — `closed` events and the regenerated views, and with unit
+// records the confirmed unit's narrative moved out of `STATE.md` (`SIG-295`).
 //
 // The portable checks live here (meaningful in any Signal-managed repo). The
 // stale-inbox check deliberately lives in THIS module, not doc-hygiene.js, so the
@@ -48,7 +49,7 @@ import { backlogDischargeStatus, storeDischargeStatus, BACKLOG_DISCHARGE, REASON
 import { isStoreOn } from './work-store.js';
 import { checkRecords, listClosing, listRecords, recordPath, storeVersion } from './work-records.js';
 import { checkUnits, UNITS_REL } from './unit-records.js';
-import { runConfirmCloses } from './close-confirm.js';
+import { evictionWords, runConfirmCloses } from './close-confirm.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -488,7 +489,11 @@ export function checkClosingTooLong(baseDir, opts = {}) {
  * for each *closing* item whose fix commit is already on the default branch
  * and regenerates the views. Each confirmed item is one advisory naming its
  * record, so the person running the sweep knows which files changed and to
- * commit them. This supersedes `D-M5E16-1` for this step only; every other
+ * commit them. With unit records, each unit confirmed here also has its
+ * narrative moved out of `STATE.md` into its archive file when
+ * `evictEpicNarrative`'s gate passes (M6.E16 t10.1, `SIG-295`); the unit's
+ * advisory says what happened to it, and a refusal there changes nothing
+ * about the confirmation. This supersedes `D-M5E16-1` for this step only; every other
  * check here stays read-only. Git is asked through local refs only (nothing
  * is downloaded), so the sweep stays offline.
  *
@@ -521,15 +526,22 @@ export async function confirmClosesInSweep(baseDir, opts = {}) {
         'and regenerated the views; commit them.'
     ));
   // A unit's close is confirmed by the same call (M6.E16 t4.2): the sweep
-  // wrote that record too, so it is named too.
-  const units = (out.units?.confirmed ?? []).map((id) =>
-    mkFinding(
+  // wrote that record too, so it is named too. So is what happened to its
+  // narrative in STATE.md (t10.1, `SIG-295`): `runConfirmCloses` evicts it.
+  const evictionOf = new Map((out.evictions ?? []).map((e) => [e.id, e]));
+  const units = (out.units?.confirmed ?? []).map((id) => {
+    const e = evictionOf.get(id);
+    const narrative = e === undefined ? ''
+      : e.evicted ? `Its narrative was moved out of STATE.md to ${e.archivePath}; commit those two files as well. `
+        : `Its narrative: ${evictionWords(e)}. `;
+    return mkFinding(
       'closes-confirmed',
       'advisory',
       `${UNITS_REL}/${id}.json`,
-      `${id} confirmed closed — the commit its close was requested with is on the default branch. ` +
+      `${id} confirmed closed — the commit its close was requested with is on the default branch. ${narrative}` +
         'The sweep wrote its closed event and regenerated the views; commit them.'
-    ));
+    );
+  });
   return [...items, ...units];
 }
 
