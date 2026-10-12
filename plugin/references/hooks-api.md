@@ -88,7 +88,13 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   — **only** when `.planning/work/WORK.md` reads `schema_version: 2` — naming
   `/sig:item`; for a unit record the message adds that `/sig:item` does not
   change one and that unit records change only through Signal's own commands
-  (`/sig:discuss --epic` opens one, `/sig:ship` closes one). Item bodies
+  (`/sig:discuss --epic` and `/sig:new-project --epic` open one, and record a
+  reopen when a closed one is opened again on the person's say-so; `/sig:ship`
+  requests its close;
+  `/sig:ship` and `/sig:docs-sweep` confirm the close;
+  `/sig:docs-migrate --work-store` creates them for a project that had none),
+  and that a hold is placed and released with `holdUnit` and `releaseUnit`
+  (`tools/lib/unit-records.js`; see `/sig:docs-archive`). Item bodies
   (`items/**/*.md`) are allowed. On `work/WORK.md` itself
   it blocks only an edit that would change or remove `schema_version: 2` or the
   `key:` line (the key prefixes every item ID, so changing it orphans every

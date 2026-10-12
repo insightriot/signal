@@ -47,6 +47,24 @@ it. A closed unit that is **held** is declined: the dry run prints it as `[held]
 reason, and `--apply` moves nothing of it. A unit with no record is judged from its files, as the
 rest of this page describes.
 
+## Holding a unit
+
+A hold says "this unit is closed and its files stay live" — work that shipped and is dormant, say.
+It is a recorded event on the unit's record, placed and released through the library; no slash
+command does it. Place or release one only when the user asks.
+
+- **Hold:** `holdUnit(baseDir, id, {reason, by})` from `tools/lib/unit-records.js`. The reason is
+  required — a blank one is refused and nothing is written — and it is printed beside `[held]` every
+  time this command declines the unit. `by` is who placed it. A unit already held is refused. A hold
+  can be placed before the unit closes.
+- **Release:** `releaseUnit(baseDir, id, {by})` from `tools/lib/unit-records.js`. Refused on a unit
+  that is not held. The next run may then move the unit's files.
+
+Each writes one event to `.planning/work/units/<ID>.json` and regenerates the views; commit them.
+
+Without unit records there is no hold available: both calls refuse and write nothing, and a closed
+unit is moved. Unit records are added with `/sig:docs-migrate --work-store`.
+
 ## Workflow
 
 ### 1. Pre-flight

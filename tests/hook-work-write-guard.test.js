@@ -130,6 +130,10 @@ describe('work write guard — v2 store', () => {
       if (isUnit(rel)) {
         expect(stderr).toContain('/sig:discuss --epic');
         expect(stderr).toContain('/sig:ship');
+        // Every command that writes one, and how a hold is placed (M6.E16 t10.2).
+        for (const writer of ['/sig:new-project --epic', '/sig:docs-sweep', '/sig:docs-migrate --work-store', 'holdUnit', 'releaseUnit']) {
+          expect(stderr, writer).toContain(writer);
+        }
         expect(stderr).toContain('A unit record has no body file');
       }
     }
@@ -319,6 +323,9 @@ describe('hooks-api.md states what the guard cannot see (REVIEW I7)', () => {
     const desc = doc.slice(at, doc.indexOf('- **exit:**', at));
     expect(desc).toContain('`.planning/work/units/*.json`');
     expect(desc).toMatch(/\/sig:discuss --epic/);
+    for (const writer of ['/sig:new-project --epic', '/sig:ship', '/sig:docs-sweep', '/sig:docs-migrate --work-store', 'holdUnit', 'releaseUnit']) {
+      expect(desc, writer).toContain(writer);
+    }
   });
   it('the guard description says a WORK.md edit changing `key` is blocked', () => {
     const at = doc.indexOf('**Work-store guard (M6.E13/t5.1):**');

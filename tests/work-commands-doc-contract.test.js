@@ -150,7 +150,7 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
   }
   // Backticked camelCase names on these lines that are an option or a result
   // field, not a function. Listed, so a new one is a decision and not a pass.
-  const NOT_FUNCTIONS = new Set(['closesLine', 'expectedHash', 'inputHash', 'confirmUnitCloses', 'holdReason']);
+  const NOT_FUNCTIONS = new Set(['closesLine', 'expectedHash', 'inputHash', 'confirmUnitCloses', 'holdReason', 'evictionLine', 'archivePath']);
   const UNIT_LINE = /unit record|work\/units|unit-records\.js|work-ops\.js/i;
 
   it.each(UNIT_COMMANDS)('%s.md: every function named on a line about unit records is a real lib export', (name) => {
@@ -230,6 +230,40 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
   it('docs-sweep.md: closes-confirmed names a unit as well as an item', () => {
     const text = para('docs-sweep', '**`closes-confirmed`**');
     expect(text.slice(text.indexOf('**`closes-confirmed`**'))).toMatch(/unit/);
+  });
+
+  // M6.E16 S10 (t10.1, `SIG-295`): the narrative leaves STATE.md when the
+  // unit's close is confirmed, and the files that confirm say so.
+  it('ship.md § 5.5 and § 6.9: the narrative is evicted when the close is confirmed, and the result is printed and staged', () => {
+    const evict = sectionOf('ship', '### 5.5 Evict-on-close', '\n### 6');
+    expect(evict).toMatch(/when (?:its|the) close is confirmed/);
+    expect(evict).not.toMatch(/exist only there/);
+    const confirm = sectionOf('ship', '### 6.9 Confirm fixed closes', '\n### 7');
+    expect(confirm).toContain('`evictEpicNarrative`');
+    expect(confirm).toContain('`evictionLine`');
+    expect(confirm).toContain('`evictions`');
+    expect(confirm).toMatch(/STATE\.md/);
+    expect(confirm).toMatch(/STATE-NARRATIVE\.md/);
+  });
+
+  it('docs-sweep.md: closes-confirmed says a confirmed unit\'s narrative is moved out of STATE.md', () => {
+    const text = para('docs-sweep', '**`closes-confirmed`**');
+    const after = text.slice(text.indexOf('**`closes-confirmed`**'));
+    expect(after).toMatch(/narrative/);
+    expect(after).toMatch(/STATE\.md/);
+  });
+
+  // M6.E16 S10 (t10.2, `SIG-255`): a person can place and release a hold.
+  it('docs-archive.md says how to hold a unit and release it, with the library\'s own signatures', () => {
+    const text = sectionOf('docs-archive', '## Holding a unit', '\n## ');
+    expect(text).toContain('`holdUnit(baseDir, id, {reason, by})` from `tools/lib/unit-records.js`');
+    expect(text).toContain('`releaseUnit(baseDir, id, {by})` from `tools/lib/unit-records.js`');
+    expect(text).toMatch(/reason[^.]*required/);
+    expect(text).toMatch(/\[held\]/);
+    expect(text).toMatch(/[Ww]ithout unit records[^.]*no hold/);
+    const found = new Set();
+    for (const m of read('docs-archive').matchAll(FROM)) found.add(`${m[1]}@${m[2]}`);
+    for (const pair of ['holdUnit@unit-records.js', 'releaseUnit@unit-records.js']) expect(found.has(pair), pair).toBe(true);
   });
 
   it('docs-migrate.md: adding units to a store says the Epic table is regenerated when the milestone file has the markers', () => {

@@ -49,8 +49,12 @@ export const BLOCK_MESSAGE = (rel) =>
   + 'For prose, edit the item\'s body file (.planning/work/items/NN/KEY-n.md), which is not blocked.'
   + (isUnitRecord(rel)
     ? ' This file is a unit record (.planning/work/units/*.json), and /sig:item does not change one: unit '
-      + 'records change only through Signal\'s own commands — /sig:discuss --epic opens one, /sig:ship closes '
-      + 'one. A unit record has no body file.'
+      + 'records change only through Signal\'s own commands — /sig:discuss --epic and /sig:new-project --epic open '
+      + 'one (and record a reopen when a closed one is opened again on your say-so), /sig:ship requests its close, /sig:ship and '
+      + '/sig:docs-sweep confirm the close once its commit is on the default branch, and '
+      + '/sig:docs-migrate --work-store creates them for a project that had none. A hold is placed and released '
+      + 'with holdUnit and releaseUnit (tools/lib/unit-records.js; see /sig:docs-archive). '
+      + 'A unit record has no body file.'
     : '');
 
 export const WORK_MD_MESSAGE = (rel) =>

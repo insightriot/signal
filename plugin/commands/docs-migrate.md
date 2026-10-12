@@ -80,7 +80,8 @@ The same command gives every Epic or unit the project names one record under `.p
   changes nothing else — no item, and no view but `work/EPICS.md` and, when the current milestone file
   already carries the markers, the Epic table between them. A store that already has the folder
   is refused (*"unit records are already on"*); so is one `/sig:docs-sweep` has findings for, and a
-  `WORK.md` with no `items/` folder.
+  `WORK.md` with no `items/` folder. `WORK.md` itself is not rewritten: when its folder list does not
+  name `units/`, the dry run and the apply print the one line to add by hand.
 - **What is proposed for each unit**, from its milestone table row, its retrospective, its files in
   `.planning/`, its archive folder, the items queued in it and `STATE.md`: **open** — the current unit,
   and any unit nothing says is over; **a legacy close** — its row's status cell says *shipped* (and not
