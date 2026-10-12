@@ -42,6 +42,7 @@ import { runDriftChecks, checkEpicWithoutRetro } from '../plugin/tools/lib/state
 import { proposeEpicCandidates } from '../plugin/tools/lib/drive.js';
 import { findWorkOnOtherBranches } from '../plugin/tools/lib/branch-work.js';
 import { readCorpus } from '../plugin/tools/lib/advise-corpus.js';
+import { deriveUnits } from '../plugin/tools/lib/work-units.js';
 import {
   alone, ALONE, branchRepo, cleanupUnitProjects, contradiction, plant, put, retroFor, state, tempProject, unitsOn,
 } from './helpers/unit-fixture.js';
@@ -233,6 +234,28 @@ describe('AC6.1 — each reader follows the files without unit records and the r
       expect((await r.run({ units: true })).sort(), 'with unit records: the record').toEqual(r.on);
     });
   }
+});
+
+// The plan's list has one reader whose verdict is neither column outright: `deriveUnits` STAYS (it groups
+// file names), and "which units exist" switches in its callers, which have rows above (`senseArchiveTree`,
+// `buildArchiveReport`, `resolveClosures`, `checkEpicWithoutRetro`). Added at VERIFY, loop 1: until then
+// no row or check here named it.
+describe('AC6.1 — deriveUnits stays: it groups file names and reads no unit record', () => {
+  const unitsOf = (base) => {
+    const names = readdirSync(join(base, '.planning')).filter((f) => f.endsWith('.md'));
+    return [...deriveUnits(names).units.keys()].sort();
+  };
+
+  it('work-units.js deriveUnits exists and imports no unit-record module', () => {
+    expect(isExported('work-units.js', 'deriveUnits')).toBe(true);
+    expect(source('work-units.js')).not.toMatch(/from '\.\/unit-records?\.js'/);
+  });
+
+  it('the same answer without unit records and with records that contradict the files', () => {
+    // The records add M7.E4 and M7.E9, which have no file: a reader of the records would list them.
+    expect(unitsOf(contradiction({ units: false }))).toEqual(['M7.E1', 'M7.E2', 'M7.E3']);
+    expect(unitsOf(contradiction({ units: true }))).toEqual(['M7.E1', 'M7.E2', 'M7.E3']);
+  });
 });
 
 describe('AC6.2 — with an open record, no switched reader calls the unit closed', () => {
