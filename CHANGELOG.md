@@ -24,6 +24,13 @@ records now.
   commit, its PR and its release. The Epic reads *closing* until that commit is on the default
   branch; `/sig:docs-sweep` or a later SHIP then confirms it and it reads closed. The close is
   refused while an item of the Epic is open or its retrospective is missing or still a placeholder.
+- **A finished Epic's narrative leaves `STATE.md` when its close is confirmed** (`SIG-295`). The step
+  that confirms the close — `/sig:docs-sweep`, or a later SHIP — moves the narrative to its archive
+  file and says so beside the confirmation: moved, nothing to move, or kept and why (held, or a
+  retrospective that does not cover it). A narrative that is kept never undoes the close.
+- **How to place and release a hold is written down** (`SIG-255`): `/sig:docs-archive` has a
+  *Holding a unit* section naming `holdUnit` and `releaseUnit`. The reason is required and is printed
+  every time the unit is declined. There is still no slash command for it.
 - **Opening an Epic creates its record.** `/sig:discuss --epic` and `/sig:new-project --epic` refuse
   an Epic whose record is closed, unless you say you mean to reopen it, which is recorded.
 - **`/sig:docs-migrate --work-store` creates unit records for a project already on Signal** — in the
@@ -52,11 +59,20 @@ records now.
   code reads the rows.
 - **A filled retrospective alone could archive an unfinished Epic** (`SIG-288`): with unit records
   the record decides.
+- **An Epic whose VERIFICATION was already archived read as open** (`SIG-289`): with unit records the
+  record decides, wherever that file sits. The `/sig:docs-migrate` dry run also no longer says its
+  closed list "comes from retrospectives" — it says what holds a closed unit back.
+- **The message shown when a unit record is hand-edited** lists every command that writes one, not two.
+- **Adding unit records to an existing store** prints the one line to add to `WORK.md`'s folder list.
+  The file itself is yours and is not rewritten.
 
 #### Known limits
-- With unit records, a finished Epic's narrative leaves `STATE.md` at a `/sig:checkpoint` after its
-  close is confirmed, not at SHIP.
-- No command places a hold yet; `holdUnit` in `tools/lib/unit-records.js` does (`SIG-255` stays open).
+- With unit records, a finished Epic's narrative leaves `STATE.md` when its close is confirmed — at
+  the next `/sig:docs-sweep` or SHIP after the merge — not at the SHIP that requests the close.
+- If the narrative is kept at that point (the retrospective does not cover it, say), no later sweep,
+  SHIP or `/sig:checkpoint` retries it for an Epic that is no longer current: fix the retrospective,
+  then call `evictEpicNarrative` (`tools/lib/evict.js`).
+- A hold is placed by calling `holdUnit`; there is no slash command for it.
 - A project without unit records still has the behaviour `SIG-132`, `SIG-288` and `SIG-289` describe.
 
 ## [0.1.50] — 2026-10-10 — other projects can move onto the work store

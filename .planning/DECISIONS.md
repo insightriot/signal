@@ -4273,3 +4273,10 @@ reading made the refusal unreachable from the only command that opens Epics.
 ### D-M6E16-18 — The next Epic ID is the higher of the records and the filenames (Claude, EXECUTE)
 Amends AC3.2. Records decide; filenames are a floor, so a project part-way through adopting records is
 never handed an ID already in use.
+
+### D-M6E16-19 — A unit's narrative is evicted when its close is confirmed (Claude)
+Settles `SIG-295`. With unit records SHIP only requests the close and `/sig:checkpoint` looks only at
+`current_epic`, which has usually moved on by the time the close is confirmed, so nothing evicted a
+finished Epic's narrative. The confirm step (`runConfirmCloses`, at SHIP and in the sweep) is the one
+place that knows a unit has just become closed, so it evicts there and reports the result; a refusal
+leaves the confirmation standing.
