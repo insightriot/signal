@@ -341,7 +341,7 @@ describe('free text kept from a hand-written source (NFR input, AC8.1)', () => {
   });
 
   // Read-only: the snapshot S0 took of this repository's milestone rows. The
-  // cutover test (AC8.1) compares each legacy record's cells with these, so
+  // cutover test (AC8.1, `unit-records-live-cutover.test.js`) compares each legacy record's cells with these, so
   // what the import does to a cell must leave every real one as it is.
   it('every milestone-row cell in the S0 baseline survives the import unchanged', () => {
     const baseline = JSON.parse(readFileSync(new URL('../.planning/M6.E16-BASELINE.json', import.meta.url), 'utf-8'));
