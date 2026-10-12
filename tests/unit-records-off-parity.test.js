@@ -107,13 +107,23 @@ const said = (message) => [
 ];
 const times = (list, token) => list.filter((t) => t === token).length;
 
-// The first-time dry run's report without what it says about unit records: two
-// sections before its last sentence, and one clause of that sentence.
+// The first-time dry run's report without what it says about unit records: the
+// "Unit records" section, the "Proposed legacy closes" section when it follows
+// (each ends at a blank line), and one clause of the last sentence. Nothing
+// else between them and that sentence is removed here.
 const UNITS_CLAUSE = /, creates \.planning\/work\/units\/ with \d+ unit records?(?: \([^)]*\))?(?=, regenerates )/;
 function withoutUnitSections(report) {
   const i = report.findIndex((l) => l.startsWith('Unit records — '));
-  const lines = i === -1 ? report : [...report.slice(0, i), report.at(-1)];
-  return lines.map((l) => l.replace(UNITS_CLAUSE, ''));
+  if (i === -1) return report;
+  let end = report.indexOf('', i) + 1;
+  if (report[end].startsWith('Proposed legacy closes (')) end = report.indexOf('', end) + 1;
+  return [...report.slice(0, i), ...report.slice(end)].map((l) => l.replace(UNITS_CLAUSE, ''));
+}
+// The same report without its note on a milestone file that has no Epic-table markers, and the blank line after it.
+const markersNote = (line) => /^\.planning\/MILESTONE-\d+\.md has no Epic-table markers, /.test(line);
+function withoutMarkersNote(report) {
+  const i = report.findIndex(markersNote);
+  return i === -1 ? report : [...report.slice(0, i), ...report.slice(i + 2)];
 }
 const aboutUnits = (line) => /^Wrote \d+ unit records? under |^\d+ proposed legacy closes? /.test(line);
 const inUnitsFolder = (line) => line.includes('.planning/work/units/');
@@ -138,6 +148,7 @@ const withoutKindsAAndB = (capture) => {
     delete dry.units; // the first-time migration's dry run proposes unit records… (AC9.1)
     delete dry.proposedUnitCloses; // …and legacy closes for them
     dry.report = withoutUnitSections(dry.report); // …and says so in its report
+    dry.report = withoutMarkersNote(dry.report); // …and says a milestone file without Epic-table markers is left as it is (AC7.2)
   }
   for (const key of ['apply', 'treeAfterApply', 'gitStatusAfterApply', 'workMd']) {
     delete out[`firstTime.archivedEpic.${key}`]; // that apply no longer fails its own check where there is `archive/epics/<ID>/`
@@ -330,6 +341,27 @@ describe('no store, or a v1 store: (a) what this Epic adds to the migrations tha
     ]);
     expect(is.at(-1)).toContain(', creates .planning/work/units/ with 2 unit records (1 of them closed as legacy only if you confirm that list; otherwise open), regenerates ');
     expect(is.at(-1).replace(UNITS_CLAUSE, '')).toBe(was.at(-1));
+  });
+
+  it('the first-time dry run says a milestone file without Epic-table markers is left as it is; v0.1.50\'s said nothing of it (AC7.2)', () => {
+    const NOTE = '.planning/MILESTONE-9.md has no Epic-table markers, so it is left exactly as it is. To have its Epic rows generated, put '
+      + '`<!-- signal:epics:begin -->` on the line before the table and `<!-- signal:epics:end -->` on the line after it, by hand, after the apply. '
+      + 'This command never adds them.';
+    for (const name of ['epics', 'archivedEpic']) {
+      const was = V0150[`firstTime.${name}.dryRun`].report;
+      const is = now[`firstTime.${name}.dryRun`].report;
+      expect(was.filter(markersNote), name).toEqual([]);
+      // After the two unit sections and before the last sentence, with a blank line after it.
+      expect(is.slice(-3, -1), name).toEqual([NOTE, '']);
+      expect(is.at(-5), name).toMatch(/^ {2}M9\.E1 {2}— its milestone row says shipped /);
+      // With the unit sections and this note taken out, the report is v0.1.50's, line for line.
+      expect(withoutMarkersNote(withoutUnitSections(is)), name).toEqual(was);
+      // Taking out the unit sections alone leaves the note in.
+      expect(withoutUnitSections(is).filter(markersNote), name).toEqual([NOTE]);
+    }
+    // A project with no milestone file is told nothing about markers.
+    expect(now['firstTime.linear.dryRun'].report.filter(markersNote)).toEqual([]);
+    expect(withoutUnitSections(now['firstTime.linear.dryRun'].report)).toEqual(V0150['firstTime.linear.dryRun'].report);
   });
 
   it('the first-time apply creates work/units/, so a project migrated on this version has unit records on; v0.1.50\'s made no such folder (AC9.1)', () => {

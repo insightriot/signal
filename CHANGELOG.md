@@ -58,7 +58,7 @@ records now.
   `/sig:docs-migrate --work-store` on a project already on the store proposes unit records where it
   used to refuse; some return values have new keys, empty here; moving a project onto the store
   for the first time also proposes and creates its unit records, so it has `work/units/`
-  afterwards; that first move no longer fails on a project that has
+  afterwards, and its dry run says when a milestone file has no markers and is left alone; that first move no longer fails on a project that has
   `.planning/archive/epics/<ID>/`, where `v0.1.50` stopped with "the migrated store did not verify"
   and wrote nothing; the `WORK.md` a migration writes names `units/`; and `--also` is read); the
   unit-name rule (the item

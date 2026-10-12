@@ -4308,6 +4308,8 @@ called none of the paths they are on. Kind (a) now names them: the first-time
 creates `work/units/` (AC9.1), so a project migrated on this version has unit records on; that apply
 no longer fails its own check on a project that has `.planning/archive/epics/<ID>/` (`v0.1.50` threw
 `SCHEMA` and wrote nothing); the `WORK.md` body a migration writes names `units/`; and the migrate
-command reads `--also`. No code changed. "The test now compares 72 answers" above was loop 2's
+command reads `--also`. Once the test called the first-time dry run it showed a fifth: on a project
+whose milestone file has no Epic-table markers, that dry run prints one sentence saying the file is
+left as it is (AC7.2). It is the same kind, and is named in kind (a) with the dry run. No code changed. "The test now compares 72 answers" above was loop 2's
 count; after this amendment it compares more, and the number is in AC6.4. It also no longer takes
 out every message: one `v0.1.50` worded the same way is compared word for word.
