@@ -367,6 +367,11 @@ export async function evictEpicNarrative(baseDir, epicId, opts = {}) {
     let closedByRecord = false;
     const unitRecords = readUnitRecords(baseDir);
     if (unitRecords !== null) {
+      // The `units/` folder itself cannot be trusted: whether this Epic is
+      // closed, or held, is not known, so nothing is evicted.
+      if (typeof unitRecords.problem === 'string') {
+        return { evicted: false, reason: 'unit-record-unreadable', detail: unitRecords.problem };
+      }
       if (unitRecords.broken.has(epicId)) {
         return { evicted: false, reason: 'unit-record-unreadable', detail: unitRecords.broken.get(epicId) };
       }

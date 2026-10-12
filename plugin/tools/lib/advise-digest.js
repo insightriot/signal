@@ -32,7 +32,7 @@ import { parseEpicStatusRows } from './milestones.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
 import { bugRowPriority, countInboxHeadings, listOpenQuestions } from './legacy-lists.js';
 import { compareUnitIds, epicIdParts } from './unit-record.js';
-import { hasUnitsSafe } from './unit-records.js';
+import { unitRecordsOn } from './unit-records.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -168,13 +168,23 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
     }
   }
 
-  // With unit records (`hasUnitsSafe`, M6.E16 t5.3, AC7.3) the Epic lines below
+  // With unit records (`unitRecordsOn`, M6.E16 t5.3, AC7.3) the Epic lines below
   // come from the records: no row of a milestone file is parsed, and "no SHIP
   // entry in STATE.md" does not decide what is open. The corpus's read is
   // reused when it carries one, so the advisory and its digest see the same units.
-  const byRecords = hasUnitsSafe(baseDir).has;
+  //
+  // A `units/` folder that cannot be trusted is treated as unit records that
+  // did not read: the sections below say they could not be checked, with the
+  // fault, and no milestone row is parsed in their place.
+  let byRecords;
   let unitSource = null;
-  if (byRecords) {
+  try {
+    byRecords = unitRecordsOn(baseDir);
+  } catch (err) {
+    byRecords = true;
+    unitSource = { error: err.message };
+  }
+  if (byRecords && unitSource === null) {
     const fromCorpus = c.sources?.milestones?.units;
     unitSource = Array.isArray(fromCorpus) ? { units: fromCorpus } : readUnitSource(baseDir);
   }

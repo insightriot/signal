@@ -92,7 +92,7 @@ export async function listMilestones(baseDir) {
  * `milestone` arg AND no strict `current_epic`) — the caller must then supply
  * an explicit `--milestone` or pass a literal Epic ID to `--epic`.
  *
- * On a project with unit records (`hasUnitsSafe`, `unit-records.js`) the
+ * On a project with unit records (`unitRecordsOn`, `unit-records.js`) the
  * highest `E{N}` among that milestone's records, open or closed, counts as
  * well, and the higher of the two is used (M6.E16 AC3.2). Without unit
  * records only the filenames are read, as before.
@@ -134,8 +134,10 @@ export async function deriveNextEpicId(baseDir, { milestone } = {}) {
   // ID in use. A broken record takes its number too. Imported here, not at
   // the top: unit-records.js reaches most of the store, and this module is
   // read by code that needs none of it.
-  const { hasUnitsSafe, listUnits } = await import('./unit-records.js');
-  if (hasUnitsSafe(baseDir).has) {
+  // A `units/` folder that cannot be trusted throws here (`unitRecordsOn`):
+  // an ID handed out without the records' numbers could be one in use.
+  const { unitRecordsOn, listUnits } = await import('./unit-records.js');
+  if (unitRecordsOn(baseDir)) {
     const { units, broken } = listUnits(baseDir);
     for (const { id } of [...units, ...broken]) {
       const m = typeof id === 'string' ? id.match(UNIT_EPIC_RE) : null;

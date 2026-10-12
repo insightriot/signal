@@ -70,6 +70,7 @@ const READERS = {
   assertUnitId: (base) => units.assertUnitId(base, 'M6.E20', { storeKey: 'SIG' }),
   hasUnits: (base) => units.hasUnits(base),
   hasUnitsSafe: (base) => units.hasUnitsSafe(base),
+  unitRecordsOn: (base) => units.unitRecordsOn(base),
   getUnit: (base) => units.getUnit(base, 'M6.E20'),
   listUnits: (base) => units.listUnits(base),
   unitClosure: (base) => units.unitClosure(base, 'M6.E23'),

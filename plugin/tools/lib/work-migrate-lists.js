@@ -135,7 +135,7 @@ import {
 } from './work-migrate.js';
 import { checkEvents, serializeRecord, validateRecord } from './work-record.js';
 import { bodyPath, checkRecords, listRecords, recordPath, storeVersion, V1_STORE_MESSAGE } from './work-records.js';
-import { checkUnits, hasUnitsSafe, importUnits, listUnits, UNITS_REL } from './unit-records.js';
+import { checkUnits, importUnits, listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 import { scrubSensitive } from './scrub.js';
 import { isGeneratedFile } from './work-marker.js';
 import { isStoreOn, STORE_KEY_RE, WORK_DIR, WORK_FILE, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
@@ -468,9 +468,13 @@ function unitSensitiveHits(plan) {
 // records: the refusals and the plan. Reads only.
 async function assessUnitsOnly(baseDir, opts) {
   const refuse = (reason) => ({ refusal: reason });
-  const units = hasUnitsSafe(baseDir);
-  if (units.problem !== null) return refuse(`${ALREADY_ON}, so nothing was written. Unit records cannot be added: ${units.problem}`);
-  if (units.has) {
+  let unitsOn;
+  try {
+    unitsOn = unitRecordsOn(baseDir);
+  } catch (err) {
+    return refuse(`${ALREADY_ON}, so nothing was written. Unit records cannot be added: ${err.message}`);
+  }
+  if (unitsOn) {
     return refuse(`This project is already on the store, and unit records are already on: ${WORK_MD_REL} and ${UNITS_REL}/ exists, `
       + 'so nothing was written. A unit is opened with /sig:discuss --epic and closed by /sig:ship.');
   }
@@ -1474,15 +1478,18 @@ const RETRO_WALK_MAX = 50000;
  * commit subjects carry (→ that commit), and the Epic IDs with a
  * retrospective under `.planning/` (→ its path). Reads only.
  *
- * On a project with unit records (`hasUnitsSafe`; M6.E16 t4.4) `epics` is
+ * On a project with unit records (`unitRecordsOn`; M6.E16 t4.4) `epics` is
  * instead the units whose record is closed with reason `shipped` (→ the
  * record's path), and `units` is true. A `legacy`- or `dropped`-closed unit is
- * not in it, whether or not it has a retrospective (`D-M6E16-15`).
+ * not in it, whether or not it has a retrospective (`D-M6E16-15`). A `units/`
+ * folder that cannot be trusted is read the same way — `units` true, `epics`
+ * empty, the fault in `unitsProblem` — never from the retrospectives: records
+ * that cannot be read are evidence of nothing.
  *
  * @param {string} baseDir
  * @param {{execFn?: Function}} [opts]
  * @returns {{source: 'git'|'none', commits: string[], prs: Map<number, string>, epics: Map<string, string>,
- *   origin: {host: string, repo: string}|null, units?: true}}
+ *   origin: {host: string, repo: string}|null, units?: true, unitsProblem?: string}}
  */
 export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   let out = '';
@@ -1533,16 +1540,27 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   // against the default branch. A `legacy` close (recorded as over, never
   // checked) and a `dropped` one (it did not ship) are not, and neither is a
   // retrospective existing. Records that cannot be read are evidence of nothing.
-  if (hasUnitsSafe(baseDir).has) {
+  let unitsOn;
+  let unitsProblem = null;
+  try {
+    unitsOn = unitRecordsOn(baseDir);
+  } catch (err) {
+    unitsOn = true;
+    unitsProblem = err.message;
+  }
+  if (unitsOn) {
     const shipped = new Map();
     let listed = { units: [] };
     try {
-      listed = listUnits(baseDir);
-    } catch {
-      listed = { units: [] };
+      if (unitsProblem === null) listed = listUnits(baseDir);
+    } catch (err) {
+      unitsProblem = err?.message ?? String(err);
     }
     for (const u of listed.units) if (u.status === 'closed' && u.close?.reason === 'shipped') shipped.set(u.id, u.path);
-    return { source, ref: ref.replace(/^refs\/(?:heads|remotes)\//, ''), commits, prs, epics: shipped, origin, units: true };
+    return {
+      source, ref: ref.replace(/^refs\/(?:heads|remotes)\//, ''), commits, prs, epics: shipped, origin, units: true,
+      ...(unitsProblem === null ? {} : { unitsProblem }),
+    };
   }
 
   const epics = new Map();

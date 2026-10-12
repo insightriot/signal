@@ -28,7 +28,7 @@ import { leadingUnitId } from './leading-id.js';
 import { readState, partitionCompletedPhases, PHASES } from './state.js';
 import { findWorkOnOtherBranches, nextStepFor } from './branch-work.js';
 import { resolveArtifactPath } from './resume.js';
-import { getUnit, hasUnitsSafe, unitClosure } from './unit-records.js';
+import { getUnit, unitClosure, unitRecordsOn } from './unit-records.js';
 import { isStoreOn } from './work-store.js';
 import { listRecords } from './work-records.js';
 import { storeBacklogRows, storeQuestions } from './advise-corpus.js';
@@ -556,13 +556,13 @@ export async function proposeEpicCandidates(baseDir) {
     // named in `awaitingMerge`; closed (held or not) is neither. An Epic with
     // no record, or one whose record does not read (reported), is read from
     // STATE.md as before.
+    // A `units/` folder that cannot be trusted is reported the same way
+    // (`unitRecordsOn` throws inside the `try`).
     let unit = null;
-    if (hasUnitsSafe(baseDir).has) {
-      try {
-        if (unitClosure(baseDir, state.current_epic) !== 'no-record') unit = getUnit(baseDir, state.current_epic);
-      } catch (err) {
-        cannotCheck.push({ source: 'unit records', reason: err.message });
-      }
+    try {
+      if (unitRecordsOn(baseDir) && unitClosure(baseDir, state.current_epic) !== 'no-record') unit = getUnit(baseDir, state.current_epic);
+    } catch (err) {
+      cannotCheck.push({ source: 'unit records', reason: err.message });
     }
     const { valid } = partitionCompletedPhases(state.completed_phases ?? []);
     const shipped = valid.some((e) => e.startsWith('SHIP '));

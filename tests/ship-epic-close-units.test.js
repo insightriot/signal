@@ -145,13 +145,16 @@ describe('shipFR1Check with unit records — STATE.md alone decides (AC4.6)', ()
       .toMatchObject({ halt: true, code: 'NO_RETRO_FILE' });
   });
 
-  it('a linked units folder reads as no unit records: the old path answers', async () => {
+  // Changed at REVIEW pass 1 (r1.4, C-I4, `D-M6E16-22`): this case pinned the
+  // opposite — a `units/` the library refuses read as "no unit records".
+  it('a linked units folder halts the gate, naming the folder: the milestone row is not read', async () => {
     const outside = await mkdtemp(join(tmpdir(), 'sig-ship-units-out-'));
     try {
       await mkdir(join(without, '.planning/work'), { recursive: true });
       await symlink(outside, join(without, UNITS));
-      expect(await shipFR1Check({ state: AT_REVIEW, profile: FULL, milestoneContent: ROW_STALE, baseDir: without }))
-        .toMatchObject({ skipped: true, cause: 'stale-milestone-row' });
+      const out = await shipFR1Check({ state: AT_REVIEW, profile: FULL, milestoneContent: ROW_STALE, baseDir: without });
+      expect(out).toMatchObject({ halt: true, code: 'UNITS_FOLDER' });
+      expect(out.message).toMatch(/\.planning\/work\/units\/ cannot be trusted.*symbolic link/);
     } finally {
       await rm(outside, { recursive: true, force: true });
     }
@@ -224,7 +227,9 @@ describe('warn-dirty-execute.js (the spawned hook) with unit records', () => {
     expect(runHook(withUnits).trim()).toBe('');
   });
 
-  it('a broken record, and a linked units folder: silent, exit 0', async () => {
+  // Changed at REVIEW pass 1 (r1.4, C-I4, `D-M6E16-22`): this case pinned the
+  // opposite — a `units/` the library refuses read as "no unit records".
+  it('a broken record: silent, exit 0. A linked units folder: exit 0, and the hook says why it could not check', async () => {
     await put(withUnits, '.planning/STATE.md', STATE);
     await put(withUnits, `${UNITS}/${EPIC}.json`, '{ not json');
     expect(runHook(withUnits).trim()).toBe('');
@@ -233,7 +238,11 @@ describe('warn-dirty-execute.js (the spawned hook) with unit records', () => {
       await put(without, '.planning/STATE.md', STATE);
       await mkdir(join(without, '.planning/work'), { recursive: true });
       await symlink(outside, join(without, UNITS));
-      expect(runHook(without).trim()).toBe('');
+      // Fail-open: the hook blocks nothing and exits 0 (`runHook` throws on any other exit).
+      const payload = JSON.parse(runHook(without).trim());
+      expect(payload.hookSpecificOutput.hookEventName).toBe('SessionStart');
+      expect(payload.hookSpecificOutput.additionalContext).toMatch(/could not check.*\.planning\/work\/units\/ cannot be trusted.*symbolic link/);
+      expect(payload.hookSpecificOutput.additionalContext).not.toMatch(/looks closed in MILESTONE\.md/);
     } finally {
       await rm(outside, { recursive: true, force: true });
     }

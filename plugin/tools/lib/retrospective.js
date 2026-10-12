@@ -15,7 +15,7 @@ import { join } from 'node:path';
 
 import { EPIC_ID_STRICT_RE, PHASES, detectMode } from './state.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
-import { getUnit, hasUnitsSafe, unitClosure } from './unit-records.js';
+import { getUnit, unitClosure, unitRecordsOn } from './unit-records.js';
 
 // Pre-SHIP work phases in canonical order — everything in PHASES between
 // CALIBRATE and SHIP (both exclusive). Derived from PHASES (state.js:16) so the
@@ -177,11 +177,14 @@ export function deriveRetroPath(epicId) {
  * directions by AC5.4 and AC5.6, because a newly-unconditional guard that
  * makes a documented mode unusable is `B42`'s failure mode.
  *
- * **On a project with unit records** (`hasUnitsSafe`; M6.E16 t6.1) the unit's
+ * **On a project with unit records** (`unitRecordsOn`; M6.E16 t6.1) the unit's
  * record is asked first, whatever the unit is called: `done` when it is closed
  * (a held unit is closed), `not-done` when it is open or *closing*,
  * `cannot-evaluate` when the record does not read. The retrospective is not
- * read. A unit with no record is answered as above.
+ * read. A unit with no record is answered as above. A `units/` folder that
+ * cannot be trusted (a link, a file, one that cannot be listed) is
+ * `cannot-evaluate` too, with the fault as the reason — never an answer from
+ * the retrospective (REVIEW pass 1, C-I4).
  *
  * Never throws.
  *
@@ -196,7 +199,13 @@ export function isEpicDone(baseDir, epicId) {
   // With unit records (M6.E16 t6.1, `D-M6E16-2`) the unit's record is asked
   // first: done when it is closed (a held unit is closed), not-done when it is
   // open or *closing*. A unit with no record takes the path below.
-  if (hasUnitsSafe(baseDir).has) {
+  let unitsOn;
+  try {
+    unitsOn = unitRecordsOn(baseDir);
+  } catch (err) {
+    return { status: 'cannot-evaluate', reason: err.message };
+  }
+  if (unitsOn) {
     let closure;
     try {
       closure = unitClosure(baseDir, epicId);
@@ -759,7 +768,7 @@ export function checkStateFrontmatterShape(args) {
  * Returns a banner message to inject into additionalContext, or null when
  * the state is clean.
  *
- * On a project with unit records (`hasUnitsSafe`) "looks like it should have
+ * On a project with unit records (`unitRecordsOn`) "looks like it should have
  * shipped" is read from the current unit's record — closing or closed — and
  * the milestone file is not read (M6.E16 t4.3). Never throws there.
  *
@@ -777,10 +786,17 @@ export function detectDirtyExecute(args) {
   // With unit records (M6.E16 t4.3, `D-M6E16-10`) the trigger is the unit's
   // record, not the milestone row: it reads closing or closed while STATE.md
   // still says EXECUTE. `args.milestoneContent` is not read on this path.
-  // This runs inside a hook, so nothing here may throw: a `units/` layout the
-  // library refuses reads as no unit records (`hasUnitsSafe`), and a missing
-  // or broken record is no trigger.
-  const byRecord = hasUnitsSafe(baseDir).has;
+  // This runs inside a hook, so nothing here may throw: a missing or broken
+  // record is no trigger, and neither is a `units/` folder that cannot be
+  // trusted — that is not "no unit records", so the milestone row is not read
+  // for it either; the hook itself says why it could not check
+  // (`warn-dirty-execute.js`).
+  let byRecord;
+  try {
+    byRecord = unitRecordsOn(baseDir);
+  } catch {
+    return null;
+  }
   let unitStatus = null;
   if (byRecord) {
     try {
@@ -863,6 +879,7 @@ function defaultFileExists(path) {
  *   - { halt: true, code: 'NO_CURRENT_EPIC', message }              — A2 empty
  *   - { halt: true, code: 'NO_RETRO_FILE', retroPath, message }     — AC1
  *   - { halt: true, code: 'INVALID_RETRO', retroPath, message }     — content fails validator
+ *   - { halt: true, code: 'UNITS_FOLDER', message }                 — `work/units/` is there and cannot be trusted
  *
  * The function has NO bypass parameter — D-E9-3's "no bypass" applies. Extra
  * args passed by the caller are ignored.
@@ -931,7 +948,16 @@ export async function shipFR1Check(args) {
   // whether this SHIP closes the Epic: no milestone row is read —
   // `args.milestoneContent` is not touched — so the row can neither win nor
   // be stale. `rowStatus` is null there, which is the row-absent case below.
-  const byRecords = hasUnitsSafe(baseDir).has;
+  //
+  // A `units/` folder that cannot be trusted halts: whether this SHIP closes
+  // the Epic cannot be read from a row the records may have replaced, and
+  // §6.8's close would refuse on the same fault after the SHIP commit's work.
+  let byRecords;
+  try {
+    byRecords = unitRecordsOn(baseDir);
+  } catch (err) {
+    return { halt: true, code: 'UNITS_FOLDER', message: `${err.message} /sig:ship did not run its retrospective check, and stopped.` };
+  }
   const milestoneContent = byRecords ? null : args.milestoneContent;
   const rowStatus = milestoneContent
     ? findEpicStatusRow(milestoneContent, state.current_epic)

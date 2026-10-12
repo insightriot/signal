@@ -32,7 +32,7 @@ import { atomicWrite } from './atomic-write.js';
 import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd, scrubSensitive } from './add.js';
 import { DONE_WORD_RE, declaresBugDischarge, isBugId, parseBacklogRows } from './legacy-lists.js';
 import { EPIC_ID_STRICT_RE } from './state.js';
-import { hasUnitsSafe, unitClosure } from './unit-records.js';
+import { unitClosure, unitRecordsOn } from './unit-records.js';
 import { isStoreOn } from './work-store.js';
 import { assertWritable, isEpicArchived, listRecords, newItem, requestCloses } from './work-records.js';
 import { WorkStoreError } from './work-errors.js';
@@ -860,7 +860,7 @@ const storeCannot = (reason) => ({
  * whose own status says whether it is closed. A *closing* item is done (AC7.3)
  * and never reported.
  *
- * On a project with unit records (`hasUnitsSafe`; M6.E16 t6.0) the unit's
+ * On a project with unit records (`unitRecordsOn`; M6.E16 t6.0) the unit's
  * record is asked first (`unitClosure`): closed or held is closed here, open
  * or *closing* is not, and the evidence names the record. A unit with no
  * record is read as above, for that unit only; one whose record does not read
@@ -893,7 +893,14 @@ export async function storeDischargeStatus(baseDir) {
   // or held is finished, open (or closing) is not. A unit with no record is
   // read as before unit records, for that unit only. A record that does not
   // read has no answer, and its items are reported blind.
-  const unitsOn = hasUnitsSafe(baseDir).has;
+  // A `units/` folder that cannot be trusted has no answer for any unit, and
+  // is not "no unit records": the whole status is "cannot tell", with the fault.
+  let unitsOn;
+  try {
+    unitsOn = unitRecordsOn(baseDir);
+  } catch (err) {
+    return storeCannot(err.message);
+  }
   const byRecord = new Map();
   if (unitsOn) {
     for (const epic of new Set(inEpic.map((r) => r.epic))) {

@@ -16,7 +16,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { detectDirtyExecute } from '../tools/lib/retrospective.js';
-import { hasUnitsSafe } from '../tools/lib/unit-records.js';
+import { unitRecordsOn } from '../tools/lib/unit-records.js';
 
 const baseDir = process.cwd();
 
@@ -50,8 +50,25 @@ if (!state.current_epic) process.exit(0);
 // Load the matching milestone file (M4.5.E9 → MILESTONE-4.5.md) — only on a
 // project with no unit records. With unit records the trigger is the unit's
 // record (M6.E16 t4.3, D-M6E16-10) and the milestone file is not opened.
+//
+// A `work/units/` folder that cannot be trusted (a link, a file, one that
+// cannot be listed) is not "no unit records": the milestone row is not read
+// in its place. The hook stays fail-open, as hooks here do — it blocks
+// nothing — and says why it could not check.
 let milestoneContent = '';
-if (!hasUnitsSafe(baseDir).has) {
+let unitsOn;
+try {
+  unitsOn = unitRecordsOn(baseDir);
+} catch (err) {
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      additionalContext: `Signal could not check whether ${state.current_epic} was left mid-EXECUTE without a retrospective: ${err?.message ?? String(err)}`,
+    },
+  }) + '\n');
+  process.exit(0);
+}
+if (!unitsOn) {
   const milestoneNum = state.current_epic.replace(/^M/, '').replace(/\.E\d+$/, '');
   const milestonePath = resolve(
     baseDir,

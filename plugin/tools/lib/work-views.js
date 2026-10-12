@@ -46,7 +46,7 @@ import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, PLANNING_DIR, Stat
 import { CLOSE_WORDS_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, compareUnitIds, epicIdParts } from './unit-record.js';
 // A cycle, by design: unit-records.js regenerates the views after a write.
 // Neither module uses the other's bindings while it is being evaluated.
-import { hasUnitsSafe, listUnits, UNITS_REL } from './unit-records.js';
+import { listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { bodyDirFor } from './work-convert.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -482,8 +482,10 @@ function renderStore(baseDir) {
   }
   const watchlistText = readWatchlist(baseDir);
   // With unit records (`D-M6E16-16`: the folder exists) the Epic index is
-  // rendered from them, and the Epic folders are not read (M6.E16 t5.1).
-  if (!hasUnitsSafe(baseDir).has) {
+  // rendered from them, and the Epic folders are not read (M6.E16 t5.1). A
+  // `units/` folder that cannot be trusted throws here (`unitRecordsOn`): no
+  // view is generated, and so no store write lands (`assertViewsWritable`).
+  if (!unitRecordsOn(baseDir)) {
     return { views: renderViews(records, { watchlistText, epics: readEpicFolders(baseDir) }), milestone: null, notes: [] };
   }
   const units = readUnits(baseDir);

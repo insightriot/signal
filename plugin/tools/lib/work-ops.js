@@ -7,7 +7,7 @@
 // moved the file between status folders. The cutover made items JSON records
 // that never move, written by `work-records.js`, and t7.4 retired the v1
 // mutations and readers. What stays is the Epic's two ends, and each has two
-// paths, chosen by whether the project has unit records (`hasUnitsSafe` —
+// paths, chosen by whether the project has unit records (`unitRecordsOn` —
 // `.planning/work/units/` exists):
 //
 // - `openEpic` — what `/sig:discuss --epic` and `/sig:new-project --epic`
@@ -45,7 +45,7 @@ import { EPIC_ID_STRICT_RE, parseFrontmatter, setCurrentEpic, StateSchemaError, 
 import { deriveRetroPath } from './retrospective.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
 import {
-  assertUnitId, getUnit, hasUnitsSafe, openUnit, reopenUnit, requestUnitClose, rerequestUnitClose, storedRef, unitClosure,
+  assertUnitId, getUnit, openUnit, reopenUnit, requestUnitClose, rerequestUnitClose, storedRef, unitClosure, unitRecordsOn,
 } from './unit-records.js';
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
 import { assertNoHandKeptLists, EPIC_README } from './work-generate.js';
@@ -288,7 +288,7 @@ function removeEmptyTree(dir) {
  * files of the folder, which move together. A failure before the regeneration
  * puts every file back where it was, byte-for-byte.
  *
- * **On a project with unit records** (`hasUnitsSafe(baseDir).has`; M6.E16
+ * **On a project with unit records** (`unitRecordsOn(baseDir)`; M6.E16
  * t4.1, `D-M6E16-2`, `-14`) none of the folder work above happens. The close
  * is a `close_requested` event on the Epic's unit record, with a commit as
  * proof — `close.commit`, or the branch HEAD — and `pr` and `release` beside
@@ -345,7 +345,10 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   assertWritable(baseDir);
   // With unit records the close is an event on the unit's record (M6.E16 t4.1).
-  if (hasUnitsSafe(baseDir).has) {
+  // A `units/` folder that cannot be trusted refuses here (`unitRecordsOn`
+  // throws): it is not "no unit records", and the folder move below is not
+  // the fallback for it.
+  if (unitRecordsOn(baseDir)) {
     return closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit: close.commit }, opts, execFn);
   }
   const pending = sensitivePending([pr, release], opts);
@@ -682,10 +685,12 @@ function closeLine(close, { words = true } = {}) {
  * (`setCurrentEpic`, `state.js`). What `/sig:discuss --epic` and
  * `/sig:new-project --epic` call.
  *
- * **On a project with no unit records** (`hasUnitsSafe(baseDir).has` is
- * false — which includes a `units/` folder it refuses to read) this calls
- * `setCurrentEpic` and nothing else: no record is created, nothing is
- * checked first, and its errors are `setCurrentEpic`'s own.
+ * **On a project with no unit records** (`unitRecordsOn(baseDir)` is false:
+ * there is no `units/` folder) this calls `setCurrentEpic` and nothing else:
+ * no record is created, nothing is checked first, and its errors are
+ * `setCurrentEpic`'s own. A `units/` folder that is there and cannot be
+ * trusted — a link, a file, one that cannot be listed — is refused before
+ * anything is written (REVIEW pass 1, C-I4): it is not "no unit records".
  *
  * **On a project with unit records**, Epic IDs only (`M6.E16`; another unit
  * name is created by the migration, `D-M6E16-13`):
@@ -713,12 +718,13 @@ function closeLine(close, { words = true } = {}) {
  * @param {{by: string, force?: boolean}} [open] — `by` is required when the project has unit records
  * @returns {Promise<{epic: string, unit: 'created'|'existing'|'reopened'|'no-records'}>}
  * @throws {WorkStoreError} SCHEMA (not an Epic ID, no `by`, a broken record), CONFIG (unit records, and
- *   the store is off or v1), CONFLICT (the unit is closed and `force` is not true); after `current_epic`
+ *   the store is off or v1), CONFLICT (the unit is closed and `force` is not true; or `units/` is a link
+ *   or a file), IO (`units/` cannot be listed); after `current_epic`
  *   was set, the record write's own code (LOCKED, IO, …) with a message saying what stands
  * @throws {StateWriteError} as `setCurrentEpic`
  */
 export async function openEpic(baseDir, epicId, open = {}) {
-  if (!hasUnitsSafe(baseDir).has) {
+  if (!unitRecordsOn(baseDir)) {
     await setCurrentEpic(baseDir, epicId);
     return { epic: epicId, unit: 'no-records' };
   }

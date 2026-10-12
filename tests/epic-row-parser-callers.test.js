@@ -10,18 +10,24 @@
 //
 // They are not deleted: a project with no unit records still reads its
 // hand-kept table through them (AC6.4). What this test pins is that EVERY call
-// site sits behind the switch — `hasUnitsSafe(...)`, the "does this project
+// site sits behind the switch — `unitRecordsOn(...)`, the "does this project
 // have unit records" question — or is listed below with the reason it need
 // not. It is a population test over source text:
 //
 //   1. every call site in the shipped plugin and the repo's own tools is found
 //      and must be in ALLOWED, by file and enclosing declaration — a new call
 //      site fails until someone lists it and says why;
-//   2. every listed site that is not exempt has `hasUnitsSafe(` between the
+//   2. every listed site that is not exempt has `unitRecordsOn(` between the
 //      start of its enclosing declaration and the call;
 //   3. the scanner is run on planted text, so it is known to bite.
 //
-// ⚠ What it cannot see: that the `hasUnitsSafe(` it finds actually guards the
+// The switch was `hasUnitsSafe(…).has` until REVIEW pass 1 (r1.4, C-I4): that
+// read a `units/` folder that cannot be trusted as "no unit records" and sent
+// the caller on to these parsers. Every caller now asks `unitRecordsOn`, which
+// throws on such a folder, so a call of it before the parser means the parser
+// is not reached with unit records AND not reached on a faulty folder.
+//
+// ⚠ What it cannot see: that the `unitRecordsOn(` it finds actually guards the
 // call (it checks position, not control flow), and a parser written under a
 // new name. The behaviour itself is tested per caller: `ship-fr1` /
 // `ship-epic-close-units` (AC4.6), `published-facts-units`, `advise-units`.
@@ -40,7 +46,7 @@ const PARSERS = {
   EPIC_ROW: /\bEPIC_ROW\b(?!\s*=)/,
   parseEpicStatusRows: /(?<!function\s)\bparseEpicStatusRows\s*\(/,
 };
-const SWITCH = 'hasUnitsSafe(';
+const SWITCH = 'unitRecordsOn(';
 
 const isComment = (line) => /^\s*(\/\/|\*|\/\*)/.test(line);
 // The start of a top-level declaration: a function, or an exported const (a `defineCheck({...})` object).
@@ -198,17 +204,17 @@ describe('the scanner bites', () => {
   });
 
   it('a call after the switch in the same declaration is guarded; the switch after the call does not count', () => {
-    expect(scan(src('  if (hasUnitsSafe(baseDir).has) return [];\n  return parseEpicStatusRows(content);'))[0].guarded).toBe(true);
-    expect(scan(src('  const rows = parseEpicStatusRows(content);\n  return hasUnitsSafe(baseDir).has ? [] : rows;'))[0].guarded).toBe(false);
+    expect(scan(src('  if (unitRecordsOn(baseDir)) return [];\n  return parseEpicStatusRows(content);'))[0].guarded).toBe(true);
+    expect(scan(src('  const rows = parseEpicStatusRows(content);\n  return unitRecordsOn(baseDir) ? [] : rows;'))[0].guarded).toBe(false);
   });
 
   it('the switch in ANOTHER declaration above does not count', () => {
-    const two = `export function a(baseDir) {\n  return hasUnitsSafe(baseDir).has;\n}\n\nexport function b(content) {\n  return parseEpicStatusRows(content);\n}\n`;
+    const two = `export function a(baseDir) {\n  return unitRecordsOn(baseDir);\n}\n\nexport function b(content) {\n  return parseEpicStatusRows(content);\n}\n`;
     expect(scan(two)).toEqual([{ name: 'parseEpicStatusRows', decl: 'b', line: 6, guarded: false }]);
   });
 
   it('the switch named only in a comment does not count', () => {
-    expect(scan(src('  // hasUnitsSafe(baseDir) would go here\n  return parseEpicStatusRows(content);'))[0].guarded).toBe(false);
+    expect(scan(src('  // unitRecordsOn(baseDir) would go here\n  return parseEpicStatusRows(content);'))[0].guarded).toBe(false);
   });
 
   it('a definition, an import and a comment are not call sites; each other shape is', () => {

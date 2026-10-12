@@ -333,7 +333,9 @@ describe('M6.E16 t3.2 deriveNextEpicId with unit records', () => {
     expect(await deriveNextEpicId(baseDir)).toBeNull();
   });
 
-  it('`units/` is a link (a hostile layout): the filename path answers, as with no records', async () => {
+  // Changed at REVIEW pass 1 (r1.4, C-I4, `D-M6E16-22`): this case pinned the
+  // opposite — a `units/` the library refuses read as "no unit records".
+  it('`units/` is a link (a hostile layout): refused — an ID is not handed out without the records', async () => {
     await rm(join(baseDir, UNITS), { recursive: true });
     const outside = await mkdtemp(join(tmpdir(), 'signal-e16-t32-out-'));
     try {
@@ -341,7 +343,9 @@ describe('M6.E16 t3.2 deriveNextEpicId with unit records', () => {
       await symlink(outside, join(baseDir, UNITS));
       await writeState(baseDir, { epic: 'M5.E2' });
       await touch('M5.E2-PLAN.md');
-      expect(await deriveNextEpicId(baseDir)).toBe('M5.E3');
+      await expect(deriveNextEpicId(baseDir)).rejects.toMatchObject({
+        name: 'WorkStoreError', code: 'CONFLICT', message: expect.stringMatching(/\.planning\/work\/units\/ cannot be trusted.*symbolic link/),
+      });
     } finally {
       await rm(outside, { recursive: true, force: true });
     }

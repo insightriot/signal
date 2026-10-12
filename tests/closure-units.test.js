@@ -108,11 +108,14 @@ describe('resolveClosures with unit records (t6.1)', () => {
     expect(res.units.map((u) => u.unit)).toContain('M7.E4');
   });
 
-  it('a units/ folder the library refuses reads as no unit records', async () => {
+  // Changed at REVIEW pass 1 (r1.4, C-I4, `D-M6E16-22`): this case pinned the
+  // opposite — a `units/` the library refuses read as "no unit records".
+  it('a units/ folder the library refuses is not "no unit records": no unit is read from its files', async () => {
     const base = contradiction();
     put(base, '.planning/work/units', 'not a folder');
     const res = byUnit(await resolveClosures(base));
-    expect(res['M7.E1'].status).toBe(CLOSURE.CLOSED);
+    expect(res['M7.E1'].status).toBe(CLOSURE.CANNOT_DETERMINE);
+    expect(res['M7.E1'].reason).toMatch(/\.planning\/work\/units\/ cannot be trusted.*not a folder/);
   });
 });
 

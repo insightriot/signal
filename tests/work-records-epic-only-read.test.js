@@ -102,10 +102,27 @@ describe('no unit records: an item record naming a unit that is not an Epic ID i
     expect((await thrown(() => startItem(base, 'LEAF-2', { epic: 'M9.E2', by, at: AT })))?.code).toBe('SCHEMA');
   });
 
-  it('a linked or unreadable units/ counts as no unit records, as for every reader', () => {
+  // Changed at REVIEW pass 1 (r1.4, C-I4, `D-M6E16-22`): this case pinned the
+  // opposite — a `units/` the library refuses read as "no unit records".
+  it('a units/ that is a file is the folder\'s fault: the listing is refused, and no item record is blamed for it', () => {
     const base = project({ units: false });
     put(base, '.planning/work/units', 'a file, not a folder');
-    expect(listRecords(base).broken.map((b) => b.id)).toEqual(['LEAF-2', 'LEAF-3']);
+    let err;
+    try {
+      listRecords(base);
+    } catch (e) {
+      err = e;
+    }
+    expect(err).toMatchObject({ name: 'WorkStoreError', code: 'CONFLICT', unitsFolder: true });
+    expect(err.message).toMatch(/\.planning\/work\/units\/ cannot be trusted.*not a folder/);
+    expect(err.message).not.toMatch(/LEAF-|does not exist|an Epic only/);
+    const findings = checkRecords(base);
+    expect(findings).toEqual([expect.objectContaining({ id: null, path: '.planning/work/units' })]);
+  });
+
+  it('the rule\'s own message says there is no folder, in words that are true only then', () => {
+    const base = project({ units: false });
+    expect(listRecords(base).broken[0].error).toMatch(/this project has no unit records \(there is no \.planning\/work\/units\/ folder\)/);
   });
 });
 

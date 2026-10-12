@@ -46,6 +46,7 @@ import { atomicWrite } from './atomic-write.js';
 import { deriveEpicArchiveDir } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
 import { readUnitRecords, resolveClosures } from './closure.js';
+import { unitRecordsOn } from './unit-records.js';
 import { INBOX_NEW, INBOX_LEGACY, LEDGER_NEW, LEDGER_LEGACY } from './inbox-path.js';
 import { acquireLock } from './file-lock.js';
 import { isGeneratedText } from './work-marker.js';
@@ -457,9 +458,24 @@ function assertInsidePlanning(baseDir, destAbs) {
  * @param {string} baseDir
  * @param {{scaffoldSuffixes?: string[], v3Rename?: boolean, closedUnits?: string[]}} [opts]
  * @returns {Promise<{moves: Array, moveMap: Map, closedEpicIds: string[], closedUnits: string[], files: string[],
- *   editsByFile: Map<string, Array>, renameFroms: Set<string>, dropped: Array, held: Array<{unit: string, reason: string}>}>}
+ *   editsByFile: Map<string, Array>, renameFroms: Set<string>, dropped: Array, held: Array<{unit: string, reason: string}>,
+ *   unitsProblem?: string}>} `unitsProblem`: `work/units/` is there and cannot be trusted — then every list is empty
+ *   and nothing is planned
  */
 export async function senseArchiveTree(baseDir, opts = {}) {
+  // A `units/` FOLDER THAT CANNOT BE TRUSTED (REVIEW pass 1, C-I4) — a link, a
+  // file, one that cannot be listed — moves nothing at all, whoever named a
+  // unit closed: which units are held is not known, and a held unit never
+  // moves. The fault is returned in `unitsProblem`. Asked first, before
+  // `.planning/` is walked: a folder that cannot be listed would stop the walk
+  // with a raw error.
+  const unitRecords = readUnitRecords(baseDir);
+  if (typeof unitRecords?.problem === 'string') {
+    return {
+      moves: [], moveMap: new Map(), closedEpicIds: [], closedUnits: [], files: [], editsByFile: new Map(), renameFroms: new Set(),
+      dropped: [], held: [], unitsProblem: unitRecords.problem,
+    };
+  }
   const retros = await enumerateRetros(baseDir);
   // M5.E18 S5.t1 (`B64`): a STUB retro is not closure. `enumerateRetros` has
   // always reported `isStub`; this call discarded it, so a card that is still
@@ -499,7 +515,6 @@ export async function senseArchiveTree(baseDir, opts = {}) {
   // not read is not closed. The union above still decides a unit with NO
   // record. And if closure resolution throws, a unit with a record does not
   // fall back to its retrospective: it is not archived.
-  const unitRecords = readUnitRecords(baseDir);
   const hasRecord = (unit) => unitRecords !== null && (unitRecords.byId.has(unit) || unitRecords.broken.has(unit));
   let closedUnits = opts.closedUnits;
   if (!closedUnits) {
@@ -589,6 +604,9 @@ export async function senseArchiveTree(baseDir, opts = {}) {
  */
 export async function applyArchiveTree(baseDir, opts = {}) {
   const apply = opts.apply ?? false;
+  // An apply on a `units/` folder that cannot be trusted is refused before
+  // anything is sensed or moved (`unitRecordsOn` throws; REVIEW pass 1, C-I4).
+  if (apply) unitRecordsOn(baseDir);
   const { moves, moveMap, files, editsByFile } = await senseArchiveTree(baseDir, opts);
 
   if (!apply) {

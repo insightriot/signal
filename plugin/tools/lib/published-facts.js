@@ -27,7 +27,7 @@ import {
 import { retroStatusFromContent, RETRO_STATUS } from './retro-index.js';
 import { isStoreOn } from './work-store.js';
 import { listRecords } from './work-records.js';
-import { hasUnitsSafe } from './unit-records.js';
+import { unitRecordsOn } from './unit-records.js';
 import { renderBugTally } from './work-views.js';
 
 /**
@@ -418,7 +418,16 @@ export const checkMilestoneStatusVsState = defineCheck({
     // the records and no code reads them back (`D-M6E16-4`): no milestone file
     // is opened here. A table that has fallen behind its records is the store
     // check's `view-stale` finding (`checkRecords`, `work-records.js`).
-    if (hasUnitsSafe(ctx.baseDir).has) {
+    //
+    // A `units/` folder that cannot be trusted is BLIND, not N/A and not a
+    // reason to read the rows: whether they are generated is not known.
+    let unitsOn;
+    try {
+      unitsOn = unitRecordsOn(ctx.baseDir);
+    } catch (err) {
+      return { status: APPLICABILITY.BLIND, reason: err.message };
+    }
+    if (unitsOn) {
       return {
         status: APPLICABILITY.NA,
         reason:
@@ -438,9 +447,14 @@ export const checkMilestoneStatusVsState = defineCheck({
   },
 
   run: (ctx) => {
-    // Never reached with unit records (`applicability` answers first); said
-    // here too, so the row parser below is behind the same switch on its own.
-    if (hasUnitsSafe(ctx.baseDir).has) return [];
+    // Never reached with unit records, or with a `units/` folder that cannot
+    // be trusted (`applicability` answers first); said here too, so the row
+    // parser below is behind the same switch on its own.
+    try {
+      if (unitRecordsOn(ctx.baseDir)) return [];
+    } catch {
+      return [];
+    }
     const current = ctx.state?.current_epic ?? null;
     const out = [];
     for (const f of (ctx.files || []).filter((x) => /^MILESTONE-.*\.md$/.test(x))) {

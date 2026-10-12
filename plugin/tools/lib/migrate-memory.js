@@ -1100,6 +1100,7 @@ export async function senseVector3(baseDir, stateText, opts = {}) {
   const unitRecords = readUnitRecords(baseDir);
   const whyNotClosed = (epicId) => {
     const record = unitRecords?.byId.get(epicId);
+    if (typeof unitRecords?.problem === 'string') return `whose unit record could not be looked for (${unitRecords.problem})`;
     if (unitRecords?.broken.has(epicId)) return 'whose unit record could not be read';
     if (record?.status === 'closed' && record.held) return `whose unit record is closed and held (${record.hold_reason}), so its narrative stays`;
     if (record !== undefined) return 'which has a retrospective, but its unit record is not closed (or it is the current unit)';

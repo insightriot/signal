@@ -556,15 +556,21 @@ export const checkEpicWithoutRetro = defineCheck({
   // so it already evaluated. This is a latent gap that fails safe today by
   // INVENTORY, not by design — the Epic does not claim it fixed an observed
   // problem (RESEARCH §9.5).
-  applicability: ({ files }) =>
-    files.some((f) => f === 'RETROSPECTIVE.md' || f.endsWith('-RETROSPECTIVE.md'))
+  applicability: ({ files, planningDir }) => {
+    // A `work/units/` folder that cannot be trusted (REVIEW pass 1, C-I4):
+    // which units were worked, and which were dropped, is not known, and the
+    // files alone are not asked in its place. BLIND, with the fault.
+    const unitsProblem = typeof planningDir === 'string' ? readUnitRecords(dirname(planningDir))?.problem : undefined;
+    if (typeof unitsProblem === 'string') return { status: APPLICABILITY.BLIND, reason: unitsProblem };
+    return files.some((f) => f === 'RETROSPECTIVE.md' || f.endsWith('-RETROSPECTIVE.md'))
       ? APPLICABILITY.EVAL
       : {
           status: APPLICABILITY.NA,
           reason:
             'this project has no retrospectives at all — a different convention, not drift. ' +
             'The check has nothing to compare against.',
-        },
+        };
+  },
   run: async ({ files, state, planningDir }) => {
     // `deriveUnits` owns the whole rule now: the right-anchored suffix match,
     // the categorical seven-phase-name exclusion (a linear project legitimately
@@ -585,6 +591,9 @@ export const checkEpicWithoutRetro = defineCheck({
     // `/sig:docs-sweep` reports the record. A unit with no record is still
     // found from its files, as above.
     const unitRecords = readUnitRecords(dirname(planningDir));
+    // Never reached with a `units/` folder that cannot be trusted
+    // (`applicability` answers BLIND first); said here too.
+    if (typeof unitRecords?.problem === 'string') return [];
     const byRecord = new Map();
     if (unitRecords !== null) {
       for (const id of unitRecords.broken.keys()) worked.delete(id);

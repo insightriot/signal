@@ -41,7 +41,7 @@ import { findWorkOnOtherBranches } from './branch-work.js';
 import { readState } from './state.js';
 import { isStoreOn } from './work-store.js';
 import { listRecords } from './work-records.js';
-import { hasUnitsSafe, listUnits } from './unit-records.js';
+import { listUnits, unitRecordsOn } from './unit-records.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -343,13 +343,23 @@ if (stateRefusal) {
 // Today **no ranking input reads it**, and the rendered artifact says so in
 // the same words rather than letting "Read: … milestone rows" imply otherwise.
 //
-// WITH UNIT RECORDS (`hasUnitsSafe`, M6.E16 t5.3, AC7.3) the source is the unit
+// WITH UNIT RECORDS (`unitRecordsOn`, M6.E16 t5.3, AC7.3) the source is the unit
 // records and no milestone file is opened: the Epic table is generated from
 // those records, and nothing reads generated rows back (`D-M6E16-4`). The
 // source keeps its name; `files` is empty and `units` carries each unit with
 // its folded state. A unit record that does not read blinds the source.
-if (hasUnitsSafe(baseDir).has) {
-  const read = readUnitSource(baseDir);
+// A `units/` folder that cannot be trusted blinds the source the same way; no
+// milestone file is opened in its place.
+let unitsOn;
+let unitsFault = null;
+try {
+  unitsOn = unitRecordsOn(baseDir);
+} catch (err) {
+  unitsOn = true;
+  unitsFault = err.message;
+}
+if (unitsOn) {
+  const read = unitsFault === null ? readUnitSource(baseDir) : { error: unitsFault };
   if (read.error) {
     fail('milestone rows', read.error);
   } else {

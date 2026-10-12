@@ -59,9 +59,13 @@ describe('checkMilestoneStatusVsState — with unit records it does not apply (A
     expect((await only()).status).toBe(STATUS.NOT_APPLICABLE);
   });
 
-  it('a units path that is not a real folder is not unit records: the check runs as before', async () => {
+  // Changed at REVIEW pass 1 (r1.4, C-I4, `D-M6E16-22`): this case pinned the
+  // opposite — a `units/` the library refuses read as "no unit records".
+  it('a units path that is not a real folder: the check is blind, with the fault — it does not run on the rows', async () => {
     await mkdir(join(dir, '.planning/work'), { recursive: true });
     await writeFile(join(dir, '.planning/work/units'), 'a file, not a folder\n');
-    expect((await only()).status).toBe(STATUS.FINDINGS);
+    const result = await only();
+    expect(result.status).not.toBe(STATUS.FINDINGS);
+    expect(JSON.stringify(result)).toMatch(/\.planning\/work\/units\/ cannot be trusted.*not a folder/);
   });
 });

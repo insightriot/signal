@@ -317,14 +317,17 @@ describe('confirmCloses — without unit records, as before (AC6.4)', () => {
     expect(await records.confirmCloses(work, { now: NOW })).toEqual({ confirmed: ['SIG-1'], stillClosing: [], stale: [] });
   });
 
-  it('a linked units folder reads as none: no `units` field, and nothing is written through the link', async () => {
+  // Changed at REVIEW pass 1 (r1.4, C-I4, `D-M6E16-22`): this case pinned the
+  // opposite — a `units/` the library refuses read as "no unit records".
+  it('a linked units folder refuses the run, naming the folder; nothing is written through the link', async () => {
     const { work, shas } = await plantClone();
     await store(work, { unitsOn: false });
     const outside = join(root, 'outside');
     const bytes = UNIT_KIND.serializeRecord({ id: 'M7.E3', events: [opened, unitRequest(shas[0])] });
     await put(outside, 'M7.E3.json', bytes);
     await symlink(outside, join(work, UNITS));
-    expect(await records.confirmCloses(work, { now: NOW })).toEqual({ confirmed: [], stillClosing: [], stale: [] });
+    await expect(records.confirmCloses(work, { now: NOW })).rejects.toMatchObject({ name: 'WorkStoreError', code: 'CONFLICT', message: expect.stringMatching(/\.planning\/work\/units\/ cannot be trusted.*symbolic link/) });
+    expect(() => records.probeCloses(work, { now: NOW })).toThrow(/\.planning\/work\/units\/ cannot be trusted.*symbolic link/);
     expect(await readFile(join(outside, 'M7.E3.json'), 'utf-8')).toBe(bytes);
   });
 

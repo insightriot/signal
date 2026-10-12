@@ -43,7 +43,7 @@ import { cut, printable } from './printable-text.js';
 import { retroStatusFromContent, RETRO_STATUS } from './retro-index.js';
 import { parseFrontmatter } from './state.js';
 import { compareUnitIds, epicIdParts } from './unit-record.js';
-import { assertUnitId, caseTwins, hasUnitsSafe } from './unit-records.js';
+import { assertUnitId, caseTwins, unitRecordsOn } from './unit-records.js';
 import { epicOf } from './work-record.js';
 import { listRecords, storeVersion } from './work-records.js';
 import { isStoreOn } from './work-store.js';
@@ -104,8 +104,10 @@ function rowCells(raw) {
 
 // Every Epic row of every top-level `MILESTONE-*.md`, in file then line order.
 function readMilestoneRows(baseDir, notes) {
-  // AC7.3: the rows are read only where there are no unit records.
-  if (hasUnitsSafe(baseDir).has) return [];
+  // AC7.3: the rows are read only where there are no unit records. A
+  // `units/` folder that cannot be trusted throws (`unitRecordsOn`);
+  // `planUnits` asks first and refuses, so that is not reached from it.
+  if (unitRecordsOn(baseDir)) return [];
   const rows = [];
   const files = entries(join(baseDir, PLANNING))
     .map((e) => ({ name: e.name, m: e.name.match(MILESTONE_FILE_RE) }))
@@ -333,6 +335,14 @@ function readAlso(baseDir, also, named, storeKey) {
  *   input read and every proposal made.
  */
 export async function planUnits(baseDir, opts = {}) {
+  // A `work/units/` folder that cannot be trusted refuses the whole plan
+  // (REVIEW pass 1, C-I4): it is not "no unit records", and a plan made as if
+  // it were would read the milestone rows the records may have replaced.
+  try {
+    unitRecordsOn(baseDir);
+  } catch (err) {
+    return { refusal: `Unit records could not be planned, so nothing was written: ${err.message}` };
+  }
   const notes = [];
   const units = new Map();
   const unit = (id) => {

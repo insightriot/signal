@@ -368,13 +368,16 @@ describe('closeEpic without unit records — as before (AC6.4)', () => {
     expect(await closeEpic(root, EPIC, { by, at: AT })).toEqual({ status: 'no-folder' });
   });
 
-  it('a linked units folder reads as no unit records: no-folder, nothing written through the link', async () => {
+  // Changed at REVIEW pass 1 (r1.4, C-I4, `D-M6E16-22`): this case pinned the
+  // opposite — a `units/` the library refuses read as "no unit records".
+  it('a linked units folder refuses the close, naming the folder; nothing is written, here or through the link', async () => {
     await project({ units: false });
     const outside = await mkdtemp(join(tmpdir(), 'sig-epic-close-units-out-'));
     try {
       await writeFile(join(outside, `${EPIC}.json`), UNIT_KIND.serializeRecord({ id: EPIC, events: [U.opened] }), 'utf-8');
       await symlink(outside, join(root, UNITS));
-      expect(await closeEpic(root, EPIC, { by, at: AT })).toEqual({ status: 'no-folder' });
+      const err = await refused(() => closeEpic(root, EPIC, { by, at: AT }), 'CONFLICT', /\.planning\/work\/units\/ cannot be trusted.*symbolic link/);
+      expect(err.unitsFolder).toBe(true);
       expect(await readFile(join(outside, `${EPIC}.json`), 'utf-8')).toBe(UNIT_KIND.serializeRecord({ id: EPIC, events: [U.opened] }));
     } finally {
       await rm(outside, { recursive: true, force: true });

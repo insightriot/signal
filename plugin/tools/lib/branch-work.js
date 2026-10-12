@@ -40,7 +40,7 @@ import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 
 import { parseFrontmatter, partitionCompletedPhases } from './state.js';
-import { hasUnitsSafe, unitClosure } from './unit-records.js';
+import { unitClosure, unitRecordsOn } from './unit-records.js';
 
 const GIT_TIMEOUT_MS = 5000;
 const FIELD_MAX = 160;
@@ -186,9 +186,21 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
   // STATE.md and never reaches a git argument. No record: rule 3's files on
   // HEAD, as before. A record that does not read hides nothing: the Epic is
   // still offered, and the problem is reported once.
-  const unitsOn = hasUnitsSafe(baseDir).has;
+  // A `units/` folder that cannot be trusted is the same case for every Epic:
+  // none is called finished here, each is still offered, and the fault is
+  // reported once — rule 3's files are not read in its place.
   const recordProblems = [];
+  let unitsOn;
+  let unitsFault = false;
+  try {
+    unitsOn = unitRecordsOn(baseDir);
+  } catch (err) {
+    unitsOn = false;
+    unitsFault = true;
+    recordProblems.push(err.message);
+  }
   const isFinishedHere = (epic) => {
+    if (unitsFault) return false;
     if (unitsOn) {
       try {
         const closure = unitClosure(baseDir, epic);

@@ -148,7 +148,9 @@ describe('buildEvidenceIndex without unit records — the retrospective rule sta
     expect(p.proposedCloses.map((c) => c.legacyId)).toEqual(['B1']);
   });
 
-  it('a linked units folder reads as none: the retrospective rule answers, and the linked records are not read', () => {
+  // Changed at REVIEW pass 1 (r1.4, C-I4, `D-M6E16-22`): this case pinned the
+  // opposite — a `units/` the library refuses read as "no unit records".
+  it('a linked units folder is evidence of nothing: the retrospective rule does not answer, and the linked records are not read', () => {
     const outside = join(root, 'outside');
     mkdirSync(outside, { recursive: true });
     writeFileSync(join(outside, 'M3.E8.json'), UNIT_KIND.serializeRecord({ id: 'M3.E8', events: [opened, closed('dropped', { words: 'x' })] }));
@@ -156,7 +158,8 @@ describe('buildEvidenceIndex without unit records — the retrospective rule sta
     symlinkSync(outside, join(base, UNITS));
     commitAll();
     const idx = buildEvidenceIndex(base);
-    expect(idx.units).toBeUndefined();
-    expect(idx.epics.has('M3.E8')).toBe(true);
+    expect(idx.units).toBe(true);
+    expect([...idx.epics.keys()]).toEqual([]);
+    expect(idx.unitsProblem).toMatch(/\.planning\/work\/units\/ cannot be trusted.*symbolic link/);
   });
 });

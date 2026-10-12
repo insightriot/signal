@@ -4320,3 +4320,10 @@ them again: an item queued, started or reopened into a *closing* unit, or a reco
 merge, left a unit reading closed with an open item in it. So `queueItem`, `startItem` and
 `reopenItem` refuse on a closing unit as they do on a closed one, and `confirmCloses` leaves a unit
 closing (`open-items`) until each of its items is closed or confirmed in the same write.
+
+### D-M6E16-22 — A `work/units/` folder that cannot be trusted is an error, never "no unit records" (Claude)
+Settles REVIEW pass 1, `C-I4` / `S-M6` / `T-I1`. A folder that was a link, a file or unreadable read
+as "off" at 24 call sites, so closure went back to the retrospective and the verdict — an open unit
+could read closed — a hold was lost, and an item record was blamed for the folder's fault. Every
+caller now asks one helper (`unitRecordsOn`) that answers yes or no on a sound layout and throws on
+a faulty one: a writer or a mover refuses, and a reader answers its own "cannot tell" with the fault.

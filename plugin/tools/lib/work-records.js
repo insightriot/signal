@@ -50,7 +50,7 @@ import { EPIC_ID_STRICT_RE, parseFrontmatter } from './state.js';
 // evaluated. (The sync readers below — `listClosing`, `probeCloses` — need it
 // without an `await`.)
 import * as unitLib from './unit-records.js';
-import { hasUnitsSafe, listUnits, UNITS_REL } from './unit-records.js';
+import { listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 // The write helpers every record kind shares. `regenerateAfter` comes in under
 // another name because this module keeps its own, which names the views.
 import {
@@ -273,9 +273,12 @@ const keyOf = (id) => id.slice(0, id.lastIndexOf('-'));
 // broken entry's `code` says what kind (`path`, `unreadable`, `invalid`,
 // `events`), for `checkRecords`.
 //
-// `epicOnly` (M6.E16 v2.1, AC6.4): the project has no unit records, so an
-// event may name an Epic ID only, as the schema itself said on `v0.1.50`; a
-// record naming any other unit is `invalid`, as it was then.
+// `epicOnly` (M6.E16 v2.1, AC6.4): the project has no unit records — there is
+// no `work/units/` folder — so an event may name an Epic ID only, as the schema
+// itself said on `v0.1.50`; a record naming any other unit is `invalid`, as it
+// was then. The callers take it from `unitRecordsOn`, which throws on a folder
+// that is there and cannot be trusted (REVIEW pass 1, C-I4): that fault is the
+// folder's, and no record is read, or blamed, under it.
 function readOne(file, key, body, epicOnly) {
   const fail = (error, code) => ({ broken: { id: file.id, path: file.rel, code, error } });
   if (keyOf(file.id) !== key) return fail(`${file.rel}: key ${keyOf(file.id)} is not this store's key (${key})`, 'path');
@@ -297,7 +300,7 @@ function readOne(file, key, body, epicOnly) {
       .filter((e) => e !== null);
     if (notEpic.length > 0) {
       return fail(`${notEpic.join('; ')} — not an Epic ID, and this project has no unit records `
-        + `(${UNITS_REL}/ does not exist), so an item can name an Epic only`, 'invalid');
+        + `(there is no ${UNITS_REL}/ folder), so an item can name an Epic only`, 'invalid');
     }
   }
   if (record.id !== file.id) return fail(`${file.rel}: file name says ${file.id} but the record id is ${record.id}`, 'path');
@@ -316,8 +319,10 @@ function readOne(file, key, body, epicOnly) {
 }
 
 function listV2(baseDir, key, opts) {
+  // Asked before any record is read: a `units/` folder that cannot be trusted
+  // refuses the listing, and no item record is blamed for it.
+  const epicOnly = !unitRecordsOn(baseDir);
   const walked = walkItems(baseDir, { strict: opts.strict });
-  const epicOnly = !hasUnitsSafe(baseDir).has;
   const broken = [...walked.broken];
   const brokenBody = new Map(broken.filter((b) => b.id && b.path.endsWith('.md')).map((b) => [b.id, b]));
   const records = [];
@@ -539,7 +544,7 @@ function readV2One(baseDir, key, id) {
   let body = null;
   if (b?.isSymbolicLink()) body = { broken: { path: bodyRel, error: `${bodyRel} ${LINK_REFUSED}` } };
   else if (b?.isFile()) body = { rel: bodyRel, abs: join(baseDir, bodyRel) };
-  const r = readOne({ id, rel, abs: join(baseDir, rel) }, key, body, !hasUnitsSafe(baseDir).has);
+  const r = readOne({ id, rel, abs: join(baseDir, rel) }, key, body, !unitRecordsOn(baseDir));
   return r.entry ? { records: [r.entry], broken: [] } : { records: [], broken: [r.broken] };
 }
 
@@ -966,10 +971,11 @@ function epicEvent(type, move) {
 }
 
 // The unit-record library, when this project has unit records (M6.E16 t3.3);
-// null when it has none, or `units/` is a layout the library refuses
-// (`hasUnitsSafe`) — the caller then does what it did before unit records.
+// null when it has none — the caller then does what it did before unit
+// records. A `units/` folder that cannot be trusted throws (`unitRecordsOn`):
+// every caller is a writer, and refuses.
 async function unitRecords(baseDir) {
-  return hasUnitsSafe(baseDir).has ? unitLib : null;
+  return unitRecordsOn(baseDir) ? unitLib : null;
 }
 
 // An archived Epic is finished: nothing is queued or started in it, as
@@ -1675,7 +1681,7 @@ export function probeCloses(baseDir, opts = {}) {
   const { still, ok, records: itemRecords } = classifyClosing(baseDir, execFn, { writing: false, onDefaultBranch });
   const out = { confirmable: ok.map((c) => c.id).sort((a, b) => numberOf(a) - numberOf(b)), ...stillAndStale(still, now) };
   // Unit closes, by the same rule and against the same ref (M6.E16 t5.0c).
-  if (hasUnitsSafe(baseDir).has) {
+  if (unitRecordsOn(baseDir)) {
     const unitSide = classifyClosingUnits(unitLib, baseDir, onDefaultBranch, { writing: false, items: itemsNotClosed(itemRecords, ok) });
     out.units = { confirmable: unitSide.ok.map((c) => c.id).sort(byText), ...stillAndStale(unitSide.still, now, byText) };
   }
@@ -1728,7 +1734,7 @@ export function listClosing(baseDir, opts = {}) {
   // fields, from the unit's latest close request. Without unit records the
   // result has no `units` key. A broken unit record is not listed here;
   // `checkUnits` reports it.
-  if (hasUnitsSafe(baseDir).has) {
+  if (unitRecordsOn(baseDir)) {
     out.units = listUnits(baseDir).units.filter((u) => u.status === 'closing').map((u) => closingRow(u, now));
   }
   return out;
@@ -1907,6 +1913,10 @@ export function checkRecords(baseDir, opts = {}) {
     listed = listV2(baseDir, store.key, { strict: true });
   } catch (err) {
     if (!(err instanceof WorkStoreError)) throw err;
+    // A `units/` folder that cannot be trusted (`unitRecordsOn`): the one
+    // finding, at the folder. No item record was read under it, and the views
+    // cannot be rendered to compare — saying that too would be the same fault twice.
+    if (err.unitsFolder === true) return [{ code: err.code === 'CONFLICT' ? 'link' : 'unreadable', id: null, path: UNITS_REL, message: err.message }];
     findings.push({ code: err.code === 'CONFLICT' ? 'link' : 'unreadable', id: null, path: ITEMS_REL, message: err.message });
   }
   for (const b of listed.broken) findings.push({ code: b.code ?? 'invalid', id: b.id, path: b.path, message: b.error });

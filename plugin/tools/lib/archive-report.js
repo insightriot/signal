@@ -42,7 +42,7 @@ const CANNOT = 'cannotDetermine';
  * upside. `/sig:docs-migrate`'s dry-run is the one consumer.
  *
  * `args.unitRecords`: true when the project has unit records (the caller's
- * `hasUnitsSafe` answer — this function reads no files). It selects the
+ * `readUnitRecords` answer — this function reads no files). It selects the
  * wording of the closed-but-not-moved sentence only.
  *
  * @returns {string[]} lines, already indented, possibly empty

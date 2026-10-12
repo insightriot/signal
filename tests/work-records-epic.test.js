@@ -6,7 +6,7 @@
 // Moving the Epic folder stays in v1 `closeEpic` until S7.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, symlink } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, readFile, writeFile, symlink } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -364,7 +364,9 @@ describe('queueItem / startItem with NO unit records — as before unit records 
     expect(snapshotTree(base)).toEqual(before);
   });
 
-  it.each(verbs)('%s: `units/` is a link (a hostile layout) — the archive-folder check answers', async (fn) => {
+  // Changed at REVIEW pass 1 (r1.4, C-I4, `D-M6E16-22`): this case pinned the
+  // opposite — a `units/` the library refuses read as "no unit records".
+  it.each(verbs)('%s: `units/` is a link (a hostile layout) — refused, naming the folder; the archive-folder check does not answer', async (fn) => {
     const outside = await mkdtemp(join(tmpdir(), 'sig-records-epic-out-'));
     try {
       await writeFile(join(outside, 'M6.E12.json'), UNIT_KIND.serializeRecord({ id: 'M6.E12', events: [{ type: 'opened', at: AT, by }] }), 'utf-8');
@@ -372,10 +374,14 @@ describe('queueItem / startItem with NO unit records — as before unit records 
       await symlink(outside, join(base, '.planning/work/units'));
       await store([rec('SIG-1', [E.created, E.triaged])]);
       await put('.planning/archive/epics/M6.E12/README.md', 'x\n');
-      await expect(records[fn](base, 'SIG-1', { epic: 'M6.E12', by }, quiet))
-        .rejects.toMatchObject({ code: 'CONFLICT', message: expect.stringMatching(/M6\.E12.*archived/) });
-      await records[fn](base, 'SIG-1', { epic: 'M6.E13', by }, quiet);
-      expect(records.getRecord(base, 'SIG-1').epic).toBe('M6.E13');
+      const before = await readFile(join(base, records.recordPath('SIG-1')), 'utf-8');
+      for (const epic of ['M6.E12', 'M6.E13']) {
+        const err = await records[fn](base, 'SIG-1', { epic, by }, quiet).catch((e) => e);
+        expect(err).toMatchObject({ name: 'WorkStoreError', code: 'CONFLICT' });
+        expect(err.message).toMatch(/\.planning\/work\/units\/ cannot be trusted.*symbolic link/);
+        expect(err.message).not.toMatch(/archived/);
+      }
+      expect(await readFile(join(base, records.recordPath('SIG-1')), 'utf-8')).toBe(before);
     } finally {
       await rm(outside, { recursive: true, force: true });
     }

@@ -43,7 +43,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import { readState } from './state.js';
-import { hasUnitsSafe, listUnits } from './unit-records.js';
+import { listUnits, unitRecordsOn } from './unit-records.js';
 import { deriveUnits, currentUnit } from './work-units.js';
 import { parseVerdict, rankTerminalArtifacts } from './verdict.js';
 
@@ -71,26 +71,35 @@ function terminalSuffix(filename) {
 
 /**
  * The project's unit records, for a closure reader (M6.E16 S6) — or null when
- * the project has none (`hasUnitsSafe`: no `work/units/` folder, or a layout
- * the unit library refuses), which is when a reader does what it did before
- * unit records.
+ * the project has none (`unitRecordsOn` is false: there is no `work/units/`
+ * folder), which is when a reader does what it did before unit records.
  *
  * Never throws. One record that does not read is in `broken` under its ID with
  * the reason, and stops no other: a broken record has no honest answer, so a
  * reader must neither call its unit closed nor go back to the unit's files.
  *
+ * **A folder that cannot be trusted is not "none"** (REVIEW pass 1, C-I4,
+ * `D-M6E16-22`). When `work/units/` is there and is a link or a file, or it
+ * cannot be listed, the result is not null: it has no record and carries the
+ * fault in `problem`. Then NO unit has an honest answer — which units have a
+ * record, which are closed and which are held are all unknown — so a reader
+ * calls none closed, moves nothing, and does not go back to any unit's files.
+ * `problem` is absent whenever the folder read.
+ *
  * @param {string} baseDir
  * @returns {{byId: Map<string, {id: string, status: 'open'|'closing'|'closed', held: boolean,
  *   hold_reason: string|null, close: object|null, closing_proof: string|null}>,
- *   broken: Map<string, string>} | null}
+ *   broken: Map<string, string>, problem?: string} | null}
  */
 export function readUnitRecords(baseDir) {
-  if (!hasUnitsSafe(baseDir).has) return null;
+  const unread = (problem) => ({ byId: new Map(), broken: new Map(), problem });
   let listed;
   try {
+    if (!unitRecordsOn(baseDir)) return null;
     listed = listUnits(baseDir);
-  } catch {
-    return null; // the folder went away or turned into a link between the two reads
+  } catch (err) {
+    // The folder cannot be trusted, or failed between the two reads: an error, never "no unit records".
+    return unread(err?.message ?? String(err));
   }
   return {
     byId: new Map(listed.units.map((u) => [u.id, u])),
@@ -136,7 +145,8 @@ function closureFromRecord(unit, record) {
  * With a record (M6.E16 t6.1) the answer carries `source: 'record'`, and
  * `held: true` with `hold_reason` when the closed unit is held. A record that
  * does not read is `cannotDetermine` (`source: 'record'`), never read from the
- * unit's files. Clause 1 below still comes first: the current unit is open
+ * unit's files; so is every unit when the `units/` folder itself cannot be
+ * trusted (`readUnitRecords`' `problem`). Clause 1 below still comes first: the current unit is open
  * whatever its record says. A unit with no record takes clauses 3 and 4.
  *
  * Clause order (each is a decision, not an accident):
@@ -191,6 +201,17 @@ export async function resolveUnitClosure(args) {
   // With unit records, the unit's record decides when it has one (see above).
   const unitRecords = args.unitRecords === undefined ? readUnitRecords(dirname(planningDir)) : args.unitRecords;
   if (unitRecords !== null) {
+    // The folder itself cannot be trusted: whether this unit has a record is
+    // not known, so its files are not asked either.
+    if (typeof unitRecords.problem === 'string') {
+      return {
+        unit,
+        status: CLOSURE.CANNOT_DETERMINE,
+        reason: `whether ${unit} has a unit record is not known — ${unitRecords.problem}`,
+        evidence: null,
+        source: 'record',
+      };
+    }
     if (unitRecords.broken.has(unit)) {
       return {
         unit,

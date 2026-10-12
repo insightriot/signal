@@ -36,7 +36,9 @@
 // argument from the caller is that hash, already matched as lowercase hex.
 
 import { execFileSync } from 'node:child_process';
-import { lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  accessSync, constants, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmdirSync, unlinkSync, writeFileSync,
+} from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
@@ -213,6 +215,13 @@ function confinedUnitsDir(baseDir) {
     throw new WorkStoreError('CONFLICT', `${WORK_REL} resolves outside the project (${realWork}) — a linked folder; `
       + 'unit records are not read through it.');
   }
+  // A folder that is there and cannot be listed is not "a folder with no
+  // records" (REVIEW pass 1, C-I4): say so here, where every caller asks.
+  try {
+    accessSync(abs, constants.R_OK | constants.X_OK);
+  } catch (err) {
+    throw new WorkStoreError('IO', `${UNITS_REL}: could not be read (${err.code ?? err.message}) — the folder is there, and its unit records cannot be listed.`);
+  }
   return abs;
 }
 
@@ -323,19 +332,24 @@ const byPath = (a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
  *
  * @param {string} baseDir
  * @returns {boolean}
- * @throws {WorkStoreError} CONFLICT when `units/` is a link or not a folder, or `work/` resolves outside the project
+ * @throws {WorkStoreError} CONFLICT when `units/` is a link or not a folder, or `work/` resolves outside the project;
+ *   IO when the folder is there and cannot be listed
  */
 export function hasUnits(baseDir) {
   return confinedUnitsDir(baseDir) !== null;
 }
 
 /**
- * `hasUnits` for a reader that must never throw (a closure check, a view, a
- * status line). On a layout `hasUnits` refuses — `units/` a link or not a
- * folder, `work/` resolving outside the project, a folder that cannot be read
- * — the answer is `has: false` with the refusal's message in `problem`, so the
- * caller reads as it did before unit records; `checkUnits` reports the same
- * layout to `/sig:docs-sweep`.
+ * `hasUnits` in a form that never throws: `{has, problem}`. On a layout
+ * `hasUnits` refuses — `units/` a link or not a folder, `work/` resolving
+ * outside the project, a folder that cannot be listed — the answer is
+ * `has: false` with the refusal's message in `problem`; `checkUnits` reports
+ * the same layout to `/sig:docs-sweep`.
+ *
+ * ⚠ `has: false` with a `problem` does NOT mean "this project has no unit
+ * records": it means nobody can tell (REVIEW pass 1, C-I4, `D-M6E16-22`). A
+ * caller deciding between the records and what it did before them asks
+ * `unitRecordsOn`, which cannot be read for `.has` alone.
  *
  * @param {string} baseDir
  * @returns {{has: boolean, problem: string|null}} `problem` is null whenever `hasUnits` answered
@@ -345,6 +359,40 @@ export function hasUnitsSafe(baseDir) {
     return { has: hasUnits(baseDir), problem: null };
   } catch (err) {
     return { has: false, problem: err?.message ?? String(err) };
+  }
+}
+
+/**
+ * Does this project have unit records — the ONE question every reader and
+ * writer asks before it chooses between the records and what it did before
+ * them (`D-M6E16-16`, `D-M6E16-22`).
+ *
+ * - `true`: `.planning/work/units/` is a real folder that can be listed.
+ * - `false`: there is no such folder. The caller behaves as before unit records.
+ * - **throws** when the folder is there and cannot be trusted — a symbolic
+ *   link, a file, a `work/` that resolves outside the project, a folder that
+ *   cannot be listed. That is neither answer, and it must not read as `false`:
+ *   a closure reader would go back to the unit's files and could call an open
+ *   unit closed; an archive would lose a hold. So a writer or a mover lets the
+ *   error through and refuses, and a reader that never throws catches it and
+ *   answers its own "cannot tell" with `err.message`.
+ *
+ * @param {string} baseDir
+ * @returns {boolean}
+ * @throws {WorkStoreError} `CONFLICT` (a link, a file, a `work/` outside the project) or `IO` (cannot be
+ *   inspected or listed), with `unitsFolder: true`; the message names `.planning/work/units/` and the fault
+ */
+export function unitRecordsOn(baseDir) {
+  try {
+    return hasUnits(baseDir);
+  } catch (cause) {
+    const problem = String(cause?.message ?? cause).replace(/[.\s]*$/, '');
+    const err = new WorkStoreError(cause instanceof WorkStoreError ? cause.code : 'IO', `${UNITS_REL}/ cannot be trusted, so whether this `
+      + `project has unit records is not known: ${problem}. Make ${UNITS_REL}/ a real folder inside the project that can be read (or `
+      + 'remove it, if this project has no unit records), then re-run. /sig:docs-sweep reports the same fault.');
+    err.unitsFolder = true;
+    err.cause = cause;
+    throw err;
   }
 }
 

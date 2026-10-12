@@ -222,14 +222,20 @@ describe('openEpic — a project with no unit records (AC6.4)', () => {
     expect(viaOpen.message).toBe(own.message);
   });
 
-  it('`units/` is a link (a hostile layout): reads as no unit records', async () => {
+  // Changed at REVIEW pass 1 (r1.4, C-I4, `D-M6E16-22`): this case pinned the
+  // opposite — a `units/` the library refuses read as "no unit records".
+  it('`units/` is a link (a hostile layout): refused, and current_epic is not set', async () => {
     await storeOn();
     const outside = await mkdtemp(join(tmpdir(), 'sig-open-epic-out-'));
     try {
       await writeFile(join(outside, 'M7.E2.json'), UNIT_KIND.serializeRecord({ id: 'M7.E2', events: [E.opened, E.dropped] }), 'utf-8');
       await symlink(outside, join(base, UNITS));
-      expect(await openEpic(base, 'M7.E2', { by })).toEqual({ epic: 'M7.E2', unit: 'no-records' });
-      expect((await readState(base)).current_epic).toBe('M7.E2');
+      const before = (await readState(base)).current_epic;
+      await expect(openEpic(base, 'M7.E2', { by })).rejects.toMatchObject({
+        name: 'WorkStoreError', code: 'CONFLICT', message: expect.stringMatching(/\.planning\/work\/units\/ cannot be trusted.*symbolic link/),
+      });
+      expect((await readState(base)).current_epic).toBe(before);
+      expect(before).not.toBe('M7.E2');
     } finally {
       await rm(outside, { recursive: true, force: true });
     }

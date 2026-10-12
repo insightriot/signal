@@ -420,7 +420,12 @@ export function checkWorkStore(baseDir) {
     // `storeVersion` throws on a broken WORK.md, as `isStoreOn` does.
     const version = storeVersion(baseDir);
     if (version === null) return [];
-    return [...checkRecords(baseDir), ...checkUnits(baseDir)].map((f) =>
+    // A `units/` folder that cannot be trusted is reported by both checks, at
+    // the folder; it is one fault, so it is one advisory (`checkRecords`').
+    const recordFindings = checkRecords(baseDir);
+    const atFolder = (f) => f.id === null && f.path === UNITS_REL;
+    const unitFindings = recordFindings.some(atFolder) ? checkUnits(baseDir).filter((f) => !atFolder(f)) : checkUnits(baseDir);
+    return [...recordFindings, ...unitFindings].map((f) =>
       mkFinding('work-store', 'advisory', f.path ?? f.paths?.[0] ?? rel, f.message));
   } catch (err) {
     return [mkFinding('work-store', 'advisory', rel, `the work store could not be checked — ${err.message}`)];
