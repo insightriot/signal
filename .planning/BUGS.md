@@ -180,5 +180,6 @@
 | SIG-289 | `confirmed` | P3 | **An Epic whose VERIFICATION is already in archive/ keeps its STATE narrative and isV3Conformant reads true (resolveClosures lists only top-level .planning/)** |
 | SIG-292 | `fixed` | P2 | **Work-store migration: a backlog row absorbs a folded <details> block below it, so its evidence check can borrow a sibling's PR reference** |
 | SIG-294 | `confirmed` | P3 | **SHIP's first check accepts a retrospective with a placeholder line, and closeEpic refuses it later in the same SHIP** |
+| SIG-295 | `confirmed` | P2 | **With unit records, a finished Epic's STATE narrative is not evicted once the next Epic is opened** |
 
-*0 needs-triage · 53 confirmed · 3 closing · 121 closed (177 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 54 confirmed · 3 closing · 121 closed (178 total) · closes more than 30 days before the newest event are in `work/history/`*
