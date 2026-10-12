@@ -22,7 +22,10 @@
 // no file is read or written here. `work-views.js` finds the current
 // milestone's file and writes it.
 
-import { compareUnitIds, epicIdParts } from './unit-record.js';
+import { cut, printable } from './printable-text.js';
+import {
+  CLOSE_WORDS_MAX, LEGACY_CELL_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, UNIT_SUMMARY_MAX, compareUnitIds, epicIdParts,
+} from './unit-record.js';
 import { WorkStoreError } from './work-errors.js';
 
 export const EPICS_BEGIN = '<!-- signal:epics:begin -->';
@@ -33,39 +36,47 @@ const HEADER = ['| Epic | Status | Summary |', '|---|---|---|'];
 // Text as it may stand between the markers: an HTML comment opener is taken
 // apart, so no recorded text can put a marker inside the table (a second
 // marker would make the next regeneration refuse).
-const noComment = (text) => text.replaceAll('<!--', '<\\!--');
+export const noComment = (text) => text.replaceAll('<!--', '<\\!--');
 
-// One table cell of recorded text: line breaks become a space and an
-// unescaped `|` is escaped (an already-escaped one is kept), so one unit is
-// always one row.
-const cell = (v) => noComment(String(v).replace(/\s*[\r\n]+\s*/g, ' ').replace(/(?<!\\)\|/g, '\\|').trim());
+// Recorded text as one line a person can read (M6.E16 v2.3): line breaks
+// become a space, then control and invisible characters go
+// (`printable-text.js`), then it is cut at `max`. A writer has done this
+// already; a record that came by a merge or a shell command has not, so the
+// text is not trusted here either.
+const line = (v, max) => cut(printable(String(v).replace(/\s*[\r\n]+\s*/g, ' ')), max);
+
+// One table cell of recorded text: one line (`line`), and an unescaped `|` is
+// escaped (an already-escaped one is kept), so one unit is always one row.
+const cell = (v, max) => noComment(line(v, max).replace(/(?<!\\)\|/g, '\\|').trim());
 
 // A cell of a legacy unit's old row: printed as it was recorded. Only what
-// could not have been in a one-line table row is changed — a line break, and
-// a comment opener.
-const legacyCell = (v) => noComment(String(v).replace(/\s*[\r\n]+\s*/g, ' '));
+// could not have been in a one-line table row is changed — a line break, a
+// control or invisible character, a comment opener — and it is cut at the
+// limit its writer cuts at. A `|` is left as recorded: a real old row can
+// carry one (it had one more cell than the table's three).
+const legacyCell = (v) => noComment(line(v, LEGACY_CELL_MAX));
 
 function statusText(unit) {
   let text;
   if (unit.status === 'open') {
     text = '**in flight**';
   } else if (unit.status === 'closing') {
-    text = `**closing** — proof ${String(unit.closing_proof).slice(0, 7)}`;
+    text = `**closing** — proof ${cell(String(unit.closing_proof).slice(0, 7), 7)}`;
   } else {
     const close = unit.close;
-    const pr = close.pr ? ` (PR ${cell(close.pr)})` : '';
+    const pr = close.pr ? ` (PR ${cell(close.pr, UNIT_REF_MAX)})` : '';
     if (close.reason === 'dropped') {
-      text = `**dropped** — ${cell(close.words ?? '')}`.trimEnd();
+      text = `**dropped** — ${cell(close.words ?? '', CLOSE_WORDS_MAX)}`.trimEnd();
     } else if (close.reason === 'legacy') {
       // A legacy close with no old row to print: the date it carries is when
       // it was recorded, not when the Epic shipped, so it is not printed.
-      text = `**closed** — ${['legacy', close.release ? cell(close.release) : null].filter(Boolean).join(', ')}${pr}`;
+      text = `**closed** — ${['legacy', close.release ? cell(close.release, UNIT_REF_MAX) : null].filter(Boolean).join(', ')}${pr}`;
     } else {
-      const what = [close.release ? cell(close.release) : null, String(close.at).slice(0, 10)].filter(Boolean).join(', ');
+      const what = [close.release ? cell(close.release, UNIT_REF_MAX) : null, String(close.at).slice(0, 10)].filter(Boolean).join(', ');
       text = `**shipped** — ${what}${pr}`;
     }
   }
-  return unit.held ? `${text} · held: ${cell(unit.hold_reason ?? '')}` : text;
+  return unit.held ? `${text} · held: ${cell(unit.hold_reason ?? '', UNIT_REASON_MAX)}` : text;
 }
 
 /**
@@ -93,7 +104,7 @@ export function renderEpicTable(units, { milestone }) {
     .map((u) => {
       const legacy = u.record.legacy_row;
       if (Array.isArray(legacy) && legacy.length > 0) return `| ${legacy.map(legacyCell).join(' | ')} |`;
-      return `| \`${u.id}\` | ${statusText(u)} | ${cell(u.record.summary ?? u.record.title ?? '')} |`;
+      return `| \`${u.id}\` | ${statusText(u)} | ${cell(u.record.summary ?? u.record.title ?? '', UNIT_SUMMARY_MAX)} |`;
     });
   return [...HEADER, ...rows].join('\n');
 }

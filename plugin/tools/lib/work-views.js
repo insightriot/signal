@@ -39,11 +39,11 @@ import { existsSync, lstatSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { epicMarkers, renderEpicTable, upsertEpicTable } from './milestone-table.js';
+import { epicMarkers, noComment, renderEpicTable, upsertEpicTable } from './milestone-table.js';
 import { assertRealInsidePlanning, linkedComponent, readRegularFile, regularFileRefusal } from './path-confine.js';
 import { cut, printable } from './printable-text.js';
 import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, PLANNING_DIR, StateSchemaError } from './state.js';
-import { compareUnitIds, epicIdParts } from './unit-record.js';
+import { CLOSE_WORDS_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, compareUnitIds, epicIdParts } from './unit-record.js';
 // A cycle, by design: unit-records.js regenerates the views after a write.
 // Neither module uses the other's bindings while it is being evaluated.
 import { hasUnitsSafe, listUnits, UNITS_REL } from './unit-records.js';
@@ -301,6 +301,13 @@ function renderEpics(items, epics) {
 // in this repository is 130 characters.
 const LEGACY_STATUS_MAX = 200;
 
+// Recorded text of a unit as a heading prints it (M6.E16 v2.3): one printable
+// line, cut at `max`, with a comment opener taken apart as the milestone table
+// does (`noComment`). A writer has cleaned it already; a record that came by a
+// merge or a shell command was cleaned by nothing, so it is not trusted here.
+// Line breaks become a space before the control characters go, so no two words run together.
+const unitText = (v, max) => noComment(cut(oneLine(printable(oneLine(v))), max));
+
 // What a legacy unit's old milestone row said in its status cell (the second
 // cell: Epic, Status, Summary), as one printable line cut at
 // `LEGACY_STATUS_MAX` — or null when there is no such text. The cell is text a
@@ -308,8 +315,7 @@ const LEGACY_STATUS_MAX = 200;
 function legacyStatus(record) {
   const said = Array.isArray(record?.legacy_row) ? record.legacy_row[1] : null;
   if (typeof said !== 'string') return null;
-  // Line breaks become a space before the control characters go, so no two words run together.
-  return cut(oneLine(printable(oneLine(said))), LEGACY_STATUS_MAX) || null;
+  return unitText(said, LEGACY_STATUS_MAX) || null;
 }
 
 // A unit's close as its heading says it: the date and the reason, then the PR
@@ -322,18 +328,18 @@ function legacyStatus(record) {
 function unitCloseLine(close, record) {
   const legacy = close.reason === 'legacy';
   const parts = [legacy ? 'closed (legacy)' : `closed ${String(close.at).slice(0, 10)} (${close.reason})`];
-  if (close.pr) parts.push(`PR ${oneLine(close.pr)}`);
-  if (close.release) parts.push(oneLine(close.release));
+  if (close.pr) parts.push(`PR ${unitText(close.pr, UNIT_REF_MAX)}`);
+  if (close.release) parts.push(unitText(close.release, UNIT_REF_MAX));
   const said = legacy ? legacyStatus(record) : null;
   if (said !== null) return `${parts.join(' · ')} — old row: ${said}`;
-  return parts.join(' · ') + (close.words ? ` — ${oneLine(close.words)}` : '');
+  return parts.join(' · ') + (close.words ? ` — ${unitText(close.words, CLOSE_WORDS_MAX)}` : '');
 }
 
 function unitStateLine(unit) {
   let state = 'open';
-  if (unit.status === 'closing') state = `closing · proof ${unit.closing_proof}`;
+  if (unit.status === 'closing') state = `closing · proof ${unitText(unit.closing_proof, 64)}`;
   if (unit.status === 'closed') state = unitCloseLine(unit.close, unit.record);
-  return unit.held ? `${state} · held: ${oneLine(unit.hold_reason)}` : state;
+  return unit.held ? `${state} · held: ${unitText(unit.hold_reason, UNIT_REASON_MAX)}` : state;
 }
 
 // With unit records: EVERY unit record, with its folded state. Three sections

@@ -396,9 +396,11 @@ describe('openUnit', () => {
     expect(existsSync(join(base, '.planning/work/escape.json'))).toBe(false);
   });
 
-  it('refuses a record the schema refuses: no `by`, a two-line title', async () => {
+  it('refuses a record the schema refuses: no `by`; a two-line title is stored as one line (v2.3)', async () => {
     await refused(() => units.openUnit(base, 'M6.E42', {}), 'SCHEMA');
-    await refused(() => units.openUnit(base, 'M6.E42', { by, title: 'two\nlines' }), 'SCHEMA');
+    await units.openUnit(base, 'M6.E42', { by, title: 'two\nlines' });
+    expect((await onDisk(base, 'M6.E42')).title).toBe('two lines');
+    expect(UNIT_KIND.validateRecord({ id: 'M6.E43', title: 'two\nlines', events: [E.opened] })).not.toEqual([]);
   });
 });
 

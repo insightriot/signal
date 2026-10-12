@@ -44,6 +44,23 @@ export const UNIT_SCHEMA = deepFreeze(
   JSON.parse(readFileSync(new URL('../../references/work-unit.schema.json', import.meta.url), 'utf8')),
 );
 
+// The longest each free-text field of a unit record is kept (M6.E16 v2.3). A
+// writer cuts at these (`unit-records.js`), a renderer cuts again at these
+// whatever it was handed (`work-views.js`, `milestone-table.js`), and the
+// schema's patterns carry the same numbers
+// (`tests/unit-text-hostile.test.js` pins the three to each other).
+/** A `legacy_row` cell; a longer one is cut and ends in `…`. */
+export const LEGACY_CELL_MAX = 8000;
+/** A close's `words`. */
+export const CLOSE_WORDS_MAX = 2000;
+/** A hold's or a reopen's `reason`. */
+export const UNIT_REASON_MAX = 2000;
+/** A close's or a close request's `pr` and `release`. */
+export const UNIT_REF_MAX = 200;
+export const UNIT_TITLE_MAX = 200;
+export const UNIT_SUMMARY_MAX = 2000;
+export const UNIT_NOTE_MAX = 2000;
+
 export const UNIT_EVENT_TYPES = Object.freeze([
   'opened',
   'close_requested',

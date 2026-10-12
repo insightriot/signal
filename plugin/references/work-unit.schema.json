@@ -5,10 +5,10 @@
   "required": ["id", "events"],
   "properties": {
     "id": { "$ref": "#/$defs/unit_id" },
-    "title": { "type": "string", "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$" },
-    "summary": { "$ref": "#/$defs/text" },
-    "legacy_row": { "type": "array", "items": { "type": "string" } },
-    "migration_note": { "type": "string" },
+    "title": { "type": "string", "pattern": "^(?=.*\\S)[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{1,200}$" },
+    "summary": { "$ref": "#/$defs/long_text" },
+    "legacy_row": { "type": "array", "items": { "type": "string", "pattern": "^[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{0,8000}$" } },
+    "migration_note": { "type": "string", "pattern": "^[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{0,2000}$" },
     "events": { "type": "array", "items": { "type": "object" } }
   },
   "$defs": {
@@ -19,6 +19,8 @@
       "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z)?$"
     },
     "text": { "type": "string", "pattern": "\\S" },
+    "short_text": { "type": "string", "pattern": "^(?=.*\\S)[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{1,200}$" },
+    "long_text": { "type": "string", "pattern": "^(?=.*\\S)[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{1,2000}$" },
     "value": { "type": ["string", "number", "null"] },
     "change": {
       "type": "object",
@@ -57,8 +59,8 @@
         "at": { "$ref": "#/$defs/at" },
         "by": { "$ref": "#/$defs/text" },
         "proof": { "$ref": "#/$defs/commit" },
-        "pr": { "$ref": "#/$defs/text" },
-        "release": { "$ref": "#/$defs/text" }
+        "pr": { "$ref": "#/$defs/short_text" },
+        "release": { "$ref": "#/$defs/short_text" }
       }
     },
     "closed": {
@@ -71,9 +73,9 @@
         "by": { "$ref": "#/$defs/text" },
         "reason": { "enum": ["shipped", "dropped", "legacy"] },
         "proof": { "$ref": "#/$defs/commit" },
-        "pr": { "$ref": "#/$defs/text" },
-        "release": { "$ref": "#/$defs/text" },
-        "words": { "$ref": "#/$defs/text" }
+        "pr": { "$ref": "#/$defs/short_text" },
+        "release": { "$ref": "#/$defs/short_text" },
+        "words": { "$ref": "#/$defs/long_text" }
       }
     },
     "reopened": {
@@ -84,7 +86,7 @@
         "type": { "const": "reopened" },
         "at": { "$ref": "#/$defs/at" },
         "by": { "$ref": "#/$defs/text" },
-        "reason": { "$ref": "#/$defs/text" }
+        "reason": { "$ref": "#/$defs/long_text" }
       }
     },
     "held": {
@@ -95,7 +97,7 @@
         "type": { "const": "held" },
         "at": { "$ref": "#/$defs/at" },
         "by": { "$ref": "#/$defs/text" },
-        "reason": { "$ref": "#/$defs/text" }
+        "reason": { "$ref": "#/$defs/long_text" }
       }
     },
     "released": {

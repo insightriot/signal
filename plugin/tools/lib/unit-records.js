@@ -43,7 +43,10 @@ import { atomicWrite } from './atomic-write.js';
 import { cut, printable as printableText } from './printable-text.js';
 import { PHASES } from './state.js';
 import { isSafeUnitName } from './unit-name.js';
-import { UNIT_KIND, UNIT_SCHEMA, foldUnit } from './unit-record.js';
+import {
+  CLOSE_WORDS_MAX, LEGACY_CELL_MAX, UNIT_KIND, UNIT_NOTE_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, UNIT_SCHEMA, UNIT_SUMMARY_MAX,
+  UNIT_TITLE_MAX, foldUnit,
+} from './unit-record.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { assertWritable } from './work-records.js';
 // A cycle, by design: work-views.js renders these records (`listUnits`).
@@ -495,6 +498,16 @@ export function checkUnits(baseDir) {
 // the changed one, validate it and check its history BEFORE any write; one
 // atomic write, exactly one event appended. Anything refused leaves the record
 // byte-identical.
+//
+// Free text (M6.E16 v2.3): every text field a writer takes — `title`,
+// `summary`, `migration_note`, each `legacy_row` cell, a close's or a close
+// request's `pr` and `release`, a close's `words`, a hold's or a reopen's
+// `reason`, an edit's new values — is stored without control or invisible
+// characters and cut at its limit (`clean`; the limits are `unit-record.js`'s),
+// before the blank check, the sensitive-data gate and the schema see it. A
+// line break becomes a space, so none reaches a record (a two-line title is
+// stored as one line; before v2.3 the schema refused it). The renderers clean again whatever they
+// read (`work-views.js`, `milestone-table.js`): a record can arrive by a merge.
 
 const WORK_LOCK_LABEL = 'work store';
 const COMMIT_RE = new RegExp(UNIT_SCHEMA.$defs.commit.pattern, 'u');
@@ -505,6 +518,20 @@ const EDITABLE = ['title', 'summary', 'migration_note'];
 
 const nowIso = () => new Date().toISOString();
 const isBlank = (text) => typeof text !== 'string' || text.trim() === '';
+
+// Text copied from a hand-written source: no control or invisible characters
+// (`printable-text.js`), and cut at `max`. Whitespace is not folded: a cell
+// under the limit is kept as it was written.
+const kept = (text, max) => cut(printableText(text), max);
+
+// A free-text field as every writer here stores it (M6.E16 v2.3): `kept`, with
+// a line break made a space first, so the words on either side stay apart.
+// Anything that is not text is passed on as it is, for the schema to refuse.
+const clean = (value, max) => (typeof value === 'string' ? kept(value.replace(/\s*[\r\n]+\s*/g, ' '), max) : value);
+// A `legacy_row`, as `importUnits` keeps one: each cell `kept`.
+const cleanCells = (cells) => (Array.isArray(cells) ? cells.map((c) => (typeof c === 'string' ? kept(c, LEGACY_CELL_MAX) : c)) : cells);
+// The limit of each field an `edited` event may change, and that a record may open with.
+const FIELD_MAX = { title: UNIT_TITLE_MAX, summary: UNIT_SUMMARY_MAX, migration_note: UNIT_NOTE_MAX };
 
 function pruneUndefined(obj) {
   for (const k of Object.keys(obj)) if (obj[k] === undefined) delete obj[k];
@@ -680,7 +707,11 @@ async function makeUnitsDir(handle, opts) {
  * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA, CONFLICT, LOCKED, IO
  */
 export async function openUnit(baseDir, id, fields = {}, opts = {}) {
-  const { title, summary, legacy_row: legacyRow, migration_note: migrationNote, by, at = nowIso() } = fields;
+  const { by, at = nowIso() } = fields;
+  const title = clean(fields.title, UNIT_TITLE_MAX);
+  const summary = clean(fields.summary, UNIT_SUMMARY_MAX);
+  const migrationNote = clean(fields.migration_note, UNIT_NOTE_MAX);
+  const legacyRow = cleanCells(fields.legacy_row);
   assertShape(id);
   assertWritable(baseDir);
   const cells = Array.isArray(legacyRow) ? legacyRow : [];
@@ -709,24 +740,19 @@ export async function openUnit(baseDir, id, fields = {}, opts = {}) {
 
 // ── Importing units that predate their records (t7.1) ───────────────────────
 
-/** The longest a `legacy_row` cell is kept; a longer one is cut and ends in `…`. */
-export const LEGACY_CELL_MAX = 8000;
-/** The longest an imported close's `words` are kept. */
-export const CLOSE_WORDS_MAX = 2000;
+export { CLOSE_WORDS_MAX, LEGACY_CELL_MAX };
 
 const SHIPPED_NOT_DIRECT = (id) => `${id}: a shipped close goes through requestUnitClose (with the commit) and is `
   + 'confirmed by confirmUnitClose — it cannot be recorded directly';
-
-// Text copied from a hand-written source: no control or invisible characters
-// (`printable-text.js`), and cut at `max`. Whitespace is not folded: a cell
-// under the limit is kept as it was written.
-const kept = (text, max) => cut(printableText(text), max);
 
 // One entry of an import list → its record (not yet validated). Throws for
 // what can be refused before the store is read: the ID's shape, the close.
 function importedRecord(entry) {
   const raw = entry !== null && typeof entry === 'object' ? entry : {};
-  const { id, title, summary, legacy_row: legacyRow, migration_note: migrationNote, close, opened } = raw;
+  const { id, legacy_row: legacyRow, close, opened } = raw;
+  const title = clean(raw.title, UNIT_TITLE_MAX);
+  const summary = clean(raw.summary, UNIT_SUMMARY_MAX);
+  const migrationNote = clean(raw.migration_note, UNIT_NOTE_MAX);
   assertShape(id);
   if ((close === undefined) === (opened === undefined)) {
     throw new WorkStoreError('SCHEMA', `${id}: an imported unit is either closed (close: {reason, at, by}) or open `
@@ -740,13 +766,15 @@ function importedRecord(entry) {
   if (opened !== undefined) {
     event = { type: 'opened', at: opened?.at ?? nowIso(), by: opened?.by };
   } else {
-    const { reason, pr, release, by, at = nowIso() } = close ?? {};
+    const { reason, by, at = nowIso() } = close ?? {};
+    const pr = clean(close?.pr, UNIT_REF_MAX);
+    const release = clean(close?.release, UNIT_REF_MAX);
     if (reason === 'shipped') throw new WorkStoreError('SCHEMA', `${SHIPPED_NOT_DIRECT(id)}, and it cannot be imported. Nothing was written.`);
     if (!DIRECT_CLOSE_REASONS.includes(reason)) {
       throw new WorkStoreError('SCHEMA', `${id}: an imported close's reason must be one of ${DIRECT_CLOSE_REASONS.join(', ')} `
         + `(got ${shown(reason)}) — nothing was written.`);
     }
-    const said = typeof close.words === 'string' ? kept(close.words, CLOSE_WORDS_MAX) : close.words;
+    const said = clean(close.words, CLOSE_WORDS_MAX);
     const words = typeof said === 'string' && isBlank(said) ? undefined : said;
     if (reason === 'dropped' && words === undefined) {
       throw new WorkStoreError('SCHEMA', `${id}: a dropped close needs words — where the work went, or why it stopped. `
@@ -814,7 +842,8 @@ export async function importUnit(baseDir, unit, opts = {}) {
  *
  * Kept text: each `legacy_row` cell and a close's `words` lose control and
  * invisible characters (`printable-text.js`) and are cut at `LEGACY_CELL_MAX`
- * and `CLOSE_WORDS_MAX`. Nothing else about a cell changes.
+ * and `CLOSE_WORDS_MAX`. Nothing else about a cell changes. Every other text
+ * field is kept the same way, as by every writer here (see *Writing*).
  *
  * Sensitive data: every text field of every entry runs through the gate; with
  * a hit and no `opts.acknowledgeSensitive` nothing is written.
@@ -948,7 +977,9 @@ export async function importUnits(baseDir, list, opts = {}) {
  * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
  */
 export async function requestUnitClose(baseDir, id, request = {}, opts = {}) {
-  const { proof, pr, release, by, at = nowIso() } = request;
+  const { proof, by, at = nowIso() } = request;
+  const pr = clean(request.pr, UNIT_REF_MAX);
+  const release = clean(request.release, UNIT_REF_MAX);
   assertShape(id);
   assertProof(id, proof, 'a close request');
   assertWritable(baseDir);
@@ -985,7 +1016,9 @@ export async function requestUnitClose(baseDir, id, request = {}, opts = {}) {
  * @returns {Promise<object>} the entry, with `previous_proof` (the commit the earlier request named), or `{aborted, sensitiveHits}`
  */
 export async function rerequestUnitClose(baseDir, id, request = {}, opts = {}) {
-  const { proof, pr, release, by, at = nowIso() } = request;
+  const { proof, by, at = nowIso() } = request;
+  const pr = clean(request.pr, UNIT_REF_MAX);
+  const release = clean(request.release, UNIT_REF_MAX);
   assertShape(id);
   assertProof(id, proof, 'a close request');
   assertWritable(baseDir);
@@ -1031,7 +1064,10 @@ export async function rerequestUnitClose(baseDir, id, request = {}, opts = {}) {
  * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
  */
 export async function confirmUnitClose(baseDir, id, confirm = {}, opts = {}) {
-  const { proof, pr, release, words, by, at = nowIso() } = confirm;
+  const { proof, by, at = nowIso() } = confirm;
+  const pr = clean(confirm.pr, UNIT_REF_MAX);
+  const release = clean(confirm.release, UNIT_REF_MAX);
+  const words = clean(confirm.words, CLOSE_WORDS_MAX);
   assertShape(id);
   assertProof(id, proof, 'a confirmed close');
   assertWritable(baseDir);
@@ -1115,7 +1151,10 @@ export function planUnitConfirms(handle, candidates, { at, by }) {
  * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
  */
 export async function closeUnit(baseDir, id, close = {}, opts = {}) {
-  const { reason, words, pr, release, proof, by, at = nowIso() } = close;
+  const { reason, proof, by, at = nowIso() } = close;
+  const words = clean(close.words, CLOSE_WORDS_MAX);
+  const pr = clean(close.pr, UNIT_REF_MAX);
+  const release = clean(close.release, UNIT_REF_MAX);
   assertShape(id);
   if (reason === 'shipped') {
     throw new WorkStoreError('SCHEMA', `${id}: a shipped close goes through requestUnitClose (with the commit) and is `
@@ -1150,7 +1189,8 @@ export async function closeUnit(baseDir, id, close = {}, opts = {}) {
  * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
  */
 export async function reopenUnit(baseDir, id, reopen = {}, opts = {}) {
-  const { reason, by, at = nowIso() } = reopen;
+  const { by, at = nowIso() } = reopen;
+  const reason = clean(reopen.reason, UNIT_REASON_MAX);
   assertShape(id);
   if (isBlank(reason)) {
     throw new WorkStoreError('SCHEMA', `${id}: a reopen needs a reason — what came back, and how you know. `
@@ -1176,7 +1216,8 @@ export async function reopenUnit(baseDir, id, reopen = {}, opts = {}) {
  * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
  */
 export async function holdUnit(baseDir, id, hold = {}, opts = {}) {
-  const { reason, by, at = nowIso() } = hold;
+  const { by, at = nowIso() } = hold;
+  const reason = clean(hold.reason, UNIT_REASON_MAX);
   assertShape(id);
   if (isBlank(reason)) {
     throw new WorkStoreError('SCHEMA', `${id}: a hold needs a reason — why its files must stay live. Nothing was written.`);
@@ -1227,13 +1268,15 @@ export async function editUnit(baseDir, id, edit = {}, opts = {}) {
     throw new WorkStoreError('SCHEMA', `${id}: ${unknown.map(shown).join(', ')} cannot be edited — editable fields are `
       + `${EDITABLE.join(', ')}. Nothing was written.`);
   }
+  // Cleaned before the diff: the event's `to` and the record's field must be the same text.
+  const cleaned = Object.fromEntries(Object.entries(changes).map(([field, to]) => [field, clean(to, FIELD_MAX[field])]));
   assertWritable(baseDir);
-  const pending = sensitivePending(Object.values(changes), opts);
+  const pending = sensitivePending(Object.values(cleaned), opts);
   if (pending) return pending;
   return withUnitLock(baseDir, async (handle) => {
     const current = readForWrite(handle, id).entry;
     const diff = {};
-    for (const [field, to] of Object.entries(changes)) {
+    for (const [field, to] of Object.entries(cleaned)) {
       const from = Object.hasOwn(current.record, field) ? current.record[field] : null;
       if (from !== to) diff[field] = { from, to };
     }
