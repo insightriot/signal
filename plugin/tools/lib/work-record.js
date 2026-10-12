@@ -12,6 +12,7 @@
 
 import { readFileSync } from 'node:fs';
 
+import { echoed, shownName } from './printable-text.js';
 import { WorkStoreError } from './work-errors.js';
 
 function deepFreeze(value) {
@@ -104,13 +105,13 @@ export function makeRecordKind({
       }
     }
     if (node.const !== undefined && value !== node.const) {
-      errors.push(`${where} must be ${JSON.stringify(node.const)} (got ${JSON.stringify(value)})`);
+      errors.push(`${where} must be ${JSON.stringify(node.const)} (got ${echoed(value)})`);
     }
     if (node.enum !== undefined && !node.enum.includes(value)) {
-      errors.push(`${where} must be one of ${node.enum.join('/')} (got ${JSON.stringify(value)})`);
+      errors.push(`${where} must be one of ${node.enum.join('/')} (got ${echoed(value)})`);
     }
     if (node.pattern !== undefined && typeof value === 'string' && !compiled(node.pattern).test(value)) {
-      errors.push(`${where} does not match ${node.pattern} (got ${JSON.stringify(value)})`);
+      errors.push(`${where} does not match ${node.pattern} (got ${echoed(value)})`);
     }
     if (isMapping(value)) {
       const props = node.properties ?? {};
@@ -119,7 +120,7 @@ export function makeRecordKind({
       }
       for (const key of Object.keys(value)) {
         if (Object.hasOwn(props, key)) check(props[key], value[key], join(path, key), errors);
-        else if (node.additionalProperties === false) errors.push(`${join(path, key)} is not a known field`);
+        else if (node.additionalProperties === false) errors.push(`${join(path, shownName(key, 80))} is not a known field`);
       }
     }
     if (Array.isArray(value) && node.maxItems !== undefined && value.length > node.maxItems) {
@@ -134,7 +135,7 @@ export function makeRecordKind({
   // follow what) are `checkEvents`'s, not these.
   function checkEvent(event, path, errors) {
     if (!eventTypes.includes(event.type)) {
-      errors.push(`${path}.type must be one of ${eventTypes.join('/')} (got ${JSON.stringify(event.type)})`);
+      errors.push(`${path}.type must be one of ${eventTypes.join('/')} (got ${echoed(event.type)})`);
       return;
     }
     check(schema.$defs[event.type], event, path, errors);
@@ -178,7 +179,7 @@ export function makeRecordKind({
     try {
       record = JSON.parse(text);
     } catch (err) {
-      return { record: null, errors: [`${where}: not valid JSON (${err.message})`] };
+      return { record: null, errors: [`${where}: not valid JSON (${shownName(err.message)})`] };
     }
     return { record, errors: validateRecord(record).map((e) => `${where}: ${e}`) };
   }
@@ -330,7 +331,7 @@ function fold(record) {
   if (!isMapping(events[0]) || events[0].type !== 'created') {
     // Without a `created` there is no state to fold from; one error, not one per event.
     const got = isMapping(events[0]) ? events[0].type : events[0];
-    refuse(0, `events[0]: the first event must be created (got ${JSON.stringify(got)})`);
+    refuse(0, `events[0]: the first event must be created (got ${echoed(got)})`);
     return { status: null, epic: null, sequenceErrors, editErrors: [] };
   }
 
@@ -367,7 +368,7 @@ function fold(record) {
             return refuse(
               index,
               `events[${index}]: a fixed close must confirm the outstanding request's proof ` +
-                `(${JSON.stringify(pendingProof)}, got ${JSON.stringify(event.proof)})`,
+                `(${echoed(pendingProof)}, got ${echoed(event.proof)})`,
             );
           }
         } else if (![...OPEN, 'closing'].includes(status)) {
@@ -391,8 +392,8 @@ function fold(record) {
       editErrors.push({
         index,
         message:
-          `events[${index}]: ${field} was last ${type} to ${JSON.stringify(to)} ` +
-          `but the record holds ${JSON.stringify(current)}`,
+          `events[${index}]: ${field} was last ${type} to ${echoed(to)} ` +
+          `but the record holds ${echoed(current)}`,
       });
     }
   }

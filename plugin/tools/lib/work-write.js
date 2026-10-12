@@ -13,7 +13,7 @@
 // It imports neither `work-records.js` nor `work-views.js`, so it adds nothing
 // to the cycle between those two.
 
-import { lstatSync, readFileSync } from 'node:fs';
+import { closeSync, fstatSync, lstatSync, openSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
@@ -215,6 +215,36 @@ export async function writePlanned(handle, planned, opts) {
       : '');
     wrapped.leftChanged = left;
     throw wrapped;
+  }
+}
+
+// ── Reading a record file ──────────────────────────────────────────────────
+
+/**
+ * The largest record file that is read: 4 MB (REVIEW pass 1, S-L1). The
+ * largest record in Signal's own store is under 4 kB, and a unit record with
+ * every text field at its limit is under 800 kB, so nothing a writer here
+ * produces comes near it. A larger file is reported as a broken record by
+ * name and is never read into memory.
+ */
+export const RECORD_BYTES_MAX = 4 * 1024 * 1024;
+
+/**
+ * A record file's text — or `{tooLarge}`, with its message, when the file is
+ * over `RECORD_BYTES_MAX`; it is not read then.
+ *
+ * @param {string} abs
+ * @returns {{text: string} | {tooLarge: string}}
+ * @throws as `fs` (a caller reports the code)
+ */
+export function readRecordFile(abs) {
+  const fd = openSync(abs, 'r');
+  try {
+    const { size } = fstatSync(fd);
+    if (size > RECORD_BYTES_MAX) return { tooLarge: `is ${size} bytes, over the ${RECORD_BYTES_MAX} a record file may be — it was not read` };
+    return { text: readFileSync(fd, 'utf-8') };
+  } finally {
+    closeSync(fd);
   }
 }
 

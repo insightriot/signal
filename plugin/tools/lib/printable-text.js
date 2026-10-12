@@ -46,3 +46,54 @@ export function cut(text, max) {
  * @returns {string}
  */
 export const oneLine = (text) => text.replace(/\s+/g, (run) => (run.includes('\n') || run.includes('\r') ? ' ' : run));
+
+/**
+ * `text` with every character outside printable ASCII written as a `\uXXXX`
+ * escape: a line break, a control character or an invisible one is then
+ * something a person sees, and nothing a terminal or a reader acts on.
+ *
+ * @param {unknown} text
+ * @returns {string}
+ */
+export const ascii = (text) => String(text).replace(/[^\x20-\x7e]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+
+/** How much of a path or a name from the disk a message prints. A record's path is under 140 characters. */
+export const NAME_SHOWN_MAX = 240;
+/** How much of a record's value a refusal echoes. */
+export const VALUE_SHOWN_MAX = 300;
+
+/**
+ * A path, a file name or an ID read from the disk, as a message may print it
+ * (REVIEW pass 1, S-M2): `ascii`, and at most `max` characters of it — a
+ * longer one ends `... (N characters)`. A name of printable ASCII under the
+ * limit comes back as it is. The exact path stays in the structured result
+ * beside the message, for code that opens the file.
+ *
+ * @param {unknown} text
+ * @param {number} [max]
+ * @returns {string}
+ */
+export function shownName(text, max = NAME_SHOWN_MAX) {
+  const s = String(text);
+  return s.length <= max ? ascii(s) : `${ascii(s.slice(0, max))}... (${s.length} characters)`;
+}
+
+/**
+ * A record's value as a refusal echoes it (REVIEW pass 1, S-L1): its JSON,
+ * through `shownName` — so a 2 MB title gives a message of a few hundred
+ * characters, and a value of printable ASCII under the limit reads as
+ * `JSON.stringify` wrote it.
+ *
+ * @param {unknown} value
+ * @param {number} [max]
+ * @returns {string}
+ */
+export function echoed(value, max = VALUE_SHOWN_MAX) {
+  let json;
+  try {
+    json = JSON.stringify(value);
+  } catch {
+    json = undefined; // a cycle, a BigInt: nothing a parsed record holds
+  }
+  return shownName(json === undefined ? String(value) : json, max);
+}

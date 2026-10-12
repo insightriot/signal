@@ -27,6 +27,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { readCorpus, readUnitSource } from './advise-corpus.js';
+import { shownName } from './printable-text.js';
 import { readState, partitionCompletedPhases, compareEpicIds, EPIC_ID_STRICT_RE } from './state.js';
 import { parseEpicStatusRows } from './milestones.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
@@ -152,7 +153,7 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
   const unread = c.work?.broken ?? [];
   if (unread.length > 0) {
     notes.push(
-      `${unread.length} work item(s) could not be read and are in no list here: ${unread.slice(0, 5).map((b) => b.id ?? b.path).join(', ')}${unread.length > 5 ? ', …' : ''}`
+      `${unread.length} work item(s) could not be read and are in no list here: ${unread.slice(0, 5).map((b) => b.id ?? shownName(b.path)).join(', ')}${unread.length > 5 ? ', …' : ''}`
     );
   }
 

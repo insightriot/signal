@@ -112,7 +112,7 @@ import {
 } from './migrate-memory.js';
 import { isForeignIndexFormat, regeneratePlanningIndexCore } from './planning-index.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
-import { printable } from './printable-text.js';
+import { printable, shownName } from './printable-text.js';
 import { bodyDirFor } from './work-convert.js';
 import { lockFailure, WorkStoreError } from './work-errors.js';
 import { GENERATED_FILES } from './work-generate.js';
@@ -848,7 +848,7 @@ function verifyBuilt(root, count, unitCount) {
   for (const f of checkUnits(root)) errors.push(`checkUnits ${f.code}${f.id ? ` ${f.id}` : ''}: ${f.message}`);
   if (listed.version !== 2) errors.push(`the store reads as v${listed.version}, not v2`);
   if (listed.records.length !== count) errors.push(`the store holds ${listed.records.length} records, not ${count}`);
-  for (const b of listed.broken) errors.push(`record ${b.id ?? b.path} is broken: ${b.error}`);
+  for (const b of listed.broken) errors.push(`record ${b.id ?? shownName(b.path)} is broken: ${b.error}`);
   for (const f of checks) errors.push(`checkRecords ${f.code}${f.id ? ` ${f.id}` : ''}: ${f.message}`);
   return { errors, records: listed.records.length, checks };
 }

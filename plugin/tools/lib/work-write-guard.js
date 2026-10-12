@@ -39,10 +39,14 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
+import { shownName } from './printable-text.js';
+
 const VIEWS = new Set(['bugs.md', 'backlog.md', 'issues-inbox.md', 'open-questions.md']);
 
+// `rel` comes from the tool call, so it is printed through `shownName`: a line
+// break or an invisible character in a file name never reaches the message raw.
 export const BLOCK_MESSAGE = (rel) =>
-  `${rel} is part of this project's v2 work store `
+  `${shownName(rel)} is part of this project's v2 work store `
   + '(.planning/work/WORK.md has `schema_version: 2`), so a hand edit would be lost or bypass the record. '
   + 'Records (.planning/work/items/**/*.json) are written only through /sig:item; the views and history '
   + 'files are generated from the records and regenerate after every change. '
@@ -58,7 +62,7 @@ export const BLOCK_MESSAGE = (rel) =>
     : '');
 
 export const WORK_MD_MESSAGE = (rel) =>
-  `${rel} switches this project's v2 work store on (\`schema_version: 2\`) and names its \`key\`, which `
+  `${shownName(rel)} switches this project's v2 work store on (\`schema_version: 2\`) and names its \`key\`, which `
   + 'prefixes every item ID. This edit would change or remove one of those lines: a changed version switches '
   + 'off this guard and the generated views, and a changed key orphans every record. Other text in the file '
   + 'may be edited. Items are changed with /sig:item; the store\'s version is changed only by the migration '

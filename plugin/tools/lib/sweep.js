@@ -26,6 +26,7 @@ import {
 } from './planning-index.js';
 import { resolveInboxPath } from './inbox-path.js';
 import { listDrainCandidatesWithRecovery } from './drain.js';
+import { shownName } from './printable-text.js';
 import { listCommands } from './roster.js';
 import {
   parseFrontmatter,
@@ -71,7 +72,7 @@ function readRecords(baseDir) {
   }
 }
 
-const brokenIds = (broken) => broken.map((b) => b.id ?? b.path).join(', ');
+const brokenIds = (broken) => broken.map((b) => b.id ?? shownName(b.path)).join(', ');
 
 // Stable finding order for deterministic reports (mirrors doc-hygiene.js's
 // findingCmp): by check, then file, then message.
@@ -427,7 +428,7 @@ export function checkWorkStore(baseDir) {
     const atFolder = (f) => f.id === null && f.path === UNITS_REL;
     const unitFindings = recordFindings.some(atFolder) ? checkUnits(baseDir).filter((f) => !atFolder(f)) : checkUnits(baseDir);
     return [...recordFindings, ...unitFindings].map((f) =>
-      mkFinding('work-store', 'advisory', f.path ?? f.paths?.[0] ?? rel, f.message));
+      mkFinding('work-store', 'advisory', shownName(f.path ?? f.paths?.[0] ?? rel), f.message));
   } catch (err) {
     return [mkFinding('work-store', 'advisory', rel, `the work store could not be checked — ${err.message}`)];
   }

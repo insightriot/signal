@@ -83,6 +83,12 @@ records now.
   refuses such a value, so `/sig:docs-sweep` reports a record that was not written by the library.
   An old row keeps at most 32 cells (a longer one is cut and ends `…`), and a long run of spaces in a
   record no longer makes every write to the store slow.
+- **A file name or a record's value is never printed raw.** A path under `work/items/` or
+  `work/units/` reaches a message with anything outside printable ASCII written as an escape and
+  cut at 240 characters — in refusals, `/sig:docs-sweep`, `/sig:advise`, `/sig:drive` and the edit
+  hook's message. A refusal echoes at most 300 characters of a record's value. A record file over
+  4 MB is reported as broken by name and is not read. The refusal to open a closed Epic no longer
+  prints the close's free-text words.
 - **A `work/units/` folder that cannot be trusted is an error, not "no unit records".** When it is
   a symbolic link, a file, or cannot be listed, commands that write or move refuse and name the
   folder, and everything that asks whether a unit is closed answers that it cannot tell. No unit is

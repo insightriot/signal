@@ -42,7 +42,7 @@ import {
 import { join, resolve, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { cut, oneLine, printable as printableText } from './printable-text.js';
+import { ascii, cut, oneLine, printable as printableText, shownName } from './printable-text.js';
 import { PHASES } from './state.js';
 import { isSafeUnitName } from './unit-name.js';
 import {
@@ -59,6 +59,7 @@ import {
   commitsStartingWith,
   confine,
   existsNoFollow,
+  readRecordFile,
   recordWriter,
   regenerateAfter,
   sensitivePending,
@@ -81,7 +82,7 @@ const relOf = (id) => `${UNITS_REL}/${id}.json`;
 // newline, an invisible character) never reaches a message whole or raw.
 function shown(value) {
   if (typeof value !== 'string') return value === null ? 'null' : `a ${Array.isArray(value) ? 'list' : typeof value}`;
-  const head = value.slice(0, 40).replace(/[^\x20-\x7e]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  const head = ascii(value.slice(0, 40));
   return value.length > 40 ? `"${head}..." (${value.length} characters)` : `"${head}"`;
 }
 
@@ -212,7 +213,7 @@ function confinedUnitsDir(baseDir) {
     throw new WorkStoreError('IO', `${WORK_REL}: could not be resolved (${err.code ?? err.message})`);
   }
   if (!realWork.startsWith(realRoot + sep)) {
-    throw new WorkStoreError('CONFLICT', `${WORK_REL} resolves outside the project (${realWork}) — a linked folder; `
+    throw new WorkStoreError('CONFLICT', `${WORK_REL} resolves outside the project (${shownName(realWork)}) — a linked folder; `
       + 'unit records are not read through it.');
   }
   // A folder that is there and cannot be listed is not "a folder with no
@@ -249,11 +250,10 @@ function unitFileIds(baseDir) {
   return unitEntries(baseDir).map((e) => idFromName(e.name)).filter((id) => id !== null);
 }
 
-// A file name as it may appear in a message (the `path` beside it is exact).
-const printable = (text) => text.replace(/[^\x20-\x7e]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
 
 // Every entry of units/: {files: [{id, rel, abs}], broken[]}. Each broken
-// entry carries a `code` (`link`, `path`, `not-regular`). `strict`
+// entry carries a `code` (`link`, `path`, `not-regular`); its `path` is exact
+// and its `error` names the file as a message may print it (`shownName`). `strict`
 // (`checkUnits` only) also reports what a read passes over: a folder, and any
 // other record-named entry that is not a regular file.
 function walkUnits(baseDir, opts = {}) {
@@ -262,7 +262,7 @@ function walkUnits(baseDir, opts = {}) {
     const rel = `${UNITS_REL}/${e.name}`;
     const isJson = e.name.endsWith('.json');
     const id = idFromName(e.name);
-    const broken = (code, error) => out.broken.push({ id, path: rel, code, error: `${printable(rel)}${error}` });
+    const broken = (code, error) => out.broken.push({ id, path: rel, code, error: `${shownName(rel)}${error}` });
     if (e.isSymbolicLink()) {
       if (isJson) broken('link', ` ${LINK_REFUSED}`);
     } else if (e.isDirectory()) {
@@ -287,13 +287,14 @@ function entryOf(record) {
 // entry's `code` says what kind (`unreadable`, `invalid`, `path`, `events`).
 function readFileEntry(file) {
   const fail = (error, code) => ({ broken: { id: file.id, path: file.rel, code, error } });
-  let text;
+  let read;
   try {
-    text = readFileSync(file.abs, 'utf-8');
+    read = readRecordFile(file.abs);
   } catch (err) {
     return fail(`${file.rel}: could not be read (${err.code ?? err.message})`, 'unreadable');
   }
-  const { record, errors } = UNIT_KIND.parseRecord(text, { path: file.rel });
+  if (read.tooLarge) return fail(`${file.rel} ${read.tooLarge}`, 'unreadable');
+  const { record, errors } = UNIT_KIND.parseRecord(read.text, { path: file.rel });
   if (errors.length > 0) return fail(errors.join('; '), 'invalid');
   if (record.id !== file.id) return fail(`${file.rel}: file name says ${file.id} but the record id is ${record.id}`, 'path');
   const eventErrors = UNIT_KIND.checkEvents(record);
@@ -408,7 +409,8 @@ export function unitRecordsOn(baseDir) {
  * and path, with the reason and a `code`. A record is broken when its JSON
  * does not parse or validate (`invalid`), its file name is not a unit ID or
  * disagrees with its `id` (`path`), its history does not fold or a field
- * disagrees with its last edit (`events`), it cannot be read (`unreadable`),
+ * disagrees with its last edit (`events`), it cannot be read or its file is
+ * over `RECORD_BYTES_MAX` (`work-write.js`) and was not read (`unreadable`),
  * or it is a symbolic link (`link`).
  *
  * Needs no store: empty when there is no `units/` folder.

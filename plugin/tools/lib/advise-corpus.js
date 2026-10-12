@@ -38,6 +38,7 @@ import { parseEpicStatusRows } from './milestones.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
 import { relative } from 'node:path';
 import { findWorkOnOtherBranches } from './branch-work.js';
+import { shownName } from './printable-text.js';
 import { readState } from './state.js';
 import { isStoreOn } from './work-store.js';
 import { listRecords } from './work-records.js';
@@ -175,7 +176,7 @@ export function readUnitSource(baseDir) {
   }
   if (listed.broken.length > 0) {
     return {
-      error: `${listed.broken.length} unit record(s) could not be read — ${listed.broken.map((b) => b.id ?? b.path).join(', ')} — `
+      error: `${listed.broken.length} unit record(s) could not be read — ${listed.broken.map((b) => b.id ?? shownName(b.path)).join(', ')} — `
         + 'so the units are not all known',
     };
   }

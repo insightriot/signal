@@ -27,6 +27,7 @@ import { readFileSync, readdirSync, realpathSync, existsSync, lstatSync, mkdirSy
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
+import { echoed, shownName } from './printable-text.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { ITEM_KIND, RECORD_SCHEMA, parseRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
 import { bodyDirFor, convertV1Item } from './work-convert.js';
@@ -59,6 +60,7 @@ import {
   confine,
   defaultBranchRef,
   existsNoFollow,
+  readRecordFile,
   recordWriter,
   regenerateAfter as regenerateWith,
   runGit,
@@ -228,7 +230,7 @@ function walkItems(baseDir, opts = {}) {
   for (const b of entriesOf(itemsAbs)) {
     const bucketRel = `${ITEMS_REL}/${b.name}`;
     if (b.isSymbolicLink()) {
-      out.broken.push({ id: null, path: bucketRel, code: 'link', error: `${bucketRel} ${LINK_REFUSED}` });
+      out.broken.push({ id: null, path: bucketRel, code: 'link', error: `${shownName(bucketRel)} ${LINK_REFUSED}` });
       continue;
     }
     if (!b.isDirectory()) {
@@ -243,18 +245,18 @@ function walkItems(baseDir, opts = {}) {
       const isJson = f.name.endsWith('.json');
       const id = idFromName(f.name, '.json') ?? idFromName(f.name, '.md');
       if (f.isSymbolicLink()) {
-        if (isJson || id !== null) out.broken.push({ id, path: rel, code: 'link', error: `${rel} ${LINK_REFUSED}` });
+        if (isJson || id !== null) out.broken.push({ id, path: rel, code: 'link', error: `${shownName(rel)} ${LINK_REFUSED}` });
         continue;
       }
       if (!f.isFile()) {
         if (opts.strict && (isJson || id !== null)) {
-          out.broken.push({ id, path: rel, code: 'not-regular', error: `${rel} is not a regular file — a record or body is a plain file` });
+          out.broken.push({ id, path: rel, code: 'not-regular', error: `${shownName(rel)} is not a regular file — a record or body is a plain file` });
         }
         continue;
       }
       if (isJson) {
         if (id === null) {
-          out.broken.push({ id: null, path: rel, code: 'path', error: `${rel}: file name is not a record name (KEY-n.json)` });
+          out.broken.push({ id: null, path: rel, code: 'path', error: `${shownName(rel)}: file name is not a record name (KEY-n.json)` });
         } else {
           out.records.push({ id, rel, abs: join(itemsAbs, b.name, f.name) });
         }
@@ -285,18 +287,19 @@ function readOne(file, key, body, epicOnly) {
   const expected = recordPath(file.id);
   if (file.rel !== expected) return fail(`${file.rel}: ${file.id} belongs in ${expected.slice(0, expected.lastIndexOf('/'))}`, 'path');
 
-  let text;
+  let read;
   try {
-    text = readFileSync(file.abs, 'utf-8');
+    read = readRecordFile(file.abs);
   } catch (err) {
     return fail(`${file.rel}: could not be read (${err.code ?? err.message})`, 'unreadable');
   }
-  const { record, errors } = parseRecord(text, { path: file.rel });
+  if (read.tooLarge) return fail(`${file.rel} ${read.tooLarge}`, 'unreadable');
+  const { record, errors } = parseRecord(read.text, { path: file.rel });
   if (errors.length > 0) return fail(errors.join('; '), 'invalid');
   if (epicOnly) {
     const notEpic = record.events
       .map((e, i) => (typeof e.epic === 'string' && !EPIC_ID_RE.test(e.epic)
-        ? `${file.rel}: events[${i}].epic does not match ${EPIC_ID_RE.source} (got ${JSON.stringify(e.epic)})` : null))
+        ? `${file.rel}: events[${i}].epic does not match ${EPIC_ID_RE.source} (got ${echoed(e.epic)})` : null))
       .filter((e) => e !== null);
     if (notEpic.length > 0) {
       return fail(`${notEpic.join('; ')} — not an Epic ID, and this project has no unit records `
@@ -520,7 +523,7 @@ export function findByLegacyId(baseDir, oldId) {
   }
   if (hits.length === 0) {
     const unread = broken.length > 0
-      ? ` (${broken.length} record${broken.length === 1 ? '' : 's'} could not be read, so ${broken.length === 1 ? 'its' : 'their'} old IDs are unknown: ${broken.map((b) => b.id ?? b.path).join(', ')})`
+      ? ` (${broken.length} record${broken.length === 1 ? '' : 's'} could not be read, so ${broken.length === 1 ? 'its' : 'their'} old IDs are unknown: ${broken.map((b) => b.id ?? shownName(b.path)).join(', ')})`
       : '';
     throw new WorkStoreError('NOT_FOUND', `no item has the old ID ${want}${unread}`);
   }
@@ -1677,7 +1680,7 @@ function classifyClosingUnits(units, baseDir, onDefaultBranch, { writing = true,
 function refuseBroken({ broken }, { writing = true } = {}) {
   if (broken.length === 0) return;
   const err = new WorkStoreError('SCHEMA', `broken record(s)${writing ? ', so nothing was written' : ''}: `
-    + `${broken.map((b) => `${b.id ?? b.path} (${b.error})`).join('; ')} — restore each with git: \`git checkout -- <path>\` `
+    + `${broken.map((b) => `${b.id ?? shownName(b.path)} (${b.error})`).join('; ')} — restore each with git: \`git checkout -- <path>\` `
     + 'when HEAD holds a good copy; for a merge conflict in the record, take one side with '
     + '`git checkout --ours <path>` or `git checkout --theirs <path>` (Edit is blocked on records; git is not). Then re-run.');
   err.broken = broken.map((b) => b.id ?? b.path);

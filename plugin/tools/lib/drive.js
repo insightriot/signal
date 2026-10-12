@@ -19,6 +19,7 @@ import { join, sep } from 'node:path';
 import { existsSync, lstatSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
+import { shownName } from './printable-text.js';
 import { attentionFor, CALIBRATION_ENUMS } from './profile.js';
 import { LOOP_BOUNDED_PHASES } from './loop-ceiling.js';
 import { atomicWrite } from './atomic-write.js';
@@ -168,7 +169,7 @@ function readRecords(baseDir, { throwOnError = false } = {}) {
 
 /** The records `listRecords` could not read, as one line naming each by ID (or path). */
 function brokenReason(broken) {
-  return `${broken.length} work item(s) could not be read — ${broken.map((b) => b.id ?? b.path).join(', ')}`;
+  return `${broken.length} work item(s) could not be read — ${broken.map((b) => b.id ?? shownName(b.path)).join(', ')}`;
 }
 
 /**

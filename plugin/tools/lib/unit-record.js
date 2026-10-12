@@ -15,6 +15,7 @@
 
 import { readFileSync } from 'node:fs';
 
+import { echoed } from './printable-text.js';
 import { makeRecordKind } from './work-record.js';
 
 function deepFreeze(value) {
@@ -157,7 +158,7 @@ function fold(record) {
   if (!isMapping(first) || (first.type !== 'opened' && !bornClosed)) {
     // With no legal first event there is no state to fold from; one error, not one per event.
     const got = isMapping(first) ? (first.type === 'closed' ? `closed ${first.reason}` : first.type) : first;
-    refuse(0, `events[0]: ${FIRST_EVENT} (got ${JSON.stringify(got)})`);
+    refuse(0, `events[0]: ${FIRST_EVENT} (got ${echoed(got)})`);
     return nothing();
   }
 
@@ -186,7 +187,7 @@ function fold(record) {
             return refuse(
               index,
               `events[${index}]: a shipped close must confirm the outstanding request's proof `
-                + `(${JSON.stringify(pendingProof)}, got ${JSON.stringify(event.proof)})`,
+                + `(${echoed(pendingProof)}, got ${echoed(event.proof)})`,
             );
           }
         } else if (status !== 'open' && status !== 'closing') {
@@ -226,8 +227,8 @@ function fold(record) {
       editErrors.push({
         index,
         message:
-          `events[${index}]: ${field} was last edited to ${JSON.stringify(to)} `
-          + `but the record holds ${JSON.stringify(current)}`,
+          `events[${index}]: ${field} was last edited to ${echoed(to)} `
+          + `but the record holds ${echoed(current)}`,
       });
     }
   }

@@ -31,6 +31,7 @@ import { createHash } from 'node:crypto';
 import { atomicWrite } from './atomic-write.js';
 import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd, scrubSensitive } from './add.js';
 import { DONE_WORD_RE, declaresBugDischarge, isBugId, parseBacklogRows } from './legacy-lists.js';
+import { shownName } from './printable-text.js';
 import { EPIC_ID_STRICT_RE } from './state.js';
 import { unitClosure, unitRecordsOn } from './unit-records.js';
 import { isStoreOn } from './work-store.js';
@@ -620,7 +621,7 @@ async function dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn
   const when = at ?? today ?? isoToday();
   const listed = listRecords(baseDir);
   const rowsOf = listed.records.filter((r) => r.record.type !== 'BUG' && r.record.type !== 'Q' && r.status !== 'N');
-  const unreadable = listed.broken.map((b) => b.path);
+  const unreadable = listed.broken.map((b) => shownName(b.path));
   const isOpen = (r) => r.status !== 'C' && r.status !== 'closing';
   const titleOf = (r) => r.record.title ?? r.id;
   const results = [];

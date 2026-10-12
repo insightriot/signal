@@ -97,12 +97,15 @@ describe('openEpic — a project with unit records (AC3.1)', () => {
     expect(snapshotTree(base)).toEqual(before);
   });
 
-  it('a closed and held unit is refused too, with its reason and words', async () => {
+  // REVIEW pass 1, S-L2: this case used to pin that the close's words were in
+  // the refusal. They are free text from a record, and the refusal's next
+  // sentence says how to override it — so the words are left out, on purpose.
+  it('a closed and held unit is refused too, with its reason code and date, and without the close\'s words', async () => {
     const before = snapshotTree(base);
     const err = await openEpic(base, 'M7.E4', { by }).catch((e) => e);
     expect(err).toMatchObject({ code: 'CONFLICT' });
-    expect(err.message).toMatch(/dropped/);
-    expect(err.message).toMatch(/the work moved to another unit/);
+    expect(err.message).toMatch(/M7\.E4 is closed \(dropped, \d{4}-\d{2}-\d{2}\), and held/);
+    expect(err.message).not.toMatch(/the work moved to another unit/);
     expect(snapshotTree(base)).toEqual(before);
   });
 
