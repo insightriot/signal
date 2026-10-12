@@ -1,0 +1,20 @@
+{
+  "id": "SIG-294",
+  "type": "BUG",
+  "title": "SHIP's first check accepts a retrospective with a placeholder line, and closeEpic refuses it later in the same SHIP",
+  "theme": "ship",
+  "priority": "P3",
+  "source": "M6.E16 S9",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-12T17:04:51.645Z",
+      "by": "claude (M6.E16 S9)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-12T17:04:51.645Z",
+      "by": "claude (M6.E16 S9)"
+    }
+  ]
+}

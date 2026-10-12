@@ -133,7 +133,7 @@
 | SIG-128 | `rejected` | — | **M5.E7's changelog section is invisible to `/sig:update` · **RESOLVED 2026-08-18**** |
 | SIG-130 | `confirmed` | P2 | **Archived phase logs are written but never staged** |
 | SIG-131 | `rejected` | — | **`attention` is undocumented in profile-schema.md** |
-| SIG-132 | `confirmed` | — | **Two mutually-blind milestone Epic-row parsers, and the one feeding the SHIP gate cannot read Milestone 6 at all** |
+| SIG-132 | `closing` | — | **Two mutually-blind milestone Epic-row parsers, and the one feeding the SHIP gate cannot read Milestone 6 at all** |
 | SIG-133 | `confirmed` | P3 | **`transitionPhase` regenerates INDEX.md at phase ENTRY, so INDEX never holds the current phase's own artifact** |
 | SIG-134 | `confirmed` | P3 | **`ROUTE_REVERSIBILITY` is not frozen, and it aliases calibration's own enum** |
 | SIG-135 | `fixed` | P2 | **dischargeBacklogRows is blind to rows nested below h3** |
@@ -176,8 +176,9 @@
 | SIG-285 | `confirmed` | P3 | **SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'** |
 | SIG-286 | `fixed` | P3 | **/sig:docs-migrate dry run lists a unit's files to move while also saying it "could not evaluate" that unit** |
 | SIG-287 | `confirmed` | P3 | **/sig:docs-sweep dangling-reference flags non-bug IDs like "B3." research-assumption labels as missing bugs** |
-| SIG-288 | `confirmed` | P3 | **/sig:docs-archive shares the retro-only closure default (archive-tree.js senseArchiveTree), so a filled retrospective alone can archive an unfinished Epic** |
+| SIG-288 | `closing` | P3 | **/sig:docs-archive shares the retro-only closure default (archive-tree.js senseArchiveTree), so a filled retrospective alone can archive an unfinished Epic** |
 | SIG-289 | `confirmed` | P3 | **An Epic whose VERIFICATION is already in archive/ keeps its STATE narrative and isV3Conformant reads true (resolveClosures lists only top-level .planning/)** |
 | SIG-292 | `fixed` | P2 | **Work-store migration: a backlog row absorbs a folded <details> block below it, so its evidence check can borrow a sibling's PR reference** |
+| SIG-294 | `confirmed` | P3 | **SHIP's first check accepts a retrospective with a placeholder line, and closeEpic refuses it later in the same SHIP** |
 
-*0 needs-triage · 54 confirmed · 1 closing · 121 closed (176 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 53 confirmed · 3 closing · 121 closed (177 total) · closes more than 30 days before the newest event are in `work/history/`*

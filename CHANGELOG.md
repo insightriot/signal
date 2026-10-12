@@ -6,6 +6,59 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### M6.E16 — Epics and units are records
+
+Work items became records in `v0.1.48`. Epics, and the units of a project that does not use Epic IDs,
+were still worked out from filenames, a hand-kept table and which folder a file sat in. They are
+records now.
+
+#### Added
+- **One record per Epic or unit:** `.planning/work/units/<ID>.json`. A project that names its units
+  its own way (`phase-11`) keeps those names as the IDs. The `units/` folder existing is what turns
+  unit records on.
+- **Status comes from the record's events:** open, *closing*, closed. A closed unit can also be
+  **held** — closed, but its files stay where they are — with a reason, and released later.
+- **An Epic is closed at SHIP, with proof.** `/sig:ship` records a close request with the Epic's
+  commit, its PR and its release. The Epic reads *closing* until that commit is on the default
+  branch; `/sig:docs-sweep` or a later SHIP then confirms it and it reads closed. The close is
+  refused while an item of the Epic is open or its retrospective is missing or still a placeholder.
+- **Opening an Epic creates its record.** `/sig:discuss --epic` and `/sig:new-project --epic` refuse
+  an Epic whose record is closed, unless you say you mean to reopen it, which is recorded.
+- **`/sig:docs-migrate --work-store` creates unit records for a project already on Signal** — in the
+  same run as the items for a project not yet on the store, or on their own for a project that is.
+  Units that look finished are proposed as legacy closes in one list and closed on one yes; on no,
+  each is created open with a note. `--also <ID>:dropped:<words>` declares a unit no file names.
+
+#### Changed
+- **`work/EPICS.md` and the Epic table in the current milestone file are generated from the
+  records.** The table is written between `signal:epics` markers; text outside them is left alone,
+  and a milestone file without markers is not touched. `/sig:docs-sweep` reports a view that does
+  not match its records.
+- **Everything that asks "is this unit closed?" reads the record** when `work/units/` exists:
+  archiving, the Done-Epic guard in `/sig:discuss`, `/sig:drive`'s open-Epic list, moving or
+  reopening an item of the unit, the narrative eviction in `/sig:checkpoint`. A retrospective
+  existing, a verdict line, a milestone row or a file's folder no longer decides it.
+  `/sig:docs-archive` declines a held unit and prints the reason. SHIP no longer reads the milestone
+  row to decide whether it closes the Epic, and the next Epic ID counts records as well as filenames.
+- **A project without `work/units/` behaves as it did on `v0.1.50`.** Every reader keeps its old
+  path, and the existing tests for those projects pass unchanged.
+- **Signal's own Epics are records:** 48 of them — 1 open, 43 closed as legacy (shipped before this
+  release, confirmed as one list), 4 Epic IDs that never ran recorded as dropped.
+
+#### Fixed
+- **The two milestone-table parsers that each read one format** (`SIG-132`): with unit records no
+  code reads the rows.
+- **A filled retrospective alone could archive an unfinished Epic** (`SIG-288`): with unit records
+  the record decides.
+
+#### Known limits
+- With unit records, a finished Epic's narrative leaves `STATE.md` at a `/sig:checkpoint` after its
+  close is confirmed, not at SHIP.
+- No command places a hold yet; `holdUnit` in `tools/lib/unit-records.js` does (`SIG-255` stays open).
+- A project without unit records still has the behaviour `SIG-132`, `SIG-288` and `SIG-289` describe.
+
 ## [0.1.50] — 2026-10-10 — other projects can move onto the work store
 
 ### M6.E15 — `/sig:docs-migrate --work-store`
