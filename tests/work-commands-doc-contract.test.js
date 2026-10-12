@@ -201,6 +201,16 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
     return text.slice(start, end === -1 ? undefined : end);
   };
 
+  // REVIEW pass 1 (r1.4, C-I4): ship.md § 0.5 chose "load the milestone file
+  // or not" on `hasUnitsSafe(baseDir).has`, which reads a folder that cannot
+  // be trusted as "no unit records".
+  it('no command file decides on hasUnitsSafe: ship.md § 0.5 asks unitRecordsOn and says a throw halts', () => {
+    for (const name of UNIT_COMMANDS) expect(read(name), `${name}.md`).not.toContain('hasUnitsSafe');
+    const line = para('ship', '`unitRecordsOn(baseDir)` from `tools/lib/unit-records.js`');
+    expect(line).toMatch(/throws.*print its message and \*\*halt\*\*/s);
+    expect(EXPORTS_BY_MODULE.get('unit-records.js').has('unitRecordsOn')).toBe(true);
+  });
+
   it('ship.md § 5.5: with unit records the narrative is not evicted at SHIP, and the file says when it is', () => {
     const text = sectionOf('ship', '### 5.5 Evict-on-close', '\n### 6');
     expect(text).toMatch(/With unit records/);
