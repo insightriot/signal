@@ -349,7 +349,7 @@ describe('runConfirmCloses — the `Closes:` line names units and items separate
     const out = await runConfirmCloses(work, { now: NOW });
     expect(out).toEqual({
       ran: true, confirmed: [], stillClosing: [], stale: [], error: null,
-      line: 'Closes: units — confirmed 1 (M7.E3) — its record changed; commit it',
+      line: 'Closes: units — confirmed 1 (M7.E3) — its record and the views changed; commit them',
       units: { confirmed: ['M7.E3'], stillClosing: [], stale: [] },
     });
   });
@@ -370,7 +370,7 @@ describe('runConfirmCloses — the `Closes:` line names units and items separate
     expect((await runConfirmCloses(work, { now: NOW })).line).toBe(
       'Closes: items — confirmed 1 (SIG-1) — its record and the views changed; commit them · '
       + '1 still closing (SIG-4: unknown-commit) · 1 closing over 14 days (SIG-4) — see /sig:docs-sweep · '
-      + 'units — confirmed 1 (M7.E3) — its record changed; commit it · 1 still closing (M7.E4: unknown-commit) · '
+      + 'units — confirmed 1 (M7.E3) — its record and the views changed; commit them · 1 still closing (M7.E4: unknown-commit) · '
       + '1 closing over 14 days (M7.E4) — the commit each was requested with is not on the default branch',
     );
   });
@@ -391,7 +391,7 @@ describe('runConfirmCloses — the `Closes:` line names units and items separate
       confirmed: [], stillClosing: [], stale: [],
       units: { confirmed: ['M7.E3', 'phase-11'], stillClosing: [{ id: 'GATE-A', reason: 'ambiguous-proof' }], stale: [] },
     })).toBe(
-      'Closes: units — confirmed 2 (M7.E3, phase-11) — their records changed; commit them · 1 still closing (GATE-A: ambiguous-proof) · '
+      'Closes: units — confirmed 2 (M7.E3, phase-11) — their records and the views changed; commit them · 1 still closing (GATE-A: ambiguous-proof) · '
       + 'ambiguous-proof: the proof is the start of more than one commit — reopen the unit and request its close again with a longer hash',
     );
     // A result with no `units` field, or an empty one, formats as it always has.

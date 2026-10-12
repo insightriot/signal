@@ -105,7 +105,7 @@ describe('an Epic is closed through its unit record, end to end (real git)', () 
     const second = await runConfirmCloses(work);
     expect(second.error).toBeNull();
     expect(second.units).toEqual({ confirmed: [EPIC], stillClosing: [], stale: [] });
-    expect(second.line).toBe(`Closes: units — confirmed 1 (${EPIC}) — its record changed; commit it`);
+    expect(second.line).toBe(`Closes: units — confirmed 1 (${EPIC}) — its record and the views changed; commit them`);
 
     const unit = getUnit(work, EPIC);
     expect(unit.status).toBe('closed');

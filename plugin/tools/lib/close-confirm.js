@@ -31,9 +31,9 @@ const LIST_MAX = 5;
 
 const list = (ids) => (ids.length <= LIST_MAX ? ids.join(', ') : `${ids.slice(0, LIST_MAX).join(', ')} and ${ids.length - LIST_MAX} more`);
 
-// The parts of the line for one kind of record. `what` words the two places
-// items and units differ: what changed on a confirm, and what to do about an
-// ambiguous proof.
+// The parts of the line for one kind of record. `what` words what changed on a
+// confirm, and the two places items and units differ: what to do about an
+// ambiguous proof, and what a stale close means.
 function closeParts({ confirmed = [], stillClosing = [], stale = [] }, what) {
   const parts = [];
   if (confirmed.length > 0) parts.push(`confirmed ${confirmed.length} (${list(confirmed)}) — ${what.changed(confirmed.length)}`);
@@ -52,7 +52,9 @@ const ITEM_WORDS = {
   stale: ' — see /sig:docs-sweep',
 };
 const UNIT_WORDS = {
-  changed: (n) => (n === 1 ? 'its record changed; commit it' : 'their records changed; commit them'),
+  // A unit confirm regenerates the views too (`work/EPICS.md`, the milestone
+  // file's Epic table), so the words are the items' (M6.E16 t9.0).
+  changed: ITEM_WORDS.changed,
   ambiguous: 'ambiguous-proof: the proof is the start of more than one commit — reopen the unit and request its close again with a longer hash',
   stale: ' — the commit each was requested with is not on the default branch',
 };
