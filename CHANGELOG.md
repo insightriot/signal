@@ -95,6 +95,13 @@ records now.
 - **The undo line after `--force` on a dirty tree no longer discards your edits to the milestone
   file.** It restores only generated files, and says that the Epic table was regenerated between its
   markers and that `git diff` shows the old rows.
+- **The edit hook guards everything in `work/units/`,** not only `*.json`, on a project that has the
+  folder, and matches a path with a trailing dot, a trailing space or a `::$DATA` suffix as the file
+  Windows would open. Its message says a hold is placed only when the user asks.
+- **A Windows device name is not a unit ID** (`CON`, `NUL`, `COM1`, … with or without an extension):
+  its record could not be a file on Windows.
+- **A `git replace` ref no longer counts** when a close's commit is checked against the default
+  branch.
 - **A `work/units/` folder that cannot be trusted is an error, not "no unit records".** When it is
   a symbolic link, a file, or cannot be listed, commands that write or move refuse and name the
   folder, and everything that asks whether a unit is closed answers that it cannot tell. No unit is
@@ -127,6 +134,9 @@ records now.
 - On a project with unit records, a unit named only by a row of a milestone table is not proposed by
   `/sig:docs-migrate --work-store` (the rows are generated there, and not read).
 - While `work/units/` cannot be trusted, nothing lists or writes work items either, until it is fixed.
+- On a project with a store and no `work/units/`, the edit hook blocks a `Write` of
+  `work/units/<ID>.json` and not of any other file there, so writing `work/units/notes.md` by hand
+  still creates the folder and turns unit records on.
 - A project without unit records still has the behaviour `SIG-132`, `SIG-288` and `SIG-289` describe.
 
 ## [0.1.50] — 2026-10-10 — other projects can move onto the work store

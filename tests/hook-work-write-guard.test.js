@@ -48,6 +48,13 @@ const PROTECTED = [
   '.planning/work/history/2026-10.md',
   // M6.E16/t2.5 (AC2.2): a unit record, as an item record.
   '.planning/work/units/M6.E16.json',
+  // REVIEW pass 1, C-S4 / S-L4: every path under units/, whatever its name —
+  // the folder existing is what turns unit records on. (`M6.E16.md` here was
+  // in the allowed list below until then.)
+  '.planning/work/units/M6.E16.md',
+  '.planning/work/units/notes.md',
+  '.planning/work/units/.keep',
+  '.planning/work/units/sub/deeper.txt',
 ];
 const isUnit = (rel) => rel.startsWith('.planning/work/units/');
 // Never protected.
@@ -57,7 +64,6 @@ const ALLOWED = [
   '.planning/DECISIONS.md',
   '.planning/archive/pre-work-store-v2/BUGS.md',
   '.planning/work/history/sub/x.md',
-  '.planning/work/units/M6.E16.md',
   '.planning/work/unit-notes/M6.E16.json',
   'src/BUGS.md',
   'README.md',
@@ -146,7 +152,56 @@ describe('work write guard — v2 store', () => {
     symlinkSync(join(dir, '.planning', 'work', 'units'), join(dir, 'epics'));
     expect(runHook(edit(join(dir, 'epics', 'M6.E16.json'))).status).toBe(2);
     expect(runHook(write(join(dir, 'epics', 'M6.E98.json'))).status).toBe(2); // not there yet
-    expect(runHook(edit(join(dir, 'epics', 'M6.E16.md'))).status).toBe(0);
+    expect(runHook(edit(join(dir, 'epics', 'M6.E16.md'))).status).toBe(2); // any name under units/ (REVIEW pass 1)
+  });
+
+  // REVIEW pass 1, C-S4 / S-L4.
+  it('with the folder there, a file named for nothing is blocked, and so is the folder\'s own path', () => {
+    for (const rel of ['.planning/work/units/notes.md', '.planning/work/units/.keep', '.planning/work/units']) {
+      const { status, stderr } = runHook(write(join(dir, rel)));
+      expect(status, rel).toBe(2);
+      expect(stderr, rel).toContain('the folder existing is what turns unit records on');
+    }
+  });
+
+  // ⚠ This case pins a gap, on purpose. Without `work/units`, a Write of
+  // `units/notes.md` creates the folder and so turns unit records on (C-S4).
+  // Blocking it is a new refusal for a project without unit records: AC6.4 does
+  // not name it and tests/unit-records-off-parity.test.js pins it as allowed
+  // (`hook.unitsFolderNote`). Left as on v0.1.50 until AC6.4 is amended; when it
+  // is, this case flips to 2 and `unitsFolderThere` goes.
+  it('without the folder, a record\'s path is blocked and any other path under units/ is still allowed (as on v0.1.50)', () => {
+    rmSync(join(dir, '.planning', 'work', 'units'), { recursive: true, force: true });
+    expect(runHook(write(join(dir, '.planning/work/units/M7.E1.json'))).status).toBe(2);
+    expect(runHook(write(join(dir, '.planning/work/units/M7.E1.json::$DATA'))).status).toBe(2);
+    for (const rel of ['.planning/work/units/notes.md', '.planning/work/units/.keep', '.planning/work/units']) {
+      expect(runHook(write(join(dir, rel))).status, rel).toBe(0);
+    }
+  });
+
+  it('blocks the spellings Windows opens as the same file: a trailing dot, a trailing space, an alternate stream', () => {
+    for (const rel of [
+      '.planning/work/units/M6.E16.json.',
+      '.planning/work/units/M6.E16.json ',
+      '.planning/work/units/M6.E16.json::$DATA',
+      '.planning/work/units./M6.E16.json',
+      '.planning/work /units/M6.E16.json',
+      '.planning/work/items/00/SIG-1.json.',
+      '.planning/work/items/00/SIG-1.json::$DATA',
+      '.planning/work/items/00/SIG-1.json:stream',
+      '.planning/BUGS.md. .',
+      '.planning/work/EPICS.md::$DATA',
+    ]) {
+      expect(runHook(write(join(dir, rel))).status, JSON.stringify(rel)).toBe(2);
+    }
+    // A body is still editable, and so is a name that only starts like a view's.
+    expect(runHook(write(join(dir, '.planning/work/items/00/SIG-1.md'))).status).toBe(0);
+    expect(runHook(write(join(dir, '.planning/BUGS.md.bak'))).status).toBe(0);
+  });
+
+  it('the message does not tell an agent to place or release a hold on its own initiative', () => {
+    const { stderr } = runHook(write(join(dir, '.planning/work/units/M6.E16.json')));
+    expect(stderr).toMatch(/holdUnit and releaseUnit \(tools\/lib\/unit-records\.js; see \/sig:docs-archive\) — only when the user asks/);
   });
 
   it.each(ALLOWED)('allows %s', (rel) => {
@@ -268,7 +323,9 @@ describe('work write guard — v2 store', () => {
     expect(protectedTarget(join(dir, '.PLANNING/bugs.md'))).toMatchObject({ blocked: true });
     expect(protectedTarget(join(dir, '.PLANNING/Work/WORK.MD'))).toMatchObject({ blocked: true });
     expect(protectedTarget(join(dir, '.Planning/WORK/Units/M6.E16.JSON'))).toMatchObject({ blocked: true });
-    expect(protectedTarget(join(dir, '.Planning/WORK/Units/M6.E16.MD'))).toMatchObject({ blocked: false });
+    // Any name under units/ (REVIEW pass 1, C-S4): this line pinned `blocked: false` until then.
+    expect(protectedTarget(join(dir, '.Planning/WORK/Units/M6.E16.MD'))).toMatchObject({ blocked: true });
+    expect(protectedTarget(join(dir, '.Planning/WORK/Unit-notes/M6.E16.MD'))).toMatchObject({ blocked: false });
     expect(protectedTarget(join(dir, '.Planning/Work/Items/00/SIG-1.MD'))).toMatchObject({ blocked: false });
   });
 
@@ -322,6 +379,10 @@ describe('hooks-api.md states what the guard cannot see (REVIEW I7)', () => {
     const at = doc.indexOf('**Work-store guard (M6.E13/t5.1):**');
     const desc = doc.slice(at, doc.indexOf('- **exit:**', at));
     expect(desc).toContain('`.planning/work/units/*.json`');
+    // REVIEW pass 1: every path under the folder, the spellings, and "when the user asks".
+    expect(desc).toMatch(/every\s+other\s+path\s+under\s+`\.planning\/work\/units\/`/);
+    expect(desc).toMatch(/trailing\s+dot/);
+    expect(desc).toMatch(/only\s+when\s+the\s+user\s+asks/);
     expect(desc).toMatch(/\/sig:discuss --epic/);
     for (const writer of ['/sig:new-project --epic', '/sig:ship', '/sig:docs-sweep', '/sig:docs-migrate --work-store', 'holdUnit', 'releaseUnit']) {
       expect(desc, writer).toContain(writer);

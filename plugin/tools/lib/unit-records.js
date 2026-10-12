@@ -44,7 +44,7 @@ import { join, resolve, sep } from 'node:path';
 import { atomicWrite } from './atomic-write.js';
 import { ascii, cut, oneLine, printable as printableText, shownName } from './printable-text.js';
 import { PHASES } from './state.js';
-import { isSafeUnitName } from './unit-name.js';
+import { isReservedDeviceName, isSafeUnitName } from './unit-name.js';
 import {
   CLOSE_WORDS_MAX, LEGACY_CELL_MAX, LEGACY_CELLS_MAX, UNIT_KIND, UNIT_NOTE_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, UNIT_SCHEMA, UNIT_SUMMARY_MAX,
   UNIT_TITLE_MAX, foldUnit,
@@ -97,10 +97,15 @@ function assertShape(id) {
 }
 
 // Why a well-shaped ID may still not name a unit, or null: it is a phase
-// name, or it is shaped like one of this project's item IDs. Compared without
+// name, it is shaped like one of this project's item IDs, or it is a device
+// name on Windows (its record's file could not exist there). Compared without
 // case, as the case-twin rule is.
 function idCollision(id, storeKey) {
   const lower = id.toLowerCase();
+  if (isReservedDeviceName(id)) {
+    return `${id} is a device name on Windows (CON, PRN, AUX, NUL, COM1 to COM9, LPT1 to LPT9, with or without an extension), `
+      + 'so its record could not be a file there and it cannot be a unit ID';
+  }
   if (PHASES.some((p) => p.toLowerCase() === lower)) {
     return `${id} is a phase name, so it cannot be a unit ID`;
   }
@@ -123,6 +128,8 @@ const storeKeyOf = (baseDir) => {
  * - `isSafeUnitName`'s charset and length (1 to 100 of letters, digits, `.`,
  *   `_`, `-`; a letter or digit first; no `..`) — so it is safe as a file name;
  * - not a phase name (`PHASES`, `state.js`), in any case;
+ * - not a Windows device name (`isReservedDeviceName`, `unit-name.js`), in any
+ *   case, with or without an extension;
  * - not shaped like one of this project's item IDs (`<store key>-<digits>`),
  *   in any case;
  * - not different only by letter case from a unit that has a record. The exact
@@ -132,7 +139,7 @@ const storeKeyOf = (baseDir) => {
  * @param {string} baseDir
  * @param {unknown} id
  * @param {{storeKey?: string}} [opts] — the store's key; read from the project when not passed (none when the store is off)
- * @throws {WorkStoreError} SCHEMA (the first three), CONFLICT (a case twin, or `units/` is a link)
+ * @throws {WorkStoreError} SCHEMA (the first four), CONFLICT (a case twin, or `units/` is a link)
  */
 export function assertUnitId(baseDir, id, opts = {}) {
   assertShape(id);

@@ -84,7 +84,13 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   `.planning`, it lazy-loads `tools/lib/work-write-guard.js`. That **blocks** a
   hand edit of `.planning/work/items/**/*.json`, `BUGS.md`, `BACKLOG.md`,
   `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `work/EPICS.md`, `work/history/*.md`
-  and (M6.E16/t2.5) a unit record, `.planning/work/units/*.json`
+  and (M6.E16/t2.5) a unit record, `.planning/work/units/*.json`, and — on a
+  project where `.planning/work/units` is there — every
+  other path under `.planning/work/units/` and that path itself (nothing is
+  written in the folder by hand; its `.keep` is the library's). **Not blocked:**
+  a path under `work/units/` that is not `*.json` while the folder does not
+  exist, although writing one creates the folder and so turns unit records on —
+  blocking it would be a new refusal for a project without unit records
   — **only** when `.planning/work/WORK.md` reads `schema_version: 2` — naming
   `/sig:item`; for a unit record the message adds that `/sig:item` does not
   change one and that unit records change only through Signal's own commands
@@ -94,7 +100,10 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   `/sig:ship` and `/sig:docs-sweep` confirm the close;
   `/sig:docs-migrate --work-store` creates them for a project that had none),
   and that a hold is placed and released with `holdUnit` and `releaseUnit`
-  (`tools/lib/unit-records.js`; see `/sig:docs-archive`). Item bodies
+  (`tools/lib/unit-records.js`; see `/sig:docs-archive`), only when the user
+  asks. A path is matched without regard to case, and with each segment's
+  trailing dot or space and anything from a `:` in its last segment taken off —
+  the spellings Windows opens as the same file. Item bodies
   (`items/**/*.md`) are allowed. On `work/WORK.md` itself
   it blocks only an edit that would change or remove `schema_version: 2` or the
   `key:` line (the key prefixes every item ID, so changing it orphans every

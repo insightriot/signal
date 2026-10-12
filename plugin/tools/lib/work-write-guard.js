@@ -6,8 +6,20 @@
 // code (`/sig:item` → work-records.js → work-views.js). A hand edit to one of
 // them is either overwritten at the next regeneration or, for a record, an
 // edit the event log never saw. Bodies (`items/**/*.md`) stay editable.
-// Unit records (`work/units/**/*.json`, M6.E16/t2.5, AC2.2) are guarded as
-// item records are; they are written by unit-records.js, not by `/sig:item`.
+// Unit records (`work/units/*.json`, M6.E16/t2.5, AC2.2) are guarded as item
+// records are; they are written by unit-records.js, not by `/sig:item`. On a
+// project that HAS `work/units`, every other path under it is guarded too,
+// whatever its name (REVIEW pass 1, C-S4 / S-L4): nothing but the library
+// writes in that folder, its `.keep` included (`ensureUnitsDir`, which no hook
+// sees).
+//
+// ⚠ NOT guarded: a path under `work/units/` that is not `*.json`, on a project
+// where `work/units` does not exist. A `Write` of `units/notes.md` there
+// creates the folder, and the folder existing is what turns unit records on.
+// Blocking it is a new refusal for a project without unit records, which
+// AC6.4 does not name and `tests/unit-records-off-parity.test.js` pins as
+// allowed (`hook.unitsFolderNote`) — so it is left as on `v0.1.50` until that
+// criterion says otherwise. `unitsFolderThere` below is the one condition.
 // `work/WORK.md` is guarded too, with its own message (REVIEW I7), but only
 // against the two edits that matter: one that would change or remove
 // `schema_version: 2`, which would switch this guard off, and one that would
@@ -35,8 +47,13 @@
 // alias pointing into `.planning` (`notes -> .planning/work/items`). The hook's
 // prefilter tests both too, so such an alias reaches this module (REVIEW loop
 // 1); before that, the realpath here was never consulted for one.
+//
+// Each segment is also compared without the dots and spaces at its end, and
+// the last one without anything from a `:` on (REVIEW pass 1, S-L4): on
+// Windows `M6.E16.json.`, `M6.E16.json ` and `M6.E16.json::$DATA` all open
+// `M6.E16.json`, so each of those spellings is that file here.
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 import { shownName } from './printable-text.js';
@@ -52,12 +69,13 @@ export const BLOCK_MESSAGE = (rel) =>
   + 'files are generated from the records and regenerate after every change. '
   + 'For prose, edit the item\'s body file (.planning/work/items/NN/KEY-n.md), which is not blocked.'
   + (isUnitRecord(rel)
-    ? ' This file is a unit record (.planning/work/units/*.json), and /sig:item does not change one: unit '
+    ? ' This path is under .planning/work/units/, where the unit records are (.planning/work/units/*.json) and '
+      + 'where nothing else is written: the folder existing is what turns unit records on. /sig:item does not change a unit record: unit '
       + 'records change only through Signal\'s own commands — /sig:discuss --epic and /sig:new-project --epic open '
       + 'one (and record a reopen when a closed one is opened again on your say-so), /sig:ship requests its close, /sig:ship and '
       + '/sig:docs-sweep confirm the close once its commit is on the default branch, and '
       + '/sig:docs-migrate --work-store creates them for a project that had none. A hold is placed and released '
-      + 'with holdUnit and releaseUnit (tools/lib/unit-records.js; see /sig:docs-archive). '
+      + 'with holdUnit and releaseUnit (tools/lib/unit-records.js; see /sig:docs-archive) — only when the user asks, never on your own initiative. '
       + 'A unit record has no body file.'
     : '');
 
@@ -68,31 +86,68 @@ export const WORK_MD_MESSAGE = (rel) =>
   + 'may be edited. Items are changed with /sig:item; the store\'s version is changed only by the migration '
   + 'tool, `node tools/work-migrate-v2.mjs`.';
 
-const isUnitRecord = (rel) => rel.toLowerCase().startsWith('.planning/work/units/');
-const isWorkMd = (rel) => rel.toLowerCase() === '.planning/work/work.md';
+// A path's segments as they are compared: lower-cased, each without the dots
+// and spaces at its end, the last without anything from a `:` on. Loops, not
+// patterns: a segment is text from a tool call.
+function comparable(parts) {
+  return parts.map((part, i) => {
+    let s = part.toLowerCase();
+    if (i === parts.length - 1 && s.includes(':')) s = s.slice(0, s.indexOf(':'));
+    let to = s.length;
+    while (to > 0 && (s[to - 1] === '.' || s[to - 1] === ' ')) to -= 1;
+    return s.slice(0, to);
+  });
+}
+
+const relSegs = (rel) => comparable(rel.split('/'));
+const isUnitRecord = (rel) => {
+  const segs = relSegs(rel);
+  return segs[0] === '.planning' && segs[1] === 'work' && segs[2] === 'units';
+};
+const isWorkMd = (rel) => relSegs(rel).join('/') === '.planning/work/work.md';
+// A path under `work/units/` that is not a record's (`*.json`), or `work/units` itself.
+const isUnitsOther = (rel) => isUnitRecord(rel) && !relSegs(rel).at(-1).endsWith('.json') && !rel.toLowerCase().endsWith('.json');
+
+// Is there anything at `.planning/work/units` — a folder, a file or a link?
+function unitsFolderThere(baseDir) {
+  try {
+    lstatSync(join(baseDir, '.planning', 'work', 'units'));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // Is `segs` (lower-cased, after `.planning/`) a protected target?
 function isTarget(segs) {
   if (segs.length === 1) return VIEWS.has(segs[0]);
   if (segs[0] !== 'work') return false;
+  // `work/units` itself and everything under it, whatever its name
+  // (`checkWorkWrite` then asks whether the folder is there, for a path that is not a record's).
+  if (segs[1] === 'units') return true;
   if (segs.length === 2) return segs[1] === 'epics.md' || segs[1] === 'work.md';
   if (segs[1] === 'history') return segs.length === 3 && segs[2].endsWith('.md');
-  if (segs[1] === 'items' || segs[1] === 'units') return segs[segs.length - 1].endsWith('.json');
+  if (segs[1] === 'items') return segs[segs.length - 1].endsWith('.json');
   return false;
 }
 
-// The nearest `.planning` segment of an absolute path, as {baseDir, rel}.
+// The nearest `.planning` segment of an absolute path, as {baseDir, rel}. A
+// path is a target when it is one as written (lower-cased) OR as Windows would
+// open it (`comparable`): the second reading only ever adds a target, so a
+// name with a `:` in it that was guarded before still is.
 function classify(abs) {
   const parts = abs.split(sep);
-  const lower = parts.map((p) => p.toLowerCase());
-  const i = lower.lastIndexOf('.planning');
-  if (i < 0) return null;
-  const segs = lower.slice(i + 1);
-  if (segs.length === 0 || !isTarget(segs)) return null;
-  return {
-    baseDir: parts.slice(0, i).join(sep) || sep,
-    rel: ['.planning', ...parts.slice(i + 1)].join('/'),
-  };
+  for (const lower of [parts.map((p) => p.toLowerCase()), comparable(parts)]) {
+    const i = lower.lastIndexOf('.planning');
+    if (i < 0) continue;
+    const segs = lower.slice(i + 1);
+    if (segs.length === 0 || !isTarget(segs)) continue;
+    return {
+      baseDir: parts.slice(0, i).join(sep) || sep,
+      rel: ['.planning', ...parts.slice(i + 1)].join('/'),
+    };
+  }
+  return null;
 }
 
 // realpath of a path that may not exist yet: the nearest existing ancestor,
@@ -194,6 +249,8 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
       try {
         const { storeVersion } = await import('./work-records.js');
         if (storeVersion(baseDir) !== 2) continue;
+        // See the header: without the folder, only a record's path is guarded.
+        if (isUnitsOther(rel) && !unitsFolderThere(baseDir)) continue;
         if (!isWorkMd(rel)) return { block: true, reason: BLOCK_MESSAGE(rel) };
         if (await changesVersionOrKey(abs, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
       } catch {

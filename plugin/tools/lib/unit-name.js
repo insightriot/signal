@@ -26,3 +26,28 @@ export function isSafeUnitName(unit) {
   if (unit.includes('..')) return false;
   return SAFE_UNIT_RE.test(unit);
 }
+
+// The names Windows keeps for devices. A file called one of them — in any
+// letter case, with or without an extension (`NUL`, `nul.json`, `Com1.notes`)
+// — cannot be created there, or opens the device instead.
+const DEVICE_NAMES = new Set(['CON', 'PRN', 'AUX', 'NUL',
+  'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+  'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9']);
+
+/**
+ * Is this name a Windows device name: what stands before its first `.`, in
+ * any letter case, is one of `CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`,
+ * `LPT1`–`LPT9` (REVIEW pass 1, S-L3). A unit record's file is named for its
+ * unit, so such a unit could not be checked out on Windows.
+ *
+ * Separate from `isSafeUnitName` on purpose: that rule also decides what a
+ * project WITHOUT unit records may archive, and it is unchanged (AC6.4).
+ *
+ * @param {unknown} name
+ * @returns {boolean}
+ */
+export function isReservedDeviceName(name) {
+  if (typeof name !== 'string') return false;
+  const dot = name.indexOf('.');
+  return DEVICE_NAMES.has((dot === -1 ? name : name.slice(0, dot)).toUpperCase());
+}

@@ -252,8 +252,15 @@ export function readRecordFile(abs) {
 
 const GIT_MAX_BUFFER = 256 * 1024 * 1024;
 
+// The environment of every git call here: replace refs are not honoured
+// (REVIEW pass 1, S-L5). `git replace` can make a commit on the default branch
+// stand for another whose parent is unmerged work, and the ancestry question
+// would then answer yes for a commit nobody merged. With
+// `GIT_NO_REPLACE_OBJECTS` git reads the objects as they are.
+const gitEnv = () => ({ ...process.env, GIT_NO_REPLACE_OBJECTS: '1' });
+
 export function runGit(baseDir, args, execFn) {
-  return String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: GIT_MAX_BUFFER }));
+  return String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: GIT_MAX_BUFFER, env: gitEnv() }));
 }
 
 // A lazy, memoised `git rev-parse --is-shallow-repository` (false on failure).
@@ -355,6 +362,7 @@ export function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
     execFn('git', ['merge-base', '--is-ancestor', full, ref], {
       cwd: baseDir,
       stdio: ['ignore', 'ignore', 'ignore'],
+      env: gitEnv(),
     });
     return null;
   } catch (err) {
