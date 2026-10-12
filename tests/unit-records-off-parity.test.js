@@ -11,7 +11,8 @@
 //   - each named kind, pinned as it stands today.
 //
 // WHAT IS CAPTURED. `tests/helpers/units-off-parity.js` builds four fixed
-// projects and makes 72 library calls about them: the edit hook on a path of
+// projects and captures 72 answers about them (70 library calls, and 2
+// listings of the files on disk): the edit hook on a path of
 // each kind; the item schema, the item readers and the item writers with an
 // Epic ID, a name that is not one, and a name over 100 characters; the item
 // readers over a record placed on disk by hand; the closure readers; the
@@ -86,13 +87,13 @@ const now = await captureUnitsOff(LIB);
 const refusedKeys = (capture) => Object.keys(capture).filter((k) => capture[k]?.refused === true);
 
 describe('store on, no work/units/: with only the kinds of difference AC6.4 names taken out, everything equals v0.1.50', () => {
-  it('the capture makes the same 72 calls today as it made against v0.1.50', () => {
+  it('the capture takes the same 72 answers today as it took against v0.1.50', () => {
     expect(now.calls).toBe(72);
     expect(V0150.calls).toBe(72);
     expect(Object.keys(now)).toEqual(Object.keys(V0150));
   });
 
-  it('the catch-all — a difference of any kind AC6.4 does not name, in any of the 72 calls, fails here', () => {
+  it('the catch-all — a difference of any kind AC6.4 does not name, in any of the 72 answers, fails here', () => {
     expect(withoutTheNamedKinds(now)).toEqual(withoutTheNamedKinds(V0150));
   });
 

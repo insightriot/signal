@@ -4297,6 +4297,6 @@ what this Epic adds (the edit hook on `work/units/` paths, the migration's dry r
 project, new keys that are empty without unit records); the unit-name rule (a wider schema, the
 same refusals from writers and readers, and a 100-character limit kept on purpose); and wording.
 One of the five was removed in code rather than named: without unit records the readers refuse a
-record naming a unit that is not an Epic ID again, as `v0.1.50` did. The test now makes 72 calls,
+record naming a unit that is not an Epic ID again, as `v0.1.50` did. The test now compares 72 answers,
 takes out only the named kinds and fails on anything else. "Four named differences" in this
 entry's title is loop 1's wording; the four are still true and are now instances of the kinds.

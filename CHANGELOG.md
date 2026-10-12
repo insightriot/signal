@@ -53,7 +53,7 @@ records now.
   row to decide whether it closes the Epic, and the next Epic ID counts records as well as filenames.
 - **A project without `work/units/` gets the same closure answers, file moves and refusals as on
   `v0.1.50`.** Every reader keeps its old path, and the existing tests for those projects pass
-  unchanged. Three kinds of thing differ, and a test that compares 72 library calls with `v0.1.50`
+  unchanged. Three kinds of thing differ, and a test that compares 72 answers with `v0.1.50`'s
   fails on any other: what this release adds (the edit hook also guards `work/units/*.json`;
   `/sig:docs-migrate --work-store` on a project already on the store proposes unit records where it
   used to refuse; some return values have new keys, empty here); the unit-name rule (the item

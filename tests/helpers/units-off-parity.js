@@ -99,7 +99,7 @@ function gitRepo(base, originDir) {
 /**
  * @param {string} libDir — absolute path of a `plugin/tools/lib/` folder
  * @returns {Promise<{calls: number, [key: string]: unknown}>} the answers, one key per call (see the test for
- *   each), and `calls`: how many library calls were made
+ *   each), and `calls`: how many answers were captured (library calls, and two listings of the files on disk)
  */
 export async function captureUnitsOff(libDir) {
   const lib = (name) => import(pathToFileURL(join(libDir, name)).href);
