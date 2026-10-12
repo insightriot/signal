@@ -70,7 +70,7 @@ Each target status is its own event:
 | Q (queued for an Epic) | `queueItem(baseDir, id, {epic, by})` | T, Q, P |
 | P (started in an Epic) | `startItem(baseDir, id, {epic, by})` | T, Q |
 
-The Epic is an Epic ID (`M6.E13`) and is required for Q and P. On a project with unit records (`.planning/work/units/`) it is any unit that has a record — an Epic ID or the project's own unit name (`phase-11`) — and a unit with no record (`NOT_FOUND`) or a closed one (`CONFLICT`) is refused. An item at N reaches T through `triage`, which sets its type — a bare `triageItem` on a `NEW` item is refused (`SCHEMA`). Nothing moves back to N. Closing is not a move — use `close`. Print *from → to*. The record stays where it is; only its events change.
+The Epic is an Epic ID (`M6.E13`) and is required for Q and P. On a project with unit records (`.planning/work/units/`) it is any unit that has a record — an Epic ID or the project's own unit name (`phase-11`) — and a unit with no record (`NOT_FOUND`), a closed one or one whose close has been requested (*closing*; both `CONFLICT`) is refused. An item at N reaches T through `triage`, which sets its type — a bare `triageItem` on a `NEW` item is refused (`SCHEMA`). Nothing moves back to N. Closing is not a move — use `close`. Print *from → to*. The record stays where it is; only its events change.
 
 ### `close <ID> <reason> [proof]` — close an item
 
@@ -88,7 +88,7 @@ The Epic is kept on a closed item. A `closing` item can still be closed with ano
 
 ### `reopen <ID> "<reason>"` — a closed item came back
 
-`reopenItem(baseDir, id, {by, reason})`. Reopen the same item rather than capturing a new one (`D-M6E11-31`): it returns to T with its Epic cleared, and its previous close stays in its events, followed by the `reopened` event saying who, when and why. The reason is required: say what came back. Works on a C or a *closing* item. Refused for an item that is open, and for one whose Epic is archived (`.planning/archive/epics/<EpicID>/` exists) — that Epic is finished, so capture a new item and link it to the old one. On a project with unit records the archive folder is not read: the item is refused (`CONFLICT`) when its Epic's unit record is closed, held or not, and an Epic with no record refuses nothing. Print *from → to*. The reason is scrubbed for secrets as in `new`: on `{aborted: 'sensitive-data-pending'}` nothing was reopened — ask **keep** or **abort**, and on keep call again with `{acknowledgeSensitive: true}`.
+`reopenItem(baseDir, id, {by, reason})`. Reopen the same item rather than capturing a new one (`D-M6E11-31`): it returns to T with its Epic cleared, and its previous close stays in its events, followed by the `reopened` event saying who, when and why. The reason is required: say what came back. Works on a C or a *closing* item. Refused for an item that is open, and for one whose Epic is archived (`.planning/archive/epics/<EpicID>/` exists) — that Epic is finished, so capture a new item and link it to the old one. On a project with unit records the archive folder is not read: the item is refused (`CONFLICT`) when its Epic's unit record is closed, held or not, or *closing* (its close has been requested), and an Epic with no record refuses nothing. Print *from → to*. The reason is scrubbed for secrets as in `new`: on `{aborted: 'sensitive-data-pending'}` nothing was reopened — ask **keep** or **abort**, and on keep call again with `{acknowledgeSensitive: true}`.
 
 ### `edit <ID> <field> <value>` — change a record field
 

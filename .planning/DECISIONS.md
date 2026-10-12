@@ -4313,3 +4313,10 @@ whose milestone file has no Epic-table markers, that dry run prints one sentence
 left as it is (AC7.2). It is the same kind, and is named in kind (a) with the dry run. No code changed. "The test now compares 72 answers" above was loop 2's
 count; after this amendment it compares more, and the number is in AC6.4. It also no longer takes
 out every message: one `v0.1.50` worded the same way is compared word for word.
+
+### D-M6E16-21 — A closing unit takes no items, and its close is confirmed only with every item closed (Claude)
+Settles REVIEW pass 1, `C-I1`. The close request checked the unit's items once, and nothing checked
+them again: an item queued, started or reopened into a *closing* unit, or a record that arrived by a
+merge, left a unit reading closed with an open item in it. So `queueItem`, `startItem` and
+`reopenItem` refuse on a closing unit as they do on a closed one, and `confirmCloses` leaves a unit
+closing (`open-items`) until each of its items is closed or confirmed in the same write.

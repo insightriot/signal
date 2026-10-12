@@ -76,7 +76,7 @@ const READERS = {
   checkUnits: (base) => units.checkUnits(base),
   caseTwins: () => units.caseTwins(['a', 'A']),
   // Builds the closes `confirmCloses` writes, under ITS lock; writes nothing itself (t4.2).
-  planUnitConfirms: (base) => units.planUnitConfirms({ baseDir: base, key: 'SIG' }, [{ id: 'M6.E21', proof: SHA }], { at: AT, by }),
+  planUnitConfirms: (base) => units.planUnitConfirms({ baseDir: base, key: 'SIG' }, [{ id: 'M6.E21', proof: SHA }], { at: AT, by, openItems: () => [] }),
 };
 
 const WRITERS = {

@@ -1009,7 +1009,20 @@ async function refuseUnavailableEpic(baseDir, id, epic, verb) {
     throw new WorkStoreError('CONFLICT', `${id}: ${epic} is closed (${units.UNITS_REL}/${epic}.json) — `
       + `nothing was ${verb}. A closed unit is finished; pick an open one.`);
   }
+  // `unitClosure` reads a *closing* unit as open: its files stay. For items it
+  // is not open — its close was requested over the items it had then (REVIEW
+  // pass 1, C-I1, `D-M6E16-21`).
+  if (units.getUnit(baseDir, epic).status === 'closing') {
+    throw new WorkStoreError('CONFLICT', `${id}: ${closingUnitRefusal(units, epic)} — nothing was ${verb}. ${REOPEN_UNIT_FIRST}`);
+  }
 }
+
+// A unit whose close is requested and not yet confirmed takes no item: said
+// the same way by `queueItem`, `startItem` and `reopenItem`.
+const closingUnitRefusal = (units, unit) => `${unit}'s close has been requested (${units.UNITS_REL}/${unit}.json reads closing), `
+  + 'and a closing unit takes no new item';
+const REOPEN_UNIT_FIRST = 'Pick an open unit — or, to take the close back, reopen the unit first: '
+  + 'reopenUnit(baseDir, id, {reason, by}) in tools/lib/unit-records.js (see /sig:docs-archive, "Holding a unit"), then ask for the close again at SHIP.';
 
 /**
  * Queue an item for an Epic: a `queued` event (legal from T, Q, P). Refused
@@ -1018,7 +1031,8 @@ async function refuseUnavailableEpic(baseDir, id, epic, verb) {
  * On a project with unit records (M6.E16 AC1.4) `epic` is any unit that has
  * a record — an Epic ID or the project's own unit name — and the refusals
  * are read from the record: NOT_FOUND when the unit has none, CONFLICT when
- * it is closed (held or not). The archive folder is not read.
+ * it is closed (held or not) or *closing* — its close was requested over the
+ * items it had then. The archive folder is not read.
  *
  * @param {string} baseDir
  * @param {string} id
@@ -1039,7 +1053,7 @@ export async function queueItem(baseDir, id, move = {}, opts = {}) {
 /**
  * Start an item in an Epic: a `started` event (legal from T, Q). Refused
  * (CONFLICT) when the Epic is archived (`isEpicArchived`). On a project with
- * unit records, as `queueItem`: any unit with a record that is not closed.
+ * unit records, as `queueItem`: any unit with a record that is open.
  *
  * @param {string} baseDir
  * @param {string} id
@@ -1255,7 +1269,8 @@ export async function closeItems(baseDir, closes, opts = {}) {
  * (`.planning/archive/epics/<Epic>/` exists): that Epic is finished, and
  * pulling an item out would change what the archive says it contained. On a
  * project with unit records the refusal is read from the unit's record
- * instead — closed, held or not — and a unit with no record refuses nothing.
+ * instead — closed, held or not, or *closing* (its close is requested) — and
+ * a unit with no record refuses nothing.
  *
  * Sensitive data: `reason` (v1 `reopenItem`'s gate).
  *
@@ -1284,6 +1299,13 @@ export async function reopenItem(baseDir, id, reopen = {}, opts = {}) {
       if (closure === 'closed' || closure === 'held') {
         throw new WorkStoreError('CONFLICT', `${id} belongs to ${current.epic}, which is closed `
           + `(${units.UNITS_REL}/${current.epic}.json) — nothing was reopened. Capture a new item and link it to ${id} instead.`);
+      }
+      // A *closing* unit, by the same rule (REVIEW pass 1, C-I1): its close
+      // was requested with this item closed, so the item is not pulled out.
+      if (closure === 'open' && units.getUnit(baseDir, current.epic).status === 'closing') {
+        throw new WorkStoreError('CONFLICT', `${id} belongs to ${current.epic}, whose close has been requested `
+          + `(${units.UNITS_REL}/${current.epic}.json reads closing) — nothing was reopened. Capture a new item and link it to ${id} `
+          + 'instead, or reopen the unit first: reopenUnit(baseDir, id, {reason, by}) in tools/lib/unit-records.js.');
       }
     } else if (current.epic !== null && isEpicArchived(baseDir, current.epic)) {
       throw new WorkStoreError('CONFLICT', `${id} belongs to Epic ${current.epic}, which is archived `
@@ -1426,7 +1448,8 @@ const latestRequest = (record) => record.events.findLast((e) => e.type === 'clos
  * closing, with a reason: `invalid-proof`, `not-a-repo`, `no-remote`,
  * `no-default-branch`, `not-on-default-branch`, `unknown-commit`, `proof-names-a-ref`,
  * `ambiguous-proof` (a short id more than one commit starts with), `shallow`, `git-failed`,
- * or `changed` (it moved while git was asked).
+ * or `changed` (it moved while git was asked). A unit has one more: `open-items`
+ * (below).
  *
  * Git is not asked anything unless some proof is valid, and nothing is locked
  * unless some commit is confirmed. A broken record anywhere in the store
@@ -1438,7 +1461,10 @@ const latestRequest = (record) => record.events.findLast((e) => e.type === 'clos
  * the lock, in the same all-or-nothing write as the items. A unit's event is
  * `closed` with reason `shipped`, the request's proof, and the `pr` and
  * `release` the request carried. The result then has a `units` field; the
- * item fields mean what they did. A broken unit record refuses the run as a
+ * item fields mean what they did. A unit with an item that is not closed —
+ * and not confirmed by this same call — stays *closing*, reason `open-items`
+ * (REVIEW pass 1, C-I1): checked once its commit is on the default branch,
+ * and again under the lock. A broken unit record refuses the run as a
  * broken item record does. Without unit records nothing here changes, and
  * the result has no `units` field.
  *
@@ -1460,8 +1486,8 @@ export async function confirmCloses(baseDir, opts = {}) {
 
   const units = await unitRecords(baseDir);
   const onDefaultBranch = ancestrySplit(baseDir, execFn);
-  const { still, ok } = classifyClosing(baseDir, execFn, { onDefaultBranch });
-  const unitSide = units === null ? null : classifyClosingUnits(units, baseDir, onDefaultBranch);
+  const { still, ok, records: itemRecords } = classifyClosing(baseDir, execFn, { onDefaultBranch });
+  const unitSide = units === null ? null : classifyClosingUnits(units, baseDir, onDefaultBranch, { items: itemsNotClosed(itemRecords, ok) });
 
   const confirmed = [];
   const unitsConfirmed = [];
@@ -1469,7 +1495,8 @@ export async function confirmCloses(baseDir, opts = {}) {
     await withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
       const at = now.toISOString();
       const planned = [];
-      refuseBroken(listRecords(handle.baseDir));
+      const listedNow = listRecords(handle.baseDir);
+      refuseBroken(listedNow);
       for (const c of ok) {
         const { entry, text } = readForWrite(handle, c.id);
         if (entry.status !== 'closing') continue; // closed or reopened meanwhile: nothing to confirm
@@ -1486,8 +1513,12 @@ export async function confirmCloses(baseDir, opts = {}) {
       let unitPlanned = [];
       if (unitSide !== null && unitSide.ok.length > 0) {
         refuseBroken(units.listUnits(handle.baseDir));
-        const plan = units.planUnitConfirms(handle, unitSide.ok.map((c) => ({ id: c.id, proof: c.req.proof })), { at, by: CONFIRM_BY });
-        for (const id of plan.changed) unitSide.still.set(id, { reason: 'changed', req: unitSide.ok.find((c) => c.id === id).req });
+        // The unit's items, read again under the lock: closed, or confirmed in this same write.
+        const openItems = itemsNotClosed(listedNow.records, planned.map((p) => ({ id: p.next.id })));
+        const plan = units.planUnitConfirms(handle, unitSide.ok.map((c) => ({ id: c.id, proof: c.req.proof })), { at, by: CONFIRM_BY, openItems });
+        const reqOf = (id) => unitSide.ok.find((c) => c.id === id).req;
+        for (const id of plan.changed) unitSide.still.set(id, { reason: 'changed', req: reqOf(id) });
+        for (const { id } of plan.openItems) unitSide.still.set(id, { reason: OPEN_ITEMS_REASON, req: reqOf(id) });
         unitPlanned = plan.planned;
       }
       if (planned.length + unitPlanned.length === 0) return;
@@ -1542,13 +1573,38 @@ function classifyClosing(baseDir, execFn, { writing = true, onDefaultBranch = an
     if (typeof req?.proof !== 'string' || !COMMIT_RE.test(req.proof)) still.set(r.id, { reason: 'invalid-proof', req });
     else candidates.push({ id: r.id, req });
   }
-  return { still, ok: onDefaultBranch(candidates, still) };
+  return { still, ok: onDefaultBranch(candidates, still), records: listed.records };
+}
+
+// Why a unit stays *closing* although its commit may be on the default branch:
+// one of its items is not closed (REVIEW pass 1, C-I1, AC4.3).
+const OPEN_ITEMS_REASON = 'open-items';
+
+// `(unitId) => string[]`: the IDs of the unit's items that are not closed. An
+// item counts as closed when it reads C, or when `confirming` — the item
+// closes this same run confirms — names it. `closeEpicCheck`'s rule at the
+// close request, without the branch: at the confirm an item still *closing*
+// on a commit that is not on the default branch is not closed.
+function itemsNotClosed(records, confirming) {
+  const done = new Set(confirming.map((c) => c.id));
+  const byUnit = new Map();
+  for (const r of records) {
+    if (r.epic === null || r.epic === undefined || r.status === 'C' || done.has(r.id)) continue;
+    if (!byUnit.has(r.epic)) byUnit.set(r.epic, []);
+    byUnit.get(r.epic).push(r.id);
+  }
+  return (unitId) => byUnit.get(unitId) ?? [];
 }
 
 // `classifyClosing` for unit records (M6.E16 t4.2): every unit reading
 // *closing*, split the same way, by the same rule and against the same ref.
 // A broken unit record refuses the run, as a broken item record does.
-function classifyClosingUnits(units, baseDir, onDefaultBranch, { writing = true } = {}) {
+//
+// A unit whose commit is on the default branch and that has an item not
+// closed stays closing, reason `open-items` (`items`: `itemsNotClosed`). The
+// commit is asked about first, so a unit whose commit has not landed says
+// that, as it did.
+function classifyClosingUnits(units, baseDir, onDefaultBranch, { writing = true, items } = {}) {
   const listed = units.listUnits(baseDir);
   refuseBroken(listed, { writing });
   const still = new Map();
@@ -1558,7 +1614,12 @@ function classifyClosingUnits(units, baseDir, onDefaultBranch, { writing = true 
     if (typeof req?.proof !== 'string' || !COMMIT_RE.test(req.proof)) still.set(u.id, { reason: 'invalid-proof', req });
     else candidates.push({ id: u.id, req });
   }
-  return { still, ok: onDefaultBranch(candidates, still) };
+  const ok = onDefaultBranch(candidates, still).filter((c) => {
+    if (items(c.id).length === 0) return true;
+    still.set(c.id, { reason: OPEN_ITEMS_REASON, req: c.req });
+    return false;
+  });
+  return { still, ok };
 }
 
 // The views refuse to regenerate over a broken record, so writing the others
@@ -1611,11 +1672,11 @@ export function probeCloses(baseDir, opts = {}) {
   if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `probeCloses: now ${JSON.stringify(opts.now)} is not a date`);
   assertWritable(baseDir);
   const onDefaultBranch = ancestrySplit(baseDir, execFn);
-  const { still, ok } = classifyClosing(baseDir, execFn, { writing: false, onDefaultBranch });
+  const { still, ok, records: itemRecords } = classifyClosing(baseDir, execFn, { writing: false, onDefaultBranch });
   const out = { confirmable: ok.map((c) => c.id).sort((a, b) => numberOf(a) - numberOf(b)), ...stillAndStale(still, now) };
   // Unit closes, by the same rule and against the same ref (M6.E16 t5.0c).
   if (hasUnitsSafe(baseDir).has) {
-    const unitSide = classifyClosingUnits(unitLib, baseDir, onDefaultBranch, { writing: false });
+    const unitSide = classifyClosingUnits(unitLib, baseDir, onDefaultBranch, { writing: false, items: itemsNotClosed(itemRecords, ok) });
     out.units = { confirmable: unitSide.ok.map((c) => c.id).sort(byText), ...stillAndStale(unitSide.still, now, byText) };
   }
   return out;

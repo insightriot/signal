@@ -268,9 +268,15 @@ describe('queueItem / startItem / reopenItem with unit records (M6.E16 AC1.4)', 
     expect(records.checkRecords(base)).toEqual([]);
   });
 
-  it.each(verbs)('%s into a closing unit succeeds (a requested close is not a close)', async (fn) => {
-    await records[fn](base, 'SIG-1', { epic: 'M6.E14', by }, quiet);
-    expect(records.getRecord(base, 'SIG-1').epic).toBe('M6.E14');
+  // Changed at REVIEW pass 1 (C-I1, `D-M6E16-21`): this case pinned the
+  // opposite — "into a closing unit succeeds (a requested close is not a
+  // close)" — which let a unit read closed with an open item in it.
+  it.each(verbs)('%s into a closing unit is refused: CONFLICT, nothing written', async (fn) => {
+    const before = snapshotTree(base);
+    const err = await records[fn](base, 'SIG-1', { epic: 'M6.E14', by }, quiet).catch((e) => e);
+    expect(err).toMatchObject({ code: 'CONFLICT' });
+    expect(err.message).toContain('M6.E14\'s close has been requested');
+    expect(snapshotTree(base)).toEqual(before);
   });
 
   it.each([

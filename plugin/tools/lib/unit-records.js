@@ -1104,22 +1104,38 @@ export async function confirmUnitClose(baseDir, id, confirm = {}, opts = {}) {
  * Reads only. As `confirmUnitClose`, it does not check that the commit is on
  * the default branch: the caller has.
  *
+ * The unit's items are checked again here (REVIEW pass 1, C-I1, AC4.3):
+ * `openItems(id)` — the caller's, read under the same lock — names the unit's
+ * items that are not closed, and a unit with any is not planned. The item
+ * store is the caller's to read; this library reads unit records only.
+ *
  * @param {{baseDir: string, key: string}} handle — the caller's lock
  * @param {Array<{id: string, proof: string}>} candidates
- * @param {{at: string, by: string}} confirm
- * @returns {{planned: Array<{next: object, text: string, oldText: string, abs: string}>, changed: string[]}}
+ * @param {{at: string, by: string, openItems: (id: string) => string[]}} confirm
+ * @returns {{planned: Array<{next: object, text: string, oldText: string, abs: string}>, changed: string[],
+ *   openItems: Array<{id: string, items: string[]}>}}
  *   `planned`: one per unit to write (`text` its new bytes, `oldText` its bytes now);
- *   `changed`: units now closing on another proof. One that is no longer closing is in neither.
- * @throws {WorkStoreError} SCHEMA (a broken record), NOT_FOUND
+ *   `changed`: units now closing on another proof; `openItems`: units left closing because these
+ *   items of theirs are not closed. One that is no longer closing is in none.
+ * @throws {WorkStoreError} SCHEMA (a broken record, or no `openItems`), NOT_FOUND
  */
-export function planUnitConfirms(handle, candidates, { at, by }) {
+export function planUnitConfirms(handle, candidates, { at, by, openItems }) {
+  if (typeof openItems !== 'function') {
+    throw new WorkStoreError('SCHEMA', 'planUnitConfirms needs openItems — a unit is confirmed closed only when its items are. Nothing was written.');
+  }
   const planned = [];
   const changed = [];
+  const held = [];
   for (const c of candidates) {
     const { entry, text } = readForWrite(handle, c.id);
     if (entry.status !== 'closing') continue; // closed or reopened meanwhile: nothing to confirm
     if (entry.closing_proof !== c.proof) {
       changed.push(c.id);
+      continue;
+    }
+    const items = openItems(c.id);
+    if (items.length > 0) {
+      held.push({ id: c.id, items });
       continue;
     }
     const request = latestRequest(entry.record);
@@ -1129,7 +1145,7 @@ export function planUnitConfirms(handle, candidates, { at, by }) {
     const next = withEvent(entry, event);
     planned.push({ next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) });
   }
-  return { planned, changed };
+  return { planned, changed, openItems: held };
 }
 
 /**
