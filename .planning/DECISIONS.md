@@ -4300,3 +4300,14 @@ One of the five was removed in code rather than named: without unit records the 
 record naming a unit that is not an Epic ID again, as `v0.1.50` did. The test now compares 72 answers,
 takes out only the named kinds and fails on anything else. "Four named differences" in this
 entry's title is loop 1's wording; the four are still true and are now instances of the kinds.
+
+*Amended after VERIFY loop 3 (2026-10-12).* Loop 3 passed AC6.4 with a limit: four differences fitted
+kind (a), "what this Epic adds", by its label and not by the three things it listed, and the test
+called none of the paths they are on. Kind (a) now names them: the first-time
+`/sig:docs-migrate --work-store` migration proposes unit records in its dry run and its apply
+creates `work/units/` (AC9.1), so a project migrated on this version has unit records on; that apply
+no longer fails its own check on a project that has `.planning/archive/epics/<ID>/` (`v0.1.50` threw
+`SCHEMA` and wrote nothing); the `WORK.md` body a migration writes names `units/`; and the migrate
+command reads `--also`. No code changed. "The test now compares 72 answers" above was loop 2's
+count; after this amendment it compares more, and the number is in AC6.4. It also no longer takes
+out every message: one `v0.1.50` worded the same way is compared word for word.

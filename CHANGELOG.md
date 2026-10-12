@@ -53,10 +53,15 @@ records now.
   row to decide whether it closes the Epic, and the next Epic ID counts records as well as filenames.
 - **A project without `work/units/` gets the same closure answers, file moves and refusals as on
   `v0.1.50`.** Every reader keeps its old path, and the existing tests for those projects pass
-  unchanged. Three kinds of thing differ, and a test that compares 72 answers with `v0.1.50`'s
+  unchanged. Three kinds of thing differ, and a test that compares 94 answers with `v0.1.50`'s
   fails on any other: what this release adds (the edit hook also guards `work/units/*.json`;
   `/sig:docs-migrate --work-store` on a project already on the store proposes unit records where it
-  used to refuse; some return values have new keys, empty here); the unit-name rule (the item
+  used to refuse; some return values have new keys, empty here; moving a project onto the store
+  for the first time also proposes and creates its unit records, so it has `work/units/`
+  afterwards; that first move no longer fails on a project that has
+  `.planning/archive/epics/<ID>/`, where `v0.1.50` stopped with "the migrated store did not verify"
+  and wrote nothing; the `WORK.md` a migration writes names `units/`; and `--also` is read); the
+  unit-name rule (the item
   schema accepts a unit name that is not an Epic ID, the commands and the readers still refuse one
   without unit records, and a name over 100 characters is refused everywhere); and wording (the
   text of some refusals, and one sentence of `/sig:docs-migrate`'s dry run, corrected below,
