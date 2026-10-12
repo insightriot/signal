@@ -123,3 +123,117 @@ describe('M6.E16 AC3.1 — the commands that open an Epic name openEpic', () => 
   });
 });
 
+
+// M6.E16 t9.1 — the ten command files this Epic touched, checked against the
+// library for the unit-record functions they name. A presence check, with the
+// caveat at the top of this file. Two parts that hold whenever the names are
+// right (so they pass on a tree whose names are right, and fail when a
+// function is renamed, moved to another module, or misspelt in a command
+// file), and one part that pins the wording t9.0 and t9.1 corrected.
+describe('M6.E16 t9.1 — the command files name real unit-record functions, and say what the library does', () => {
+  const UNIT_COMMANDS = [
+    'discuss', 'new-project', 'item', 'ship', 'docs-sweep', 'resume', 'docs-archive', 'checkpoint', 'drive', 'docs-migrate',
+  ];
+  // Exports by module, read from source as EXPORTS is.
+  const EXPORTS_BY_MODULE = new Map();
+  for (const f of readdirSync(LIB).filter((n) => n.endsWith('.js'))) {
+    const src = readFileSync(join(LIB, f), 'utf-8');
+    const names = new Set();
+    for (const m of src.matchAll(/^export (?:async )?(?:function\*? |const |let |class )(\w+)/gm)) names.add(m[1]);
+    for (const m of src.matchAll(/^export \{([^}]+)\}/gm)) {
+      for (const part of m[1].split(',')) {
+        const name = part.trim().split(/\s+as\s+/).pop();
+        if (name) names.add(name);
+      }
+    }
+    EXPORTS_BY_MODULE.set(f, names);
+  }
+  // Backticked camelCase names on these lines that are an option or a result
+  // field, not a function. Listed, so a new one is a decision and not a pass.
+  const NOT_FUNCTIONS = new Set(['closesLine', 'expectedHash', 'inputHash', 'confirmUnitCloses', 'holdReason']);
+  const UNIT_LINE = /unit record|work\/units|unit-records\.js|work-ops\.js/i;
+
+  it.each(UNIT_COMMANDS)('%s.md: every function named on a line about unit records is a real lib export', (name) => {
+    const lines = read(name).split('\n').filter((l) => UNIT_LINE.test(l));
+    expect(lines.length, `${name}.md says nothing about unit records`).toBeGreaterThan(0);
+    const named = new Set();
+    for (const l of lines) {
+      for (const m of l.matchAll(/`(\w+)\(/g)) named.add(m[1]);
+      for (const m of l.matchAll(/`([a-z]+[A-Z]\w*)`/g)) named.add(m[1]);
+    }
+    for (const fn of named) {
+      if (NOT_FUNCTIONS.has(fn)) continue;
+      expect(EXPORTS.has(fn), `${name}.md names ${fn}, exported nowhere in plugin/tools/lib`).toBe(true);
+    }
+  });
+
+  // `fn(…)` or `fn`, then the module it is said to come from:
+  // "`fn` from `tools/lib/x.js`", "`fn(…)` (`tools/lib/x.js`", "`fn`, `tools/lib/x.js`".
+  const FROM = /`(\w+)(?:\([^`]*\))?`(?: from | \(|, | in )`(?:\$\{CLAUDE_PLUGIN_ROOT\}\/)?tools\/lib\/([\w-]+\.js)`/g;
+
+  it.each(UNIT_COMMANDS)('%s.md: a function said to come from a module is exported by that module', (name) => {
+    for (const m of read(name).matchAll(FROM)) {
+      const [, fn, file] = m;
+      expect(EXPORTS_BY_MODULE.has(file), `${name}.md names tools/lib/${file}, which does not exist`).toBe(true);
+      expect(EXPORTS_BY_MODULE.get(file).has(fn), `${name}.md says ${fn} is in tools/lib/${file}; it is not exported there`).toBe(true);
+    }
+  });
+
+  it('the scan above finds the unit functions the command files call, each in its module', () => {
+    const found = new Set();
+    for (const name of UNIT_COMMANDS) for (const m of read(name).matchAll(FROM)) found.add(`${m[1]}@${m[2]}`);
+    for (const pair of [
+      'openEpic@work-ops.js', 'closeEpic@work-ops.js', 'isEpicDone@retrospective.js', 'evictEpicNarrative@evict.js',
+      'checkUnits@unit-records.js', 'releaseUnit@unit-records.js', 'deriveNextEpicId@milestones.js',
+    ]) expect(found.has(pair), `${pair} is no longer named with its module in any of the ten command files`).toBe(true);
+  });
+
+  const para = (name, marker) => {
+    const hit = read(name).split('\n').filter((l) => l.includes(marker));
+    expect(hit.length, `${name}.md: no line with "${marker}"`).toBeGreaterThan(0);
+    return hit.join('\n');
+  };
+  const sectionOf = (name, from, to) => {
+    const text = read(name);
+    const start = text.indexOf(from);
+    expect(start, `${name}.md: no "${from}"`).toBeGreaterThan(-1);
+    const end = text.indexOf(to, start + from.length);
+    return text.slice(start, end === -1 ? undefined : end);
+  };
+
+  it('ship.md § 5.5: with unit records the narrative is not evicted at SHIP, and the file says when it is', () => {
+    const text = sectionOf('ship', '### 5.5 Evict-on-close', '\n### 6');
+    expect(text).toMatch(/With unit records/);
+    expect(text).toMatch(/\/sig:checkpoint/);
+    for (const reason of ['not-closed', 'held', 'no-card', 'unit-record-unreadable']) expect(text, reason).toContain(`\`${reason}\``);
+  });
+
+  it('ship.md § 6.8 and § 6.9: a unit write changes work/EPICS.md too, and the file says to stage it', () => {
+    const close = para('ship', "**`{status: 'close-requested'");
+    expect(close).toContain('.planning/work/EPICS.md');
+    const confirm = para('ship', 'the same call confirms unit closes too');
+    expect(confirm).toContain('.planning/work/EPICS.md');
+  });
+
+  it('discuss.md: the Done-Epic guard says a closed unit record is done, and that the retrospective is not read there', () => {
+    const text = para('discuss', '**Done-Epic guard.**');
+    expect(text).toMatch(/unit record[^.]*closed/);
+    expect(text).toMatch(/\*closing\*/);
+  });
+
+  it('item.md: reopen says what refuses it on a project with unit records', () => {
+    const text = para('item', '`reopenItem(baseDir, id, {by, reason})`');
+    expect(text).toMatch(/unit records/);
+    expect(text).toMatch(/unit record is closed/);
+  });
+
+  it('docs-sweep.md: closes-confirmed names a unit as well as an item', () => {
+    const text = para('docs-sweep', '**`closes-confirmed`**');
+    expect(text.slice(text.indexOf('**`closes-confirmed`**'))).toMatch(/unit/);
+  });
+
+  it('docs-migrate.md: adding units to a store says the Epic table is regenerated when the milestone file has the markers', () => {
+    const text = sectionOf('docs-migrate', '- **A project already on the store with no `work/units/`:**', '\n- **What is proposed');
+    expect(text).toMatch(/Epic table/);
+  });
+});

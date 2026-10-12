@@ -77,7 +77,8 @@ The same command gives every Epic or unit the project names one record under `.p
 - **A project not yet on the store:** the dry run above also lists the units, and the apply creates
   `work/units/` beside `items/` (with a `.keep`, even when no unit is named).
 - **A project already on the store with no `work/units/`:** `--work-store` adds the unit records and
-  changes nothing else — no item, and no view but `work/EPICS.md`. A store that already has the folder
+  changes nothing else — no item, and no view but `work/EPICS.md` and, when the current milestone file
+  already carries the markers, the Epic table between them. A store that already has the folder
   is refused (*"unit records are already on"*); so is one `/sig:docs-sweep` has findings for, and a
   `WORK.md` with no `items/` folder.
 - **What is proposed for each unit**, from its milestone table row, its retrospective, its files in

@@ -151,6 +151,8 @@ It runs the ordered **distill → verify-against-source → evict** gate and **r
 
 On `{evicted:true}`, stage the modified `.planning/STATE.md` **and** the new `.planning/archive/.../STATE-NARRATIVE.md` into the SHIP commit (alongside the retro + state-write + index from §6). Per-slice (non-Epic-close) SHIPs skip this step entirely.
 
+**With unit records** (`.planning/work/units/` exists) an Epic that has a unit record is closed when its **record** is closed, and at this SHIP it is not: §6.8 only *requests* the close, and the record reads closed once the close's commit is on the default branch. So here the call returns `{evicted:false, reason:'not-closed'}` and changes nothing — expected, not a failure; say so and continue. The narrative leaves STATE.md later: at a `/sig:checkpoint` (its step 3) run after the close is confirmed, while `current_epic` still names this Epic. Three more refusals exist only there, each changing nothing: `held` (the record is closed and held — the hold keeps the narrative live; print `holdReason`), `no-card` (the record is closed and there is no retrospective to check the narrative against), and `unit-record-unreadable` (the record does not read — print `detail`, and see §6.8 item 6 for the repair). An Epic with no unit record is judged by its retrospective, as above.
+
 > The gate proves **no-loss of discrete tokens, not semantic faithfulness** (`references/doc-runtime-model.md` §5). A green gate never excuses an unfaithful card — REVIEW is the faithfulness backstop.
 
 ### 6. Regenerate RETROSPECTIVES.md index (M4.5.E9.S2)
@@ -262,9 +264,9 @@ Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib
 
 **With unit records** (`.planning/work/units/` exists) the same call does none of the folder work: it records a **close request** on the Epic's unit record (`.planning/work/units/<EpicID>.json`) with a commit as proof — the branch HEAD at ship by default, or pass `commit` — and `pr` and `release` beside it. No Epic folder is needed. It refuses, writing nothing, while any item of the Epic is open (item 1), and while `.planning/<EpicID>-RETROSPECTIVE.md` is missing or still holds a `[FILL IN]` placeholder (`CONFLICT`, naming the file — **HALT**, finish the retrospective, re-run). The outcomes:
 
-- **`{status: 'close-requested', commit, unit}`** — the unit now reads *closing*. It reads *closed* only once `commit` is on the default branch: §6.9, `/sig:docs-sweep`, or a later SHIP confirms it, as for an item. Stage the unit's record into the SHIP commit. `created: true` means the Epic had no unit record and this call made one first; say so.
+- **`{status: 'close-requested', commit, unit}`** — the unit now reads *closing*. It reads *closed* only once `commit` is on the default branch: §6.9, `/sig:docs-sweep`, or a later SHIP confirms it, as for an item. Stage into the SHIP commit the unit's record and the views the write regenerated: `.planning/work/EPICS.md`, and the current milestone file when its Epic table (between the `signal:epics` markers) changed. `created: true` means the Epic had no unit record and this call made one first; say so.
 - **`{status: 'already-requested'}`** (this commit, a re-run) and **`{status: 'already-closed'}`** — nothing changed; say so and continue.
-- **`{status: 're-requested', commit, previous}`** — a close was already requested with another commit (`previous`): the normal case when SHIP is re-run after review fixes were pushed. The earlier request was reopened and the close requested again with `commit` — two events on the unit's record, behind the same refusals as a first request. Say so, naming both commits, and stage the unit's record.
+- **`{status: 're-requested', commit, previous}`** — a close was already requested with another commit (`previous`): the normal case when SHIP is re-run after review fixes were pushed. The earlier request was reopened and the close requested again with `commit` — two events on the unit's record, behind the same refusals as a first request. Say so, naming both commits, and stage the unit's record and the regenerated views, as above.
 
 Items 1, 5 and 6 below apply as written; items 2, 3 and 4 are for a project with no unit records.
 
@@ -282,7 +284,7 @@ Items 1, 5 and 6 below apply as written; items 2, 3 and 4 are for a project with
 1. Call `runConfirmCloses(baseDir)` from `tools/lib/close-confirm.js` before the SHIP commit and print its `line` (`null` → say no item is closing). It compares against the local `origin/<default>` ref; SHIP does not fetch.
 2. Stage the changed item records and views into the SHIP commit.
 
-**With unit records** the same call confirms unit closes too, by the same rule, and its `line` names the two kinds separately (`Closes: items — … · units — …`). The close §6.8 just requested reads `still closing (<EpicID>: not-on-default-branch)` here — expected: its commit reaches the default branch at the merge, and the next `/sig:docs-sweep` or SHIP confirms it. Stage any unit record this step changed (`units.confirmed`).
+**With unit records** the same call confirms unit closes too, by the same rule, and its `line` names the two kinds separately (`Closes: items — … · units — …`). The close §6.8 just requested reads `still closing (<EpicID>: not-on-default-branch)` here — expected: its commit reaches the default branch at the merge, and the next `/sig:docs-sweep` or SHIP confirms it. Stage any unit record this step changed (`units.confirmed`), with the views a confirmation regenerates — `.planning/work/EPICS.md`, and the current milestone file when its Epic table changed.
 3. Copy the `Closes:` line into the SHIP artifact verbatim, as the Jev lines are copied in §6.7 — it is the record of which fixes this release confirmed and which still read *closing*. When `line` is `null`, the artifact says no item was closing.
 
 ### 7. Manual milestone meta-retro (`--milestone-meta` flag, optional)
