@@ -185,6 +185,7 @@
 - [M6.E16-REQUIREMENTS.md](M6.E16-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E16-RESEARCH.md](M6.E16-RESEARCH.md) — `other` — _(note pending)_
 - [M6.E16-VALIDATION.md](M6.E16-VALIDATION.md) — `other` — _(note pending)_
+- [M6.E16-VERIFICATION.md](M6.E16-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E2-CORPUS-MEASUREMENT.md](M6.E2-CORPUS-MEASUREMENT.md) — `other` — _(note pending)_
 - [M6.E2-PLAN.md](M6.E2-PLAN.md) — `other` — _(note pending)_
 - [M6.E2-PROGRESS.md](M6.E2-PROGRESS.md) — `other` — _(note pending)_
@@ -474,6 +475,11 @@
 - [work/items/00/SIG-291.md](work/items/00/SIG-291.md) — `other` — _(note pending)_
 - [work/items/00/SIG-292.md](work/items/00/SIG-292.md) — `other` — _(note pending)_
 - [work/items/00/SIG-293.md](work/items/00/SIG-293.md) — `other` — _(note pending)_
+- [work/items/00/SIG-294.md](work/items/00/SIG-294.md) — `other` — _(note pending)_
+- [work/items/00/SIG-295.md](work/items/00/SIG-295.md) — `other` — _(note pending)_
+- [work/items/00/SIG-296.md](work/items/00/SIG-296.md) — `other` — _(note pending)_
+- [work/items/00/SIG-297.md](work/items/00/SIG-297.md) — `other` — _(note pending)_
+- [work/items/00/SIG-298.md](work/items/00/SIG-298.md) — `other` — _(note pending)_
 - [work/items/00/SIG-3.md](work/items/00/SIG-3.md) — `other` — _(note pending)_
 - [work/items/00/SIG-30.md](work/items/00/SIG-30.md) — `other` — _(note pending)_
 - [work/items/00/SIG-31.md](work/items/00/SIG-31.md) — `other` — _(note pending)_
