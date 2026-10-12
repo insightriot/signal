@@ -1,0 +1,20 @@
+{
+  "id": "SIG-302",
+  "type": "BUG",
+  "title": "`npm run lint` does not cover tests/; the Closed section of EPICS.md is in ID order",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E16 VERIFY loop 1",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-12T20:04:02.123Z",
+      "by": "claude (M6.E16 VERIFY)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-12T20:04:02.123Z",
+      "by": "claude (M6.E16 VERIFY)"
+    }
+  ]
+}

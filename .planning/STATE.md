@@ -21,9 +21,9 @@ last_updated: 2026-10-12T17:39:01.580Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-10-12)
 
-**`M6.E16` — *"Epics and units as records"* — EXECUTE done, VERIFY next.** Branch
+**`M6.E16` — *"Epics and units as records"* — VERIFY passed on loop 3 (36 of 36 criteria, 8 with a stated limit), REVIEW next.** Loops 1 and 2 failed on AC6.4 ("as on `v0.1.50`"), now said by kind and pinned by a 94-answer comparison with `main` (`D-M6E16-20`). Report: [`M6.E16-VERIFICATION.md`](M6.E16-VERIFICATION.md). Branch
 `feat/m6.e16-epics-units-as-records`, pushed. Eleven slices (S0–S10) in nine waves; progress in
-[`M6.E16-PROGRESS.md`](M6.E16-PROGRESS.md). Suite: 326 files, 7002 passed, 1 skipped; lint clean.
+[`M6.E16-PROGRESS.md`](M6.E16-PROGRESS.md). Suite: 330 files, 7128 passed, 1 skipped; lint clean.
 
 - **Signal's own cutover is done** (`010262f7`, 2026-10-12): 48 unit records under `work/units/` —
   `M6.E16` open, 43 legacy closes Brett confirmed, 4 Epic IDs closed as dropped (`M5.E11`, `M5.E12`,
@@ -35,9 +35,9 @@ last_updated: 2026-10-12T17:39:01.580Z
   close is confirmed (`SIG-295`, `D-M6E16-19`), `/sig:docs-archive` says how to place a hold
   (`SIG-255`), and one stale archive message (`SIG-289`).
 - **Closing, proof not yet on `main`:** `SIG-132`, `SIG-255`, `SIG-288`, `SIG-289`, `SIG-295`.
-  Filed and open: `SIG-294`, `SIG-296`, `SIG-297`, `SIG-298`.
+  Filed and open: `SIG-294`, `SIG-296` … `SIG-302`.
 - Requirements: [`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md). Plan:
-  [`M6.E16-PLAN.md`](M6.E16-PLAN.md). Decisions `D-M6E16-1` … `-19`.
+  [`M6.E16-PLAN.md`](M6.E16-PLAN.md). Decisions `D-M6E16-1` … `-20`.
 - Not done from the small-fix batch: `SIG-285`, `SIG-139`.
 
 ### Previously (2026-10-10)

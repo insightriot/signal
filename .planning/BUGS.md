@@ -184,5 +184,9 @@
 | SIG-296 | `confirmed` | P3 | **A unit narrative whose eviction was refused at the confirm is never retried** |
 | SIG-297 | `confirmed` | P3 | **Without unit records, an Epic whose VERIFICATION was archived still reads open** |
 | SIG-298 | `confirmed` | P3 | **Narrative eviction knows Epic IDs only; a unit named another way reports nothing to move** |
+| SIG-299 | `confirmed` | P2 | **Work items store and print free text as given; unit records now clean it at both ends** |
+| SIG-300 | `confirmed` | P3 | **A unit's text is cleaned or cut on write with no word to the caller** |
+| SIG-301 | `confirmed` | P3 | **One record over a limit, written past the writer, stops every write to the store** |
+| SIG-302 | `confirmed` | P3 | **`npm run lint` does not cover tests/; the Closed section of EPICS.md is in ID order** |
 
-*0 needs-triage · 54 confirmed · 6 closing · 121 closed (181 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 58 confirmed · 6 closing · 121 closed (185 total) · closes more than 30 days before the newest event are in `work/history/`*
