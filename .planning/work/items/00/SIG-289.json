@@ -29,6 +29,13 @@
           "to": "P3"
         }
       }
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-12T17:30:21.474Z",
+      "by": "claude",
+      "reason": "fixed",
+      "proof": "0ac8a126b5a70e6cbfe1db84be2f0ced21d8234c"
     }
   ]
 }

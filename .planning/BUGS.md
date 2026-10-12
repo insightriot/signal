@@ -147,7 +147,7 @@
 | SIG-251 | `fixed` | P3 | **file-lock held-error understates the wait for a live holder (10x ttl)** |
 | SIG-252 | `fixed` | P3 | **file-lock: a failed stat treats a fresh empty lock as stale** |
 | SIG-254 | `fixed` | P1 | **A plan named PLAN-<unit>.md is left out of its unit, so the archive moves 5 of 6 files and splits the slice** |
-| SIG-255 | `confirmed` | P2 | **Archiving ignores a project's explicit keep-live list, so work held open on purpose is proposed for archive** |
+| SIG-255 | `closing` | P2 | **Archiving ignores a project's explicit keep-live list, so work held open on purpose is proposed for archive** |
 | SIG-257 | `confirmed` | P3 | **/sig:advise hostile-repository hardening — the residue after M6.E12 review pass 3** |
 | SIG-258 | `confirmed` | P2 | **advise digest: milestone files named MILESTONE-M2.9.md are not recognised, so it reports "no milestone file" when there are two** |
 | SIG-259 | `confirmed` | P2 | **advise digest: the vision is found only under ## Vision / ## Problem; GSD-style projects use What This Is / Core Value** |
@@ -177,9 +177,9 @@
 | SIG-286 | `fixed` | P3 | **/sig:docs-migrate dry run lists a unit's files to move while also saying it "could not evaluate" that unit** |
 | SIG-287 | `confirmed` | P3 | **/sig:docs-sweep dangling-reference flags non-bug IDs like "B3." research-assumption labels as missing bugs** |
 | SIG-288 | `closing` | P3 | **/sig:docs-archive shares the retro-only closure default (archive-tree.js senseArchiveTree), so a filled retrospective alone can archive an unfinished Epic** |
-| SIG-289 | `confirmed` | P3 | **An Epic whose VERIFICATION is already in archive/ keeps its STATE narrative and isV3Conformant reads true (resolveClosures lists only top-level .planning/)** |
+| SIG-289 | `closing` | P3 | **An Epic whose VERIFICATION is already in archive/ keeps its STATE narrative and isV3Conformant reads true (resolveClosures lists only top-level .planning/)** |
 | SIG-292 | `fixed` | P2 | **Work-store migration: a backlog row absorbs a folded <details> block below it, so its evidence check can borrow a sibling's PR reference** |
 | SIG-294 | `confirmed` | P3 | **SHIP's first check accepts a retrospective with a placeholder line, and closeEpic refuses it later in the same SHIP** |
-| SIG-295 | `confirmed` | P2 | **With unit records, a finished Epic's STATE narrative is not evicted once the next Epic is opened** |
+| SIG-295 | `closing` | P2 | **With unit records, a finished Epic's STATE narrative is not evicted once the next Epic is opened** |
 
-*0 needs-triage · 54 confirmed · 3 closing · 121 closed (178 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 51 confirmed · 6 closing · 121 closed (178 total) · closes more than 30 days before the newest event are in `work/history/`*
