@@ -139,10 +139,17 @@ describe('upsertEpicTable (AC7.2)', () => {
     expect(sha(out.slice(end))).toBe(sha(`${EPICS_END}${AFTER}`));
   });
 
+  // Changed at REVIEW pass 1 (r1.3): the empty region used to be the two
+  // markers side by side on one line. A marker is now a line of its own, so
+  // the empty region is the end marker's line right after the begin marker's.
   it('an empty region is filled; a second run is identical', () => {
-    const once = upsertEpicTable(fileWith(''), table);
+    const once = upsertEpicTable(fileWith('\n'), table);
     expect(once).toBe(fileWith(`\n${table}\n`));
     expect(upsertEpicTable(once, table)).toBe(once);
+  });
+
+  it('the two markers side by side on one line are not markers: nothing is written', () => {
+    expect(() => upsertEpicTable(fileWith(''), table)).toThrow(/has no .*signal:epics:begin/);
   });
 
   it('CRLF text outside the markers is left as it is', () => {

@@ -15,7 +15,8 @@
 // Everything outside the markers stays the person's: `upsertEpicTable` changes
 // only the bytes strictly between them, and refuses — it never guesses a
 // place, and never inserts the markers — when they are missing, repeated or
-// out of order. The shape is `upsertCeiling`'s (`adherence-log.js`), the one
+// out of order. A marker is a LINE: the marker alone on it, outside a code
+// fence (REVIEW pass 1). One mentioned in a sentence is not a marker. The shape is `upsertCeiling`'s (`adherence-log.js`), the one
 // other writer of a marked region, without its insert-when-absent branch.
 //
 // Nothing reads the generated rows back (`D-M6E16-4`). This module is pure:
@@ -109,37 +110,136 @@ export function renderEpicTable(units, { milestone }) {
   return [...HEADER, ...rows].join('\n');
 }
 
-const count = (content, marker) => content.split(marker).length - 1;
+// A line without the spaces and tabs around it. A loop, not a pattern: a long
+// run of spaces before other text must cost its length, once.
+function trimmed(line) {
+  let from = 0;
+  let to = line.length;
+  while (from < to && (line[from] === ' ' || line[from] === '\t')) from += 1;
+  while (to > from && (line[to - 1] === ' ' || line[to - 1] === '\t')) to -= 1;
+  return from === 0 && to === line.length ? line : line.slice(from, to);
+}
+
+// A line that opens or closes a fenced code block: at most three spaces, then
+// three or more of one of "`" and "~". → {ch, len, rest} or null.
+function fenceOf(line) {
+  let i = 0;
+  while (i < 3 && line[i] === ' ') i += 1;
+  const ch = line[i];
+  if (ch !== '`' && ch !== '~') return null;
+  let j = i;
+  while (line[j] === ch) j += 1;
+  return j - i >= 3 ? { ch, len: j - i, rest: line.slice(j) } : null;
+}
+
+// Every line of `content`: {start, end, next, text} — `start` and `end` bound
+// the line without its line break, `next` is where the following line starts,
+// `text` is the line without a trailing `\r`.
+function* linesOf(content) {
+  let start = 0;
+  while (start <= content.length) {
+    const nl = content.indexOf('\n', start);
+    const end = nl === -1 ? content.length : nl;
+    const raw = content.slice(start, end);
+    yield { start, end, next: nl === -1 ? content.length : nl + 1, text: raw.endsWith('\r') ? raw.slice(0, -1) : raw };
+    if (nl === -1) return;
+    start = nl + 1;
+  }
+}
 
 /**
- * Where the markers stand in a file's text.
+ * The marker LINES of a file's text (REVIEW pass 1, C-I3 / S-M5). A marker is
+ * one only when it is the whole line — spaces and tabs around it allowed, a
+ * `\r` before the line break tolerated — and the line is not inside a fenced
+ * code block. A marker mentioned in a sentence, in backticks, in a list item
+ * or in a code example is text: it is not counted and pairs with nothing.
  *
  * @param {string} content
- * @returns {{state: 'none'} | {state: 'ok', begin: number, end: number} | {state: 'broken', problem: string}}
- *   `none`: neither marker is there (a file nobody has marked);
- *   `ok`: one of each, in order — `begin` and `end` are their offsets;
+ * @returns {Array<{kind: 'begin'|'end', line: number, start: number, end: number, next: number, crlf: boolean}>}
+ *   in file order; `line` is 1-based; `start`/`end` bound the line without its line break and `next` is
+ *   where the following line starts; `crlf`: the line ends `\r\n`
+ */
+export function markerLines(content) {
+  const found = [];
+  let fence = null;
+  let n = 0;
+  for (const l of linesOf(content)) {
+    n += 1;
+    const f = fenceOf(l.text);
+    if (fence !== null) {
+      if (f !== null && f.ch === fence.ch && f.len >= fence.len && trimmed(f.rest) === '') fence = null;
+      continue;
+    }
+    if (f !== null) {
+      fence = f;
+      continue;
+    }
+    const text = trimmed(l.text);
+    const kind = text === EPICS_BEGIN ? 'begin' : text === EPICS_END ? 'end' : null;
+    if (kind !== null) found.push({ kind, line: n, start: l.start, end: l.end, next: l.next, crlf: content[l.end - 1] === '\r' && l.end > l.start });
+  }
+  return found;
+}
+
+/**
+ * Where the markers stand in a file's text. Only marker LINES count
+ * (`markerLines`): a marker inside a sentence or a code block is not one.
+ *
+ * @param {string} content
+ * @returns {{state: 'none'} | {state: 'ok', begin: number, end: number, from: number, to: number, eol: string,
+ *   beginLine: number, endLine: number} | {state: 'broken', problem: string}}
+ *   `none`: no marker line is there (a file nobody has marked);
+ *   `ok`: one of each, in order — `begin` and `end` are the offsets of the two marker lines, `from` and
+ *   `to` bound what lies strictly between those lines (from the start of the line after the begin marker
+ *   to the start of the end marker's line), `eol` is the file's line ending as the begin marker's line
+ *   has it, and `beginLine` / `endLine` are their 1-based line numbers;
  *   `broken`: one is missing, one is repeated, or the end comes first
  */
 export function epicMarkers(content) {
-  const begins = count(content, EPICS_BEGIN);
-  const ends = count(content, EPICS_END);
+  const lines = markerLines(content);
+  const beginLines = lines.filter((l) => l.kind === 'begin');
+  const endLines = lines.filter((l) => l.kind === 'end');
+  const begins = beginLines.length;
+  const ends = endLines.length;
   if (begins === 0 && ends === 0) return { state: 'none' };
   const broken = (problem) => ({ state: 'broken', problem });
   if (begins === 0) return broken(`\`${EPICS_BEGIN}\` is missing (only \`${EPICS_END}\` is there)`);
   if (ends === 0) return broken(`\`${EPICS_END}\` is missing (only \`${EPICS_BEGIN}\` is there)`);
   if (begins > 1) return broken(`\`${EPICS_BEGIN}\` appears ${begins} times`);
   if (ends > 1) return broken(`\`${EPICS_END}\` appears ${ends} times`);
-  const begin = content.indexOf(EPICS_BEGIN);
-  const end = content.indexOf(EPICS_END);
-  if (end < begin) return broken('the markers are out of order (the end marker comes first)');
-  return { state: 'ok', begin, end };
+  const [b] = beginLines;
+  const [e] = endLines;
+  if (e.start < b.start) return broken('the markers are out of order (the end marker comes first)');
+  return { state: 'ok', begin: b.start, end: e.start, from: b.next, to: e.start, eol: b.crlf ? '\r\n' : '\n', beginLine: b.line, endLine: e.line };
 }
 
 /**
- * A milestone file's text with its Epic table replaced: only the bytes
- * strictly between the two markers change (they become a line break, the
- * table, a line break). Every other byte, the markers included, is returned
- * as it was.
+ * The lines strictly between the two marker lines that are neither blank nor
+ * table rows (a row starts with `|`): what `upsertEpicTable` removes besides
+ * the old table. For a caller that must say so before it writes — the
+ * migration's dry run. Empty unless the markers are `ok`.
+ *
+ * @param {string} content
+ * @returns {Array<{line: number, text: string}>} `line` is 1-based; `text` is the line as written, without its line break
+ */
+export function linesBetweenMarkers(content) {
+  const at = epicMarkers(content);
+  if (at.state !== 'ok') return [];
+  const out = [];
+  let n = at.beginLine;
+  for (const l of linesOf(content.slice(at.from, at.to))) {
+    n += 1;
+    const text = trimmed(l.text);
+    if (text !== '' && !text.startsWith('|')) out.push({ line: n, text: l.text });
+  }
+  return out;
+}
+
+/**
+ * A milestone file's text with its Epic table replaced: only what lies
+ * strictly between the two marker lines changes (it becomes the table, each
+ * line ended as the file ends its lines). Every other byte, the marker lines
+ * included — their indentation, their line breaks — is returned as it was.
  *
  * @param {string} content — the file's text
  * @param {string} tableText — `renderEpicTable`'s
@@ -154,11 +254,12 @@ export function upsertEpicTable(content, tableText) {
   const at = epicMarkers(content);
   if (at.state === 'none') {
     throw new WorkStoreError('CONFIG', `the file has no \`${EPICS_BEGIN}\` … \`${EPICS_END}\` markers — the Epic table is written only `
-      + 'between them, and they are never added by code. Put the two markers around the Epic table, once.');
+      + 'between them, and they are never added by code. Put the two markers around the Epic table, each on a line of its own, once.');
   }
   if (at.state === 'broken') {
     throw new WorkStoreError('CONFIG', `${at.problem} — the Epic table is written only between one \`${EPICS_BEGIN}\` and one `
-      + `\`${EPICS_END}\` after it. Fix the markers; nothing was written.`);
+      + `\`${EPICS_END}\` after it, each on a line of its own. Fix the markers; nothing was written.`);
   }
-  return `${content.slice(0, at.begin + EPICS_BEGIN.length)}\n${tableText}\n${content.slice(at.end)}`;
+  const table = at.eol === '\n' ? tableText : tableText.replaceAll('\n', at.eol);
+  return `${content.slice(0, at.from)}${table}${at.eol}${content.slice(at.to)}`;
 }

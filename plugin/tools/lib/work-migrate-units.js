@@ -36,7 +36,7 @@ import { join } from 'node:path';
 
 import { CLOSURE, resolveClosures } from './closure.js';
 import { hashState } from './migrate-memory.js';
-import { epicMarkers, EPICS_BEGIN, EPICS_END } from './milestone-table.js';
+import { epicMarkers, EPICS_BEGIN, EPICS_END, linesBetweenMarkers } from './milestone-table.js';
 import { parseEpicStatusRows } from './milestones.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
 import { cut, printable } from './printable-text.js';
@@ -231,6 +231,29 @@ function readCurrent(baseDir, notes) {
   }
 }
 
+// How many of the lines an apply removes the dry run prints; the rest are counted.
+const REMOVED_SHOWN = 20;
+
+// What the apply removes between the markers besides the old table rows
+// (REVIEW pass 1, S-M5): each line there that is neither blank nor a table
+// row. `{}` when there is none, so a file without such a line plans — and
+// hashes — as it did. Otherwise `removes`: `count`; `lines`, the first
+// `REMOVED_SHOWN` cleaned and cut for printing; and `digest`, a hash of every
+// such line as written — it is part of `milestone`, so of the plan's
+// `inputHash`, and a line added or changed after the dry run refuses the apply
+// even where the printed form would not show the difference.
+function removedBetween(content) {
+  const found = linesBetweenMarkers(content);
+  if (found.length === 0) return {};
+  return {
+    removes: {
+      count: found.length,
+      lines: found.slice(0, REMOVED_SHOWN).map((l) => ({ line: l.line, text: shownText(l.text, 200) })),
+      digest: hashState(JSON.stringify(found.map((l) => [l.line, l.text]))),
+    },
+  };
+}
+
 // The current milestone's file and whether it carries the Epic-table markers.
 // The migration never adds them: it says what is there, and what to add.
 function milestoneMarkers(baseDir, current) {
@@ -239,8 +262,9 @@ function milestoneMarkers(baseDir, current) {
   const rel = `${PLANNING}/MILESTONE-${parts.milestone}.md`;
   if (regularFileRefusal(baseDir, rel) !== null) return { rel, markers: 'absent' };
   try {
-    const at = epicMarkers(readRegularFile(baseDir, rel));
-    return { rel, markers: at.state, ...(at.state === 'broken' ? { problem: at.problem } : {}) };
+    const content = readRegularFile(baseDir, rel);
+    const at = epicMarkers(content);
+    return { rel, markers: at.state, ...(at.state === 'broken' ? { problem: at.problem } : {}), ...removedBetween(content) };
   } catch {
     return { rel, markers: 'absent' };
   }
@@ -298,7 +322,10 @@ function readAlso(baseDir, also, named, storeKey) {
  *   `storeKey`: the store's key, for the item-ID-shape rule (read from the project when not passed)
  * @returns {Promise<{refusal: string} | {units: object[], proposedCloses: object[], flagged: object[],
  *   refused: object[], declared: object[], notes: string[], current: string|null,
- *   milestone: {rel: string, markers: 'ok'|'none'|'broken'|'absent'}|null, inputHash: string}>}
+ *   milestone: {rel: string, markers: 'ok'|'none'|'broken'|'absent', removes?: {count: number,
+ *   lines: Array<{line: number, text: string}>, digest: string}}|null, inputHash: string}>}
+ *   `milestone.removes` (only with `markers: 'ok'` and at least one such line): the lines between the
+ *   markers that are not table rows, which the apply removes with the old table.
  *   Each unit: `{id, proposal: 'open'|'legacy-close'|'dropped'|'refused', flag: string|null, evidence: string[],
  *   against: string[], reason?: string, sources: string[], row: {file, line, cells}|null, retro: string,
  *   retro_path: string|null}` — `evidence` and `against` are sentences; `reason` is why a refused ID is refused.
@@ -588,7 +615,7 @@ export function unitsReportLines(plan) {
     for (const u of plan.declared) lines.push(`  ${u.id}  — ${quoted(u.words)}`);
   }
   if (plan.milestone !== null) {
-    const { rel, markers } = plan.milestone;
+    const { rel, markers, removes } = plan.milestone;
     lines.push('', markers === 'ok'
       ? `${rel} carries the Epic-table markers: its Epic rows are written from the unit records by the apply.`
       : markers === 'none'
@@ -597,6 +624,14 @@ export function unitsReportLines(plan) {
         : markers === 'broken'
           ? `${rel}: its Epic-table markers are broken (${plan.milestone.problem}).`
           : `${rel} is not there (or is not a regular file): no Epic table is written.`);
+    if (markers === 'ok' && removes) {
+      const one = removes.count === 1;
+      lines.push(`  Everything between the two marker lines is replaced. ${removes.count} line${one ? '' : 's'} between the markers `
+        + `${one ? 'is not a table row and is' : 'are not table rows and are'} removed by the apply — move ${one ? 'it' : 'them'} outside the markers `
+        + 'first to keep them:');
+      for (const l of removes.lines) lines.push(`  line ${l.line}: ${quoted(l.text)}`);
+      if (removes.count > removes.lines.length) lines.push(`  … and ${removes.count - removes.lines.length} more.`);
+    }
   }
   for (const note of plan.notes) lines.push('', `Note: ${shownText(note, 400)}`);
   return lines.map(printable);
