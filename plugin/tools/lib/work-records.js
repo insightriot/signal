@@ -1722,6 +1722,48 @@ export async function rerequestEpicClose(baseDir, epicId, request = {}, opts = {
   });
 }
 
+// Reasons `ancestryFailure` gives when git has answered: the commit is not on
+// the default branch, or no commit of that name is in this clone.
+const PROOF_NOT_THERE = new Set(['not-on-default-branch', 'unknown-commit']);
+
+/**
+ * Ask git again about closes already recorded: every item closed as `fixed`,
+ * and every unit closed as `shipped`, whose proof is a commit hash. A proof
+ * that is words (a close recorded by a migration) is not a claim about a
+ * commit and is not asked about.
+ *
+ * Reads local refs only; nothing is written. `notThere` is empty whenever
+ * git cannot answer: no repository, no remote, a default branch this clone
+ * does not record, a shallow clone, an ambiguous proof.
+ *
+ * @param {string} baseDir
+ * @param {{execFn?: Function}} [opts]
+ * @returns {{branch: string|null, notThere: Array<{id: string, path: string, proof: string}>}}
+ *   `branch`: the ref asked about, as `origin/<default>`, or null when there is none
+ * @throws {WorkStoreError} as `listRecords`, and for a `units/` folder that cannot be trusted
+ */
+export function probeClosedProofs(baseDir, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  const closes = [];
+  for (const r of listRecords(baseDir, opts).records) {
+    if (r.status !== 'C') continue;
+    const e = r.record.events.findLast((x) => x.type === 'closed');
+    if (e?.reason === 'fixed') closes.push({ id: r.id, path: recordPath(r.id), proof: e.proof });
+  }
+  for (const u of unitRecordsOn(baseDir) ? listUnits(baseDir).units : []) {
+    if (u.status === 'closed' && u.close?.reason === 'shipped') closes.push({ id: u.id, path: u.path, proof: u.close.proof });
+  }
+  const asked = closes.filter((c) => typeof c.proof === 'string' && COMMIT_RE.test(c.proof));
+  if (asked.length === 0) return { branch: null, notThere: [] };
+  const target = defaultBranchRef(baseDir, execFn);
+  if (target.ref === undefined) return { branch: null, notThere: [] };
+  const isShallow = shallowProbe(baseDir, execFn);
+  return {
+    branch: target.ref.slice('refs/remotes/'.length),
+    notThere: asked.filter((c) => PROOF_NOT_THERE.has(ancestryFailure(baseDir, c.proof, target.ref, execFn, isShallow))),
+  };
+}
+
 // ── Confirming fixed closes (t2.6, AC7.2) ──────────────────────────────────
 //
 // A fixed close is requested with a commit and stays *closing* until that

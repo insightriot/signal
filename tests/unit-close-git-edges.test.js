@@ -22,6 +22,7 @@ import { getUnit } from '../plugin/tools/lib/unit-records.js';
 import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
 import { regenerateViews } from '../plugin/tools/lib/work-views.js';
 import { reportCloses, runConfirmCloses } from '../plugin/tools/lib/close-confirm.js';
+import { checkClosedProofs } from '../plugin/tools/lib/sweep.js';
 
 const AT = '2026-10-11T10:00:00.000Z';
 const NOW = '2026-10-12T10:00:00.000Z';
@@ -344,5 +345,102 @@ describe('a put-back that fails (injected): the error names what was left change
     expect(err).toMatchObject({ name: 'WorkStoreError' });
     expect(err.leftChanged).toEqual([]);
     expect(await readFile(join(work, records.recordPath('SIG-1')), 'utf-8')).toBe(itemBefore);
+  });
+});
+
+// The default branch is read from the stored symbolic ref, by its full name.
+// A name lookup (`rev-parse --abbrev-ref origin/HEAD`) prints something else
+// once a tag shares the name, and a contributor who can push a tag and a
+// branch — and cannot push the default branch — could choose what it printed.
+describe('a pushed tag does not change which branch a close is confirmed against', () => {
+  const item = (proof) => ({ id: 'SIG-1', type: 'BUG', title: 't', events: [{ type: 'created', at: AT, by }, { type: 'close_requested', at: AT, by, reason: 'fixed', proof }] });
+
+  it('a tag `origin/main` and a branch `remotes/origin/main` holding unmerged work: nothing on that branch is confirmed', async () => {
+    const { remote, seed, shas } = await plantRemote();
+    const work = join(root, 'work');
+    g(root, 'clone', '-q', remote, work);
+    g(seed, 'push', '-q', 'origin', `${shas[2]}:refs/tags/origin/main`);
+    g(seed, 'checkout', '-q', '-b', 'side');
+    g(seed, 'commit', '-q', '--allow-empty', '-m', 'never merged');
+    const unmerged = g(seed, 'rev-parse', 'HEAD');
+    g(seed, 'push', '-q', 'origin', `${unmerged}:refs/heads/remotes/origin/main`);
+    g(work, 'fetch', '-q', '--tags', 'origin');
+    expect(g(work, 'rev-parse', 'refs/remotes/origin/remotes/origin/main')).toBe(unmerged);
+    expect(g(work, 'rev-parse', 'refs/tags/origin/main')).toBe(shas[2]);
+
+    await store(work, [opened, request(unmerged)], [item(unmerged)]);
+    const out = await records.confirmCloses(work, { now: NOW });
+    expect(out.confirmed).toEqual([]);
+    expect(out.stillClosing).toEqual([{ id: 'SIG-1', reason: 'not-on-default-branch' }]);
+    expect(out.units).toEqual({ confirmed: [], stillClosing: [{ id: EPIC, reason: 'not-on-default-branch' }], stale: [] });
+  });
+
+  it('a tag `origin/HEAD`: the default branch is still known, and a commit on it confirms', async () => {
+    const { remote, seed, shas } = await plantRemote();
+    const work = join(root, 'work');
+    g(root, 'clone', '-q', remote, work);
+    g(seed, 'push', '-q', 'origin', `${shas[0]}:refs/tags/origin/HEAD`);
+    g(work, 'fetch', '-q', '--tags', 'origin');
+    expect(g(work, 'rev-parse', 'refs/tags/origin/HEAD')).toBe(shas[0]);
+    await store(work, [opened, request(shas[1])]);
+    const out = await records.confirmCloses(work, { now: NOW, regenerate: async () => {} });
+    expect(out.units).toEqual({ confirmed: [EPIC], stillClosing: [], stale: [] });
+  });
+});
+
+// Nothing asks git again once a record says closed, so the sweep does: a
+// close written by hand, or brought in by a merge, with a commit that is not
+// on the default branch is reported.
+describe('the sweep asks git again about recorded closes (checkClosedProofs)', () => {
+  const closedItem = (id, proof) => ({ id, type: 'BUG', title: 't', events: [
+    { type: 'created', at: AT, by },
+    { type: 'close_requested', at: AT, by, reason: 'fixed', proof },
+    { type: 'closed', at: AT, by: 'confirmCloses', reason: 'fixed', proof },
+  ] });
+  const closedUnit = (proof) => [opened, request(proof), { type: 'closed', at: AT, by: 'confirmCloses', reason: 'shipped', proof }];
+
+  async function cloneWithStray() {
+    const { remote, seed, shas } = await plantRemote();
+    g(seed, 'checkout', '-q', '-b', 'side');
+    g(seed, 'commit', '-q', '--allow-empty', '-m', 'never merged');
+    const unmerged = g(seed, 'rev-parse', 'HEAD');
+    g(seed, 'push', '-q', 'origin', 'side');
+    const work = join(root, 'work');
+    g(root, 'clone', '-q', remote, work);
+    return { work, shas, unmerged };
+  }
+
+  it('a unit and an item closed on a commit that is not on the default branch are each reported; ones on it are not', async () => {
+    const { work, shas, unmerged } = await cloneWithStray();
+    await store(work, closedUnit(unmerged), [closedItem('SIG-1', unmerged), closedItem('SIG-2', shas[1])]);
+    const before = await unitText(work);
+    const findings = checkClosedProofs(work);
+    expect(findings.map((f) => [f.check, f.severity, f.file])).toEqual([
+      ['close-not-on-default-branch', 'advisory', records.recordPath('SIG-1')],
+      ['close-not-on-default-branch', 'advisory', `${UNITS}/${EPIC}.json`],
+    ]);
+    expect(findings[1].message).toContain(`${EPIC} is recorded closed with the commit ${unmerged}`);
+    expect(findings[1].message).toContain('origin/main');
+    expect(await unitText(work)).toBe(before);
+  });
+
+  it('a commit that names nothing in this clone is reported too; a close whose proof is words is not', async () => {
+    const { work, shas } = await cloneWithStray();
+    const words = { id: 'SIG-3', type: 'BUG', title: 't', events: [{ type: 'created', at: AT, by }, { type: 'closed', at: AT, by: 'migration', reason: 'fixed', proof: 'shipped in v0.1.2' }] };
+    await store(work, closedUnit(shas[1]), [closedItem('SIG-1', 'deadbeef'.repeat(5)), words]);
+    expect(checkClosedProofs(work).map((f) => f.file)).toEqual([records.recordPath('SIG-1')]);
+  });
+
+  it('says nothing when git cannot answer: origin/HEAD unset, or a shallow clone', async () => {
+    const { work, unmerged } = await cloneWithStray();
+    await store(work, closedUnit(unmerged), [closedItem('SIG-1', unmerged)]);
+    g(work, 'remote', 'set-head', 'origin', '--delete');
+    expect(checkClosedProofs(work)).toEqual([]);
+
+    const { remote } = { remote: join(root, 'remote.git') };
+    const thin = join(root, 'thin');
+    g(root, 'clone', '-q', '--depth', '1', pathToFileURL(remote).href, thin);
+    await store(thin, closedUnit(unmerged), [closedItem('SIG-1', unmerged)]);
+    expect(checkClosedProofs(thin)).toEqual([]);
   });
 });

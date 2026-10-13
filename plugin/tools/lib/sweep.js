@@ -48,7 +48,7 @@ import { runDriftChecks, renderDriftReport } from './state-drift.js';
 import { ALL_DRIFT_CHECKS, REACH } from './published-facts.js';
 import { backlogDischargeStatus, storeDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
 import { isStoreOn } from './work-store.js';
-import { checkRecords, listClosing, listRecords, recordPath, storeVersion } from './work-records.js';
+import { checkRecords, listClosing, listRecords, probeClosedProofs, recordPath, storeVersion } from './work-records.js';
 import { checkUnits, listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 import { unitsWithoutRecord } from './work-migrate-units.js';
 import { evictionWords, noDefaultBranchPart, runConfirmCloses } from './close-confirm.js';
@@ -504,6 +504,34 @@ export function checkClosedUnitsWithOpenItems(baseDir) {
 }
 
 /**
+ * Closes whose commit is not on the default branch (portable, advisory).
+ *
+ * `confirmCloses` writes a `closed` event only after it has found the proof
+ * on the remote's default branch, so this should find nothing. It is here for
+ * a record that did not come through it — a hand edit, a merge — because
+ * nothing else asks again once a record says closed. Read through
+ * `probeClosedProofs` (`work-records.js`): local refs only, nothing written,
+ * and nothing said when git cannot answer.
+ *
+ * @param {string} baseDir — project root
+ * @param {{execFn?: Function}} [opts]
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export function checkClosedProofs(baseDir, opts = {}) {
+  let probed;
+  try {
+    if (storeVersion(baseDir) !== 2) return [];
+    probed = probeClosedProofs(baseDir, opts);
+  } catch {
+    // a broken store or folder: `checkWorkStore` reports it
+    return [];
+  }
+  return probed.notThere.map((c) => mkFinding('close-not-on-default-branch', 'advisory', shownName(c.path),
+    `${c.id} is recorded closed with the commit ${c.proof}, and that commit is not on ${probed.branch} in this clone — `
+    + 'bring the remote\'s branches up to date and sweep again; if it is still reported, the work was not merged: reopen it'));
+}
+
+/**
  * Items — and, with unit records, units (M6.E16 t5.0c) — left *closing* too
  * long (portable, advisory — M6.E13 t4.4, PLAN risk 3).
  *
@@ -856,6 +884,7 @@ export async function runSweep(baseDir = process.cwd()) {
   // also reported as stuck closing in the same report (REVIEW pass 1).
   raw.push(...(await confirmClosesInSweep(baseDir)));
   raw.push(...checkClosingTooLong(baseDir));
+  raw.push(...checkClosedProofs(baseDir));
   raw.push(...checkClaudeMdBloat(baseDir));
   raw.push(...(await checkPhaseLog(baseDir)));
 

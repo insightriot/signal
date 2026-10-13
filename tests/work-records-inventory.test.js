@@ -102,6 +102,7 @@ const READERS = {
   checkRecords: (base) => records.checkRecords(base),
   listClosing: (base) => records.listClosing(base, { now: AT }),
   probeCloses: (base) => records.probeCloses(base, { now: AT }),
+  probeClosedProofs: (base) => records.probeClosedProofs(base),
   // Asks git two questions and reads nothing of the store (r1.2, C-I2).
   headProvesNothing: (base) => records.headProvesNothing(base, '0123abc'),
   // Asks git whether a commit is on the default branch and reads nothing of the store (r3.4).
@@ -176,7 +177,7 @@ const WRITERS = {
       execFn: (cmd, args) => {
         if (args.includes('--is-inside-work-tree')) return 'true\n';
         if (args[0] === 'remote') return 'origin\n';
-        if (args.includes('origin/HEAD')) return 'origin/main\n';
+        if (args.includes('refs/remotes/origin/HEAD')) return 'refs/remotes/origin/main\n';
         // The proof resolves to a full SHA that starts with it (VERIFY loop 1, AC7.2).
         if (args.includes('0123abc^{commit}')) return `0123abc${'0'.repeat(33)}\n`;
         return '';
@@ -410,11 +411,11 @@ export async function promote(b, id) { await triage(b, id); return queue(b, id);
     expect(injected).not.toBe(SOURCE);
     const { lockTaking, violations } = lockNesting(injected);
     const real = lockNesting(SOURCE).lockTaking; // the writers t2.2 added
-    // findByLegacyId (M6.E15 S5), closeEpicCheck, listClosing and probeCloses (through classifyClosing,
+    // findByLegacyId (M6.E15 S5), closeEpicCheck, probeClosedProofs, listClosing and probeCloses (through classifyClosing,
     // which confirmCloses shares) read through listRecords, so the injected take reaches them too;
     // so do the t7.3-prep triage readers (through triageRows).
     expect(lockTaking.filter((n) => !real.includes(n))).toEqual(
-      ['listRecords', 'getRecord', 'findByLegacyId', 'closeEpicCheck', 'classifyClosing', 'probeCloses', 'listClosing',
+      ['listRecords', 'getRecord', 'findByLegacyId', 'closeEpicCheck', 'probeClosedProofs', 'classifyClosing', 'probeCloses', 'listClosing',
         'triageRows', 'triageNext', 'listNeedsReview', 'listThemes'],
     );
     // confirmCloses takes the lock AND reads through listRecords, so a take

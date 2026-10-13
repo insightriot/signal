@@ -133,6 +133,17 @@ records now.
   release, confirmed as one list), 4 Epic IDs that never ran recorded as dropped.
 
 #### Fixed
+- **A pushed tag can no longer change which branch a close is confirmed against.** Signal looked the
+  default branch up by name, and git answers a name lookup differently once a tag shares the name.
+  Someone able to push a tag called `origin/main` and a branch called `remotes/origin/main`, but not
+  the default branch itself, could make unmerged work read as closed after an ordinary fetch; a tag
+  called `origin/HEAD` stopped every close from confirming. The recorded default branch is now read
+  directly (`git symbolic-ref refs/remotes/origin/HEAD`). This was in `v0.1.50` and earlier for item
+  closes. Found by the fourth review pass of `M6.E16`.
+- **`/sig:docs-sweep` asks git again about recorded closes.** An item closed as fixed, or an Epic
+  closed as shipped, whose commit is not on the default branch in your clone is reported
+  (`close-not-on-default-branch`). Nothing else re-checked a record once it said closed, so a close
+  typed into a record by hand was believed.
 - **The two milestone-table parsers that each read one format** (`SIG-132`): with unit records no
   code reads the rows.
 - **A filled retrospective alone could archive an unfinished Epic** (`SIG-288`): with unit records

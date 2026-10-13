@@ -146,6 +146,9 @@ export function hasRemote(baseDir, opts = {}) {
   }
 }
 
+const ORIGIN_REFS = 'refs/remotes/origin/';
+const ORIGIN_HEAD_REF = `${ORIGIN_REFS}HEAD`;
+
 /**
  * The remote's default branch, resolved or NOT AT ALL.
  *
@@ -166,14 +169,14 @@ export function hasRemote(baseDir, opts = {}) {
 export function resolveDefaultBranch(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   try {
-    const ref = git(baseDir, ['rev-parse', '--abbrev-ref', 'origin/HEAD'], execFn);
-    // An unset origin/HEAD prints the literal string back and exits 128; some
-    // git versions print it and exit 0, so the literal is checked either way.
-    if (ref && ref !== 'origin/HEAD') {
-      return ref.startsWith('origin/') ? ref.slice('origin/'.length) : ref;
-    }
+    // The symbolic ref is read as it is stored, by its full name. A name
+    // lookup (`rev-parse --abbrev-ref origin/HEAD`) is not used: a tag called
+    // `origin/main` or `origin/HEAD` changes what that prints, and with it
+    // which ref a close would be confirmed against.
+    const ref = git(baseDir, ['symbolic-ref', '--quiet', ORIGIN_HEAD_REF], execFn);
+    if (ref.startsWith(ORIGIN_REFS) && ref.length > ORIGIN_REFS.length) return ref.slice(ORIGIN_REFS.length);
   } catch {
-    // fall through to disambiguation
+    // unset (exit 1), or not a symbolic ref: fall through to disambiguation
   }
   if (opts.guess === false) return null;
 
