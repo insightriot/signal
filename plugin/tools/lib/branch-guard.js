@@ -149,6 +149,21 @@ export function hasRemote(baseDir, opts = {}) {
   }
 }
 
+/**
+ * The names of the repo's remotes. Signal reads the default branch of the one
+ * named `origin` only, so "has a remote" and "has `origin`" are two questions.
+ *
+ * @returns {string[]|null} null if the question itself could not be asked.
+ */
+export function remoteNames(baseDir, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  try {
+    return git(baseDir, ['remote'], execFn).split('\n').map((name) => name.trim()).filter(Boolean);
+  } catch {
+    return null;
+  }
+}
+
 const ORIGIN_REFS = 'refs/remotes/origin/';
 const ORIGIN_HEAD_REF = `${ORIGIN_REFS}HEAD`;
 
@@ -231,13 +246,13 @@ export function checkBranchPosture(baseDir, opts = {}) {
     return base(BRANCH_GATE.NOT_APPLICABLE, { reason: 'not a git repository' });
   }
 
-  const remote = hasRemote(baseDir, { execFn });
-  if (remote === null) {
+  const remotes = remoteNames(baseDir, { execFn });
+  if (remotes === null) {
     return base(BRANCH_GATE.CANNOT_DETERMINE, {
       reason: 'could not list git remotes',
     });
   }
-  if (remote === false) {
+  if (remotes.length === 0) {
     return base(BRANCH_GATE.NOT_APPLICABLE, {
       reason: 'no git remote — there is no pull request to open',
     });
@@ -254,8 +269,11 @@ export function checkBranchPosture(baseDir, opts = {}) {
   if (defaultBranch === null) {
     return base(BRANCH_GATE.CANNOT_DETERMINE, {
       currentBranch,
-      reason:
-        'origin/HEAD is unset and neither origin/main nor origin/master is unambiguously present',
+      // Without `origin` the refs named below cannot be there: say which
+      // remote is read, and which ones this repository has.
+      reason: remotes.includes('origin')
+        ? 'origin/HEAD is unset and neither origin/main nor origin/master is unambiguously present'
+        : `no remote is named \`origin\` (this repository has: ${remotes.join(', ')}) — the default branch is read from the remote named \`origin\``,
     });
   }
 

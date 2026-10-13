@@ -17,7 +17,7 @@ import { closeSync, fstatSync, lstatSync, openSync, readFileSync } from 'node:fs
 import { join } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { hasRemote, resolveDefaultBranch } from './branch-guard.js';
+import { remoteNames, resolveDefaultBranch } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
 import { gitEnv } from './git-env.js';
 import { assertRealInsidePlanning } from './path-confine.js';
@@ -286,9 +286,12 @@ export function shallowProbe(baseDir, execFn) {
 // with `-`.
 export function defaultBranchRef(baseDir, execFn) {
   if (!isGitRepo(baseDir, execFn)) return { reason: 'not-a-repo' };
-  const remote = hasRemote(baseDir, { execFn });
-  if (remote === null) return { reason: 'git-failed' };
-  if (remote === false) return { reason: 'no-remote' };
+  const remotes = remoteNames(baseDir, { execFn });
+  if (remotes === null) return { reason: 'git-failed' };
+  if (remotes.length === 0) return { reason: 'no-remote' };
+  // Remotes, none of them `origin`: not `no-default-branch`, whose way out
+  // (`git remote set-head origin -a`) fails without a remote of that name.
+  if (!remotes.includes('origin')) return { reason: 'no-origin-remote' };
   const branch = resolveDefaultBranch(baseDir, { execFn, guess: false });
   if (branch === null) return { reason: 'no-default-branch' };
   const ref = `refs/remotes/origin/${branch}`;

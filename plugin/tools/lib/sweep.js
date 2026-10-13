@@ -51,7 +51,7 @@ import { isStoreOn } from './work-store.js';
 import { checkRecords, listClosing, listRecords, probeClosedProofs, recordPath, storeVersion } from './work-records.js';
 import { checkUnits, listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 import { unitsWithoutRecord } from './work-migrate-units.js';
-import { evictionWords, noDefaultBranchPart, noRemotePart, runConfirmCloses } from './close-confirm.js';
+import { evictionWords, reportCloses, runConfirmCloses, uncheckedParts, unitClosingTooLongWords } from './close-confirm.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -539,15 +539,18 @@ export function checkClosedProofs(baseDir, opts = {}) {
  * `confirmCloses` finds that commit on the default branch. One that has waited
  * more than 14 days is a fix that never merged, or a remote branch never
  * brought down — either way a person has to look. Read through `listClosing`,
- * the read-only form of `confirmCloses`' own stale test: nothing is written,
- * and git is not asked (the sweep is offline).
+ * the read-only form of `confirmCloses`' own stale test: nothing is written.
+ * Git is asked only when a unit is stale, for the reason it is still closing
+ * (`reportCloses`, local refs only — the sweep stays offline), so the unit is
+ * told what would help: "merge it" only when its commit is not on the default
+ * branch.
  *
  * v2 only. On a v1 store every fixed close is read as *closing* through the
  * converter until the cutover confirms it, so reporting them would name every
  * fix ever made. Store off → nothing.
  *
  * @param {string} baseDir — project root
- * @param {{now?: Date|string}} [opts] — the clock (default: now)
+ * @param {{now?: Date|string, execFn?: Function}} [opts] — the clock (default: now); `execFn` as `reportCloses`'
  * @returns {Array<{check: string, severity: string, file: string, message: string}>}
  */
 export function checkClosingTooLong(baseDir, opts = {}) {
@@ -569,17 +572,23 @@ export function checkClosingTooLong(baseDir, opts = {}) {
           `Merge it, or reopen the item (\`/sig:item reopen ${c.id} "<reason>"\`) if the fix did not land.`
       ));
   // A unit (an Epic) left closing (M6.E16 t5.0c): `listed.units` is there only
-  // on a project with unit records.
-  const units = (listed.units ?? [])
-    .filter((u) => u.stale)
-    .map((u) =>
-      mkFinding(
-        'closing-too-long',
-        'advisory',
-        u.path,
-        `${u.id} has been closing for ${u.days} days — the commit its close was requested with, ${u.proof}, is not confirmed on the default branch. ` +
-          'Merge it; or, if the work moved on to other commits, re-run /sig:ship, which requests the close again with the new one.'
-      ));
+  // on a project with unit records. What it is told to do follows the reason
+  // it is still closing for (r6) — `reportCloses` gives it, read-only, from
+  // local refs; asked only when some unit is stale. With no reason to go on,
+  // the advice is the general one.
+  const staleUnits = (listed.units ?? []).filter((u) => u.stale);
+  const reasonOf = new Map();
+  if (staleUnits.length > 0) {
+    const report = reportCloses(baseDir, { now: opts.now, execFn: opts.execFn });
+    for (const s of report.units?.stillClosing ?? []) reasonOf.set(s.id, s.reason);
+  }
+  const units = staleUnits.map((u) =>
+    mkFinding(
+      'closing-too-long',
+      'advisory',
+      u.path,
+      `${u.id} has been closing for ${u.days} days — ${unitClosingTooLongWords(reasonOf.get(u.id), u.proof)}`
+    ));
   return [...items, ...units];
 }
 
@@ -648,8 +657,9 @@ export async function confirmClosesInSweep(baseDir, opts = {}) {
   });
   // Closes that could not be checked because this clone does not record the
   // remote's default branch: said once, with the command that fixes it. And
-  // because the project has no remote: said once, with no command.
-  const unchecked = [noDefaultBranchPart(out), noRemotePart(out)].filter((part) => part !== null)
+  // because the project has no remote, none named `origin`, or is not a git
+  // repository: each said once, with no command.
+  const unchecked = uncheckedParts(out)
     .map((part) => mkFinding('closes-confirmed', 'advisory', WORK_MD_REL, `closes not checked — ${part}`));
   return [...items, ...units, ...unchecked];
 }

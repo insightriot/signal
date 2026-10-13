@@ -1802,7 +1802,7 @@ const latestRequest = (record) => record.events.findLast((e) => e.type === 'clos
  * record re-read under the lock and confirmed only if it is still closing on
  * the same proof; then ONE `regenerate`. Anything else leaves the item
  * closing, with a reason: `invalid-proof`, `not-a-repo`, `no-remote`,
- * `no-default-branch`, `not-on-default-branch`, `unknown-commit`, `proof-names-a-ref`,
+ * `no-origin-remote` (remotes, none of them named `origin`), `no-default-branch`, `not-on-default-branch`, `unknown-commit`, `proof-names-a-ref`,
  * `ambiguous-proof` (a short id more than one commit starts with), `shallow`, `git-failed`,
  * or `changed` (it moved while git was asked). A unit has one more: `open-items`
  * (below).

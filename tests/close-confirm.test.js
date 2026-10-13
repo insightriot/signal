@@ -221,7 +221,9 @@ describe('runConfirmCloses — the SHIP and sweep entry (fail-open)', () => {
     await v2Store(plain, [rec('SIG-1', [created, request('0123abc')])]);
     const out = await runConfirmCloses(plain, { now: NOW });
     expect(out.confirmed).toEqual([]);
-    expect(out.line).toBe('Closes: 1 still closing (SIG-1: not-a-repo)');
+    // and, since M6.E16 r6, the line says what `not-a-repo` means for the close
+    expect(out.line).toBe('Closes: 1 still closing (SIG-1: not-a-repo) · not-a-repo: this project is not a git repository. '
+      + 'Signal confirms a close only against a remote\'s default branch, so these closes stay closing');
   });
 });
 

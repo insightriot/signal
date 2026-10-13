@@ -70,12 +70,37 @@ export function noDefaultBranchPart(result) {
 // It names no command: `git remote set-head` fails without a remote.
 export function noRemotePart(result) {
   if (!anyReason(result, 'no-remote')) return null;
-  return 'no-remote: this project has no remote. Signal confirms a close only against a remote\'s default branch, '
-    + 'so these closes stay closing until it has one';
+  return `no-remote: ${NO_REMOTE}, so these closes stay closing until it has one`;
 }
+const AGAINST_A_REMOTE = 'Signal confirms a close only against a remote\'s default branch';
+const NO_REMOTE = `this project has no remote. ${AGAINST_A_REMOTE}`;
 
-// The sentences that say why nothing could be checked, for the end of a line.
-const uncheckedParts = (result) => [noDefaultBranchPart(result), noRemotePart(result)].filter((p) => p !== null);
+// The same for `no-origin-remote` (r6): the project has remotes and none is
+// named `origin`, the one whose default branch Signal reads. No command
+// either: `git remote set-head origin -a` fails without a remote of that name.
+export function noOriginRemotePart(result) {
+  if (!anyReason(result, 'no-origin-remote')) return null;
+  return `no-origin-remote: ${NO_ORIGIN_REMOTE}, so these closes stay closing until a remote named \`origin\` exists`;
+}
+const NO_ORIGIN_REMOTE = 'Signal reads the default branch of the remote named `origin`, and this project\'s remotes are named otherwise';
+
+// And for `not-a-repo` (r6): no repository, so no commit and no branch for
+// one to be on.
+export function notARepoPart(result) {
+  if (!anyReason(result, 'not-a-repo')) return null;
+  return `not-a-repo: ${NOT_A_REPO}, so these closes stay closing`;
+}
+const NOT_A_REPO = `this project is not a git repository. ${AGAINST_A_REMOTE}`;
+
+/**
+ * The sentences that say why nothing could be checked, for the end of a line:
+ * one for each of the four reasons above that some close has.
+ *
+ * @param {{stillClosing?: Array<{reason: string}>, units?: {stillClosing?: Array<{reason: string}>}}} result
+ * @returns {string[]}
+ */
+export const uncheckedParts = (result) =>
+  [noDefaultBranchPart(result), noRemotePart(result), noOriginRemotePart(result), notARepoPart(result)].filter((p) => p !== null);
 
 // Why a unit has stayed closing over 14 days, by the reason it is still
 // closing for (REVIEW r6): the commit is not on the default branch for two of
@@ -87,7 +112,46 @@ const UNIT_STALE_WHY = {
   'open-items': 'the commit each was requested with is on the default branch, and each has an item that is not closed',
   'no-default-branch': 'the remote\'s default branch is not recorded in this clone',
   'no-remote': 'this project has no remote',
+  'no-origin-remote': 'this project has no remote named `origin`',
+  'not-a-repo': 'this project is not a git repository',
 };
+
+/**
+ * What the sweep's `closing-too-long` advisory says about one unit, after
+ * "<id> has been closing for N days — " (r6): why it is still closing, and
+ * what to do about that. "Merge it" is the advice only when the commit is not
+ * on the default branch — and when no reason is known (`reason` undefined),
+ * which is what the advisory said before it was given one.
+ *
+ * @param {string|undefined} reason — the unit's `stillClosing` reason
+ * @param {string} proof — the commit its close was requested with
+ * @returns {string}
+ */
+export function unitClosingTooLongWords(reason, proof) {
+  const commit = `the commit its close was requested with, ${proof},`;
+  const requested = `its close was requested with the commit ${proof}; `;
+  switch (reason) {
+    case undefined:
+    case 'not-on-default-branch':
+    case 'unknown-commit':
+      return `${commit} is not confirmed on the default branch. `
+        + 'Merge it; or, if the work moved on to other commits, re-run /sig:ship, which requests the close again with the new one.';
+    case 'open-items':
+      return `${commit} is on the default branch, and the unit has an item that is not closed. `
+        + 'Close that item, or move it out of the Epic (`/sig:item`); the close is confirmed once none is open.';
+    case 'no-default-branch':
+      return `${commit} could not be checked: the remote's default branch is not recorded in this clone. `
+        + 'Run `git remote set-head origin -a`, then sweep again.';
+    case 'no-remote':
+      return `${requested}${NO_REMOTE}, so it stays closing until the project has one.`;
+    case 'no-origin-remote':
+      return `${requested}${NO_ORIGIN_REMOTE}. It stays closing until a remote named \`origin\` exists.`;
+    case 'not-a-repo':
+      return `${requested}${NOT_A_REPO}, so it stays closing.`;
+    default:
+      return `${commit} is not confirmed on the default branch (${reason}).`;
+  }
+}
 
 // One reason among the stale units → its sentence; more than one → each
 // sentence after the units it is about.

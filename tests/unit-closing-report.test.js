@@ -125,7 +125,11 @@ describe('the sweep — a unit closing too long is one advisory', () => {
     expect(found[0]).toMatchObject({ check: 'closing-too-long', severity: 'advisory', file: `${UNITS}/M7.E3.json` });
     expect(found[0].message).toMatch(/M7\.E3 has been closing for 39 days/);
     expect(found[0].message).toContain(NOWHERE);
-    expect(found[0].message).toMatch(/\/sig:ship/);
+    // This folder is not a git repository, so the advisory says that (M6.E16
+    // r6) and no longer says to merge or to re-run /sig:ship; the advice for
+    // each reason is in `tests/close-reasons-unconfirmable.test.js`.
+    expect(found[0].message).toMatch(/this project is not a git repository/);
+    expect(found[0].message).not.toMatch(/Merge it|\/sig:ship/);
   });
 
   it('items first, then units', async () => {
