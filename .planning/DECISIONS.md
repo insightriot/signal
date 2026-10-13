@@ -4160,7 +4160,7 @@ from the default branch's history (`git log HEAD`), as native closes require, no
 proposal is now visible before it is acted on, which is the property three passes could not get from
 wording rules alone. Loop 3 runs past the ceiling by Brett's choice.
 
-## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-30)
+## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-31)
 
 Picked by Brett as priority 1 of [`BACKLOG-REVIEW-2026-10-10.md`](BACKLOG-REVIEW-2026-10-10.md). Stage 1
 of the "after Epic 1" list in
@@ -4471,3 +4471,15 @@ written. **Chosen while building it, not in the decision:**
 - The migration's leave to replace rows it has shown (`replaceHandRows`) covers the current file
   only, since that is the only file its dry run lists. Another marked file gets the ordinary check
   during the apply; the dry run names each such file in a note.
+
+### D-M6E16-31 — `/sig:discuss` halts on an Epic whose close is requested and waiting (Brett, 2026-10-13)
+Decided by Brett at REVIEW pass 4; settles `C4-I3`. Between SHIP and the confirmed close a unit
+reads *closing*, and `isEpicDone` (`retrospective.js`) answered `not-done` for it — so
+`/sig:discuss` without `--epic` ran DISCUSS into an Epic that had shipped, where `v0.1.50`
+answered `done` from the complete retrospective. Now a *closing* unit answers
+`{status: 'done', reason: "<ID>'s close is requested with commit <proof> and waits for the merge
+to be confirmed"}`. **Why `done` and not `cannot-evaluate` or a new field:** `discuss.md` halts on
+`done` and prints the reason, and `isEpicDone` has no other caller — no archive or closure reader
+uses it (they read `unitClosure` and `resolveClosures`, where *closing* stays open, AC6.2). So one
+status halts DISCUSS and bends nothing else. `--epic <name>` still opens another unit, as for any
+`done`.

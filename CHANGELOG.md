@@ -38,6 +38,9 @@ records now.
   *Holding a unit* section naming `holdUnit` and `releaseUnit`. The reason is required and is printed
   every time the unit is declined. There is still no slash command for it. The same section says how
   to open a unit that is not an Epic ID, close one as dropped, reopen one and edit one, by hand.
+- **`/sig:discuss` halts on an Epic whose close is requested and still waiting for its merge**, as
+  it does for any finished Epic, and says the close is requested, with which commit. `--epic` opens
+  the next one.
 - **Opening an Epic creates its record.** `/sig:discuss --epic` and `/sig:new-project --epic` refuse
   an Epic whose record is closed, unless you say you mean to reopen it, which is recorded.
 - **`/sig:docs-migrate --work-store` creates unit records for a project already on Signal** — in the
@@ -66,7 +69,7 @@ records now.
   and a milestone file without markers is not touched. Another milestone's file that carries the
   markers is kept current too: when a close is confirmed, or an Epic is reopened or held, after the
   next milestone's Epic was opened, its table is rewritten under the same rules, and
-  `/sig:docs-sweep` reports one that does not match its records. It used to say *closing* for good. A marker counts only on a line of its own —
+  `/sig:docs-sweep` reports one that does not match its records. A marker counts only on a line of its own —
   one mentioned in a sentence or a code example is text — and `/sig:docs-migrate`'s dry run lists
   any line between the markers that is not a table row, since the apply replaces it. `/sig:docs-sweep` reports a view that does
   not match its records.
@@ -76,8 +79,7 @@ records now.
   give it a record, or move it outside the markers. A row for a unit that has a record is rewritten.
   A row is an Epic's own only when its first cell is that Epic's ID and nothing else (or the first
   cell of the old row its record keeps): `M6.E2.S3`, `E2-bis` or `E2 follow-ups` is a row you typed,
-  and so is a second row for the same Epic. Such a row was replaced without a word before; now the
-  write is refused and the row stays.
+  and so is a second row for the same Epic: the write is refused and the row stays.
   When `/sig:docs-migrate --work-store` adds unit records, every unit keeps all the cells of its old
   milestone row in its record, open or closed; the dry run lists each row between the markers that
   goes into no record (it is removed), and says when a table with another header becomes three

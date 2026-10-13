@@ -13,6 +13,7 @@ import { join } from 'node:path';
 
 import { resolveClosures, resolveUnitClosure, CLOSURE } from '../plugin/tools/lib/closure.js';
 import { isEpicDone } from '../plugin/tools/lib/retrospective.js';
+import { getUnit, unitClosure } from '../plugin/tools/lib/unit-records.js';
 import {
   alone, ALONE, cleanupUnitProjects, contradiction, HOLD_REASON, plant, plantBroken, put, state, tempProject, unitsOn,
 } from './helpers/unit-fixture.js';
@@ -177,13 +178,40 @@ describe('isEpicDone with unit records (t6.1)', () => {
     expect(isEpicDone(on, 'M7.E2').reason).toMatch(/unit record/);
   });
 
-  it('held is done; closing is not-done', () => {
+  // Changed at REVIEW pass 4: a closing unit answered `not-done`, so DISCUSS
+  // ran into an Epic that had shipped and was waiting for its merge.
+  it('held is done; closing is done too, and the reason says its close is requested, with which commit, and still waits', () => {
     const base = contradiction();
     unitsOn(base);
     plant(base, 'M7.E1', 'closing'); // its retrospective is filled
     plant(base, 'M7.E2', 'held'); // it has no retrospective
-    expect(isEpicDone(base, 'M7.E1').status).toBe('not-done');
+    const closing = getUnit(base, 'M7.E1');
+    expect(closing.status).toBe('closing');
+    expect(isEpicDone(base, 'M7.E1')).toEqual({
+      status: 'done',
+      reason: `M7.E1's close is requested with commit ${closing.closing_proof} and waits for the merge to be confirmed`,
+    });
     expect(isEpicDone(base, 'M7.E2').status).toBe('done');
+    // The record still decides closure everywhere else: closing is not closed.
+    expect(unitClosure(base, 'M7.E1')).toBe('open');
+  });
+
+  it('a closing unit halts whatever its retrospective says, and a closing unit that is not an Epic ID too', () => {
+    const base = contradiction();
+    unitsOn(base);
+    plant(base, 'M7.E2', 'closing'); // it has no retrospective
+    plant(base, 'phase-11', 'closing');
+    expect(isEpicDone(base, 'M7.E2')).toMatchObject({ status: 'done', reason: expect.stringMatching(/close is requested with commit [0-9a-f]{7,}/) });
+    expect(isEpicDone(base, 'phase-11').status).toBe('done');
+  });
+
+  it('an open unit is not-done and a closed one is done, as before', () => {
+    const base = contradiction();
+    unitsOn(base);
+    plant(base, 'M7.E1', 'open');
+    plant(base, 'M7.E2', 'legacy');
+    expect(isEpicDone(base, 'M7.E1')).toEqual({ status: 'not-done', reason: "M7.E1's unit record is not closed" });
+    expect(isEpicDone(base, 'M7.E2')).toEqual({ status: 'done', reason: "M7.E2's unit record is closed" });
   });
 
   it('no record: the retrospective decides, with its three answers', () => {

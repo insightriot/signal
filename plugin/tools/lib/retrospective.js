@@ -179,9 +179,16 @@ export function deriveRetroPath(epicId) {
  *
  * **On a project with unit records** (`unitRecordsOn`; M6.E16 t6.1) the unit's
  * record is asked first, whatever the unit is called: `done` when it is closed
- * (a held unit is closed), `not-done` when it is open or *closing*,
+ * (a held unit is closed), `not-done` when it is open,
  * `cannot-evaluate` when the record does not read. The retrospective is not
- * read. A unit with no record is answered as above. A `units/` folder that
+ * read. A unit with no record is answered as above.
+ *
+ * A unit that is *closing* — its close requested at SHIP and not yet
+ * confirmed on the default branch — answers `done` as well, and the reason
+ * says so with the commit. This answer is for the guard that keeps DISCUSS
+ * out of a finished Epic, and the Epic has shipped: only its merge is waited
+ * for. It is not a statement that the unit is closed — closure is read from
+ * the record (`unitClosure`, `resolveClosures`), where *closing* is open. A `units/` folder that
  * cannot be trusted (a link, a file, one that cannot be listed) is
  * `cannot-evaluate` too, with the fault as the reason — never an answer from
  * the retrospective (REVIEW pass 1, C-I4).
@@ -197,8 +204,8 @@ export function isEpicDone(baseDir, epicId) {
     return { status: 'cannot-evaluate', reason: 'no unit id to evaluate' };
   }
   // With unit records (M6.E16 t6.1, `D-M6E16-2`) the unit's record is asked
-  // first: done when it is closed (a held unit is closed), not-done when it is
-  // open or *closing*. A unit with no record takes the path below.
+  // first: done when it is closed (a held unit is closed) or *closing*,
+  // not-done when it is open. A unit with no record takes the path below.
   let unitsOn;
   try {
     unitsOn = unitRecordsOn(baseDir);
@@ -207,13 +214,21 @@ export function isEpicDone(baseDir, epicId) {
   }
   if (unitsOn) {
     let closure;
+    let closing = null;
     try {
       closure = unitClosure(baseDir, epicId);
+      if (closure === 'open') {
+        const unit = getUnit(baseDir, epicId);
+        if (unit.status === 'closing') closing = unit.closing_proof;
+      }
     } catch (err) {
       return { status: 'cannot-evaluate', reason: `${epicId}'s unit record could not be read — ${err.message}` };
     }
     if (closure === 'closed' || closure === 'held') {
       return { status: 'done', reason: `${epicId}'s unit record is closed` };
+    }
+    if (closing !== null) {
+      return { status: 'done', reason: `${epicId}'s close is requested with commit ${closing} and waits for the merge to be confirmed` };
     }
     if (closure === 'open') {
       return { status: 'not-done', reason: `${epicId}'s unit record is not closed` };
