@@ -195,5 +195,7 @@
 | SIG-307 | `confirmed` | P3 | **Small notes from M6.E16 REVIEW pass 3 that no round took up** |
 | SIG-308 | `confirmed` | P3 | **The v1-to-v2 migration manifest names a guessed default branch beside closes that no longer use the guess** |
 | SIG-309 | `confirmed` | P3 | **Six Low findings from the security review of M6.E16 pass 4** |
+| SIG-310 | `confirmed` | P3 | **The units migration dry run does not list the lines it replaces in a marked milestone file other than the current one** |
+| SIG-311 | `confirmed` | P3 | **Suggestions from M6.E16 REVIEW pass 4 and the narrow review that no round took up** |
 
-*0 needs-triage · 65 confirmed · 6 closing · 121 closed (192 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 67 confirmed · 6 closing · 121 closed (194 total) · closes more than 30 days before the newest event are in `work/history/`*

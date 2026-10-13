@@ -22,19 +22,17 @@ last_updated: 2026-10-13T15:27:26.256Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-10-13)
 
-**`M6.E16` — *"Epics and units as records"* — REVIEW failed on pass 4, one pass beyond the loop ceiling, and is stopped for Brett's decision.** Nothing more starts (no fix round, no pass 5, no SHIP) until he chooses. Report: [`M6.E16-REVIEW.md`](M6.E16-REVIEW.md), § Pass 4. Branch
-`feat/m6.e16-epics-units-as-records`, pushed. Suite: 346 files, 7522 passed, 1 skipped; lint clean
-(one wall-clock test fails under load and passes alone, `SIG-303`). VERIFY passed on loop 3:
-[`M6.E16-VERIFICATION.md`](M6.E16-VERIFICATION.md). Progress: [`M6.E16-PROGRESS.md`](M6.E16-PROGRESS.md).
+**`M6.E16` — *"Epics and units as records"* — REVIEW is PASS-WITH-FIXES; SHIP is next and its pull request and merge wait for Brett's go-ahead.** Report: [`M6.E16-REVIEW.md`](M6.E16-REVIEW.md), last section. Branch
+`feat/m6.e16-epics-units-as-records`, pushed. Suite: 347 files, 7558 passed, 1 skipped; lint clean.
+VERIFY passed on loop 3: [`M6.E16-VERIFICATION.md`](M6.E16-VERIFICATION.md). Progress:
+[`M6.E16-PROGRESS.md`](M6.E16-PROGRESS.md).
 
-- **Pass 3's findings are closed** (fix round 4): the Epic close after a squash merge lists items and
-  swaps a proof only for the ones a person names (`D-M6E16-26`); the default branch is not guessed
-  when a close is confirmed (`D-M6E16-27`).
-- **Pass 4 found:** 1 Critical, 1 High, 5 Important, 2 Medium. Fixed on Brett's word (`r5.1`): the
-  default branch is read from the stored ref, so a pushed tag cannot change it, and the sweep asks
-  git again about recorded closes. **Open:** T4-C1 (a dirty-tree close is accepted when
-  `origin/HEAD` is unset, a hole fix round 4 made), C4-I1 … C4-I4 and T4-I1.
-- **Open with Brett:** which way out.
+- **How REVIEW got here:** four full passes failed, each in a different corner; pass 3 reached the
+  loop ceiling and Brett chose each step after it. Fix rounds 4 and 5 (`D-M6E16-26` … `-31`), then a
+  narrow review of round 5 by one fresh reviewer: nothing Critical or High; four of its five
+  Important findings fixed in place (`r5.9`), one filed.
+- **Known and filed, not fixed:** `SIG-303` … `SIG-311`.
+- **`r5.9` has not had a fresh read.** The pull request's own reviewer is the next one.
 - **Signal's own cutover is done** (`010262f7`, 2026-10-12): 48 unit records under `work/units/` —
   `M6.E16` open, 43 legacy closes Brett confirmed, 4 Epic IDs closed as dropped (`M5.E11`, `M5.E12`,
   `M5.E14`, `M5.E20`). The Epic table in `MILESTONE-6.md` and `work/EPICS.md` are generated from the
@@ -47,7 +45,7 @@ last_updated: 2026-10-13T15:27:26.256Z
 - **Closing, proof not yet on `main`:** `SIG-132`, `SIG-255`, `SIG-288`, `SIG-289`, `SIG-295`.
   Filed and open: `SIG-294`, `SIG-296` … `SIG-302`.
 - Requirements: [`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md). Plan:
-  [`M6.E16-PLAN.md`](M6.E16-PLAN.md). Decisions `D-M6E16-1` … `-27`.
+  [`M6.E16-PLAN.md`](M6.E16-PLAN.md). Decisions `D-M6E16-1` … `-31`.
 - Not done from the small-fix batch: `SIG-285`, `SIG-139`.
 
 ### Previously (2026-10-10)

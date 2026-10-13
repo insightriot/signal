@@ -1,0 +1,20 @@
+{
+  "id": "SIG-311",
+  "type": "BUG",
+  "title": "Suggestions from M6.E16 REVIEW pass 4 and the narrow review that no round took up",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E16 REVIEW pass 4",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-13T16:50:41.563Z",
+      "by": "claude (M6.E16 REVIEW)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-13T16:50:41.563Z",
+      "by": "claude (M6.E16 REVIEW)"
+    }
+  ]
+}
