@@ -60,6 +60,8 @@ export const CLOSE_WORDS_MAX = 2000;
 export const UNIT_REASON_MAX = 2000;
 /** A close's or a close request's `pr` and `release`. */
 export const UNIT_REF_MAX = 200;
+/** Who made an event (`by`); a writer cuts a longer one. */
+export const UNIT_BY_MAX = 200;
 export const UNIT_TITLE_MAX = 200;
 export const UNIT_SUMMARY_MAX = 2000;
 export const UNIT_NOTE_MAX = 2000;

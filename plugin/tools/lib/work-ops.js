@@ -759,10 +759,13 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
 // A unit's close as one line: the reason and date, then the PR and the
 // release, each when recorded. Never the close's words: they are free text,
 // and both callers print or store this beside something a reader acts on.
-function closeLine(close) {
+// `refs: false` leaves the PR and the release out as well: they are text from
+// the record too, and the refusal that tells a reader how to override a close
+// prints nothing from the record beside that instruction but its reason and date.
+function closeLine(close, { refs = true } = {}) {
   const parts = [`${close.reason}, ${String(close.at).slice(0, 10)}`];
-  if (close.pr) parts.push(`PR ${close.pr}`);
-  if (close.release) parts.push(`release ${close.release}`);
+  if (refs && close.pr) parts.push(`PR ${close.pr}`);
+  if (refs && close.release) parts.push(`release ${close.release}`);
   return parts.join('; ');
 }
 
@@ -831,9 +834,9 @@ export async function openEpic(baseDir, epicId, open = {}) {
       step = { unit: 'existing', write: null };
     } else {
       if (force !== true) {
-        // Without the close's words (REVIEW pass 1, S-L2): free text from a
+        // Without the close's words, its PR or its release: free text from a
         // record is not printed beside the instruction to override it.
-        throw new WorkStoreError('CONFLICT', `${epicId} is closed (${closeLine(unit.close)})${unit.held ? ', and held' : ''} — nothing was opened. `
+        throw new WorkStoreError('CONFLICT', `${epicId} is closed (${closeLine(unit.close, { refs: false })})${unit.held ? ', and held' : ''} — nothing was opened. `
           + 'To open it again, call openEpic with `force: true` (the `--epic` override): that records a reopen on its unit record.');
       }
       // Without the close's words: they stay in the close event, and free

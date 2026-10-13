@@ -46,8 +46,8 @@ import { ascii, cut, oneLine, printable as printableText, shownName } from './pr
 import { PHASES } from './state.js';
 import { isReservedDeviceName, isSafeUnitName } from './unit-name.js';
 import {
-  CLOSE_WORDS_MAX, LEGACY_CELL_MAX, LEGACY_CELLS_MAX, UNIT_KIND, UNIT_NOTE_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, UNIT_SCHEMA, UNIT_SUMMARY_MAX,
-  UNIT_TITLE_MAX, foldUnit,
+  CLOSE_WORDS_MAX, LEGACY_CELL_MAX, LEGACY_CELLS_MAX, UNIT_BY_MAX, UNIT_KIND, UNIT_NOTE_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, UNIT_SCHEMA,
+  UNIT_SUMMARY_MAX, UNIT_TITLE_MAX, foldUnit,
 } from './unit-record.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { assertWritable, listRecords } from './work-records.js';
@@ -577,7 +577,8 @@ export function checkUnits(baseDir) {
 // Free text (M6.E16 v2.3): every text field a writer takes — `title`,
 // `summary`, `migration_note`, each `legacy_row` cell, a close's or a close
 // request's `pr` and `release`, a close's `words`, a hold's or a reopen's
-// `reason`, an edit's new values — is stored without control or invisible
+// `reason`, an edit's new values, and every event's `by` (who made it; it is
+// printed and it comes from the caller) — is stored without control or invisible
 // characters and cut at its limit (`clean`; the limits are `unit-record.js`'s),
 // before the blank check, the sensitive-data gate and the schema see it. A
 // line break becomes a space, so none reaches a record (a two-line title is
@@ -618,6 +619,8 @@ const cleanCells = (cells) => (Array.isArray(cells) ? cutCells(cells).map((c) =>
  * @returns {unknown}
  */
 export const storedRef = (value) => clean(value, UNIT_REF_MAX);
+// An event's `by` as every writer here stores it: cleaned and cut like any other text.
+const who = (by) => clean(by, UNIT_BY_MAX);
 // The limit of each field an `edited` event may change, and that a record may open with.
 const FIELD_MAX = { title: UNIT_TITLE_MAX, summary: UNIT_SUMMARY_MAX, migration_note: UNIT_NOTE_MAX };
 
@@ -830,7 +833,8 @@ async function makeUnitsDir(handle, opts) {
  * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA, CONFLICT, LOCKED, IO
  */
 export async function openUnit(baseDir, id, fields = {}, opts = {}) {
-  const { by, at = nowIso() } = fields;
+  const { at = nowIso() } = fields;
+  const by = who(fields.by);
   const title = clean(fields.title, UNIT_TITLE_MAX);
   const summary = clean(fields.summary, UNIT_SUMMARY_MAX);
   const migrationNote = clean(fields.migration_note, UNIT_NOTE_MAX);
@@ -887,9 +891,10 @@ function importedRecord(entry) {
   const cells = cleanCells(legacyRow);
   let event;
   if (opened !== undefined) {
-    event = { type: 'opened', at: opened?.at ?? nowIso(), by: opened?.by };
+    event = { type: 'opened', at: opened?.at ?? nowIso(), by: who(opened?.by) };
   } else {
-    const { reason, by, at = nowIso() } = close ?? {};
+    const { reason, at = nowIso() } = close ?? {};
+    const by = who(close?.by);
     const pr = clean(close?.pr, UNIT_REF_MAX);
     const release = clean(close?.release, UNIT_REF_MAX);
     if (reason === 'shipped') throw new WorkStoreError('SCHEMA', `${SHIPPED_NOT_DIRECT(id)}, and it cannot be imported. Nothing was written.`);
@@ -1128,7 +1133,8 @@ export async function importUnits(baseDir, list, opts = {}) {
  * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
  */
 export async function requestUnitClose(baseDir, id, request = {}, opts = {}) {
-  const { proof, by, at = nowIso() } = request;
+  const { proof, at = nowIso() } = request;
+  const by = who(request.by);
   const pr = clean(request.pr, UNIT_REF_MAX);
   const release = clean(request.release, UNIT_REF_MAX);
   assertShape(id);
@@ -1167,7 +1173,8 @@ export async function requestUnitClose(baseDir, id, request = {}, opts = {}) {
  * @returns {Promise<object>} the entry, with `previous_proof` (the commit the earlier request named), or `{aborted, sensitiveHits}`
  */
 export async function rerequestUnitClose(baseDir, id, request = {}, opts = {}) {
-  const { proof, by, at = nowIso() } = request;
+  const { proof, at = nowIso() } = request;
+  const by = who(request.by);
   const pr = clean(request.pr, UNIT_REF_MAX);
   const release = clean(request.release, UNIT_REF_MAX);
   assertShape(id);
@@ -1218,7 +1225,8 @@ function rerequested(id, current, { proof, pr, release, by, at }) {
  * @throws {WorkStoreError} SCHEMA, NOT_FOUND, CONFLICT
  */
 export function planUnitCloseRequest(handle, id, request = {}) {
-  const { proof, by, at } = request;
+  const { proof, at } = request;
+  const by = who(request.by);
   const pr = clean(request.pr, UNIT_REF_MAX);
   const release = clean(request.release, UNIT_REF_MAX);
   assertShape(id);
@@ -1312,7 +1320,8 @@ export function planUnitConfirms(handle, candidates, { at, by, openItems }) {
  * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
  */
 export async function closeUnit(baseDir, id, close = {}, opts = {}) {
-  const { reason, proof, by, at = nowIso() } = close;
+  const { reason, proof, at = nowIso() } = close;
+  const by = who(close.by);
   const words = clean(close.words, CLOSE_WORDS_MAX);
   const pr = clean(close.pr, UNIT_REF_MAX);
   const release = clean(close.release, UNIT_REF_MAX);
@@ -1351,7 +1360,8 @@ export async function closeUnit(baseDir, id, close = {}, opts = {}) {
  * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
  */
 export async function reopenUnit(baseDir, id, reopen = {}, opts = {}) {
-  const { by, at = nowIso() } = reopen;
+  const { at = nowIso() } = reopen;
+  const by = who(reopen.by);
   const reason = clean(reopen.reason, UNIT_REASON_MAX);
   assertShape(id);
   if (isBlank(reason)) {
@@ -1369,6 +1379,9 @@ export async function reopenUnit(baseDir, id, reopen = {}, opts = {}) {
  * unit's files live" and is a flag beside the status — legal whatever the
  * status, refused on a unit that is already held.
  *
+ * Refused (CONFIG) when the project has no `units/` folder, saying that unit
+ * records are off and what turns them on.
+ *
  * Sensitive data: `reason`.
  *
  * @param {string} baseDir
@@ -1378,7 +1391,8 @@ export async function reopenUnit(baseDir, id, reopen = {}, opts = {}) {
  * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
  */
 export async function holdUnit(baseDir, id, hold = {}, opts = {}) {
-  const { by, at = nowIso() } = hold;
+  const { at = nowIso() } = hold;
+  const by = who(hold.by);
   const reason = clean(hold.reason, UNIT_REASON_MAX);
   assertShape(id);
   if (isBlank(reason)) {
@@ -1387,7 +1401,12 @@ export async function holdUnit(baseDir, id, hold = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending([reason], opts);
   if (pending) return pending;
-  return withUnitLock(baseDir, async (handle) => appendEvent(handle, id, { type: 'held', at, by, reason }, `${id} was held`, opts));
+  return withUnitLock(baseDir, async (handle) => {
+    // No `units/` folder: say that unit records are off and how they are turned
+    // on, as `openUnit` does — "no such unit" would send a reader looking for a typo.
+    if (confinedUnitsDir(handle.baseDir) === null) throw new WorkStoreError('CONFIG', NO_UNITS_DIR(id));
+    return appendEvent(handle, id, { type: 'held', at, by, reason }, `${id} was held`, opts);
+  });
 }
 
 /**
@@ -1400,7 +1419,8 @@ export async function holdUnit(baseDir, id, hold = {}, opts = {}) {
  * @returns {Promise<object>} the entry
  */
 export async function releaseUnit(baseDir, id, release = {}, opts = {}) {
-  const { by, at = nowIso() } = release;
+  const { at = nowIso() } = release;
+  const by = who(release.by);
   assertShape(id);
   return withUnitLock(baseDir, async (handle) => appendEvent(handle, id, { type: 'released', at, by }, `${id} was released from its hold`, opts));
 }
@@ -1420,7 +1440,8 @@ export async function releaseUnit(baseDir, id, release = {}, opts = {}) {
  * @returns {Promise<object>} the entry, or `{aborted, sensitiveHits}`
  */
 export async function editUnit(baseDir, id, edit = {}, opts = {}) {
-  const { changes, by, at = nowIso() } = edit;
+  const { changes, at = nowIso() } = edit;
+  const by = who(edit.by);
   assertShape(id);
   if (changes === null || typeof changes !== 'object' || Array.isArray(changes) || Object.keys(changes).length === 0) {
     throw new WorkStoreError('SCHEMA', `${id}: an edit needs changes — {field: new value}. Nothing was written.`);

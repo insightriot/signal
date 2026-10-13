@@ -33,7 +33,7 @@
 // The milestone rows are read here ONLY for a project that has no unit
 // records (AC7.3) — which is every project this plan is made for.
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { lstatSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { CLOSURE, resolveClosures } from './closure.js';
@@ -138,14 +138,38 @@ function readMilestoneRows(baseDir, notes) {
   return rows;
 }
 
+// Is this a real folder — there, and not a symbolic link? Asked of the archive
+// root and of every folder walked under it, just before it is listed: a
+// listing follows a link, and a cloned repository can ship `archive/` (or a
+// folder inside it) as a link to somewhere else on the disk.
+function realFolder(baseDir, rel) {
+  try {
+    return lstatSync(join(baseDir, rel)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+// The archive root, when it is there and is not a real folder: said once.
+function archiveLinkNote(baseDir, notes) {
+  try {
+    if (lstatSync(join(baseDir, ARCHIVE)).isSymbolicLink()) notes.push(`${ARCHIVE} is a symbolic link — nothing under it was read.`);
+  } catch {
+    // not there: nothing to say
+  }
+}
+
 // Every `<unit>-RETROSPECTIVE.md` in the planning root and under the archive.
-// A linked one names its unit and is not read.
+// A linked one names its unit and is not read; a linked folder under the
+// archive, or a linked archive, is not walked.
 function readRetros(baseDir, notes) {
   const found = [];
   let seen = 0;
+  archiveLinkNote(baseDir, notes);
   const stack = [[PLANNING, 0, false], [ARCHIVE, 0, true]];
   while (stack.length > 0 && seen < WALK_MAX) {
     const [rel, depth, recurse] = stack.pop();
+    if (recurse && !realFolder(baseDir, rel)) continue;
     for (const e of entries(join(baseDir, rel))) {
       seen += 1;
       if (seen > WALK_MAX) break;
@@ -180,8 +204,9 @@ function readRetros(baseDir, notes) {
 // Both archive layouts: `archive/<M>/E<n>/` and `archive/epics/<ID>/`.
 function readArchiveDirs(baseDir) {
   const found = [];
+  if (!realFolder(baseDir, ARCHIVE)) return found;
   for (const m of entries(join(baseDir, ARCHIVE))) {
-    if (!m.isDirectory()) continue;
+    if (!m.isDirectory() || !realFolder(baseDir, `${ARCHIVE}/${m.name}`)) continue;
     const kids = entries(join(baseDir, ARCHIVE, m.name)).filter((e) => e.isDirectory());
     if (m.name === 'epics') {
       for (const e of kids) found.push({ id: e.name, path: `${ARCHIVE}/epics/${e.name}` });
@@ -332,7 +357,7 @@ function readAlso(baseDir, also, named, storeKey) {
     }
     if (seen.has(id.toLowerCase())) return { refusal: `--also ${label} is given twice (or twice differing only by case). Nothing was written.` };
     seen.add(id.toLowerCase());
-    declared.push({ id, reason, words: shownText(words, NOTE_MAX) });
+    declared.push({ id, reason, words: shownText(words, NOTE_MAX), uncut: words });
   }
   return { declared: declared.sort((a, b) => compareUnitIds(a.id, b.id)) };
 }
@@ -527,6 +552,8 @@ export async function planUnits(baseDir, opts = {}) {
     planned.push({
       id: d.id, sources: ['--also'], row: null, retro: 'none', retro_path: null,
       proposal: 'dropped', flag: null, evidence: [`declared with --also: ${quoted(d.words)}`], against: [], words: d.words, current: false,
+      // The words as given, for the sensitive-data scan only (`uncutSources`): they are stored cut.
+      ...(d.uncut !== d.words ? { words_uncut: d.uncut } : {}),
     });
   }
   planned.sort((a, b) => compareUnitIds(a.id, b.id));
@@ -675,9 +702,17 @@ export function unitImportList(plan, { confirmCloses = false, at, by = 'migratio
 // Both lists are scanned, the confirmed one and the unconfirmed one: which is
 // written depends on an answer given after the scan, and they hold different
 // fields of the same row (the whole old row, or its third cell as a summary).
+//
+// And each source text WHOLE, with only its invisible characters taken out
+// (`uncutSources`): a stored text is cut at its limit, so a key that straddles
+// the cut is stored in part and matched nowhere — the part that is kept is
+// still a leak. The whole text is what a person would be asked about.
 export function unitImportTexts(plan) {
   const seen = new Set();
-  return [true, false].flatMap((confirmCloses) => importUnitsTexts(unitImportList(plan, { confirmCloses, at: '2000-01-01' })))
+  return [
+    ...[true, false].flatMap((confirmCloses) => importUnitsTexts(unitImportList(plan, { confirmCloses, at: '2000-01-01' }))),
+    ...uncutSources(plan),
+  ]
     .filter((t) => {
       const key = `${t.id}\u0000${t.text}`;
       if (seen.has(key)) return false;
@@ -685,6 +720,28 @@ export function unitImportTexts(plan) {
       return true;
     });
 }
+
+// The texts an import is built from, uncut: each cell of a unit's milestone
+// row, and the words of a unit declared with `--also`.
+function uncutSources(plan) {
+  const out = [];
+  for (const u of plan.units) {
+    if (u.proposal === 'refused') continue;
+    for (const cell of u.row?.cells ?? []) if (typeof cell === 'string' && cell !== '') out.push({ id: u.id, text: printable(cell) });
+    if (typeof u.words_uncut === 'string') out.push({ id: u.id, text: printable(u.words_uncut) });
+  }
+  return out;
+}
+
+// How many units, and how many lines of each list under them, a report
+// prints; the rest are counted. No project has near this many units: the cap
+// is for a repository built to make the report huge.
+const REPORT_UNITS_MAX = 500;
+const capped = (list, lines, what) => {
+  const shown = list.slice(0, REPORT_UNITS_MAX);
+  const more = list.length - shown.length;
+  return more > 0 ? [...shown.map(lines), `  … and ${more} more ${what}, not listed here (the list is cut at ${REPORT_UNITS_MAX}).`] : shown.map(lines);
+};
 
 const PROPOSAL_WORDS = {
   open: 'open',
@@ -720,29 +777,29 @@ export function unitsReportLines(plan) {
     lines.push(`Unit records — one record per Epic or unit this project names (${n} named):`);
     if (n === 0) lines.push('  none — the folder for unit records is created empty.');
   }
-  for (const u of plan.units) {
+  lines.push(...capped(plan.units, (u) => {
     const why = u.proposal === 'refused' ? u.reason
       : sentence([...(u.current ? ['the current unit'] : []), ...u.evidence, ...(u.proposal === 'open' ? u.against : [])]) || `named by ${u.sources.join(', ')}; nothing says it is over`;
-    lines.push(`  ${u.id}  ${PROPOSAL_WORDS[u.proposal]}${u.flag ? `  [flagged: ${u.flag}]` : ''}  — ${shownText(why, 400)}`);
-  }
+    return `  ${u.id}  ${PROPOSAL_WORDS[u.proposal]}${u.flag ? `  [flagged: ${u.flag}]` : ''}  — ${shownText(why, 400)}`;
+  }, 'units'));
   if (plan.proposedCloses.length > 0) {
     lines.push('', `Proposed legacy closes (${plan.proposedCloses.length}) — confirm to record these units as closed; if you say no, each is created open, `
       + 'with a note saying it looked finished. Unit, the evidence:');
-    for (const u of plan.proposedCloses) {
-      lines.push(`  ${u.id}  — ${shownText(sentence(u.evidence), 400)}${u.against.length > 0 ? `  (also: ${shownText(sentence(u.against), 300)})` : ''}`);
-    }
+    lines.push(...capped(plan.proposedCloses, (u) => (
+      `  ${u.id}  — ${shownText(sentence(u.evidence), 400)}${u.against.length > 0 ? `  (also: ${shownText(sentence(u.against), 300)})` : ''}`
+    ), 'proposed closes — a yes confirms these too'));
   }
   if (plan.flagged.length > 0) {
     lines.push('', `Flagged (${plan.flagged.length}) — created open, each with a note; look at them after the apply:`);
-    for (const u of plan.flagged) lines.push(`  ${u.id}  — ${FLAG_WORDS[u.flag]}`);
+    lines.push(...capped(plan.flagged, (u) => `  ${u.id}  — ${FLAG_WORDS[u.flag]}`, 'flagged units'));
   }
   if (plan.refused.length > 0) {
     lines.push('', `Refused (${plan.refused.length}) — no record is created:`);
-    for (const u of plan.refused) lines.push(`  ${u.id}  — ${shownText(u.reason, 400)}`);
+    lines.push(...capped(plan.refused, (u) => `  ${u.id}  — ${shownText(u.reason, 400)}`, 'refused IDs'));
   }
   if (plan.declared.length > 0) {
     lines.push('', `Declared with --also (${plan.declared.length}) — created closed as dropped:`);
-    for (const u of plan.declared) lines.push(`  ${u.id}  — ${quoted(u.words)}`);
+    lines.push(...capped(plan.declared, (u) => `  ${u.id}  — ${quoted(u.words)}`, 'declared units'));
   }
   if (plan.milestone !== null) {
     const { rel, markers, removes, header } = plan.milestone;

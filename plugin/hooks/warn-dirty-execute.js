@@ -15,6 +15,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { shownName } from '../tools/lib/printable-text.js';
 import { detectDirtyExecute } from '../tools/lib/retrospective.js';
 import { unitRecordsOn } from '../tools/lib/unit-records.js';
 
@@ -63,7 +64,8 @@ try {
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
-      additionalContext: `Signal could not check whether ${state.current_epic} was left mid-EXECUTE without a retrospective: ${err?.message ?? String(err)}`,
+      // `current_epic` is text from a file a clone can ship: escaped and cut before it is printed.
+      additionalContext: `Signal could not check whether ${shownName(state.current_epic, 60)} was left mid-EXECUTE without a retrospective: ${err?.message ?? String(err)}`,
     },
   }) + '\n');
   process.exit(0);

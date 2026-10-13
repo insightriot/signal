@@ -109,6 +109,8 @@ records now.
 - **`/sig:docs-migrate --work-store` scans the text it will store.** Its sensitive-data check read a
   milestone row as written and the record kept it without invisible characters, so a key split by
   one passed the check and was stored whole. The check now reads the cleaned text.
+  It also scans each source text whole, so a key that straddles a length limit is found; it does not
+  read retrospectives through a linked `.planning/archive`; and its dry run lists at most 500 units.
 - **The undo line after `--force` on a dirty tree no longer discards your edits to the milestone
   file.** It restores only generated files, and says that the Epic table was regenerated between its
   markers and that `git diff` shows the old rows.

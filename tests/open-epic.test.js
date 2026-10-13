@@ -91,8 +91,11 @@ describe('openEpic — a project with unit records (AC3.1)', () => {
     expect(err.message).toMatch(/M7\.E3/);
     expect(err.message).toMatch(/shipped/);
     expect(err.message).toMatch(/2026-10-11/);
-    expect(err.message).toMatch(/#412/);
-    expect(err.message).toMatch(/v9\.9\.9/);
+    // Changed at REVIEW pass 2 (r3.7, S2-L3): this case pinned the close's PR and release in the
+    // refusal. They are text from the record, printed beside the instruction to override the
+    // close; the refusal now carries the close's reason and date, and nothing else from it.
+    expect(err.message).not.toMatch(/#412/);
+    expect(err.message).not.toMatch(/v9\.9\.9/);
     expect(err.message).toMatch(/force/);
     expect(snapshotTree(base)).toEqual(before);
   });
