@@ -130,6 +130,20 @@ describe('resolveDefaultBranch — never guesses', () => {
     g(work, 'remote', 'set-head', 'origin', '--delete');
     expect(resolveDefaultBranch(work)).toBeNull();
   });
+
+  // M6.E16 r6: a candidate is present only as that exact remote ref. A tag
+  // that carries the ref's long name (`refs/tags/refs/remotes/origin/main`)
+  // is not `origin/main`, and `rev-parse --verify` would accept it.
+  it('origin/HEAD unset + a tag carrying a candidate\'s long name → not that candidate', async () => {
+    const { work } = await plantClone(dir, 'trunk');
+    g(work, 'remote', 'set-head', 'origin', '--delete');
+    g(work, 'tag', 'refs/remotes/origin/main');
+    expect(g(work, 'rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main').status).toBe(0);
+    expect(resolveDefaultBranch(work)).toBeNull();
+    // and with the other candidate really there, the tag does not make it two
+    g(work, 'update-ref', 'refs/remotes/origin/master', 'HEAD');
+    expect(resolveDefaultBranch(work)).toBe('master');
+  });
 });
 
 // --- the gate ---------------------------------------------------------------

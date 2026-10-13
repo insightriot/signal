@@ -5,8 +5,9 @@
 // existed: `grep -rln 'git branch --show-current|rev-parse --abbrev-ref'
 // commands/ tools/lib/` returned NOTHING — not one of 20 commands and not one
 // library module read the current branch, and none created one. The single
-// `rev-parse --abbrev-ref` in `state.js` reads `origin/HEAD` (the remote's
-// default branch NAME) for the staleness baseline; it never asks where you are.
+// `rev-parse --abbrev-ref` in `state.js` read `origin/HEAD` (the remote's
+// default branch NAME) for the staleness baseline; it never asked where you
+// are. (Since M6.E16 r6 that read is `resolveDefaultBranch`, below.)
 //
 // So the discipline lived entirely in `CLAUDE.md` and in whoever was driving
 // remembering to read it. On a `eval-project-A` slice nobody did: five commits of real
@@ -176,27 +177,30 @@ export function resolveDefaultBranch(baseDir, opts = {}) {
     // `origin/main` or `origin/HEAD` changes what that prints, and with it
     // which ref a close would be confirmed against.
     const ref = git(baseDir, ['symbolic-ref', '--quiet', ORIGIN_HEAD_REF], execFn);
-    if (ref.startsWith(ORIGIN_REFS) && ref.length > ORIGIN_REFS.length) {
-      // A stored target that is gone (the remote's default was renamed, then
-      // a pruning fetch) names no branch: `show-ref --verify` throws. It asks
-      // for that exact ref; `rev-parse` would also accept a tag or a local
-      // branch that carries the same long name.
-      git(baseDir, ['show-ref', '--verify', '--quiet', ref], execFn);
+    // A stored target that is gone (the remote's default was renamed, then
+    // a pruning fetch) names no branch.
+    if (ref.startsWith(ORIGIN_REFS) && ref.length > ORIGIN_REFS.length && exactRefExists(baseDir, ref, execFn)) {
       return ref.slice(ORIGIN_REFS.length);
     }
   } catch {
-    // unset (exit 1), not a symbolic ref, or its target is gone: fall through to disambiguation
+    // unset (exit 1) or not a symbolic ref: fall through to disambiguation
   }
   if (opts.guess === false) return null;
 
-  const present = DEFAULT_BRANCH_CANDIDATES.filter((name) => {
-    try {
-      return git(baseDir, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${name}`], execFn) !== '';
-    } catch {
-      return false;
-    }
-  });
+  const present = DEFAULT_BRANCH_CANDIDATES.filter((name) => exactRefExists(baseDir, `${ORIGIN_REFS}${name}`, execFn));
   return present.length === 1 ? present[0] : null;
+}
+
+// Does exactly this ref exist? `show-ref --verify` asks for the ref by its
+// full name and exits non-zero without it; `rev-parse --verify` would also
+// accept a tag or a local branch that carries the same long name.
+function exactRefExists(baseDir, ref, execFn) {
+  try {
+    git(baseDir, ['show-ref', '--verify', '--quiet', ref], execFn);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
