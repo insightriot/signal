@@ -633,6 +633,16 @@ describe('rerequestCloses — the item side, on its own', () => {
     expect(existsSync(join(base, UNITS))).toBe(false);
   }, 60_000);
 
+  it('closeEpic with a `rerequest` list on a project with no unit records: refused, nothing written', async () => {
+    const { base } = await project({ unit: null });
+    await rm(join(base, UNITS), { recursive: true });
+    const before = snapshotTree(base);
+    const err = await closeEpic(base, EPIC, { by, at: AT, rerequest: [] }).catch((e) => e);
+    expect(err).toMatchObject({ name: 'WorkStoreError', code: 'CONFIG' });
+    expect(err.message).toMatch(/no unit records/);
+    expect(snapshotTree(base)).toEqual(before);
+  }, 60_000);
+
   it('store off: refused as every item writer is', async () => {
     await mkdir(join(root, 'plain'), { recursive: true });
     await expect(records.rerequestCloses(join(root, 'plain'), [{ id: 'SIG-1', proof: 'a'.repeat(40), by }])).rejects.toMatchObject({ code: 'CONFIG' });

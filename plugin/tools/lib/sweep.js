@@ -51,7 +51,7 @@ import { isStoreOn } from './work-store.js';
 import { checkRecords, listClosing, listRecords, recordPath, storeVersion } from './work-records.js';
 import { checkUnits, listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 import { unitsWithoutRecord } from './work-migrate-units.js';
-import { evictionWords, runConfirmCloses } from './close-confirm.js';
+import { evictionWords, noDefaultBranchPart, runConfirmCloses } from './close-confirm.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -618,7 +618,12 @@ export async function confirmClosesInSweep(baseDir, opts = {}) {
         'The sweep wrote its closed event and regenerated the views; commit them.'
     );
   });
-  return [...items, ...units];
+  // Closes that could not be checked because this clone does not record the
+  // remote's default branch: said once, with the command that fixes it.
+  const noDefault = noDefaultBranchPart(out);
+  const unchecked = noDefault === null ? []
+    : [mkFinding('closes-confirmed', 'advisory', WORK_MD_REL, `closes not checked — ${noDefault}`)];
+  return [...items, ...units, ...unchecked];
 }
 
 // CLAUDE.md bloat threshold (AD6). A COARSE advisory nudge — NOT the STATE size

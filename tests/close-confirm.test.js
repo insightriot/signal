@@ -362,6 +362,19 @@ describe('the sweep confirms closes — its one writing step (confirmClosesInSwe
     expect(findings.filter((f) => f.check === 'closing-too-long')).toEqual([]);
   });
 
+  it('origin/HEAD unset: one advisory says the closes were not checked and names the command, and nothing is written', async () => {
+    const { work, shas } = await plantClone();
+    await v2Store(work, [rec('SIG-1', [created, request(shas[0])]), rec('SIG-2', [created, request(shas[1])])]);
+    g(work, 'remote', 'set-head', 'origin', '--delete');
+    const before = snapshotTree(work);
+    const findings = await confirmClosesInSweep(work, { now: NOW });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ check: 'closes-confirmed', severity: 'advisory' });
+    expect(findings[0].message).toMatch(/^closes not checked — no-default-branch: /);
+    expect(findings[0].message).toContain('git remote set-head origin -a');
+    expect(snapshotTree(work)).toEqual(before);
+  });
+
   it('v2, nothing confirmable: no finding and nothing written', async () => {
     const { work } = await plantClone();
     await v2Store(work, [rec('SIG-1', [created])]);

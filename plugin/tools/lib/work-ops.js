@@ -376,6 +376,12 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
   if (unitRecordsOn(baseDir)) {
     return closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit: close.commit, rerequest: close.rerequest }, opts, execFn);
   }
+  // The list of items to ask again is the unit-records recovery; here the
+  // close is a folder move and would never look at it.
+  if (close.rerequest !== undefined) {
+    throw new WorkStoreError('CONFIG', `${epicId}: \`rerequest\` names items whose close is asked again, and this project has no unit `
+      + 'records — nothing was written. Ask again for an item\'s close with `rerequestCloses`.');
+  }
   const pending = sensitivePending([pr, release], opts);
   if (pending) return pending;
   return withWorkLock(baseDir, async () => {

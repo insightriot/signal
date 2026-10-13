@@ -57,7 +57,7 @@ function closeParts({ confirmed = [], stillClosing = [], stale = [] }, what) {
 
 // `no-default-branch` alone does not say what to do. One sentence for the
 // whole line, items and units together, or null when no close has that reason.
-function noDefaultBranchPart(result) {
+export function noDefaultBranchPart(result) {
   const reasons = [...(result.stillClosing ?? []), ...(result.units?.stillClosing ?? [])];
   if (!reasons.some((s) => s.reason === 'no-default-branch')) return null;
   return 'no-default-branch: the remote\'s default branch is not recorded in this clone — run `git remote set-head origin -a` and re-run';
