@@ -2232,8 +2232,9 @@ export function listThemes(baseDir, filter = {}) {
  * - `duplicate-id` — `findDuplicateIds` (the relocated v1 folder is skipped);
  * - `view-stale` — a view differs from, or is missing against, its in-memory
  *   regeneration, or the regeneration failed; with unit records the views
- *   include `work/EPICS.md` as rendered from them and the current milestone
- *   file's Epic table (M6.E16 t5.4, AC7.4); or a `work/history/*.md` file
+ *   include `work/EPICS.md` as rendered from them, the current milestone
+ *   file's Epic table (M6.E16 t5.4, AC7.4), and the marked Epic table of any
+ *   other milestone file that does not match them; or a `work/history/*.md` file
  *   is on disk that no regeneration produces (a reopen, or one made by hand).
  *
  * `opts.regenerateToMemory(baseDir)` is the view generator, injected; by

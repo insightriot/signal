@@ -78,8 +78,10 @@ The same command gives every Epic or unit the project names one record under `.p
   `work/units/` beside `items/` (with a `.keep`, even when no unit is named).
 - **A project already on the store with no `work/units/`:** `--work-store` adds the unit records and
   changes nothing else — no item, and no view but `work/EPICS.md` and, when the current milestone file
-  already carries the markers, the Epic table between them. A marker counts only on a line of its
-  own. Everything between the two marker lines is replaced, so the dry run lists each line there that
+  already carries the markers, the Epic table between them. Another milestone's file that carries
+  the markers has its table written from the records as well: the dry run names each such file in
+  a note, and a row or a line typed between its markers refuses the apply and is never deleted. A
+  marker counts only on a line of its own. Everything between the two marker lines is replaced, so the dry run lists each line there that
   is not a table row, by line number — move it outside the markers to keep it — and a line added
   between them after the dry run refuses the apply. **A store that already has
   `work/units/`** gets the same run, narrowed: it proposes a record for each unit the project names

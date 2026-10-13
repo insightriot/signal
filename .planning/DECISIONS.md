@@ -4160,7 +4160,7 @@ from the default branch's history (`git log HEAD`), as native closes require, no
 proposal is now visible before it is acted on, which is the property three passes could not get from
 wording rules alone. Loop 3 runs past the ceiling by Brett's choice.
 
-## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-29)
+## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-30)
 
 Picked by Brett as priority 1 of [`BACKLOG-REVIEW-2026-10-10.md`](BACKLOG-REVIEW-2026-10-10.md). Stage 1
 of the "after Epic 1" list in
@@ -4239,6 +4239,8 @@ numeric order and carry hand-written titles and free-text status; once the parse
 reads them, and generating them would put paragraphs into records. They stay as written. The marked
 region is written in the milestone file of the current Epic (`MILESTONE-6.md` today). A legacy record
 carries its old row's cells verbatim and the generator prints them unchanged.
+**Narrowed by `D-M6E16-30` (2026-10-13):** another milestone's file that already carries the
+markers is kept current too. A file without them still stays as written.
 
 ### D-M6E16-13 — Units other than Epic IDs are created by the migration, not by the phase commands (Claude, PLAN)
 Bounds `D-M6E16-5`. A record for `phase-11` is created by `/sig:docs-migrate --work-store`, can be
@@ -4449,3 +4451,23 @@ the list, it is created open and keeps its row's cells. **What stays:** evidence
 row's words — a complete retrospective, today's closure check — proposes the close as before, and
 no flag is set then. **Not changed:** the list of not-over words (`pending`, `in flight`,
 `parked`); a cell such as `shipped S1; S2 in progress` still counts.
+
+### D-M6E16-30 — A marked Epic table in another milestone's file is kept current too (Brett, 2026-10-13)
+Decided by Brett at REVIEW pass 4; settles `C4-I2`, and narrows `D-M6E16-12`. Only the current
+milestone's file was written. So when `M7.E1` was opened before `M6.E20`'s close was confirmed,
+`MILESTONE-6.md` kept saying *closing* for good, and no check reported it (AC7.4 against AC7.2).
+Now a regeneration also rewrites the Epic table of any other `MILESTONE-<n>.md` that exists,
+already carries the markers, and whose generated table differs from what is between them
+(`milestoneTables`, `work-views.js`). The rules are the current file's: only the bytes between the
+markers change, and a row or a line a person typed there refuses the write and is never deleted.
+The store check reports such a table as `view-stale`, because it is one of the views now.
+**What stays from `-12`:** a milestone file without the markers is never touched, and the markers
+are never added by code — `MILESTONE-4.5.md` and `MILESTONE-5.md` here have none and stay as
+written. **Chosen while building it, not in the decision:**
+- Only a milestone that has an Epic among the unit records is looked at; a marked file with no
+  unit record behind it is not opened.
+- Broken markers in another milestone's file are a note and no write, not a refusal: one damaged
+  old file must not stop every store write. In the current file they still refuse.
+- The migration's leave to replace rows it has shown (`replaceHandRows`) covers the current file
+  only, since that is the only file its dry run lists. Another marked file gets the ordinary check
+  during the apply; the dry run names each such file in a note.

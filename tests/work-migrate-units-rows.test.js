@@ -247,6 +247,41 @@ describe('(b) the dry run lists every table row between the markers that is kept
   }, 60_000);
 });
 
+// The dry run shows what is replaced in the current milestone's file. Another
+// milestone's file that carries the markers has its table written from the
+// records as well: the dry run says so, and nothing typed there is replaced unseen.
+describe('another milestone\'s file carries the markers too', () => {
+  const M6 = '.planning/MILESTONE-6.md';
+  const OLD_ROW = '| **E1 — Old format** | ✅ shipped 2026-01-01 | Notes with a \\| pipe, and `code` |';
+  const marked6 = (extra = []) => doc(['# Milestone 6', '', BEGIN, '| Epic | Status | Notes |', '|---|---|---|', OLD_ROW, ...extra, END, '', 'After.', '']);
+
+  it('the dry run names the file; the apply writes its table from the records, the old row printed as it was', async () => {
+    const base = await unitsStore({ repo: true, markers: true });
+    put(base, M6, marked6());
+    commitAll(base);
+    const dry = await dryRun(base);
+    expect(dry.report).toMatch(/Note: \.planning\/MILESTONE-6\.md carries the Epic-table markers too, and it is not the current milestone's file/);
+    const out = await applyWith(base, dry, { confirmUnitCloses: true });
+    expect(out.applied).toBe(true);
+    const text = read(base, M6);
+    expect(text).toContain(`${BEGIN}\n| Epic | Status | Summary |\n|---|---|---|\n${OLD_ROW}\n${END}`);
+    expect(text.endsWith('\nAfter.\n')).toBe(true);
+    expect(checkRecords(base)).toEqual([]);
+  }, 60_000);
+
+  it('a row typed there for nothing the records hold: the apply is refused, and no file changes', async () => {
+    const base = await unitsStore({ repo: true, markers: true });
+    put(base, M6, marked6(['| a reminder | not an Epic row | call the harbour master |']));
+    commitAll(base);
+    const dry = await dryRun(base);
+    const before = bytesOf(base);
+    const out = await applyWith(base, dry, { confirmUnitCloses: true }).catch((e) => e);
+    expect(out.applied).not.toBe(true);
+    expect(JSON.stringify([out.reason, out.message])).toMatch(/MILESTONE-6\.md.*typed by hand/);
+    expect(bytesOf(base)).toEqual(before);
+  }, 60_000);
+});
+
 describe('(c) a table with another header: the dry run says it becomes three columns, and the cells are kept', () => {
   const FIVE = ['| Epic | State | Owner | Due | Notes |', '|---|---|---|---|---|'];
   const rows = [

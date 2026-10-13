@@ -232,11 +232,30 @@ describe('regenerateViews writes the current milestone\'s Epic table (AC7.2)', (
     expect((await read(MS)).startsWith('# Milestone 7')).toBe(true);
   });
 
-  it('only the CURRENT milestone\'s file: another milestone file with markers is not touched', async () => {
+  // Changed at REVIEW pass 4: another milestone's marked table is kept current
+  // too (tests/milestone-table-other-milestones.test.js). It said "another
+  // milestone file with markers is not touched".
+  it('another milestone\'s file with markers: a row typed there is never written over — the regeneration refuses; with no unit record behind it the file is not opened', async () => {
     const other = `# Milestone 6\n\n${EPICS_BEGIN}\n| hand-kept |\n${EPICS_END}\n`;
     await put('.planning/MILESTONE-6.md', other);
-    await regenerateViews(base);
+    await expect(regenerateViews(base)).rejects.toMatchObject({ code: 'CONFIG', handRows: [{ line: 4, id: null }] });
     expect(await read('.planning/MILESTONE-6.md')).toBe(other);
+    // No unit record names an Epic of milestone 5: its marked file is left alone.
+    await rm(join(base, '.planning/MILESTONE-6.md'));
+    const five = other.replace('Milestone 6', 'Milestone 5');
+    await put('.planning/MILESTONE-5.md', five);
+    await regenerateViews(base);
+    expect(await read('.planning/MILESTONE-5.md')).toBe(five);
+    expect(Object.keys(regenerateToMemory(base))).not.toContain('.planning/MILESTONE-5.md');
+  });
+
+  it('another milestone\'s file with markers and a stale table is written from the records, between its markers only', async () => {
+    await put('.planning/MILESTONE-6.md', `# Milestone 6\n\n${EPICS_BEGIN}\n| \`M6.E1\` | stale |\n${EPICS_END}\ntail\n`);
+    const out = await regenerateViews(base);
+    expect(out.written).toContain('.planning/MILESTONE-6.md');
+    expect(await read('.planning/MILESTONE-6.md')).toBe(`# Milestone 6\n\n${EPICS_BEGIN}\n${renderEpicTable([unit('M6.E1', [U.opened], { summary: 'Another milestone.' })], { milestone: '6' })}\n${EPICS_END}\ntail\n`);
+    // Already right: not written again, and not one of the views.
+    expect((await regenerateViews(base)).written).not.toContain('.planning/MILESTONE-6.md');
     expect(Object.keys(regenerateToMemory(base))).not.toContain('.planning/MILESTONE-6.md');
   });
 

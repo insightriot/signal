@@ -115,7 +115,8 @@ function rowCells(raw) {
 }
 
 // Every Epic row of every top-level `MILESTONE-*.md`, in file then line order.
-function readMilestoneRows(baseDir, notes) {
+// `marked` gains each of those files that carries the Epic-table markers.
+function readMilestoneRows(baseDir, notes, marked) {
   // AC7.3: the rows are read only where there are no unit records. A
   // `units/` folder that cannot be trusted throws (`unitRecordsOn`);
   // `planUnits` asks first and refuses, so that is not reached from it.
@@ -139,6 +140,7 @@ function readMilestoneRows(baseDir, notes) {
       notes.push(`${rel} could not be read (${err.code ?? err.message}); its rows name no unit here.`);
       continue;
     }
+    if (epicMarkers(content).state === 'ok') marked.push(rel);
     for (const row of parseEpicStatusRows(content, { milestone: m[1] })) {
       if (row.id !== null) rows.push({ id: row.id, file: rel, line: row.line, cells: rowCells(row.raw) });
     }
@@ -420,7 +422,8 @@ export async function planUnits(baseDir, opts = {}) {
     return units.get(id);
   };
 
-  const rows = readMilestoneRows(baseDir, notes);
+  const markedFiles = [];
+  const rows = readMilestoneRows(baseDir, notes, markedFiles);
   const extraRows = [];
   for (const row of rows) {
     const u = unit(row.id);
@@ -464,6 +467,17 @@ export async function planUnits(baseDir, opts = {}) {
 
   const current = readCurrent(baseDir, notes);
   if (current !== null) unit(current).named.add('STATE.md (current)');
+
+  // The dry run shows what the apply replaces in the current milestone's file
+  // only. A marked table in another milestone's file is written from the
+  // records too, and nothing a person typed there is replaced unseen.
+  const currentParts = epicIdParts(current);
+  for (const rel of markedFiles) {
+    if (currentParts !== null && rel === `${PLANNING}/MILESTONE-${currentParts.milestone}.md`) continue;
+    notes.push(`${rel} carries the Epic-table markers too, and it is not the current milestone's file: its Epic rows are written from the unit `
+      + 'records as well. A row there that is not one Epic\'s own, or a line that is not a table row, refuses the apply and is never deleted. '
+      + 'To leave that file exactly as it is, take the two marker lines out of it first.');
+  }
 
   const closures = await resolveClosures(baseDir);
   const resolver = new Map(closures.units.map((c) => [c.unit, { status: c.status, reason: c.reason ?? null }]));

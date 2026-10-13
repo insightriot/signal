@@ -63,7 +63,10 @@ records now.
 #### Changed
 - **`work/EPICS.md` and the Epic table in the current milestone file are generated from the
   records.** The table is written between `signal:epics` markers; text outside them is left alone,
-  and a milestone file without markers is not touched. A marker counts only on a line of its own —
+  and a milestone file without markers is not touched. Another milestone's file that carries the
+  markers is kept current too: when a close is confirmed, or an Epic is reopened or held, after the
+  next milestone's Epic was opened, its table is rewritten under the same rules, and
+  `/sig:docs-sweep` reports one that does not match its records. It used to say *closing* for good. A marker counts only on a line of its own —
   one mentioned in a sentence or a code example is text — and `/sig:docs-migrate`'s dry run lists
   any line between the markers that is not a table row, since the apply replaces it. `/sig:docs-sweep` reports a view that does
   not match its records.

@@ -1,5 +1,5 @@
-// The live milestone file's Epic table, written from the unit records
-// (M6.E16 t5.2, AC7.2, `D-M6E16-4`, `-12`).
+// A milestone file's Epic table, written from the unit records
+// (M6.E16 t5.2, AC7.2, `D-M6E16-4`, `-12`, `-30`).
 //
 // A milestone file (`.planning/MILESTONE-6.md`) is a person's document with
 // one table that used to be kept by hand: the Epic status rows. With unit
@@ -20,8 +20,9 @@
 // other writer of a marked region, without its insert-when-absent branch.
 //
 // Nothing reads the generated rows back (`D-M6E16-4`). This module is pure:
-// no file is read or written here. `work-views.js` finds the current
-// milestone's file and writes it.
+// no file is read or written here. `work-views.js` finds the milestone files
+// — the current milestone's, and any other marked one whose table no longer
+// matches the records — and writes them.
 
 import { cut, oneLine, printable } from './printable-text.js';
 import {

@@ -90,7 +90,8 @@
 // anything, every record, the folder and every view go back to what they were,
 // and the tag is removed. A store that does not check clean beforehand is
 // refused, so the regeneration can change no view but `work/EPICS.md` (and the
-// current milestone file's Epic table, only when it already has the markers).
+// Epic table of the current milestone's file, and of any other milestone's
+// file, only where it already has the markers).
 //
 // No v2 store module may import this one (`tests/legacy-lists.test.js`
 // V2_MODULES): it reaches the list parsers.
