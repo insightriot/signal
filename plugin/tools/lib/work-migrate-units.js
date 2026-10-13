@@ -20,7 +20,8 @@
 //     when it goes on to say shipped), and does not also say pending, in
 //     flight or parked, or "not/never shipped" — and says nothing after it
 //     but a version, a date, a pull request or issue number, a commit hash,
-//     and "in", "on", "as", "via" (`SHIP_FACT_RES`). A cell that says shipped
+//     "released", "merged", and "in", "on", "as", "via", "and"
+//     (`SHIP_FACT_RES`). A cell that says shipped
 //     further on ("S1 shipped; S2 in progress"), or leads with it and goes on
 //     in other words ("shipped — S2 remaining"), is not evidence, and is
 //     flagged;
@@ -80,18 +81,21 @@ const NOT_OVER_RE = /\b(pending|in[ -]flight|parked)\b/i;
 // be evidence. Only these, and characters that are neither letters nor digits
 // — "shipped" and "closed" themselves; a version (`v0.1.7`); a date
 // (`2026-07-15`); a pull request or issue number (`#123`, `PR 123`); a commit
-// hash (seven or more hex characters, a digit among them); and the four words
-// that join those: "in", "on", "as", "via". Any other word is about something
-// the cell does not let this rule judge ("S2 remaining", "docs outstanding"),
-// so the row is not counted. A list of the words for work left over would
-// always be one word short.
+// hash (seven or more hex characters, a digit among them); "released" and
+// "merged", which say how it shipped (real rows read "shipped … (released in
+// v0.1.3 on …)", "shipped — merged …"); and the five words that join those:
+// "in", "on", "as", "via", "and". Each is a whole word: "unreleased" is not
+// "released", and the "not" of "not merged" is a word of no list. Any other
+// word is about something the cell does not let this rule judge ("S2
+// remaining", "docs outstanding"), so the row is not counted. A list of the
+// words for work left over would always be one word short.
 const SHIP_FACT_RES = [
-  /\b(?:shipped|closed)\b/gi,
+  /\b(?:shipped|closed|released|merged)\b/gi,
   /\bv\d+(?:\.\d+)*\b/gi,
   /\b\d{4}-\d{2}-\d{2}\b/g,
   /\bPRs?\s*#?\d+\b|#\d+\b/gi,
   /\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b/gi,
-  /\b(?:in|on|as|via)\b/gi,
+  /\b(?:in|on|as|via|and)\b/gi,
 ];
 // The first words of a cell that are none of those, or null.
 function leftOver(status) {

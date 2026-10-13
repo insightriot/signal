@@ -112,6 +112,8 @@ describe('planUnits — the union of units, one proposal each (AC9.1)', () => {
   const LEADING = [
     '**shipped** v0.1.12', '✅ SHIPPED 2026-07-01', 'closed — shipped as v0.1.3',
     'Shipped v0.1.7', 'shipped 2026-07-15 (PR #123)', 'Shipped in v0.1.7 on 2026-07-15', 'shipped via PR 123, #124 — 0a1b2c3',
+    // "released", "merged" and "and" say when and how it shipped, not what is left.
+    'Shipped and released v0.1.7', 'shipped, merged 2026-07-15 (PR #12)', '**✓ shipped 2026-05-24 (released in v0.1.3 on 2026-05-31)**',
   ];
 
   // Leading with "shipped" is not enough when the cell goes on to name work
@@ -126,6 +128,9 @@ describe('planUnits — the union of units, one proposal each (AC9.1)', () => {
       // request or issue number, a commit hash and "in", "on", "as", "via" count.
       'shipped — S2 remaining': 's2 remaining', 'Shipped, then unshipped': 'then unshipped', 'shipped v0.1.7 (docs outstanding)': 'docs outstanding',
       'Shipped as planned': 'planned', 'shipped in part': 'part', 'shipped defaced': 'defaced',
+      // "released" and "merged" are allowed as whole words only, and not when the cell denies them.
+      'shipped 2026-07-18 (unreleased)': 'unreleased', 'Shipped — not merged': 'not', 'shipped, never released': 'never',
+      'shipped and unmerged': 'unmerged', 'Shipped and S2 remaining': 's2 remaining',
     };
     for (const [cell, word] of Object.entries(cells)) {
       put(base, MILESTONE, milestone7([`| \`M7.E6\` | ${cell} | x |`]));
