@@ -71,6 +71,9 @@ const WALK_DEPTH = 8;
 // not evidence, and neither is one that says the unit did not ship.
 const SHIPPED_RE = /\bshipped\b/i;
 const NOT_OVER_RE = /\b(pending|in[ -]flight|parked)\b/i;
+// Asked of a cell that leads with "shipped": words that name work still to
+// do, or a ship that was taken back.
+const LEFT_OVER_RE = /\b(in[ -]progress|to[ -]?do|blocked|reverted|follow[ -]?ups?|partial(?:ly)?|deferred|planned|not started)\b/i;
 const NOT_SHIPPED_RE = /\b(?:not|never)\s+(?:yet\s+)?shipped\b|\bunshipped\b/i;
 // The word must lead the cell: only characters that are neither letters nor
 // digits (bold, backticks, a check mark) may stand before it. Asked only of a
@@ -540,6 +543,9 @@ export async function planUnits(baseDir, opts = {}) {
         } else if (!LEADS_RE.test(status)) {
           rowUnclear = true;
           against.push(`its milestone row says shipped, but not as the first word of its status, so the row is not counted (${where}: ${quoted(status)})`);
+        } else if (LEFT_OVER_RE.test(status)) {
+          rowUnclear = true;
+          against.push(`its milestone row says shipped and also "${status.match(LEFT_OVER_RE)[1].toLowerCase()}", so the row is not counted (${where}: ${quoted(status)})`);
         } else {
           evidence.push(`its milestone row says shipped (${where}: ${quoted(status)})`);
         }

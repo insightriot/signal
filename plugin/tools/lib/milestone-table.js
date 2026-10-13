@@ -358,17 +358,23 @@ export function rowsNotReprinted(content, tableText, { milestone, ids, legacy = 
   const at = epicMarkers(content);
   if (at.state !== 'ok') return [];
   const has = new Set([...ids].filter((id) => epicIdParts(id)?.milestone === String(milestone)));
+  const keyOf = (cell) => legacy.get(cell) ?? namedEpic(cell, milestone) ?? cell;
+  // How many rows the table about to be written prints for each key: one,
+  // unless two recorded old rows share a first cell.
+  const prints = new Map();
+  for (const cell of tableText.split('\n').map(firstCell)) prints.set(keyOf(cell), (prints.get(keyOf(cell)) ?? 0) + 1);
   const printed = new Set(tableText.split('\n').map(firstCell));
-  const seen = new Set();
+  const seen = new Map();
   const out = [];
   for (const row of tableBetweenMarkers(content).rows) {
     const cell = firstCell(row.text);
     const id = legacy.get(cell) ?? namedEpic(cell, milestone);
     const own = printed.has(cell) || (id !== null && has.has(id));
-    // One row for each Epic: by its ID, or by the cell when it names none.
+    // As many rows for each Epic as the table prints (one, at least): by its
+    // ID, or by the cell when it names none.
     const key = id ?? cell;
-    if (own && !seen.has(key)) {
-      seen.add(key);
+    if (own && (seen.get(key) ?? 0) < Math.max(1, prints.get(key) ?? 0)) {
+      seen.set(key, (seen.get(key) ?? 0) + 1);
       continue;
     }
     out.push({ ...row, cell, id, ...(own ? { repeated: true } : {}) });

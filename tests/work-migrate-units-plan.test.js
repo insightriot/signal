@@ -111,6 +111,24 @@ describe('planUnits — the union of units, one proposal each (AC9.1)', () => {
   const NOT_LEADING = ['S1 shipped; S2 in progress', 'partially shipped, rest deferred', 'planned — not started; ships after E4 is shipped'];
   const LEADING = ['**shipped** v0.1.12', '✅ SHIPPED 2026-07-01', 'closed — shipped as v0.1.3'];
 
+  // Leading with "shipped" is not enough when the cell goes on to name work
+  // still to do, or a ship that was taken back.
+  it('a status cell that leads with shipped and names work left over: proposed open and flagged, and a yes to the list does not close it', async () => {
+    const base = await unitsStore();
+    const cells = {
+      'Shipped S1; S2 in progress': 'in progress', 'Shipped — slice 1 of 3; rest TODO': 'todo', 'shipped to staging only; prod blocked': 'blocked',
+      'SHIPPED (reverted)': 'reverted', 'Shipped; open follow-ups: 3': 'follow-ups', 'shipped, partially': 'partially',
+    };
+    for (const [cell, word] of Object.entries(cells)) {
+      put(base, MILESTONE, milestone7([`| \`M7.E6\` | ${cell} | x |`]));
+      const plan = await planUnits(base);
+      const six = byId(plan)['M7.E6'];
+      expect(six, cell).toMatchObject({ proposal: 'open', flag: 'row-unclear', evidence: [] });
+      expect(six.against[0], cell).toBe(`its milestone row says shipped and also "${word}", so the row is not counted (MILESTONE-7.md:7: “${cell}”)`);
+      expect(plan.proposedCloses.map((u) => u.id)).not.toContain('M7.E6');
+    }
+  });
+
   it('a status cell that says shipped, but not first: proposed open, flagged, and the cell is quoted in the dry run', async () => {
     const base = await unitsStore();
     for (const cell of NOT_LEADING) {

@@ -154,6 +154,10 @@ records now.
   called `origin/HEAD` stopped every close from confirming. The recorded default branch is now read
   directly (`git symbolic-ref refs/remotes/origin/HEAD`). This was in `v0.1.50` and earlier for item
   closes. Found by the fourth review pass of `M6.E16`.
+- **The migration's "shipped" rule also reads what follows the word.** A status cell that leads with
+  shipped and goes on to name work left over ("in progress", "TODO", "blocked", "reverted",
+  "follow-ups", "partially", "deferred", "planned", "not started") is proposed open and flagged, not
+  proposed closed.
 - **`/sig:docs-sweep` asks git again about recorded closes.** An item closed as fixed, or an Epic
   closed as shipped, whose commit is not on the default branch in your clone is reported
   (`close-not-on-default-branch`). Nothing else re-checked a record once it said closed, so a close

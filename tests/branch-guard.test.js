@@ -111,6 +111,20 @@ describe('resolveDefaultBranch — never guesses', () => {
     expect(resolveDefaultBranch(work)).toBeNull();
   });
 
+  // The remote renamed its default (master → main) and a pruning fetch left
+  // origin/HEAD pointing at a branch that is gone. The stored name is not an
+  // answer then: as with origin/HEAD unset, the one candidate present is.
+  it('origin/HEAD points at a branch that is gone → the one candidate present, and null without the guess', async () => {
+    const { work } = await plantClone(dir, 'master');
+    g(work, 'update-ref', 'refs/remotes/origin/main', 'refs/remotes/origin/master');
+    g(work, 'update-ref', '-d', 'refs/remotes/origin/master');
+    expect(String(g(work, 'symbolic-ref', 'refs/remotes/origin/HEAD').stdout).trim()).toBe('refs/remotes/origin/master');
+    expect(resolveDefaultBranch(work)).toBe('main');
+    expect(resolveDefaultBranch(work, { guess: false })).toBeNull();
+    g(work, 'checkout', '-q', '-b', 'main');
+    expect(checkBranchPosture(work, { tier: 'FULL' }).status).toBe(BRANCH_GATE.ON_DEFAULT);
+  });
+
   it('origin/HEAD unset + neither candidate present → null', async () => {
     const { work } = await plantClone(dir, 'trunk');
     g(work, 'remote', 'set-head', 'origin', '--delete');

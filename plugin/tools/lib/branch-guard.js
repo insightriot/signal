@@ -174,9 +174,14 @@ export function resolveDefaultBranch(baseDir, opts = {}) {
     // `origin/main` or `origin/HEAD` changes what that prints, and with it
     // which ref a close would be confirmed against.
     const ref = git(baseDir, ['symbolic-ref', '--quiet', ORIGIN_HEAD_REF], execFn);
-    if (ref.startsWith(ORIGIN_REFS) && ref.length > ORIGIN_REFS.length) return ref.slice(ORIGIN_REFS.length);
+    if (ref.startsWith(ORIGIN_REFS) && ref.length > ORIGIN_REFS.length) {
+      // A stored target that is gone (the remote's default was renamed, then
+      // a pruning fetch) names no branch: `rev-parse --verify` throws.
+      git(baseDir, ['rev-parse', '--verify', '--quiet', ref], execFn);
+      return ref.slice(ORIGIN_REFS.length);
+    }
   } catch {
-    // unset (exit 1), or not a symbolic ref: fall through to disambiguation
+    // unset (exit 1), not a symbolic ref, or its target is gone: fall through to disambiguation
   }
   if (opts.guess === false) return null;
 

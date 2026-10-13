@@ -603,9 +603,9 @@ function refuseHeadThatProvesNothing(baseDir, epicId, head, execFn) {
   if (stale === null) return;
   if (stale.ref === null) {
     throw new WorkStoreError('CONFLICT', `${epicId}: the close would record HEAD (${head.slice(0, 12)}) as its proof, and Signal cannot tell whether `
-      + 'that commit is already on the default branch — the remote\'s default branch is not recorded in this clone (`git remote set-head origin -a` '
-      + 'records it) — while this project has uncommitted or untracked changes. Nothing was written. '
-      + 'Commit the Epic\'s work first, then re-run; or pass `commit` with the commit that holds it.');
+      + 'that commit is already on the default branch: the remote\'s default branch is not recorded in this clone, and this project has '
+      + 'uncommitted or untracked changes. Nothing was written. Run `git remote set-head origin -a` once, then re-run; '
+      + 'or commit the Epic\'s work first; or pass `commit` with the commit that holds it.');
   }
   throw new WorkStoreError('CONFLICT', `${epicId}: the close would record HEAD (${head.slice(0, 12)}) as its proof, and that commit is `
     + `already on the default branch (${stale.ref.replace(/^refs\/remotes\//, '')}) while this project has uncommitted or untracked changes — `

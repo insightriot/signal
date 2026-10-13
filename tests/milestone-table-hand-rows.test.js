@@ -261,6 +261,16 @@ describe('a row for a unit that has a record is regenerated, whatever its cells 
     expect(rowsNotReprinted(milestone(`${table}\n`), table, { milestone: '7', ids: list.map((u) => u.id) })).toEqual([]);
   });
 
+  // Two recorded old rows can share a first cell (both empty, say). The table
+  // prints a row for each, and must read its own output back as safe.
+  it('rowsNotReprinted: two rows the table itself prints with the same first cell are both safe; a third is not', () => {
+    const table = ['| Epic | Status | Summary |', '|---|---|---|', '|  | shipped | one |', '|  | shipped | two |'].join('\n');
+    const opts = { milestone: '7', ids: ['M7.E2', 'M7.E3'] };
+    expect(rowsNotReprinted(milestone(`${table}\n`), table, opts)).toEqual([]);
+    const found = rowsNotReprinted(milestone(`${table}\n|  | shipped | typed by hand |\n`), table, opts);
+    expect(found.map((r) => [r.text, r.repeated])).toEqual([['|  | shipped | typed by hand |', true]]);
+  });
+
   it('rowsNotReprinted: a row for an Epic of another milestone is not safe just because that Epic has a record', () => {
     const table = renderEpicTable([], { milestone: '7' });
     const found = rowsNotReprinted(milestone(`${table}\n| \`M6.E1\` | shipped | from another file |\n`), table, { milestone: '7', ids: ['M6.E1'] });

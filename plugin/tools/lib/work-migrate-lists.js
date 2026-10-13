@@ -584,7 +584,7 @@ function unitsDryRunReport(baseDir, a) {
         ? `--apply adds ${count(c.made, 'unit record')} under ${UNITS_REL}/${ifConfirmed}, regenerates ${VIEW_PATHS.epics}${table}, and leaves `
           + 'them staged, not committed. No existing record, no item and no other view is changed.'
         : `--apply creates ${UNITS_REL}/ with ${count(c.made, 'unit record')}${ifConfirmed}`
-          + `, regenerates ${VIEW_PATHS.epics}${table}, and leaves them staged, not committed. No item and no other view is changed.`,
+          + `, regenerates ${VIEW_PATHS.epics}${table}, and leaves them staged, not committed. No item is changed, and no other view — except a marked Epic table in another milestone's file that is out of date (the note above names each such file).`,
     ...workMdUnitsNote(baseDir, 'is'),
   ].map(printable).join('\n');
 }
