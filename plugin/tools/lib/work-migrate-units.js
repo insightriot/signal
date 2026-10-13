@@ -268,25 +268,33 @@ function readCurrent(baseDir, notes) {
 // How many of the lines an apply removes the dry run prints; the rest are counted.
 const REMOVED_SHOWN = 20;
 
-// What the apply removes between the markers and keeps nowhere: each line
-// there that is neither blank nor a table row, and — when `keptRows` is given
-// — each table row that is not one of them. `keptRows` is the line numbers of
-// the rows whose cells go into a unit record (`legacy_row`); a row for an ID
-// that gets no record, a second row for the same unit, and a row the reader
-// could not take as an Epic row are none of those, and would be gone.
+// What the apply removes between the markers. Kept nowhere: each line there
+// that is neither blank nor a table row, and — when `keptRows` is given — each
+// table row that is not one of them. `keptRows` maps the line number of each
+// row whose cells go into a unit record (`legacy_row`) to that unit's ID; a
+// row for an ID that gets no record, a second row for the same unit, and a row
+// the reader could not take as an Epic row are none of those, and would be
+// gone. Removed too, with its cells kept in its record: a row for an Epic of
+// another milestone than `milestone`, which the generated table does not print
+// (`renderEpicTable`).
 // `keptRows` is null on a project that already has unit records: its rows are
 // generated, and none is read. `{}` when nothing is removed and the header is
 // the generated one, so such a file plans — and hashes — as it did.
 //
 // `removes`: `count`; `lines`, the first `REMOVED_SHOWN` cleaned and cut for
-// printing; and `digest`, a hash of every such line as written — it is part
-// of `milestone`, so of the plan's `inputHash`, and a line added or changed
-// after the dry run refuses the apply even where the printed form would not
-// show the difference. `header`: the old table's header row, when it is not
-// the three columns the generated table has.
-function removedBetween(content, keptRows) {
+// printing, a row whose cells stay in a record with that `unit`; `kept`, how
+// many of the `count` are such rows, when any is; and `digest`, a hash of
+// every such line as written — it is part of `milestone`, so of the plan's
+// `inputHash`, and a line added or changed after the dry run refuses the apply
+// even where the printed form would not show the difference. `header`: the
+// old table's header row, when it is not the three columns the generated
+// table has.
+function removedBetween(content, keptRows, milestone) {
   const table = keptRows === null ? { header: null, rows: [] } : tableBetweenMarkers(content);
-  const found = [...linesBetweenMarkers(content), ...table.rows.filter((r) => !keptRows.has(r.line))]
+  const elsewhere = table.rows
+    .filter((r) => keptRows.has(r.line) && epicIdParts(keptRows.get(r.line))?.milestone !== milestone)
+    .map((r) => ({ ...r, unit: keptRows.get(r.line) }));
+  const found = [...linesBetweenMarkers(content), ...table.rows.filter((r) => !keptRows.has(r.line)), ...elsewhere]
     .sort((a, b) => a.line - b.line);
   const header = table.header !== null && !table.header.generated
     ? { header: { line: table.header.line, text: shownText(table.header.text, 200) } }
@@ -295,7 +303,8 @@ function removedBetween(content, keptRows) {
   return {
     removes: {
       count: found.length,
-      lines: found.slice(0, REMOVED_SHOWN).map((l) => ({ line: l.line, text: shownText(l.text, 200) })),
+      ...(elsewhere.length > 0 ? { kept: elsewhere.length } : {}),
+      lines: found.slice(0, REMOVED_SHOWN).map((l) => ({ line: l.line, text: shownText(l.text, 200), ...(l.unit === undefined ? {} : { unit: l.unit }) })),
       digest: hashState(JSON.stringify(found.map((l) => [l.line, l.text]))),
     },
     ...header,
@@ -313,7 +322,7 @@ function milestoneMarkers(baseDir, current, keptRows) {
   try {
     const content = readRegularFile(baseDir, rel);
     const at = epicMarkers(content);
-    return { rel, markers: at.state, ...(at.state === 'broken' ? { problem: at.problem } : {}), ...removedBetween(content, keptRows(rel)) };
+    return { rel, markers: at.state, ...(at.state === 'broken' ? { problem: at.problem } : {}), ...removedBetween(content, keptRows(rel), parts.milestone) };
   } catch {
     return { rel, markers: 'absent' };
   }
@@ -371,14 +380,15 @@ function readAlso(baseDir, also, named, storeKey) {
  *   `storeKey`: the store's key, for the item-ID-shape rule (read from the project when not passed)
  * @returns {Promise<{refusal: string} | {units: object[], proposedCloses: object[], flagged: object[],
  *   refused: object[], declared: object[], notes: string[], current: string|null,
- *   milestone: {rel: string, markers: 'ok'|'none'|'broken'|'absent', removes?: {count: number,
- *   lines: Array<{line: number, text: string}>, digest: string}, header?: {line: number, text: string}}|null,
+ *   milestone: {rel: string, markers: 'ok'|'none'|'broken'|'absent', removes?: {count: number, kept?: number,
+ *   lines: Array<{line: number, text: string, unit?: string}>, digest: string}, header?: {line: number, text: string}}|null,
  *   inputHash: string}>}
  *   `milestone.removes` (only with `markers: 'ok'` and at least one such line): what the apply removes
- *   between the markers and keeps nowhere — the lines that are not table rows, and the table rows whose
+ *   between the markers. Kept nowhere — the lines that are not table rows, and the table rows whose
  *   cells go into no unit record (a row for an ID that gets none, a second row for one unit, a row that
- *   could not be read as an Epic row). `milestone.header`: the old table's header row, when it is not
- *   the generated table's three columns.
+ *   could not be read as an Epic row). Kept in a record (`kept` of them, each line with its `unit`) — a
+ *   row for an Epic of another milestone, which the generated table does not print.
+ *   `milestone.header`: the old table's header row, when it is not the generated table's three columns.
  *   Each unit: `{id, proposal: 'open'|'legacy-close'|'dropped'|'refused', flag: string|null, evidence: string[],
  *   against: string[], open_items?: string[], reason?: string, sources: string[], row: {file, line, cells}|null, retro: string,
  *   retro_path: string|null}` — `evidence` and `against` are sentences; `reason` is why a refused ID is refused.
@@ -558,11 +568,11 @@ export async function planUnits(baseDir, opts = {}) {
   }
   planned.sort((a, b) => compareUnitIds(a.id, b.id));
 
-  // The rows whose cells an import of this plan stores: the first row of each
-  // unit that gets a record. Every other row between the markers is removed
-  // and kept nowhere, and the dry run must say so.
+  // The rows whose cells an import of this plan stores, each with its unit:
+  // the first row of each unit that gets a record. Every other row between the
+  // markers is removed and kept nowhere, and the dry run must say so.
   const keptRows = (rel) => (unitsOn ? null
-    : new Set(planned.filter((p) => p.proposal !== 'refused' && p.row?.file === rel).map((p) => p.row.line)));
+    : new Map(planned.filter((p) => p.proposal !== 'refused' && p.row?.file === rel).map((p) => [p.row.line, p.id])));
   const milestone = milestoneMarkers(baseDir, current, keptRows);
   const inputHash = hashState(JSON.stringify({
     v: 1,
@@ -816,12 +826,28 @@ export function unitsReportLines(plan) {
         + 'The cells of each old row are kept in its unit record (legacy_row), whatever the table prints.');
     }
     if (markers === 'ok' && removes) {
-      const one = removes.count === 1;
-      lines.push(`  Everything between the two marker lines is replaced. ${removes.count} line${one ? '' : 's'} between the markers `
-        + `${one ? 'is' : 'are'} kept nowhere and ${one ? 'is' : 'are'} removed by the apply — a line that is not a table row, or a row whose cells go into `
-        + `no unit record (its ID gets none, or it is a second row for one unit, or it could not be read as an Epic row). Move ${one ? 'it' : 'them'} `
-        + `outside the markers first to keep ${one ? 'it' : 'them'}:`);
-      for (const l of removes.lines) lines.push(`  line ${l.line}: ${quoted(l.text)}`);
+      const kept = removes.kept ?? 0;
+      const nowhere = removes.count - kept;
+      const one = nowhere === 1;
+      const why = 'a line that is not a table row, or a row whose cells go into no unit record (its ID gets none, or it is a second row for one '
+        + 'unit, or it could not be read as an Epic row)';
+      const otherMilestone = 'a row for an Epic of another milestone, which this table does not print: its cells stay in that unit\'s record';
+      if (kept === 0) {
+        lines.push(`  Everything between the two marker lines is replaced. ${removes.count} line${one ? '' : 's'} between the markers `
+          + `${one ? 'is' : 'are'} kept nowhere and ${one ? 'is' : 'are'} removed by the apply — ${why}. Move ${one ? 'it' : 'them'} `
+          + `outside the markers first to keep ${one ? 'it' : 'them'}:`);
+      } else if (nowhere === 0) {
+        lines.push(`  Everything between the two marker lines is replaced. ${kept} row${kept === 1 ? '' : 's'} between the markers `
+          + `${kept === 1 ? 'is' : 'are'} removed by the apply — ${otherMilestone}. Move ${kept === 1 ? 'it' : 'them'} outside the markers first to keep `
+          + `${kept === 1 ? 'it' : 'them'} in this file:`);
+      } else {
+        lines.push(`  Everything between the two marker lines is replaced. ${removes.count} lines between the markers are removed by the apply. `
+          + `${nowhere} of them ${one ? 'is' : 'are'} kept nowhere — ${why}. The other${kept === 1 ? '' : `s (${kept})`} ${kept === 1 ? 'is' : 'are'} `
+          + `${otherMilestone}. Move a line outside the markers first to keep it in this file:`);
+      }
+      for (const l of removes.lines) {
+        lines.push(`  line ${l.line}: ${quoted(l.text)}${l.unit === undefined ? '' : ` — its cells stay in the unit record of ${l.unit} (legacy_row)`}`);
+      }
       if (removes.count > removes.lines.length) lines.push(`  … and ${removes.count - removes.lines.length} more.`);
     }
   }

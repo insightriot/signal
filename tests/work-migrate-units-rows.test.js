@@ -150,6 +150,51 @@ describe('(b) the dry run lists every table row between the markers that is kept
     expect(checkRecords(base)).toEqual([]);
   }, 60_000);
 
+  // A row whose cells DO go into a record can still leave the table: the
+  // generated table prints the Epics of its own milestone only.
+  it('a row for another milestone\'s Epic: listed as removed, with the record its cells stay in; after the apply it is gone from the table and in that record', async () => {
+    const OTHER = '| `M6.E3` | **shipped** — 2026-07-01 | Filed under the wrong milestone |';
+    const base = await unitsStore({ repo: true });
+    put(base, MILESTONE, marked([ROWS['M7.E1'], OTHER, ROWS['M7.E9']]));
+    commitAll(base);
+    const plan = await planUnits(base);
+    expect(plan.milestone.removes.count).toBe(1);
+    expect(plan.milestone.removes.lines).toEqual([{ line: 9, text: OTHER, unit: 'M6.E3' }]);
+    const dry = await dryRun(base);
+    expect(dry.refused).toBeUndefined();
+    expect(dry.report).toMatch(/1 row between the markers is removed by the apply/);
+    expect(dry.report).not.toMatch(/kept nowhere/);
+    expect(dry.report).toContain(`\n  line 9: “${OTHER}” — its cells stay in the unit record of M6.E3 (legacy_row)`);
+    const r = await applyWith(base, dry, { confirmUnitCloses: true });
+    expect(r.applied).toBe(true);
+    expect(read(base, MILESTONE)).not.toContain('M6.E3');
+    expect(getUnit(base, 'M6.E3').record.legacy_row).toEqual(['`M6.E3`', '**shipped** — 2026-07-01', 'Filed under the wrong milestone']);
+  }, 60_000);
+
+  it('such a row beside lines that are kept nowhere: the count of each is said, and only the row is marked as kept', async () => {
+    const OTHER = '| `M6.E3` | **shipped** — 2026-07-01 | Filed under the wrong milestone |';
+    const base = await unitsStore({ repo: true });
+    put(base, MILESTONE, marked([ROWS['M7.E1'], OTHER, NOTE_ROW, ROWS['M7.E9']]));
+    commitAll(base);
+    const dry = await dryRun(base);
+    expect(dry.report).toMatch(/2 lines between the markers are removed by the apply\. 1 of them is kept nowhere/);
+    expect(dry.report).toMatch(/\n {2}line 9: “[^”]*M6\.E3[^”]*” — its cells stay in the unit record of M6\.E3/);
+    expect(dry.report).toMatch(/\n {2}line 10: “\| a reminder \| not an Epic row \| call the harbour master \|”\n/);
+  });
+
+  // A unit that is refused a record: its row goes into no record and is listed.
+  it('a row whose ID is refused a record (a case twin): the dry run lists the row', async () => {
+    const base = await unitsStore({ repo: true, markers: true });
+    put(base, '.planning/m7.e1-PLAN.md', '# the same name in another case\n');
+    commitAll(base, 'a case twin');
+    const plan = await planUnits(base);
+    expect(plan.refused.map((u) => u.id)).toContain('M7.E1');
+    expect(plan.milestone.removes.lines).toEqual([{ line: 8, text: ROWS['M7.E1'] }]);
+    const dry = await dryRun(base);
+    expect(dry.report).toMatch(/1 line between the markers is kept nowhere and is removed by the apply/);
+    expect(dry.report).toContain(`\n  line 8: “${ROWS['M7.E1']}”`);
+  });
+
   it('on a project that already has unit records the rows are generated and none is listed', async () => {
     const base = await unitsStore({ repo: true, markers: true });
     await applyWith(base, await dryRun(base), { confirmUnitCloses: true });
