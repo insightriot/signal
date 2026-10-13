@@ -51,7 +51,9 @@ import { isStoreOn } from './work-store.js';
 import { checkRecords, listClosing, listRecords, probeClosedProofs, recordPath, storeVersion } from './work-records.js';
 import { checkUnits, listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 import { unitsWithoutRecord } from './work-migrate-units.js';
-import { evictionWords, reportCloses, runConfirmCloses, uncheckedParts, unitClosingTooLongWords } from './close-confirm.js';
+import {
+  evictionWords, itemClosingTooLongWords, reportCloses, runConfirmCloses, uncheckedParts, unitClosingTooLongWords,
+} from './close-confirm.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -540,10 +542,10 @@ export function checkClosedProofs(baseDir, opts = {}) {
  * more than 14 days is a fix that never merged, or a remote branch never
  * brought down — either way a person has to look. Read through `listClosing`,
  * the read-only form of `confirmCloses`' own stale test: nothing is written.
- * Git is asked only when a unit is stale, for the reason it is still closing
- * (`reportCloses`, local refs only — the sweep stays offline), so the unit is
- * told what would help: "merge it" only when its commit is not on the default
- * branch.
+ * Git is asked only when an item or a unit is stale, for the reason it is
+ * still closing (`reportCloses`, local refs only — the sweep stays offline),
+ * so each is told what would help: "merge it" only when its commit is not on
+ * the default branch.
  *
  * v2 only. On a v1 store every fixed close is read as *closing* through the
  * converter until the cutover confirms it, so reporting them would name every
@@ -561,27 +563,28 @@ export function checkClosingTooLong(baseDir, opts = {}) {
   } catch (err) {
     return [mkFinding('closing-too-long', 'advisory', WORK_MD_REL, `closing items could not be checked — ${err.message}`)];
   }
-  const items = listed.closing
-    .filter((c) => c.stale)
-    .map((c) =>
-      mkFinding(
-        'closing-too-long',
-        'advisory',
-        c.path,
-        `${c.id} has been closing for ${c.days} days — its fix commit ${c.proof} is not confirmed on the default branch. ` +
-          `Merge it, or reopen the item (\`/sig:item reopen ${c.id} "<reason>"\`) if the fix did not land.`
-      ));
+  // What an item or a unit is told to do follows the reason it is still
+  // closing for (r6) — `reportCloses` gives it, read-only, from local refs;
+  // asked only when something is stale. With no reason to go on, the advice
+  // is the general one.
+  const staleItems = listed.closing.filter((c) => c.stale);
   // A unit (an Epic) left closing (M6.E16 t5.0c): `listed.units` is there only
-  // on a project with unit records. What it is told to do follows the reason
-  // it is still closing for (r6) — `reportCloses` gives it, read-only, from
-  // local refs; asked only when some unit is stale. With no reason to go on,
-  // the advice is the general one.
+  // on a project with unit records.
   const staleUnits = (listed.units ?? []).filter((u) => u.stale);
+  const itemReasonOf = new Map();
   const reasonOf = new Map();
-  if (staleUnits.length > 0) {
+  if (staleItems.length + staleUnits.length > 0) {
     const report = reportCloses(baseDir, { now: opts.now, execFn: opts.execFn });
+    for (const s of report.stillClosing ?? []) itemReasonOf.set(s.id, s.reason);
     for (const s of report.units?.stillClosing ?? []) reasonOf.set(s.id, s.reason);
   }
+  const items = staleItems.map((c) =>
+    mkFinding(
+      'closing-too-long',
+      'advisory',
+      c.path,
+      `${c.id} has been closing for ${c.days} days — ${itemClosingTooLongWords(itemReasonOf.get(c.id), c.proof, c.id)}`
+    ));
   const units = staleUnits.map((u) =>
     mkFinding(
       'closing-too-long',

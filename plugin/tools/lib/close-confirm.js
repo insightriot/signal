@@ -128,17 +128,44 @@ const UNIT_STALE_WHY = {
  * @returns {string}
  */
 export function unitClosingTooLongWords(reason, proof) {
-  const commit = `the commit its close was requested with, ${proof},`;
+  if (reason === 'open-items') {
+    return `the commit its close was requested with, ${proof}, is on the default branch, and the unit has an item that is not closed. `
+      + 'Close that item, or move it out of the Epic (`/sig:item`); the close is confirmed once none is open.';
+  }
+  return closingTooLongWords(reason, proof, {
+    commit: `the commit its close was requested with, ${proof},`,
+    merge: 'Merge it; or, if the work moved on to other commits, re-run /sig:ship, which requests the close again with the new one.',
+    other: (why) => ` (${why}).`,
+  });
+}
+
+/**
+ * The same for one item (r6). Its advice where a merge would help is the one
+ * it always had — merge, or reopen the item — and that is also what it says
+ * for a reason with no sentence of its own (an ambiguous proof, a shallow
+ * clone), as before.
+ *
+ * @param {string|undefined} reason — the item's `stillClosing` reason
+ * @param {string} proof — its fix commit
+ * @param {string} id — the item's ID, for the reopen command
+ * @returns {string}
+ */
+export function itemClosingTooLongWords(reason, proof, id) {
+  const merge = `Merge it, or reopen the item (\`/sig:item reopen ${id} "<reason>"\`) if the fix did not land.`;
+  return closingTooLongWords(reason, proof, { commit: `its fix commit ${proof}`, merge, other: () => `. ${merge}` });
+}
+
+// The sentences the two share. `words.commit` names the commit, `words.merge`
+// is the advice where a merge would help, and `words.other(reason)` ends the
+// sentence for a reason that has none of its own.
+function closingTooLongWords(reason, proof, words) {
+  const { commit } = words;
   const requested = `its close was requested with the commit ${proof}; `;
   switch (reason) {
     case undefined:
     case 'not-on-default-branch':
     case 'unknown-commit':
-      return `${commit} is not confirmed on the default branch. `
-        + 'Merge it; or, if the work moved on to other commits, re-run /sig:ship, which requests the close again with the new one.';
-    case 'open-items':
-      return `${commit} is on the default branch, and the unit has an item that is not closed. `
-        + 'Close that item, or move it out of the Epic (`/sig:item`); the close is confirmed once none is open.';
+      return `${commit} is not confirmed on the default branch. ${words.merge}`;
     case 'no-default-branch':
       return `${commit} could not be checked: the remote's default branch is not recorded in this clone. `
         + 'Run `git remote set-head origin -a`, then sweep again.';
@@ -149,7 +176,7 @@ export function unitClosingTooLongWords(reason, proof) {
     case 'not-a-repo':
       return `${requested}${NOT_A_REPO}, so it stays closing.`;
     default:
-      return `${commit} is not confirmed on the default branch (${reason}).`;
+      return `${commit} is not confirmed on the default branch${words.other(reason)}`;
   }
 }
 

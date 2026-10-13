@@ -207,3 +207,65 @@ describe('closing-too-long for a unit: the advice follows the reason', { timeout
     expect(message).not.toContain('set-head');
   });
 });
+
+// The same for an item (r6): "Merge it, or reopen the item" is the advice when
+// its fix commit is not on the default branch, and not when nothing here can
+// confirm any commit.
+describe('closing-too-long for an item: the advice follows the reason', { timeout: 60_000 }, () => {
+  const staleItem = () => {
+    const found = checkClosingTooLong(work, { now: NOW }).filter((f) => f.file === records.recordPath('SIG-1'));
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/^SIG-1 has been closing for 39 days — /);
+    return found[0].message;
+  };
+  const MERGE = 'Merge it, or reopen the item (`/sig:item reopen SIG-1 "<reason>"`) if the fix did not land.';
+
+  it('the fix commit is not on the default branch: merge it, or reopen the item (as before)', async () => {
+    repo('origin');
+    g(work, 'remote', 'set-head', 'origin', 'main');
+    g(work, 'checkout', '-q', '-b', 'feat');
+    g(work, 'commit', '-q', '--allow-empty', '-m', 'not merged');
+    const proof = g(work, 'rev-parse', 'HEAD');
+    await store(proof, [closingItem(proof)]);
+    expect(staleItem()).toBe(`SIG-1 has been closing for 39 days — its fix commit ${proof} is not confirmed on the default branch. ${MERGE}`);
+  });
+
+  it('a fix commit this clone does not hold: the same', async () => {
+    repo('origin');
+    g(work, 'remote', 'set-head', 'origin', 'main');
+    await store(NOWHERE, [closingItem(NOWHERE)]);
+    expect(staleItem()).toBe(`SIG-1 has been closing for 39 days — its fix commit ${NOWHERE} is not confirmed on the default branch. ${MERGE}`);
+  });
+
+  it('the remote\'s default branch is not recorded: record it — nothing to merge yet', async () => {
+    const head = repo('origin');
+    await store(head, [closingItem(head)]);
+    const message = staleItem();
+    expect(message).toContain(`its fix commit ${head} could not be checked: the remote's default branch is not recorded in this clone.`);
+    expect(message).toContain(SET_HEAD);
+    expect(message).not.toMatch(/Merge it/);
+  });
+
+  for (const [name, setup, says] of [
+    ['no remote', () => repo(null), /this project has no remote\. Signal confirms a close only against a remote's default branch, so it stays closing until the project has one\.$/],
+    ['remotes, none named origin', () => repo('upstream'), /Signal reads the default branch of the remote named `origin`, and this project's remotes are named otherwise\. It stays closing until a remote named `origin` exists\.$/],
+    ['not a git repository', () => NOWHERE, /this project is not a git repository\. Signal confirms a close only against a remote's default branch, so it stays closing\.$/],
+  ]) {
+    it(`${name}: the item is told that, with its commit, and not "Merge it"`, async () => {
+      const proof = setup();
+      await store(proof, [closingItem(proof)]);
+      const message = staleItem();
+      expect(message).toContain(`its close was requested with the commit ${proof}; `);
+      expect(message).toMatch(says);
+      expect(message).not.toMatch(/Merge it/);
+      expect(message).not.toContain('set-head');
+    });
+  }
+
+  it('the item and the unit say the same sentence for the same reason', async () => {
+    const head = repo(null);
+    await store(head, [closingItem(head)]);
+    const after = (m) => m.slice(m.indexOf(' — ') + 3);
+    expect(after(staleItem())).toBe(after(staleUnit()));
+  });
+});
