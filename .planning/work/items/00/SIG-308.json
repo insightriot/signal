@@ -1,0 +1,20 @@
+{
+  "id": "SIG-308",
+  "type": "BUG",
+  "title": "The v1-to-v2 migration manifest names a guessed default branch beside closes that no longer use the guess",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E16 fix round 4",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-13T14:34:44.033Z",
+      "by": "claude (M6.E16 REVIEW)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-13T14:34:44.033Z",
+      "by": "claude (M6.E16 REVIEW)"
+    }
+  ]
+}

@@ -193,5 +193,6 @@
 | SIG-305 | `confirmed` | P3 | **The edit hook misses a record written by its real path when .planning is a link** |
 | SIG-306 | `confirmed` | P3 | **Three older refusals print project text through JSON.stringify, not shownName** |
 | SIG-307 | `confirmed` | P3 | **Small notes from M6.E16 REVIEW pass 3 that no round took up** |
+| SIG-308 | `confirmed` | P3 | **The v1-to-v2 migration manifest names a guessed default branch beside closes that no longer use the guess** |
 
-*0 needs-triage · 63 confirmed · 6 closing · 121 closed (190 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 64 confirmed · 6 closing · 121 closed (191 total) · closes more than 30 days before the newest event are in `work/history/`*
