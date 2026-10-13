@@ -27,7 +27,9 @@ records now.
   A *closing* Epic takes no new item — queueing, starting or reopening one into it is refused — and
   it is confirmed only when every item of it is closed. Without a commit passed, the proof is HEAD;
   that is refused when HEAD is already on the default branch and the project has uncommitted
-  changes, because such a commit says nothing about the Epic.
+  changes, because such a commit says nothing about the Epic. It is refused too when the project
+  has uncommitted changes and the remote's default branch is not recorded in the clone, because
+  then nothing can say where HEAD is; the message names `git remote set-head origin -a`.
 - **A finished Epic's narrative leaves `STATE.md` when its close is confirmed** (`SIG-295`). The step
   that confirms the close — `/sig:docs-sweep`, or a later SHIP — moves the narrative to its archive
   file and says so beside the confirmation: moved, nothing to move, or kept and why (held, or a

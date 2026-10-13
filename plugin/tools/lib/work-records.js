@@ -1488,10 +1488,17 @@ export function closeEpicCheck(baseDir, epicId, opts = {}) {
  * No: a clean tree (on the default branch after a merge, HEAD is the merge —
  * the recovery when a branch commit never landed); a HEAD that is not on the
  * default branch (the normal SHIP, on a branch); and whenever git cannot
- * answer — not a repository, no remote, no default-branch ref, an ancestry
+ * answer — not a repository, no remote, an ancestry
  * question git cannot settle, a status that fails. `git status` is asked about the project's
  * folder only (`-- .`, from `baseDir`), so another package's changes in the
  * same repository do not count. Reads only; never fetches.
+ *
+ * One more yes: there is a remote and its default branch is not recorded in
+ * this clone (`defaultBranchRef` answers `no-default-branch`), and the
+ * project has uncommitted or untracked changes. Whether `head` is already on
+ * the default branch cannot be told then, and a close requested on it would be
+ * confirmed as soon as `git remote set-head origin -a` records the branch.
+ * A clean tree is still a no.
  *
  * Call it BEFORE taking the store's lock: the lock is a file under the
  * project and would itself read as an untracked change.
@@ -1499,20 +1506,21 @@ export function closeEpicCheck(baseDir, epicId, opts = {}) {
  * @param {string} baseDir
  * @param {string} head — a commit hash (HEAD's)
  * @param {{execFn?: Function}} [opts]
- * @returns {{ref: string}|null} the default-branch ref `head` is already on, or null
+ * @returns {{ref: string}|{ref: null}|null} the default-branch ref `head` is already on; `ref: null` when
+ *   the default branch is not recorded and so nothing can say; or null
  */
 export function headProvesNothing(baseDir, head, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   const target = defaultBranchRef(baseDir, execFn);
-  if (target.ref === undefined) return null;
-  if (ancestryFailure(baseDir, head, target.ref, execFn, shallowProbe(baseDir, execFn)) !== null) return null;
+  if (target.ref === undefined && target.reason !== 'no-default-branch') return null;
+  if (target.ref !== undefined && ancestryFailure(baseDir, head, target.ref, execFn, shallowProbe(baseDir, execFn)) !== null) return null;
   let status;
   try {
     status = runGit(baseDir, ['status', '--porcelain', '--untracked-files=all', '--', '.'], execFn);
   } catch {
     return null;
   }
-  return status.trim() === '' ? null : { ref: target.ref };
+  return status.trim() === '' ? null : { ref: target.ref ?? null };
 }
 
 // `proof => boolean`: is this proof a commit in the current HEAD? Fail-closed —

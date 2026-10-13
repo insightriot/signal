@@ -23,6 +23,7 @@ import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
 import { regenerateViews } from '../plugin/tools/lib/work-views.js';
 import { reportCloses, runConfirmCloses } from '../plugin/tools/lib/close-confirm.js';
 import { checkClosedProofs } from '../plugin/tools/lib/sweep.js';
+import { snapshotTree } from './helpers/write-inventory.js';
 
 const AT = '2026-10-11T10:00:00.000Z';
 const NOW = '2026-10-12T10:00:00.000Z';
@@ -199,6 +200,85 @@ describe('origin/HEAD unset: the default branch is not guessed for a proof', () 
     expect(set.stillClosing).toEqual([{ id: 'SIG-1', reason: 'not-on-default-branch' }]);
     expect(set.units.stillClosing).toEqual([{ id: EPIC, reason: 'not-on-default-branch' }]);
   });
+
+  // HEAD is taken as the proof when no `commit` is passed. With origin/HEAD
+  // unset nothing can say whether HEAD is already on the default branch, so
+  // with the project's work uncommitted the close is refused: requested on the
+  // commit from before that work, it would be confirmed as soon as origin/HEAD
+  // is set.
+  async function openOnMain() {
+    const { work } = await addedNotCloned();
+    await store(work, [opened]);
+    await put(work, `.planning/${EPIC}-RETROSPECTIVE.md`, RETRO);
+    await regenerateViews(work);
+    g(work, 'add', '-A');
+    g(work, 'commit', '-q', '-m', 'before the Epic\'s work');
+    g(work, 'push', '-q', 'origin', 'main');
+    expect(spawnSync('git', ['symbolic-ref', '-q', 'refs/remotes/origin/HEAD'], { cwd: work, env: GIT_ENV }).status).not.toBe(0);
+    return { work, head: g(work, 'rev-parse', 'HEAD') };
+  }
+
+  async function refusedUnrecorded(work, run) {
+    const before = snapshotTree(work);
+    const err = await run().catch((e) => e);
+    expect(err, 'the call was not refused').toBeInstanceOf(Error);
+    expect(err).toMatchObject({ name: 'WorkStoreError', code: 'CONFLICT' });
+    expect(err.message).toMatch(/cannot tell whether .* is already on the default branch/);
+    expect(err.message).toContain(SET_HEAD);
+    expect(err.message).toMatch(/Nothing was written/);
+    expect(err.message).toMatch(/[Cc]ommit the Epic's work first.*or pass `commit`/s);
+    expect(snapshotTree(work)).toEqual(before);
+    return err;
+  }
+
+  it('closeEpic with an untracked file under the project: refused, nothing written — and nothing to confirm once origin/HEAD is set', async () => {
+    const { work, head } = await openOnMain();
+    await put(work, 'src/the-epic.js', '// the Epic\'s work, not committed\n');
+    const err = await refusedUnrecorded(work, () => closeEpic(work, EPIC, { by, at: AT }));
+    expect(err.message).toContain(head.slice(0, 12));
+    expect(getUnit(work, EPIC).status).toBe('open');
+    g(work, 'remote', 'set-head', 'origin', '-a');
+    const out = await runConfirmCloses(work, { now: NOW });
+    expect(out.units).toEqual({ confirmed: [], stillClosing: [], stale: [] });
+    expect(getUnit(work, EPIC).status).toBe('open');
+  }, 60_000);
+
+  it('closeEpic with a tracked file changed and not committed: refused', async () => {
+    const { work } = await openOnMain();
+    await put(work, `.planning/${EPIC}-RETROSPECTIVE.md`, `${RETRO}\nOne more line.\n`);
+    await refusedUnrecorded(work, () => closeEpic(work, EPIC, { by, at: AT }));
+  }, 60_000);
+
+  it('the same for an Epic with no record yet, and for one already closing: no record is created, the earlier request stands', async () => {
+    const { work } = await openOnMain();
+    g(work, 'rm', '-q', `${UNITS}/${EPIC}.json`);
+    await regenerateViews(work);
+    g(work, 'add', '-A');
+    g(work, 'commit', '-q', '-m', 'the Epic has no record');
+    await put(work, 'notes.txt', 'uncommitted\n');
+    await refusedUnrecorded(work, () => closeEpic(work, EPIC, { by, at: AT }));
+    expect(() => getUnit(work, EPIC)).toThrow(expect.objectContaining({ code: 'NOT_FOUND' }));
+
+    await rm(join(work, 'notes.txt'));
+    await put(work, `${UNITS}/${EPIC}.json`, UNIT_KIND.serializeRecord({ id: EPIC, events: [opened, request('0123abc')] }));
+    await regenerateViews(work);
+    g(work, 'add', '-A');
+    g(work, 'commit', '-q', '-m', 'closing on an earlier commit');
+    await put(work, 'notes.txt', 'uncommitted\n');
+    await refusedUnrecorded(work, () => closeEpic(work, EPIC, { by, at: AT }));
+    expect(getUnit(work, EPIC).closing_proof).toBe('0123abc');
+  }, 60_000);
+
+  it('a clean tree: the close is requested with HEAD, as before', async () => {
+    const { work, head } = await openOnMain();
+    expect(await closeEpic(work, EPIC, { by, at: AT })).toMatchObject({ status: 'close-requested', commit: head });
+  }, 60_000);
+
+  it('an explicit commit is trusted, dirty tree or not', async () => {
+    const { work, head } = await openOnMain();
+    await put(work, 'notes.txt', 'uncommitted\n');
+    expect(await closeEpic(work, EPIC, { by, at: AT, commit: head })).toMatchObject({ status: 'close-requested', commit: head });
+  }, 60_000);
 });
 
 describe('a default branch that is not called main', () => {

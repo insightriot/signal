@@ -9,7 +9,9 @@
 // So that one case is refused. A clean tree on the default branch stays
 // allowed — it is the recovery after a squash or rebase merge — and so does an
 // explicit `commit`, a branch ahead of the default branch, and a repository
-// git cannot answer for. Real git, in temp repositories. Unit names are invented.
+// git cannot answer for (no remote). A remote whose default branch is not
+// recorded here is refused with uncommitted work too: nothing can say where
+// HEAD is. Real git, in temp repositories. Unit names are invented.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
@@ -164,12 +166,25 @@ describe('closeEpic — what stays allowed', () => {
     expect(await closeEpic(base, EPIC, { by, at: AT })).toMatchObject({ status: 'close-requested', commit: head });
   });
 
-  it('a remote with no default-branch ref here: not refused on this ground', async () => {
+  it('a remote with no default-branch ref here, and a clean tree: not refused on this ground', async () => {
     const { repo, base, head } = await project();
     g(repo, 'update-ref', '-d', 'refs/remotes/origin/main');
     g(repo, 'symbolic-ref', '-d', 'refs/remotes/origin/HEAD');
-    await put(base, 'notes.txt', 'uncommitted\n');
     expect(await closeEpic(base, EPIC, { by, at: AT })).toMatchObject({ status: 'close-requested', commit: head });
+  });
+
+  // With uncommitted work it is refused: nothing can say whether HEAD is on
+  // the default branch. The cases are in tests/unit-close-git-edges.test.js.
+  it('the same remote with uncommitted work: refused, naming the command that records the default branch', async () => {
+    const { repo, base } = await project();
+    g(repo, 'update-ref', '-d', 'refs/remotes/origin/main');
+    g(repo, 'symbolic-ref', '-d', 'refs/remotes/origin/HEAD');
+    await put(base, 'notes.txt', 'uncommitted\n');
+    const before = snapshotTree(base);
+    const err = await closeEpic(base, EPIC, { by, at: AT }).catch((e) => e);
+    expect(err).toMatchObject({ name: 'WorkStoreError', code: 'CONFLICT' });
+    expect(err.message).toContain('git remote set-head origin -a');
+    expect(snapshotTree(base)).toEqual(before);
   });
 
   it('changes outside the project folder do not count: a project in a folder of the repository', async () => {

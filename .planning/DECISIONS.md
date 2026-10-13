@@ -4160,7 +4160,7 @@ from the default branch's history (`git log HEAD`), as native closes require, no
 proposal is now visible before it is acted on, which is the property three passes could not get from
 wording rules alone. Loop 3 runs past the ceiling by Brett's choice.
 
-## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-27)
+## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-28)
 
 Picked by Brett as priority 1 of [`BACKLOG-REVIEW-2026-10-10.md`](BACKLOG-REVIEW-2026-10-10.md). Stage 1
 of the "after Epic 1" list in
@@ -4416,3 +4416,20 @@ made with `git remote add` rather than `git clone` confirms nothing until that o
 a named difference from `v0.1.50` (AC6.4, kind d). **What it leaves alone:** the branch gate
 (`checkBranchPosture`) and the `v1 → v2` migration's report (`work-migrate-v2.js`) still call
 `resolveDefaultBranch` with the guess; neither takes the answer as proof of a close.
+
+### D-M6E16-28 — A close from a tree with uncommitted work is refused when the default branch is not recorded (Brett, 2026-10-13)
+Decided by Brett at REVIEW pass 4; settles `T4-C1`, a hole `D-M6E16-27` opened. `closeEpic` takes
+HEAD as the proof when no `commit` is passed, and refuses when HEAD is already on the default
+branch with the project's work uncommitted (`D-M6E16-21`). Since `-27`, a clone where `origin/HEAD`
+is not set has no default branch to compare with, so that refusal stopped firing there: the close
+was requested on the commit from before the work, and once `git remote set-head origin -a` was run
+the next confirm closed the Epic. Now, when HEAD is taken as the proof, the project has
+uncommitted or untracked changes, there is a remote, and its default branch is not recorded in the
+clone, the close is refused (`CONFLICT`, nothing written, no unit record created): Signal cannot
+tell whether HEAD is already on the default branch. The message names
+`git remote set-head origin -a`, then the two ways out the existing refusal gives: commit the
+Epic's work first, or pass `commit`. **What stays:** a clean tree is allowed; no repository or no
+remote is allowed (nothing can be confirmed there); with `origin/HEAD` set nothing changes.
+**What it costs:** in such a clone a normal SHIP on the Epic's branch, with the SHIP commit's files
+not yet committed, is refused too until that one command is run — HEAD's place cannot be told
+there either.
