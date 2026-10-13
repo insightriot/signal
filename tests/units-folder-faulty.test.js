@@ -34,6 +34,7 @@ import { gatherBigPicture } from '../plugin/tools/lib/advise-digest.js';
 import { readCorpus } from '../plugin/tools/lib/advise-corpus.js';
 import { proposeEpicCandidates } from '../plugin/tools/lib/drive.js';
 import { findWorkOnOtherBranches } from '../plugin/tools/lib/branch-work.js';
+import { planUnits, unitsWithoutRecord } from '../plugin/tools/lib/work-migrate-units.js';
 import { branchRepo, cleanupUnitProjects, contradiction, HOLD_REASON, plant, put, retroFor, unitsOn } from './helpers/unit-fixture.js';
 
 const UNITS = '.planning/work/units';
@@ -248,6 +249,43 @@ describe.each(cases)('units/ is %s', (fault) => {
     const err = await deriveNextEpicId(broken(), '7').catch((e) => e);
     expect(err).toMatchObject({ name: 'WorkStoreError' });
     named(err.message);
+  });
+
+  // r6: the migration's own two readers, called directly. A row only the
+  // milestone file names would be proposed if the folder read as "no unit
+  // records", and no unit would be listed as lacking a record.
+  const ONLY_A_ROW = '| `M7.E8` | **shipped** — 2026-09-08 | DISTINCTIVE-ROW-TEXT |';
+  const withRow = () => {
+    const base = project();
+    put(base, '.planning/MILESTONE-7.md', `# Milestone 7\n\n| Epic | Status | Summary |\n|---|---|---|\n${ONLY_A_ROW}\n`);
+    return base;
+  };
+
+  it('planUnits refuses the whole plan with the folder named: it does not throw, and proposes nothing — not from a milestone row either', async () => {
+    const base = withRow();
+    // The control: with a sound folder there is a plan, and the row is not read (AC7.3).
+    const sound = await planUnits(base);
+    expect(sound.refusal).toBeUndefined();
+    expect(sound.units.map((u) => u.id)).not.toContain('M7.E8');
+    FAULTS[fault](base);
+    const plan = await planUnits(base);
+    expect(Object.keys(plan)).toEqual(['refusal']);
+    expect(plan.refusal).toMatch(/^Unit records could not be planned, so nothing was written: /);
+    named(plan.refusal);
+    expect(plan.refusal).toMatch(/cannot be trusted/);
+    expect(JSON.stringify(plan)).not.toContain('DISTINCTIVE-ROW-TEXT');
+  });
+
+  it('unitsWithoutRecord throws the folder\'s fault: it does not answer "every unit has a record"', async () => {
+    const base = withRow();
+    // The control: with a sound folder it answers, and names a unit the files name that has no record.
+    put(base, '.planning/M7.E5-PLAN.md', '# plan\n');
+    expect(await unitsWithoutRecord(base)).toContain('M7.E5');
+    FAULTS[fault](base);
+    const err = await unitsWithoutRecord(base).catch((e) => e);
+    expect(err).toMatchObject({ name: 'WorkStoreError', unitsFolder: true });
+    named(err.message);
+    expect(err.message).toMatch(/cannot be trusted/);
   });
 });
 
