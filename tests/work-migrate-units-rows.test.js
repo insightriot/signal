@@ -110,6 +110,27 @@ describe('(a) an open unit keeps every cell of its milestone row', () => {
   }, 60_000);
 });
 
+describe('a row whose status says shipped, but not first, is never closed by the yes to the list', () => {
+  it('apply with the proposed closes confirmed: the three stay open, and a row that begins with shipped is closed', async () => {
+    const cells = {
+      'M7.E60': 'S1 shipped; S2 in progress', 'M7.E61': 'partially shipped, rest deferred', 'M7.E62': 'planned — not started; ships after E4 is shipped',
+      'M7.E63': '**shipped** v0.1.12',
+    };
+    const base = await unitsStore({ repo: true });
+    put(base, MILESTONE, marked([...Object.entries(cells).map(([id, cell]) => `| \`${id}\` | ${cell} | x |`), ROWS['M7.E9']]));
+    commitAll(base);
+    const dry = await dryRun(base);
+    for (const id of ['M7.E60', 'M7.E61', 'M7.E62']) expect(dry.report).toContain(`  ${id}  open  [flagged: row-unclear]  — its milestone row says shipped, but not as the first word of its status`);
+    const out = await applyWith(base, dry, { confirmUnitCloses: true });
+    expect(out.applied).toBe(true);
+    for (const id of ['M7.E60', 'M7.E61', 'M7.E62']) {
+      expect(getUnit(base, id).status, id).toBe('open');
+      expect(getUnit(base, id).record.legacy_row[1]).toBe(cells[id]);
+    }
+    expect(getUnit(base, 'M7.E63')).toMatchObject({ status: 'closed', close: { reason: 'legacy' } });
+  }, 60_000);
+});
+
 describe('(b) the dry run lists every table row between the markers that is kept nowhere', () => {
   const SECOND = '| `M7.E1` | a second row for the same Epic | with its own words |';
   const NOTE_ROW = '| a reminder | not an Epic row | call the harbour master |';

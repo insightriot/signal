@@ -15,8 +15,12 @@
 //                  by letter case — no record is created.
 //
 // What counts as evidence a unit is over (any one):
-//   - its milestone row's status cell says "shipped" as a word, and does not
-//     also say pending, in flight or parked, or "not/never shipped";
+//   - its milestone row's status cell BEGINS with "shipped" as a word (bold,
+//     a check mark or other punctuation before it aside; or with "closed",
+//     when it goes on to say shipped), and does not also say pending, in
+//     flight or parked, or "not/never shipped". A cell that says shipped
+//     further on ("S1 shipped; S2 in progress") is about a part of the unit:
+//     it is not evidence, and is flagged;
 //   - its retrospective is complete (a stub is not evidence);
 //   - today's closure check (`resolveClosures`) answers closed.
 // The current unit is open whatever the evidence says; when there is
@@ -68,6 +72,10 @@ const WALK_DEPTH = 8;
 const SHIPPED_RE = /\bshipped\b/i;
 const NOT_OVER_RE = /\b(pending|in[ -]flight|parked)\b/i;
 const NOT_SHIPPED_RE = /\b(?:not|never)\s+(?:yet\s+)?shipped\b|\bunshipped\b/i;
+// The word must lead the cell: only characters that are neither letters nor
+// digits (bold, backticks, a check mark) may stand before it. Asked only of a
+// cell that says "shipped", so "closed" alone is never evidence.
+const LEADS_RE = /^[^\p{L}\p{N}]{0,20}(?:shipped|closed)\b/iu;
 
 const SHOWN_MAX = 120; // a quoted cell in an evidence line
 const OPEN_ITEMS_SHOWN = 10; // how many open items a proposal names; the rest are counted
@@ -515,6 +523,9 @@ export async function planUnits(baseDir, opts = {}) {
           against.push(`its milestone row says shipped and also "${also2[1].toLowerCase()}", so the row is not counted (${where}: ${quoted(status)})`);
         } else if (NOT_SHIPPED_RE.test(status)) {
           against.push(`its milestone row says it did not ship (${where}: ${quoted(status)})`);
+        } else if (!LEADS_RE.test(status)) {
+          rowUnclear = true;
+          against.push(`its milestone row says shipped, but not as the first word of its status, so the row is not counted (${where}: ${quoted(status)})`);
         } else {
           evidence.push(`its milestone row says shipped (${where}: ${quoted(status)})`);
         }

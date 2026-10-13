@@ -44,6 +44,9 @@ records now.
   same run as the items for a project not yet on the store, or on their own for a project that is.
   Units that look finished are proposed as legacy closes in one list and closed on one yes; on no,
   each is created open with a note. `--also <ID>:dropped:<words>` declares a unit no file names.
+  A milestone row counts as evidence only when its status cell begins with *shipped*: a cell such as
+  `S1 shipped; S2 in progress` or `planned — ships after E4 is shipped` is proposed open, flagged,
+  and quoted in the dry run, so one yes to the list cannot close it.
   On a project that already has unit records the same command adds a record for each unit that has
   none and touches no record that exists; `/sig:docs-sweep` names the units that have none.
 - **The recovery after a squash or rebase merge works, and asks first.** Run on the default branch

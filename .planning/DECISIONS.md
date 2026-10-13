@@ -4160,7 +4160,7 @@ from the default branch's history (`git log HEAD`), as native closes require, no
 proposal is now visible before it is acted on, which is the property three passes could not get from
 wording rules alone. Loop 3 runs past the ceiling by Brett's choice.
 
-## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-28)
+## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-29)
 
 Picked by Brett as priority 1 of [`BACKLOG-REVIEW-2026-10-10.md`](BACKLOG-REVIEW-2026-10-10.md). Stage 1
 of the "after Epic 1" list in
@@ -4433,3 +4433,19 @@ remote is allowed (nothing can be confirmed there); with `origin/HEAD` set nothi
 **What it costs:** in such a clone a normal SHIP on the Epic's branch, with the SHIP commit's files
 not yet committed, is refused too until that one command is run — HEAD's place cannot be told
 there either.
+
+### D-M6E16-29 — The migration proposes a close from a row only when "shipped" leads its status cell (Brett, 2026-10-13)
+Decided by Brett at REVIEW pass 4; settles `C4-I4`. The row rule proposed a legacy close for any
+status cell that said "shipped" as a word and did not also say pending, in flight or parked. So
+`S1 shipped; S2 in progress`, `partially shipped, rest deferred` and
+`planned — not started; ships after E4 is shipped` were each proposed closed, and one yes closes
+the whole list — the class of rule that closed open entries in `M6.E15`. Now the cell must BEGIN
+with the word: only characters that are neither letters nor digits (bold, backticks, a check mark)
+may stand before "shipped". A cell that begins "closed" and goes on to say shipped counts too
+(`closed — shipped as v0.1.3`); "closed" alone is not evidence, as before. The not-over words and
+"not/never shipped" are read as before. Any other cell that says shipped is proposed open and
+flagged `row-unclear`, with the cell quoted on the unit's line of the dry run; said yes or no to
+the list, it is created open and keeps its row's cells. **What stays:** evidence that is not the
+row's words — a complete retrospective, today's closure check — proposes the close as before, and
+no flag is set then. **Not changed:** the list of not-over words (`pending`, `in flight`,
+`parked`); a cell such as `shipped S1; S2 in progress` still counts.

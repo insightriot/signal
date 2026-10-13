@@ -106,6 +106,49 @@ describe('planUnits — the union of units, one proposal each (AC9.1)', () => {
     for (const id of Object.keys(cells).filter((i) => i !== 'M7.E65')) expect(u[id], id).toMatchObject({ proposal: 'open', flag: null });
   });
 
+  // The row counts only when "shipped" leads its status cell. A cell that
+  // says it further on is about a part of the unit, or about another unit.
+  const NOT_LEADING = ['S1 shipped; S2 in progress', 'partially shipped, rest deferred', 'planned — not started; ships after E4 is shipped'];
+  const LEADING = ['**shipped** v0.1.12', '✅ SHIPPED 2026-07-01', 'closed — shipped as v0.1.3'];
+
+  it('a status cell that says shipped, but not first: proposed open, flagged, and the cell is quoted in the dry run', async () => {
+    const base = await unitsStore();
+    for (const cell of NOT_LEADING) {
+      put(base, MILESTONE, milestone7([`| \`M7.E6\` | ${cell} | x |`]));
+      const plan = await planUnits(base);
+      const six = byId(plan)['M7.E6'];
+      expect(six, cell).toMatchObject({ proposal: 'open', flag: 'row-unclear', evidence: [] });
+      expect(six.against[0]).toBe(`its milestone row says shipped, but not as the first word of its status, so the row is not counted (MILESTONE-7.md:7: “${cell}”)`);
+      expect(plan.proposedCloses.map((u) => u.id)).not.toContain('M7.E6');
+      const text = unitsReportLines(plan).join('\n');
+      expect(text).toContain(`  M7.E6  open  [flagged: row-unclear]  — its milestone row says shipped, but not as the first word of its status, so the row is not counted (MILESTONE-7.md:7: “${cell}”)`);
+      // Said yes or no to the list, it is created open.
+      for (const confirmCloses of [true, false]) {
+        expect(unitImportList(plan, { confirmCloses, at: '2026-10-13' }).find((u) => u.id === 'M7.E6')).toMatchObject({ opened: { at: '2026-10-13' } });
+      }
+    }
+  });
+
+  it('a status cell that begins with shipped — in bold, after a check mark, or as "closed — shipped": still a proposed close', async () => {
+    const base = await unitsStore();
+    for (const cell of LEADING) {
+      put(base, MILESTONE, milestone7([`| \`M7.E6\` | ${cell} | x |`]));
+      const six = byId(await planUnits(base))['M7.E6'];
+      expect(six, cell).toMatchObject({ proposal: 'legacy-close', flag: null });
+      expect(six.evidence).toEqual([`its milestone row says shipped (MILESTONE-7.md:7: “${cell}”)`]);
+    }
+  });
+
+  it('a complete retrospective still proposes the close, whatever the row\'s words', async () => {
+    const base = await unitsStore();
+    put(base, MILESTONE, milestone7([`| \`M7.E6\` | ${NOT_LEADING[0]} | x |`]));
+    put(base, '.planning/M7.E6-RETROSPECTIVE.md', retro('M7.E6'));
+    const six = byId(await planUnits(base))['M7.E6'];
+    expect(six).toMatchObject({ proposal: 'legacy-close', flag: null });
+    expect(six.evidence).toEqual(['its retrospective is complete (.planning/M7.E6-RETROSPECTIVE.md)']);
+    expect(six.against[0]).toMatch(/not as the first word of its status/);
+  });
+
   it('the current unit is open whatever says it is over, and that is flagged', async () => {
     const base = await unitsStore();
     put(base, '.planning/STATE.md', stateText('M7.E1'));

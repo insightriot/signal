@@ -92,9 +92,11 @@ The same command gives every Epic or unit the project names one record under `.p
   name `units/`, the dry run and the apply print the one line to add by hand.
 - **What is proposed for each unit**, from its milestone table row, its retrospective, its files in
   `.planning/`, its archive folder, the items queued in it and `STATE.md`: **open** — the current unit,
-  and any unit nothing says is over; **a legacy close** — its row's status cell says *shipped* (and not
-  also pending, in flight or parked), or its retrospective is complete, or today's closure check reads
-  it closed; **refused, no record** — a name that cannot be a unit ID, or two names that differ only by
+  and any unit nothing says is over; **a legacy close** — its row's status cell begins with *shipped*
+  (and does not also say pending, in flight or parked), or its retrospective is complete, or today's
+  closure check reads it closed. A cell that says *shipped* further on (`S1 shipped; S2 in progress`)
+  is about a part of the unit: the unit is proposed open and flagged `row-unclear`, with the cell
+  quoted; **refused, no record** — a name that cannot be a unit ID, or two names that differ only by
   case. A stub retrospective is not evidence.
 - **Nothing is closed on its own** (`D-M6E15-25`): the proposed legacy closes are shown as **one list,
   confirmed by one yes**. On no, every one of them is created open, with a note saying it looked
