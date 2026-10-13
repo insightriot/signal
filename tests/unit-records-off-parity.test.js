@@ -290,6 +290,10 @@ describe('store on, no work/units/: (a) what this Epic adds', () => {
   // for the close of an item left closing on a commit that never reached the branch.
   // It works with or without `work/units/` — tests/unit-close-head-proof.test.js,
   // "works on a project with no unit records". No key of the capture changes for it.
+  // And one refusal the capture does not call for (REVIEW pass 2, r3.6): the edit hook reads a
+  // path under every `.planning` folder it names, so `work/items/00/.planning/SIG-1.json` is
+  // blocked on a store with no `work/units/`, where `v0.1.50` allowed it (it read the innermost
+  // `.planning` only). Pinned in tests/hook-work-write-guard.test.js, "a second .planning segment".
   it('rerequestCloses is a new export of the item library; v0.1.50 had no such call (AC6.4 kind a)', async () => {
     const lib = await import('../plugin/tools/lib/work-records.js');
     expect(typeof lib.rerequestCloses).toBe('function');

@@ -115,6 +115,7 @@ records now.
 - **The edit hook guards everything in `work/units/`,** not only `*.json`, whether or not the folder
   exists, and matches a path with a trailing dot, a trailing space or a `::$DATA` suffix as the file
   Windows would open. Its message says a hold is placed only when the user asks.
+  A folder called `.planning` inside `work/units/` or `work/items/` no longer hides a path from it.
 - **A Windows device name is not a unit ID** (`CON`, `NUL`, `COM1`, … with or without an extension):
   its record could not be a file on Windows.
 - **A `git replace` ref no longer counts** when a close's commit is checked against the default

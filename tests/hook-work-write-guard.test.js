@@ -179,6 +179,45 @@ describe('work write guard — v2 store', () => {
     }
   });
 
+  // REVIEW pass 2 (S2-M2): the guard read a path by its INNERMOST `.planning` segment, so a
+  // folder called `.planning` inside `work/units/` (or `work/items/`) hid the store from it —
+  // and writing the file created `work/units/`, which turns unit records on.
+  const NESTED = [
+    '.planning/work/units/.planning/x.md',
+    '.planning/work/units/sub/.planning/x.md',
+    '.planning/work/units/.PLANNING/x.md',
+    '.planning/work/units/.planning/work/units/a.json',
+    '.planning/work/items/00/.planning/SIG-1.json',
+  ];
+  it.each(NESTED)('a second .planning segment inside the store does not hide the path: %s is blocked, with and without work/units/', (rel) => {
+    for (const ev of [edit, write, multi]) {
+      const { status, stderr } = runHook(ev(join(dir, rel)));
+      expect(status, `${ev.name} ${rel}`).toBe(2);
+      // The message names the path from the PROJECT's .planning, not from the nested one.
+      expect(stderr).toContain(rel);
+      expect(stderr.includes('the folder existing is what turns unit records on')).toBe(isUnit(rel));
+    }
+    rmSync(join(dir, '.planning', 'work', 'units'), { recursive: true, force: true });
+    expect(runHook(write(join(dir, rel))).status, `${rel}, no units/ folder`).toBe(2);
+    // By shape alone: the outer reading is a candidate whatever is on disk.
+    const { blocked, candidates } = protectedTarget(join(dir, rel));
+    expect(blocked).toBe(true);
+    expect(candidates.map((c) => c.rel)).toContain(rel);
+  });
+
+  it('a nested project of its own is still its own: nothing under an inner .planning is blocked unless it is a target there', () => {
+    // An ordinary nested project with no store, beside the v2 store's project and inside its .planning.
+    for (const rel of ['sub/.planning/notes.md', 'sub/.planning/BUGS.md', '.planning/sub/.planning/notes.md', '.planning/work/items/00/.planning/notes.md']) {
+      expect(runHook(write(join(dir, rel))).status, rel).toBe(0);
+    }
+    expect(protectedTarget(join(dir, 'sub/.planning/notes.md')).blocked).toBe(false);
+    // A nested project that has a v2 store of its own is guarded as itself.
+    mkdirSync(join(dir, 'sub', '.planning', 'work'), { recursive: true });
+    writeFileSync(join(dir, 'sub', '.planning', 'work', 'WORK.md'), '---\nkey: SUB\nschema_version: 2\n---\n');
+    expect(runHook(write(join(dir, 'sub/.planning/BUGS.md'))).status).toBe(2);
+    expect(runHook(write(join(dir, 'sub/.planning/notes.md'))).status).toBe(0);
+  });
+
   it('blocks the spellings Windows opens as the same file: a trailing dot, a trailing space, an alternate stream', () => {
     for (const rel of [
       '.planning/work/units/M6.E16.json.',

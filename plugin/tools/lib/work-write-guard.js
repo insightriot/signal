@@ -111,23 +111,33 @@ function isTarget(segs) {
   return false;
 }
 
-// The nearest `.planning` segment of an absolute path, as {baseDir, rel}. A
-// path is a target when it is one as written (lower-cased) OR as Windows would
-// open it (`comparable`): the second reading only ever adds a target, so a
-// name with a `:` in it that was guarded before still is.
+// Every reading of an absolute path as a protected target, as {baseDir, rel},
+// outermost first. A path can hold more than one `.planning` segment, and each
+// is tried as the project's: `<project>/.planning/work/units/.planning/x.md`
+// is a file under the project's `work/units/` whatever the folder inside it is
+// called, and reading only the innermost segment let it through — and writing
+// it turned unit records on. A nested project of its own
+// (`<project>/sub/.planning/notes.md`) is still its own: no reading of it is a
+// target unless the path under that segment is one.
+//
+// A path is a target when it is one as written (lower-cased) OR as Windows
+// would open it (`comparable`): the second reading only ever adds a target, so
+// a name with a `:` in it that was guarded before still is.
 function classify(abs) {
   const parts = abs.split(sep);
+  const out = [];
+  const seen = new Set();
   for (const lower of [parts.map((p) => p.toLowerCase()), comparable(parts)]) {
-    const i = lower.lastIndexOf('.planning');
-    if (i < 0) continue;
-    const segs = lower.slice(i + 1);
-    if (segs.length === 0 || !isTarget(segs)) continue;
-    return {
-      baseDir: parts.slice(0, i).join(sep) || sep,
-      rel: ['.planning', ...parts.slice(i + 1)].join('/'),
-    };
+    for (let i = lower.indexOf('.planning'); i >= 0; i = lower.indexOf('.planning', i + 1)) {
+      const segs = lower.slice(i + 1);
+      if (segs.length === 0 || !isTarget(segs)) continue;
+      const baseDir = parts.slice(0, i).join(sep) || sep;
+      if (seen.has(baseDir)) continue;
+      seen.add(baseDir);
+      out.push({ baseDir, rel: ['.planning', ...parts.slice(i + 1)].join('/') });
+    }
   }
-  return null;
+  return out;
 }
 
 // realpath of a path that may not exist yet: the nearest existing ancestor,
@@ -149,7 +159,9 @@ function realpathLoose(abs) {
 
 /**
  * Classify an absolute path by its shape alone (no store read): the
- * `{baseDir, rel}` candidates that name a protected target.
+ * `{baseDir, rel}` candidates that name a protected target — one for each
+ * `.planning` segment of the path, as written and as resolved, under which the
+ * rest of the path is a target.
  *
  * @param {string} abs — absolute, normalised
  * @returns {{blocked: boolean, candidates: Array<{baseDir: string, rel: string}>}}
@@ -158,8 +170,8 @@ export function protectedTarget(abs) {
   const candidates = [];
   const seen = new Set();
   for (const p of [abs, realpathLoose(abs)]) {
-    const c = classify(p);
-    if (c && !seen.has(c.baseDir)) {
+    for (const c of classify(p)) {
+      if (seen.has(c.baseDir)) continue;
       seen.add(c.baseDir);
       candidates.push(c);
     }
