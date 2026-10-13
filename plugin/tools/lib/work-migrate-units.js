@@ -45,7 +45,9 @@ import { join } from 'node:path';
 
 import { CLOSURE, resolveClosures } from './closure.js';
 import { hashState } from './migrate-memory.js';
-import { epicMarkers, EPICS_BEGIN, EPICS_END, linesBetweenMarkers, tableBetweenMarkers } from './milestone-table.js';
+import {
+  epicMarkers, EPICS_BEGIN, EPICS_END, legacyFirstCells, linesBetweenMarkers, renderEpicTable, rowsNotReprinted, tableBetweenMarkers, upsertEpicTable,
+} from './milestone-table.js';
 import { parseEpicStatusRows } from './milestones.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
 import { cut, printable } from './printable-text.js';
@@ -420,7 +422,9 @@ function readAlso(baseDir, also, named, storeKey) {
  *   refused: object[], declared: object[], notes: string[], current: string|null,
  *   milestone: {rel: string, markers: 'ok'|'none'|'broken'|'absent', removes?: {count: number, kept?: number,
  *   lines: Array<{line: number, text: string, unit?: string}>, digest: string}, header?: {line: number, text: string}}|null,
- *   inputHash: string}>}
+ *   otherMarked: string[], inputHash: string}>}
+ *   `otherMarked`: each milestone file that carries the Epic-table markers and is not the current milestone's
+ *   (read only on a project with no unit records, as the rows are).
  *   `milestone.removes` (only with `markers: 'ok'` and at least one such line): what the apply removes
  *   between the markers. Kept nowhere — the lines that are not table rows, and the table rows whose
  *   cells go into no unit record (a row for an ID that gets none, a second row for one unit, a row that
@@ -496,12 +500,16 @@ export async function planUnits(baseDir, opts = {}) {
   const current = readCurrent(baseDir, notes);
   if (current !== null) unit(current).named.add('STATE.md (current)');
 
-  // The dry run shows what the apply replaces in the current milestone's file
-  // only. A marked table in another milestone's file is written from the
-  // records too, and nothing a person typed there is replaced unseen.
+  // A marked table in another milestone's file is written from the records
+  // too, and nothing a person typed there is replaced unseen. Each such file
+  // is noted here; what changes between its markers is listed by the dry run
+  // once the list to import is known (`milestoneTableWrites`), and a run that
+  // builds the store beside the project refuses on one (`otherMarked`).
   const currentParts = epicIdParts(current);
+  const otherMarked = [];
   for (const rel of markedFiles) {
     if (currentParts !== null && rel === `${PLANNING}/MILESTONE-${currentParts.milestone}.md`) continue;
+    otherMarked.push(rel);
     notes.push(`${rel} carries the Epic-table markers too, and it is not the current milestone's file: its Epic rows are written from the unit `
       + 'records as well. A row there that is not one Epic\'s own, or a line that is not a table row, refuses the apply and is never deleted. '
       + 'To leave that file exactly as it is, take the two marker lines out of it first.');
@@ -655,8 +663,125 @@ export async function planUnits(baseDir, opts = {}) {
     notes,
     current,
     milestone,
+    otherMarked,
     inputHash,
   };
+}
+
+/**
+ * The milestone files whose Epic table a regeneration writes once `units` are
+ * the project's unit records — what `regenerateViews` does (`work-views.js`
+ * `milestoneTables`), asked before any record is written, so that the dry run
+ * names every file the apply writes (r6, SIG-310). Looked at: the current
+ * milestone's file, then the file of each other milestone that has an Epic
+ * among `units`. Listed: each that is a regular file, carries the markers,
+ * and whose table would change. Reads only.
+ *
+ * @param {string} baseDir
+ * @param {string|null} currentRel — the current milestone's file (`plan.milestone.rel`), or null
+ * @param {object[]} units — every unit there would be: `listUnits(...).units`, and `importUnitsEntries(...)` of the list
+ * @param {{replaceTyped?: boolean}} [opts] — `replaceTyped`: the apply writes the current file's table over what a
+ *   person typed between its markers (`importUnits`' `replaceTableRows`). Never another file's
+ * @returns {Array<{rel: string, current: boolean, replaced: Array<{line: number, text: string}>, added: string[],
+ *   typed: Array<{line: number, text: string}>}>} `replaced`: each row of the table there now that the new table
+ *   does not hold; `added`: each row of the new table that is not there now; `typed`: the rows and lines a person
+ *   typed between the markers that the new table would not print again — with any, the regeneration refuses,
+ *   and this file is not written (nor is anything else)
+ */
+export function milestoneTableWrites(baseDir, currentRel, units, opts = {}) {
+  const others = new Set();
+  for (const u of units) {
+    const parts = epicIdParts(u.id);
+    if (parts !== null && parts.parts.length <= 2) others.add(`${PLANNING}/MILESTONE-${parts.milestone}.md`);
+  }
+  others.delete(currentRel);
+  const numberOf = (rel) => rel.slice(PLANNING.length + 1).match(MILESTONE_FILE_RE)?.[1] ?? null;
+  const files = [
+    ...(currentRel === null ? [] : [currentRel]),
+    ...[...others].sort((a, b) => parseFloat(numberOf(a)) - parseFloat(numberOf(b)) || byText(a, b)),
+  ];
+  const out = [];
+  for (const rel of files) {
+    const milestone = numberOf(rel);
+    if (milestone === null || regularFileRefusal(baseDir, rel) !== null) continue;
+    let content;
+    let table;
+    let text;
+    try {
+      content = readRegularFile(baseDir, rel);
+      if (epicMarkers(content).state !== 'ok') continue;
+      table = renderEpicTable(units, { milestone });
+      text = upsertEpicTable(content, table);
+    } catch {
+      continue;
+    }
+    if (text === content) continue;
+    const current = rel === currentRel;
+    const typed = current && opts.replaceTyped === true ? [] : [
+      ...rowsNotReprinted(content, table, { milestone, ids: units.map((u) => u.id), legacy: legacyFirstCells(units, { milestone }) }),
+      ...linesBetweenMarkers(content),
+    ].sort((a, b) => a.line - b.line).map((l) => ({ line: l.line, text: l.text }));
+    // The separator row is the same in both tables, and is not listed.
+    const was = tableBetweenMarkers(content);
+    const now = table.split('\n').filter((_, i) => i !== 1);
+    const old = [...(was.header === null ? [] : [was.header]), ...was.rows];
+    const [inNow, inOld] = [new Set(now), new Set(old.map((l) => l.text.trim()))];
+    out.push({
+      rel,
+      current,
+      replaced: old.filter((l) => !inNow.has(l.text.trim())).map((l) => ({ line: l.line, text: l.text })),
+      added: now.filter((l) => !inOld.has(l)),
+      typed,
+    });
+  }
+  return out;
+}
+
+// How many replaced or added rows of one table the dry run prints; the rest are counted.
+const TABLE_ROWS_SHOWN = 20;
+
+// What changes between one file's markers, as indented lines.
+function tableChangeLines(t) {
+  if (t === undefined) return [];
+  if (t.typed.length > 0) {
+    const named = t.typed.slice(0, REMOVED_SHOWN).map((l) => `line ${l.line} (${quoted(l.text)})`).join('; ');
+    const more = t.typed.length > REMOVED_SHOWN ? `, and ${t.typed.length - REMOVED_SHOWN} more` : '';
+    return [`  As the file stands the apply is refused and nothing is written: ${named}${more} between its markers was typed by hand, and the table `
+      + 'would not print it again. Move it outside the two marker lines — or take the two marker lines out of the file — then run the dry run again.'];
+  }
+  const rows = [
+    ...t.replaced.map((l) => `  line ${l.line} is replaced: ${quoted(l.text)}`),
+    ...t.added.map((l) => `  added: ${quoted(l)}`),
+  ];
+  return rows.length > TABLE_ROWS_SHOWN ? [...rows.slice(0, TABLE_ROWS_SHOWN), `  … and ${rows.length - TABLE_ROWS_SHOWN} more.`] : rows;
+}
+
+/**
+ * The dry run's lines for each milestone file OTHER than the current one that
+ * the apply writes (`milestoneTableWrites`): the file, and what changes
+ * between its markers — once when the answer to the proposed closes makes no
+ * difference, else under each answer. Empty when there is no such file.
+ *
+ * @param {{confirmed: object[], unconfirmed: object[]}} tables — `milestoneTableWrites`' for each answer
+ * @returns {string[]} lines
+ */
+export function otherTablesReportLines(tables) {
+  const lines = [];
+  const of = (list, rel) => list.find((t) => t.rel === rel && !t.current);
+  const rels = [...new Set([...tables.confirmed, ...tables.unconfirmed].filter((t) => !t.current).map((t) => t.rel))];
+  for (const rel of rels) {
+    const [yes, no] = [of(tables.confirmed, rel), of(tables.unconfirmed, rel)];
+    lines.push('', `${rel} carries the Epic-table markers and is another milestone's file: --apply writes its Epic table from the unit records too, `
+      + 'and leaves it staged with the rest. Nothing outside its two marker lines changes. Between them:');
+    if (JSON.stringify(yes) === JSON.stringify(no)) {
+      lines.push(...tableChangeLines(yes));
+    } else {
+      for (const [words, t] of [['confirmed', yes], ['not confirmed', no]]) {
+        lines.push(`  If the proposed closes are ${words}:${t === undefined ? ' nothing in it changes.' : ''}`, ...tableChangeLines(t));
+      }
+    }
+  }
+  return lines.map(printable);
 }
 
 /**

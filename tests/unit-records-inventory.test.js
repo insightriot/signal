@@ -80,6 +80,8 @@ const READERS = {
   storedRef: () => units.storedRef('#301'),
   caseTwinFindings: () => units.caseTwinFindings(['M7.E1', 'm7.e1']),
   importUnitsTexts: () => units.importUnitsTexts([{ id: 'M7.E1', title: 'Lantern', opened: { at: AT, by } }]),
+  // Pure: the units an import would add, as `listUnits` returns one — for the migration's dry run (r6).
+  importUnitsEntries: () => units.importUnitsEntries([{ id: 'M7.E1', title: 'Lantern', opened: { at: AT, by } }]),
   // Builds the closes `confirmCloses` writes, under ITS lock; writes nothing itself (t4.2).
   planUnitConfirms: (base) => units.planUnitConfirms({ baseDir: base, key: 'SIG' }, [{ id: 'M6.E21', proof: SHA }], { at: AT, by, openItems: () => [] }),
   // Builds the close request `rerequestEpicClose` (work-records.js) writes, under ITS lock; writes nothing itself (r3.4).

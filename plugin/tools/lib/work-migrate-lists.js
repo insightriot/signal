@@ -118,7 +118,9 @@ import { bodyDirFor } from './work-convert.js';
 import { lockFailure, WorkStoreError } from './work-errors.js';
 import { GENERATED_FILES } from './work-generate.js';
 import { rewriteRelativeLinks } from './work-links.js';
-import { planForUnitsWithoutRecord, planUnits, unitImportList, unitImportTexts, unitsReportLines } from './work-migrate-units.js';
+import {
+  milestoneTableWrites, otherTablesReportLines, planForUnitsWithoutRecord, planUnits, unitImportList, unitImportTexts, unitsReportLines,
+} from './work-migrate-units.js';
 import {
   backlogTag,
   bugTitle,
@@ -136,7 +138,7 @@ import {
 } from './work-migrate.js';
 import { checkEvents, serializeRecord, validateRecord } from './work-record.js';
 import { bodyPath, checkRecords, listRecords, recordPath, storeVersion, V1_STORE_MESSAGE } from './work-records.js';
-import { checkUnits, importUnits, listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
+import { checkUnits, importUnits, importUnitsEntries, listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 import { scrubSensitive } from './scrub.js';
 import { isGeneratedFile } from './work-marker.js';
 import { isStoreOn, STORE_KEY_RE, WORK_DIR, WORK_FILE, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
@@ -444,7 +446,17 @@ async function assess(baseDir, opts) {
       + 'run builds the store beside the project, where that file is not. Take the two marker lines out, commit, run this again, then put '
       + 'them back: the next change to a unit fills the table. Nothing was written.');
   }
-  sensitiveHits = [...sensitiveHits, ...unitSensitiveHits(unitsPlan)];
+  // The same for any other milestone's file that carries them (r6, SIG-310):
+  // the built store is checked against it once it is in place, and its table
+  // is not the one the records give — the apply would fail there, after a dry
+  // run that said the table would be written.
+  if (unitsPlan.otherMarked.length > 0) {
+    return refuse(`${unitsPlan.otherMarked[0]} already carries the Epic-table markers, which belong to a project that has unit records — and this `
+      + 'run builds the store beside the project, where that file is not, so its table would not be written. Take the two marker lines out'
+      + `${unitsPlan.otherMarked.length > 1 ? ` (and out of ${unitsPlan.otherMarked.slice(1).join(', ')})` : ''}, commit, run this again, then put `
+      + 'them back: the next change to a unit fills the table. Nothing was written.');
+  }
+  sensitiveHits =[...sensitiveHits, ...unitSensitiveHits(unitsPlan)];
 
   const files = present.map((name) => {
     const f = plan.manifest.files[name] ?? { items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
@@ -512,6 +524,7 @@ async function assessUnitsOnly(baseDir, opts) {
   // With unit records on, which units have a record must be known: a record
   // that does not read has no ID to trust, so the run stops until it does.
   let existing = null;
+  let existingUnits = [];
   if (unitsOn) {
     let unitFindings;
     let listed = { units: [] };
@@ -526,7 +539,8 @@ async function assessUnitsOnly(baseDir, opts) {
         + `the first: ${clip(printable(unitFindings[0].message), 300)}). Nothing was written. A record is added only beside records that all read: `
         + 'run /sig:docs-sweep, fix what it reports, commit, then re-run.');
     }
-    existing = listed.units.map((u) => u.id);
+    existingUnits = listed.units;
+    existing = existingUnits.map((u) => u.id);
   }
   const full = await planUnits(baseDir, { also: opts.also, storeKey: key });
   if (full.refusal) return refuse(full.refusal);
@@ -539,11 +553,23 @@ async function assessUnitsOnly(baseDir, opts) {
     return refuse(`${plan.milestone.rel}: its Epic-table markers are broken (${plan.milestone.problem}), so its table could not be written from the `
       + 'unit records. Nothing was written. Fix the markers (one begin, one end, in that order) or take them out, commit, then re-run.');
   }
+  // Every milestone file whose Epic table the apply writes, for each answer to
+  // the proposed closes (r6, SIG-310): the current milestone's, and any other
+  // marked one whose table the new records change. The dry run names each.
+  const tablesFor = (confirmCloses) => milestoneTableWrites(
+    baseDir, plan.milestone?.rel ?? null,
+    [...existingUnits, ...importUnitsEntries(unitImportList(plan, { confirmCloses, at: '2000-01-01' }))],
+    { replaceTyped: existing === null },
+  );
+  const tables = { confirmed: tablesFor(true), unconfirmed: tablesFor(false) };
   // The hash also covers which units already have a record: one written after
-  // the dry run changes what this run would add.
-  const inputHash = existing === null ? `units:${plan.inputHash}` : `units:${hashState(JSON.stringify([plan.inputHash, plan.existing]))}`;
+  // the dry run changes what this run would add. And what is written in
+  // another milestone's file, when anything is: the dry run showed it.
+  const elsewhere = [...tables.confirmed, ...tables.unconfirmed].some((t) => !t.current);
+  let inputHash = existing === null ? `units:${plan.inputHash}` : `units:${hashState(JSON.stringify([plan.inputHash, plan.existing]))}`;
+  if (elsewhere) inputHash = ['units', hashState(JSON.stringify([inputHash, tables]))].join(':');
   return {
-    unitsOnly: true, key, plan, sensitiveHits: unitSensitiveHits(plan), inputHash,
+    unitsOnly: true, key, plan, tables, sensitiveHits: unitSensitiveHits(plan), inputHash,
     nothingToAdd: existing !== null && plan.units.every((u) => u.proposal === 'refused'),
   };
 }
@@ -562,9 +588,34 @@ function sensitiveLines(hits) {
     ...hits.map((h) => `  ${h.id} (${h.file}): ${h.type} "${masked(h.match)}"`)];
 }
 
+// Every file an apply of this plan writes, for one answer to the proposed
+// closes (`tables`: `a.tables.confirmed` or `.unconfirmed`), sorted: the
+// record files (and the folder's `.keep`, when the run turns unit records
+// on), the Epic index, and each milestone file whose table changes. None when
+// there is nothing to add, or when a table would refuse the apply.
+function unitsWrites(a, tables) {
+  if (a.nothingToAdd || tables.some((t) => t.typed.length > 0)) return [];
+  return [
+    ...(Array.isArray(a.plan.existing) ? [] : [`${UNITS_REL}/.keep`]),
+    ...a.plan.units.filter((u) => u.proposal !== 'refused').map((u) => `${UNITS_REL}/${u.id}.json`),
+    VIEW_PATHS.epics,
+    ...tables.map((t) => t.rel),
+  ].sort();
+}
+
+// " and the Epic table in <file>", once for each milestone file in `rels`;
+// a file that is not the current milestone's is said to be another's.
+const tableWords = (a, rels, note = () => '') => rels.map((rel) => (
+  ` and the Epic table in ${rel}${rel === a.plan.milestone?.rel ? '' : ` (another milestone's file${note(rel)})`}`
+)).join('');
+
 function unitsDryRunReport(baseDir, a) {
   const c = unitCounts(a.plan);
-  const table = a.plan.milestone?.markers === 'ok' ? `, and the Epic table in ${a.plan.milestone.rel}` : '';
+  // The milestone files the apply writes, on either answer; one written on
+  // only one of the two is marked so.
+  const written = (tables) => tables.filter((t) => t.typed.length === 0).map((t) => t.rel);
+  const [yes, no] = [written(a.tables.confirmed), written(a.tables.unconfirmed)];
+  const table = tableWords(a, [...new Set([...yes, ...no])], (rel) => (yes.includes(rel) && no.includes(rel) ? '' : '; only on one of the two answers, as said above'));
   const adding = Array.isArray(a.plan.existing); // unit records are already on
   const ifConfirmed = c.proposed > 0 ? ` (${c.proposed} of them closed as legacy only if you confirm the list above; otherwise open)` : '';
   return [
@@ -576,6 +627,7 @@ function unitsDryRunReport(baseDir, a) {
       : `This project is already on the store (key ${a.key}) and has no unit records: this run adds them, and changes nothing else in the store.`,
     '',
     ...unitsReportLines(a.plan),
+    ...otherTablesReportLines(a.tables),
     ...sensitiveLines(a.sensitiveHits),
     '',
     a.nothingToAdd
@@ -584,7 +636,7 @@ function unitsDryRunReport(baseDir, a) {
         ? `--apply adds ${count(c.made, 'unit record')} under ${UNITS_REL}/${ifConfirmed}, regenerates ${VIEW_PATHS.epics}${table}, and leaves `
           + 'them staged, not committed. No existing record, no item and no other view is changed.'
         : `--apply creates ${UNITS_REL}/ with ${count(c.made, 'unit record')}${ifConfirmed}`
-          + `, regenerates ${VIEW_PATHS.epics}${table}, and leaves them staged, not committed. No item is changed, and no other view — except a marked Epic table in another milestone's file that is out of date (the note above names each such file).`,
+          + `, regenerates ${VIEW_PATHS.epics}${table}, and leaves them staged, not committed. No item is changed, and no other view.`,
     ...workMdUnitsNote(baseDir, 'is'),
   ].map(printable).join('\n');
 }
@@ -615,6 +667,9 @@ function unitsRevertLine(probe, force, tag, paths, added = null) {
   return `git reset --hard ${tag ?? '<pre-apply-commit>'}   # discards the staged unit records`;
 }
 
+// A milestone file among the paths a regeneration wrote.
+const MILESTONE_REL_RE = /^\.planning\/MILESTONE-\d+(?:\.\d+)?\.md$/;
+
 // A refusal found under the store's lock, thrown out of `importUnits`' gate.
 class UnitsStop extends Error {}
 
@@ -625,6 +680,8 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
       applied: false, dryRun: true, unitsOnly: true, key: a.key, units: a.plan.units, proposedUnitCloses: a.plan.proposedCloses,
       flagged: a.plan.flagged, refusedUnits: a.plan.refused, declared: a.plan.declared, sensitiveHits: maskHits(a.sensitiveHits),
       inputHash: a.inputHash, report: unitsDryRunReport(baseDir, a), ...(a.nothingToAdd ? { nothingToAdd: true } : {}),
+      // Every file an apply writes, for each answer to the proposed closes.
+      writes: { confirmed: unitsWrites(a, a.tables.confirmed), unconfirmed: unitsWrites(a, a.tables.unconfirmed) },
     };
   }
   if (typeof opts.expectedHash !== 'string' || opts.expectedHash === '') {
@@ -665,9 +722,17 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
     }
     tag = null;
   };
+  // Every path the regeneration wrote: a milestone file is in it only when
+  // its table changed (`regenerateViews`).
+  let regenerated = [];
   try {
     await importUnits(baseDir, list, {
       ensureDir: true,
+      regenerate: async (dir, o) => {
+        const done = await regenerateViews(dir, o);
+        regenerated = done.written;
+        return done;
+      },
       // The old table between the markers was kept by hand: its rows are
       // replaced by the generated ones, as the dry run said.
       replaceTableRows: !Array.isArray(a.plan.existing),
@@ -700,7 +765,10 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
     await addLock.released();
   }
 
-  const table = a.plan.milestone?.markers === 'ok' ? [a.plan.milestone.rel] : [];
+  // Every milestone file whose table was written — the current milestone's,
+  // and any other marked one the new records changed (r6, SIG-310). Each is
+  // staged and reported with the rest, so nothing this run wrote is left out.
+  const table = regenerated.filter((rel) => MILESTONE_REL_RE.test(rel));
   // With unit records already on, only the records this run added are staged
   // and named in the undo line: the folder holds records it did not write.
   const added = Array.isArray(a.plan.existing) ? list.map((u) => `${UNITS_REL}/${u.id}.json`) : null;
@@ -711,7 +779,7 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
   const report = [
     added === null ? `/sig:docs-migrate --work-store — unit records are on (key ${a.key})` : `/sig:docs-migrate --work-store — unit records added (key ${a.key})`,
     '',
-    `${added === null ? 'Wrote' : 'Added'} ${count(list.length, 'unit record')} under ${UNITS_REL}/ and regenerated ${VIEW_PATHS.epics}${table.length > 0 ? ` and the Epic table in ${table[0]}` : ''}. `
+    `${added === null ? 'Wrote' : 'Added'} ${count(list.length, 'unit record')} under ${UNITS_REL}/ and regenerated ${VIEW_PATHS.epics}${tableWords(a, table)}. `
       + (added === null ? 'No item and no other view was changed.' : 'No existing record, no item and no other view was changed.'),
     ...(c.proposed === 0 ? []
       : confirmed

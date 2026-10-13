@@ -940,6 +940,20 @@ export function importUnitsTexts(list) {
   });
 }
 
+/**
+ * The units an import of `list` would add, each as `listUnits` returns a unit
+ * (its record, and the status folded from it) — for a caller that says what
+ * an import changes before it runs: the migration's dry run renders the
+ * milestone tables from them. Nothing is read and nothing is written.
+ *
+ * @param {object[]} list — as `importUnits`'s
+ * @returns {object[]} in list order
+ * @throws {WorkStoreError} SCHEMA, as `importUnits`, for an entry it would refuse by its shape
+ */
+export function importUnitsEntries(list) {
+  return list.map((entry) => entryOf(importedRecord(entry)));
+}
+
 // A file's bytes, or null when nothing is there. Read for the put-back only.
 function bytesOrNull(abs) {
   try {
