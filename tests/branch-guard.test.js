@@ -86,9 +86,11 @@ describe('resolveDefaultBranch — never guesses', () => {
 
   it('B88 regression — a master-default repo resolves to master, not the literal "main"', async () => {
     const { work } = await plantClone(dir, 'master');
-    // state.js's isStaleVsOrigin would answer 'main' here by fallback. If this
-    // gate did the same, a project defaulting to master would be told it is on
-    // a feature branch while sitting on its default branch.
+    // A fallback to the literal 'main' would be wrong here. If this gate fell
+    // back that way, a project defaulting to master would be told it is on a
+    // feature branch while sitting on its default branch. (state.js's
+    // isStaleVsOrigin asks this function first, and uses 'main' only when it
+    // answers null — so it reads master here too.)
     expect(resolveDefaultBranch(work)).toBe('master');
     const posture = checkBranchPosture(work, { tier: 'FULL' });
     expect(posture.status).toBe(BRANCH_GATE.ON_DEFAULT);
