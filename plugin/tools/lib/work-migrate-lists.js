@@ -103,6 +103,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { acquireLock as acquireAddLock, LOCK_FILE as ADD_LOCK_REL } from './add.js';
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
+import { gitEnv } from './git-env.js';
 import {
   CURRENT_LAYOUT_VERSION,
   hashState,
@@ -237,7 +238,7 @@ function listDates(baseDir, rel, execFn) {
   let out = '';
   try {
     out = String(execFn('git', ['log', '--follow', '--format=%ad', '--date=short', '--', rel], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 16 * 1024 * 1024,
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 16 * 1024 * 1024, env: gitEnv(),
     })).trim();
   } catch {
     out = '';
@@ -716,7 +717,7 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
   const dropTag = () => {
     if (tag === null) return;
     try {
-      execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+      execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv() });
     } catch {
       /* best-effort — keep the original throw */
     }
@@ -804,7 +805,7 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
 // `git tag -l`; none outside git.
 function preStoreTags(baseDir, execFn = execFileSync) {
   try {
-    return String(execFn('git', ['tag', '-l', 'pre-work-store-*'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }))
+    return String(execFn('git', ['tag', '-l', 'pre-work-store-*'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() }))
       .split('\n').map((t) => t.trim()).filter(Boolean);
   } catch {
     return [];
@@ -1235,7 +1236,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
         failed = true;
         if (tag) {
           try {
-            execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+            execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv() });
           } catch {
             /* best-effort — keep the original throw */
           }
@@ -1628,13 +1629,13 @@ const RETRO_WALK_MAX = 50000;
 export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   let out = '';
   let source = 'git';
-  const ref = ['refs/remotes/origin/HEAD', 'refs/heads/main', 'refs/heads/master'].find((r) => { try { execFn('git', ['rev-parse', '--verify', '--quiet', r], { cwd: baseDir, stdio: 'ignore' }); return true; } catch { return false; } }) ?? 'HEAD';
+  const ref = ['refs/remotes/origin/HEAD', 'refs/heads/main', 'refs/heads/master'].find((r) => { try { execFn('git', ['rev-parse', '--verify', '--quiet', r], { cwd: baseDir, stdio: 'ignore', env: gitEnv() }); return true; } catch { return false; } }) ?? 'HEAD';
   try {
     // The default branch (origin/HEAD, else main, else master, else HEAD), not --all (D-M6E15-25, AC4.1): unmerged branches, stashes and fetched
     // remote work are not what this project shipped; native closes, too, are
     // confirmed only once their commit is on the default branch.
     out = String(execFn('git', ['log', '--format=%H%x09%s', ref, '--'], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024,
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024, env: gitEnv(),
     }));
   } catch {
     out = '';
@@ -1663,7 +1664,7 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   let origin = null;
   try {
     origin = parseOrigin(String(execFn('git', ['remote', 'get-url', 'origin'], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(),
     })).trim());
   } catch {
     origin = null;

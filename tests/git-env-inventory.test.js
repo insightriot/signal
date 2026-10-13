@@ -37,14 +37,7 @@ const DIRS = ['plugin/tools', 'plugin/hooks'];
 const ENV_MODULE = 'plugin/tools/lib/git-env.js';
 
 // Files whose git calls do not carry the environment yet. `calls` is exact.
-const PENDING = [
-  {
-    file: 'plugin/tools/lib/work-migrate-lists.js',
-    calls: 7,
-    reason: 'owned by another fix group in the same round (M6.E16 r6), so it was not edited with the rest. '
-      + 'Route its calls through `gitEnv()` and delete this row.',
-  },
-];
+const PENDING = [];
 
 function filesUnder(rel) {
   const out = [];

@@ -26,6 +26,7 @@ import { isGitRepo as storeIsGitRepo } from '../plugin/tools/lib/work-store.js';
 import { headProvesNothing } from '../plugin/tools/lib/work-records.js';
 import { probeGitState } from '../plugin/tools/lib/migrate-memory.js';
 import { dotenvRefusal } from '../plugin/tools/lib/jev.js';
+import { buildEvidenceIndex } from '../plugin/tools/lib/work-migrate-lists.js';
 import { gitEnv } from '../plugin/tools/lib/git-env.js';
 
 function g(cwd, ...args) {
@@ -108,6 +109,13 @@ describe('a planted bare-repository layout in the project folder', { timeout: 60
     expect(branchGuard.readCurrentBranch(proj)).toBeNull();
     expect(branchGuard.hasRemote(proj)).toBeNull();
     expect(branchGuard.resolveDefaultBranch(proj)).toBeNull();
+  });
+
+  it('the migration\'s evidence index (`git log`) reads no history from the planted repository: no commit of it can support a proposed close', () => {
+    const idx = buildEvidenceIndex(proj);
+    expect(idx.commits).not.toContain(plantedHead);
+    expect(idx).toMatchObject({ source: 'none', commits: [], origin: null });
+    expect(existsSync(marker)).toBe(false);
   });
 
   it('a committed .env is not called ignored on the planted exclude file\'s word', () => {
