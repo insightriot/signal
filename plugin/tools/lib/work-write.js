@@ -20,6 +20,7 @@ import { atomicWrite } from './atomic-write.js';
 import { remoteNames, resolveDefaultBranch } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
 import { gitEnv } from './git-env.js';
+import { commitsStartingWith, runGit } from './git-objects.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { scrubSensitive } from './scrub.js';
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
@@ -251,16 +252,12 @@ export function readRecordFile(abs) {
 
 // ── Git: is a commit on the default branch ─────────────────────────────────
 
-const GIT_MAX_BUFFER = 256 * 1024 * 1024;
-
 // The environment of every git call here is `gitEnv()` (`git-env.js`, where
 // each setting is explained): replace refs and grafts are not honoured, and a
 // planted bare-repository layout is not taken for the repository.
-export { gitEnv };
-
-export function runGit(baseDir, args, execFn) {
-  return String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: GIT_MAX_BUFFER, env: gitEnv(baseDir) }));
-}
+// `runGit` and `commitsStartingWith` are in `git-objects.js` (r6.1), so that
+// `work-ops.js` can use them; they are still exported from here.
+export { commitsStartingWith, gitEnv, runGit };
 
 // A lazy, memoised `git rev-parse --is-shallow-repository` (false on failure).
 export function shallowProbe(baseDir, execFn) {
@@ -303,40 +300,6 @@ export function defaultBranchRef(baseDir, execFn) {
     return { reason: 'no-default-branch' };
   }
   return { ref };
-}
-
-// How many commit-like objects `prefix` abbreviates — commits, and tag objects
-// that lead to a commit, which is what git counts when it resolves
-// `<prefix>^{commit}`: two sharing the prefix make git call it ambiguous.
-// 0 when git cannot say.
-export function commitsStartingWith(baseDir, prefix, execFn) {
-  let objects;
-  try {
-    objects = runGit(baseDir, ['rev-parse', `--disambiguate=${prefix}`], execFn).split('\n').map((l) => l.trim()).filter(Boolean);
-  } catch {
-    return 0;
-  }
-  // Each listed object once, counted when it is a commit or a tag (M6.E14
-  // REVIEW pass 2: counting commits only accepted a proof git itself calls
-  // ambiguous, which then could never confirm). Trees and blobs are not counted.
-  // Two are enough to answer.
-  let n = 0;
-  for (const o of new Set(objects)) {
-    try {
-      const type = runGit(baseDir, ['cat-file', '-t', '--end-of-options', o], execFn).trim();
-      // A tag counts only when it leads to a commit: git ignores one that
-      // points at a blob or a tree when it resolves `<prefix>^{commit}` (REVIEW pass 3).
-      if (type === 'commit') n += 1;
-      else if (type === 'tag') {
-        runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${o}^{commit}`], execFn);
-        n += 1;
-      }
-    } catch {
-      // not inspectable: not counted
-    }
-    if (n > 1) break;
-  }
-  return n;
 }
 
 // null when `sha` is an ancestor of `ref`; otherwise why not. `sha` has

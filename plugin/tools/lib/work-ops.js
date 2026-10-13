@@ -41,6 +41,7 @@ import { applyKeyedReplacements, computeLinkEdits } from './archive-tree.js';
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
 import { gitEnv } from './git-env.js';
+import { commitsStartingWith } from './git-objects.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, setCurrentEpic, StateSchemaError, stringifyFrontmatter } from './state.js';
 import { deriveRetroPath } from './retrospective.js';
@@ -567,6 +568,14 @@ function headCommit(baseDir, execFn) {
 // `epicId` begins the refusal — the Epic, or what else the commit is for
 // (`dischargeBacklogRows`, `backlog.js`, records one the same way).
 export function explicitCommit(baseDir, epicId, commit, execFn = execFileSync) {
+  // A short hash that more than one commit starts with names neither
+  // (SIG-276), and is asked about FIRST: with a branch or tag named those
+  // digits, the resolution below takes the ref and would pass.
+  const sharing = commit.length < 40 ? commitsStartingWith(baseDir, commit, execFn) : 0;
+  if (sharing > 1) {
+    throw new WorkStoreError('SCHEMA', `${epicId}: \`commit\` ${commit} is the start of ${sharing} commits or tags, so it names none of them — `
+      + 'use a longer hash (git rev-parse <commit>). Nothing was written.');
+  }
   let full = null;
   try {
     full = String(execFn('git', ['rev-parse', '--verify', '--quiet', '--end-of-options', `${commit}^{commit}`], {

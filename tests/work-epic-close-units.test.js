@@ -13,6 +13,7 @@ import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 import { closeEpic } from '../plugin/tools/lib/work-ops.js';
 import * as records from '../plugin/tools/lib/work-records.js';
@@ -281,6 +282,37 @@ describe('closeEpic with unit records — refusals write nothing (AC4.3, NFR fai
     expect(getUnit(root, EPIC).record.events.at(-1)).toMatchObject({ type: 'close_requested', proof: head });
     // asked again with the short form: the same request, not a second one
     expect(await closeEpic(root, EPIC, { by, at: AT, commit: head.slice(0, 10) })).toMatchObject({ status: 'already-requested', commit: head });
+  });
+
+  // M6.E16 r6.1 (SIG-276 for an explicit `commit`): two commits share their
+  // first 7 digits and a branch is NAMED those digits. Git resolves the name
+  // as the branch, and what it points at does start with them — so the short
+  // hash would be recorded as one of the two, though it names neither.
+  it('a short `commit` that more than one commit starts with: refused, even with a branch of that name', async () => {
+    await project();
+    const put2 = (body) => {
+      const r = spawnSync('git', ['hash-object', '-t', 'commit', '-w', '--stdin'], { cwd: root, input: body, encoding: 'utf8' });
+      return r.stdout.trim();
+    };
+    const tree = git('rev-parse', 'HEAD^{tree}');
+    const seen = new Map();
+    let prefix;
+    let a;
+    for (let i = 0; prefix === undefined; i += 1) {
+      const body = `tree ${tree}\nauthor T <t@t.co> 1700000000 +0000\ncommitter T <t@t.co> 1700000000 +0000\n\nm${i}\n`;
+      const id = createHash('sha1').update(`commit ${Buffer.byteLength(body)}\0${body}`).digest('hex');
+      if (seen.has(id.slice(0, 7))) {
+        a = put2(seen.get(id.slice(0, 7)));
+        put2(body);
+        prefix = id.slice(0, 7);
+      } else seen.set(id.slice(0, 7), body);
+    }
+    git('branch', prefix, a);
+    expect(git('rev-parse', '--verify', '--quiet', `${prefix}^{commit}`)).toBe(a); // git takes the branch
+    const err = await refused(() => closeEpic(root, EPIC, { by, at: AT, commit: prefix }), 'SCHEMA', /is the start of 2 commits or tags, so it names none of them/);
+    expect(err.message).toMatch(/use a longer hash/);
+    // the full hash of either is fine
+    expect(await closeEpic(root, EPIC, { by, at: AT, commit: a })).toMatchObject({ status: 'close-requested', commit: a });
   });
 
   it.each([['main'], ['HEAD'], ['--all'], ['ABCDEF1'], ['0123ab']])('a `commit` that is not a bare hash (%s): SCHEMA', async (commit) => {
