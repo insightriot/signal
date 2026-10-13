@@ -97,6 +97,14 @@ function gitRepo(base, originDir) {
   git(base, ['remote', 'add', 'origin', originDir]);
   git(base, ['push', '-q', 'origin', 'main']);
   git(base, ['fetch', '-q', 'origin']);
+  // A newer git records the remote's default branch (origin/HEAD) at a fetch;
+  // the git `v0.1.50`'s answers were taken with did not. Left unset here, as
+  // in that baseline, whichever git runs the suite.
+  try {
+    git(base, ['symbolic-ref', '-d', 'refs/remotes/origin/HEAD']);
+  } catch {
+    // not set: nothing to remove
+  }
 }
 
 /**

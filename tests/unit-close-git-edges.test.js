@@ -43,6 +43,13 @@ function g(cwd, ...args) {
   return r.stdout.trim();
 }
 
+// A newer git records the remote's default branch (origin/HEAD) at a fetch;
+// an older one leaves it unset after `git remote add`. Removed here so the
+// "unset" cases mean the same whichever git runs the suite.
+function unsetOriginHead(cwd) {
+  spawnSync('git', ['symbolic-ref', '-d', 'refs/remotes/origin/HEAD'], { cwd, env: GIT_ENV });
+}
+
 let root;
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'sig-unit-git-edges-'));
@@ -155,6 +162,7 @@ describe('origin/HEAD unset: the default branch is not guessed for a proof', () 
     g(work, 'remote', 'add', 'origin', remote);
     g(work, 'fetch', '-q', 'origin');
     g(work, 'reset', '-q', '--hard', `origin/${branch}`);
+    unsetOriginHead(work);
     expect(spawnSync('git', ['symbolic-ref', '-q', 'refs/remotes/origin/HEAD'], { cwd: work, env: GIT_ENV }).status).not.toBe(0);
     return { remote, seed, work, shas };
   }
@@ -187,6 +195,7 @@ describe('origin/HEAD unset: the default branch is not guessed for a proof', () 
     const stray = g(seed, 'rev-parse', 'HEAD');
     g(seed, 'push', '-q', 'origin', 'main');
     g(work, 'fetch', '-q', 'origin');
+    unsetOriginHead(work);
     await store(work, [opened, request(stray)], [item(stray)]);
     const unset = await records.confirmCloses(work, { now: NOW });
     expect(unset.confirmed).toEqual([]);
