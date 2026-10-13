@@ -125,6 +125,10 @@ function withoutMarkersNote(report) {
   const i = report.findIndex(markersNote);
   return i === -1 ? report : [...report.slice(0, i), ...report.slice(i + 2)];
 }
+// The same report without the one line that says which history the closes were checked against, when that is
+// not the remote's recorded default branch (r6). The history read, and every proposal made from it, are `v0.1.50`'s.
+const sourceNote = (line) => line.startsWith('The history read is ');
+const withoutSourceNote = (report) => report.filter((l) => !sourceNote(l));
 const aboutUnits = (line) => /^Wrote \d+ unit records? under |^\d+ proposed legacy closes? /.test(line);
 const inUnitsFolder = (line) => line.includes('.planning/work/units/');
 const foldersLine = (line) => line.startsWith('- `units/`') || line.startsWith('- `epics/<EpicID>/`');
@@ -150,6 +154,7 @@ const withoutKindsAAndB = (capture) => {
     delete dry.proposedUnitCloses; // …and legacy closes for them
     dry.report = withoutUnitSections(dry.report); // …and says so in its report
     dry.report = withoutMarkersNote(dry.report); // …and says a milestone file without Epic-table markers is left as it is (AC7.2)
+    dry.report = withoutSourceNote(dry.report); // …and says which history it read, when not the remote's recorded default branch (r6)
   }
   for (const key of ['apply', 'treeAfterApply', 'gitStatusAfterApply', 'workMd']) {
     delete out[`firstTime.archivedEpic.${key}`]; // that apply no longer fails its own check where there is `archive/epics/<ID>/`
@@ -343,7 +348,7 @@ describe('no store, or a v1 store: (a) what this Epic adds to the migrations tha
 
     // The report is v0.1.50's, line for line, with two sections added before its last sentence and one clause added to that sentence.
     const was = V0150['firstTime.linear.dryRun'].report;
-    const is = now['firstTime.linear.dryRun'].report;
+    const is = withoutSourceNote(now['firstTime.linear.dryRun'].report);
     expect(is.slice(0, was.length - 1)).toEqual(was.slice(0, -1));
     expect(is.slice(was.length - 1, -1)).toEqual([
       'Unit records — one record per Epic or unit this project names (2 named):',
@@ -364,7 +369,7 @@ describe('no store, or a v1 store: (a) what this Epic adds to the migrations tha
       + 'This command never adds them.';
     for (const name of ['epics', 'archivedEpic']) {
       const was = V0150[`firstTime.${name}.dryRun`].report;
-      const is = now[`firstTime.${name}.dryRun`].report;
+      const is = withoutSourceNote(now[`firstTime.${name}.dryRun`].report);
       expect(was.filter(markersNote), name).toEqual([]);
       // After the two unit sections and before the last sentence, with a blank line after it.
       expect(is.slice(-3, -1), name).toEqual([NOTE, '']);
@@ -376,7 +381,24 @@ describe('no store, or a v1 store: (a) what this Epic adds to the migrations tha
     }
     // A project with no milestone file is told nothing about markers.
     expect(now['firstTime.linear.dryRun'].report.filter(markersNote)).toEqual([]);
-    expect(withoutUnitSections(now['firstTime.linear.dryRun'].report)).toEqual(V0150['firstTime.linear.dryRun'].report);
+    expect(withoutSourceNote(withoutUnitSections(now['firstTime.linear.dryRun'].report))).toEqual(V0150['firstTime.linear.dryRun'].report);
+  });
+
+  it('the first-time dry run says which history it read when origin/HEAD is unset; v0.1.50\'s read the same one and did not say (r6)', () => {
+    // The fixture's repositories have a remote and no origin/HEAD: local `main` is read, as on v0.1.50.
+    const NOTE = 'The history read is the local branch main, which is not the remote\'s recorded default branch (origin/HEAD is not set): '
+      + 'a local branch can hold commits nobody merged. `git remote set-head origin -a` records the remote\'s default branch; run it, then '
+      + 'this again, to check against that.';
+    for (const name of NO_STORE) {
+      const was = V0150[`firstTime.${name}.dryRun`].report;
+      const is = now[`firstTime.${name}.dryRun`].report;
+      expect(was.filter(sourceNote), name).toEqual([]);
+      expect(is.filter(sourceNote), name).toEqual([NOTE]);
+      // It follows the sentence it is about, which is v0.1.50's, word for word.
+      const at = is.findIndex(sourceNote);
+      expect(is[at - 1], name).toMatch(/^Closes are checked against this repository's history — the default branch, main \(/);
+      expect(is[at - 1], name).toBe(was[at - 1]);
+    }
   });
 
   it('the first-time apply creates work/units/, so a project migrated on this version has unit records on; v0.1.50\'s made no such folder (AC9.1)', () => {

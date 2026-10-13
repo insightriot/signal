@@ -194,7 +194,7 @@ export function resolveDefaultBranch(baseDir, opts = {}) {
 // Does exactly this ref exist? `show-ref --verify` asks for the ref by its
 // full name and exits non-zero without it; `rev-parse --verify` would also
 // accept a tag or a local branch that carries the same long name.
-function exactRefExists(baseDir, ref, execFn) {
+export function exactRefExists(baseDir, ref, execFn) {
   try {
     git(baseDir, ['show-ref', '--verify', '--quiet', ref], execFn);
     return true;

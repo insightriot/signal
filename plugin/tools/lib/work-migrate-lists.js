@@ -102,6 +102,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 import { acquireLock as acquireAddLock, LOCK_FILE as ADD_LOCK_REL } from './add.js';
 import { atomicWrite } from './atomic-write.js';
+import { exactRefExists, hasRemote, resolveDefaultBranch } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
 import { gitEnv } from './git-env.js';
 import {
@@ -842,6 +843,21 @@ const masked = (m) => (m.length > 8 ? `${m.slice(0, 6)}…` : m);
 // the variation selectors.
 // (`printable`, `printable-text.js`).
 
+// One line, when the history the closes are checked against is NOT the
+// remote's recorded default branch (r6): which ref it is, why that matters,
+// and — only where there is a remote — the command that records the default.
+function evidenceSourceLine(evidence) {
+  if (evidence.source !== 'git' || evidence.recorded !== false) return [];
+  const local = evidence.ref !== 'HEAD';
+  const what = local ? `the local branch ${evidence.ref}` : 'HEAD — whatever is checked out; there is no local main or master';
+  if (!evidence.remote) {
+    return [`The history read is ${what}: this repository has no remote, so there is no recorded default branch to check against.`];
+  }
+  return [`The history read is ${what}${local ? ',' : ' —'} which is not the remote's recorded default branch (origin/HEAD is not set): `
+    + `${local ? 'a local branch' : 'it'} can hold commits nobody merged. \`git remote set-head origin -a\` records the remote's default branch; `
+    + 'run it, then this again, to check against that.'];
+}
+
 function dryRunReport(a) {
   const lines = ['/sig:docs-migrate --work-store — dry run (nothing written)', ''];
   lines.push(a.keySource === '--key'
@@ -853,6 +869,7 @@ function dryRunReport(a) {
       + 'Nothing closes unless you confirm the proposals. Anything else stays open, flagged, with a note saying what was found and not found.'
     : 'The migration could not read this repository\'s history, so nothing can be proposed for closing (not a git checkout, no commits, or git failed): '
       + 'every entry stays open, flagged, whatever its wording says.');
+  lines.push(...evidenceSourceLine(a.evidence));
   if (a.files.length === 0) {
     lines.push('Lists: none — the store starts empty.');
   } else {
@@ -1623,13 +1640,36 @@ const RETRO_WALK_MAX = 50000;
  *
  * @param {string} baseDir
  * @param {{execFn?: Function}} [opts]
- * @returns {{source: 'git'|'none', commits: string[], prs: Map<number, string>, epics: Map<string, string>,
- *   origin: {host: string, repo: string}|null, units?: true, unitsProblem?: string}}
+ * @returns {{source: 'git'|'none', ref?: string, recorded?: boolean, remote?: boolean, commits: string[],
+ *   prs: Map<number, string>, epics: Map<string, string>, origin: {host: string, repo: string}|null, units?: true,
+ *   unitsProblem?: string}}
+ *   With `source: 'git'` — `ref`: the history read, as the dry run names it (`origin/HEAD`, `main`, `master`,
+ *   `HEAD`); `recorded`: it is the remote's recorded default branch; `remote` (only when it is not):
+ *   whether the repository has a remote at all
  */
 export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   let out = '';
   let source = 'git';
-  const ref = ['refs/remotes/origin/HEAD', 'refs/heads/main', 'refs/heads/master'].find((r) => { try { execFn('git', ['rev-parse', '--verify', '--quiet', r], { cwd: baseDir, stdio: 'ignore', env: gitEnv() }); return true; } catch { return false; } }) ?? 'HEAD';
+  // Which ref is read (r6). The remote's default branch is the one
+  // `origin/HEAD` records, read as a close is confirmed (`resolveDefaultBranch`,
+  // `guess: false`: the symbolic ref by its full name, its target as that
+  // exact ref). Each fallback is asked for as an exact ref too
+  // (`exactRefExists`). A name lookup (`rev-parse --verify`) is not used: it
+  // takes a tag called `refs/remotes/origin/HEAD`, or `refs/heads/main`, for
+  // the ref when the ref is not there, and a pushed tag on unmerged work
+  // would then support a proposed close.
+  const recorded = resolveDefaultBranch(baseDir, { execFn, guess: false });
+  const ref = recorded !== null ? `refs/remotes/origin/${recorded}`
+    : ['refs/heads/main', 'refs/heads/master'].find((r) => exactRefExists(baseDir, r, execFn)) ?? 'HEAD';
+  // What the dry run calls it, and whether it is the remote's recorded
+  // default branch: when it is not, the dry run says which ref this is
+  // (`evidenceSourceLine`), and names the command that records the default
+  // only where there is a remote to record it from.
+  const read = {
+    ref: recorded !== null ? 'origin/HEAD' : ref.replace(/^refs\/heads\//, ''),
+    recorded: recorded !== null,
+    ...(recorded !== null ? {} : { remote: hasRemote(baseDir, { execFn }) === true }),
+  };
   try {
     // The default branch (origin/HEAD, else main, else master, else HEAD), not --all (D-M6E15-25, AC4.1): unmerged branches, stashes and fetched
     // remote work are not what this project shipped; native closes, too, are
@@ -1693,7 +1733,7 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
     }
     for (const u of listed.units) if (u.status === 'closed' && u.close?.reason === 'shipped') shipped.set(u.id, u.path);
     return {
-      source, ref: ref.replace(/^refs\/(?:heads|remotes)\//, ''), commits, prs, epics: shipped, origin, units: true,
+      source, ...read, commits, prs, epics: shipped, origin, units: true,
       ...(unitsProblem === null ? {} : { unitsProblem }),
     };
   }
@@ -1718,7 +1758,7 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
       }
     }
   }
-  return { source, ref: ref.replace(/^refs\/(?:heads|remotes)\//, ''), commits, prs, epics, origin };
+  return { source, ...read, commits, prs, epics, origin };
 }
 
 const repoKey = (owner, repo) => `${owner}/${repo}`.toLowerCase().replace(/\.git$/, '');
