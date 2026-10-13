@@ -20,12 +20,21 @@ last_updated: 2026-10-12T20:04:10.176Z
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-12)
+### ▶ WHERE THE WORK IS — read this first (2026-10-13)
 
-**`M6.E16` — *"Epics and units as records"* — VERIFY passed on loop 3 (36 of 36 criteria, 8 with a stated limit), REVIEW next.** Loops 1 and 2 failed on AC6.4 ("as on `v0.1.50`"), now said by kind and pinned by a 94-answer comparison with `main` (`D-M6E16-20`). Report: [`M6.E16-VERIFICATION.md`](M6.E16-VERIFICATION.md). Branch
-`feat/m6.e16-epics-units-as-records`, pushed. Eleven slices (S0–S10) in nine waves; progress in
-[`M6.E16-PROGRESS.md`](M6.E16-PROGRESS.md). Suite: 330 files, 7128 passed, 1 skipped; lint clean.
+**`M6.E16` — *"Epics and units as records"* — REVIEW failed on pass 3 and is stopped at the loop ceiling for Brett's decision.** Nothing more starts (no fourth fix round, no fourth pass, no SHIP) until he chooses. Report: [`M6.E16-REVIEW.md`](M6.E16-REVIEW.md), § Pass 3. Branch
+`feat/m6.e16-epics-units-as-records`, pushed. Suite at `4d78fddf`: 346 files, 7494 passed, 1 skipped;
+lint clean. VERIFY passed on loop 3 (36 of 36 criteria, 8 with a stated limit):
+[`M6.E16-VERIFICATION.md`](M6.E16-VERIFICATION.md). Progress: [`M6.E16-PROGRESS.md`](M6.E16-PROGRESS.md).
 
+- **What pass 3 found:** 0 Critical, 1 High, 6 Important; two defects in the product and three gaps
+  in the tests, all in code written in fix round 3. The main one: after a squash merge, `closeEpic` on
+  the default branch swaps an item's proof on its own, and that closes an item whose fix was never
+  merged (`D-M6E16-24` is the decision it came from). The other: the units-only migration rehearsal
+  does not list one kind of row the apply removes.
+- **Open with Brett:** which way out of the ceiling; and whether Signal should stop guessing
+  `origin/main` or `origin/master` when `origin/HEAD` is unset (pass 2's S2-M1, written down as a
+  known limit for now).
 - **Signal's own cutover is done** (`010262f7`, 2026-10-12): 48 unit records under `work/units/` —
   `M6.E16` open, 43 legacy closes Brett confirmed, 4 Epic IDs closed as dropped (`M5.E11`, `M5.E12`,
   `M5.E14`, `M5.E20`). The Epic table in `MILESTONE-6.md` and `work/EPICS.md` are generated from the
@@ -38,7 +47,7 @@ last_updated: 2026-10-12T20:04:10.176Z
 - **Closing, proof not yet on `main`:** `SIG-132`, `SIG-255`, `SIG-288`, `SIG-289`, `SIG-295`.
   Filed and open: `SIG-294`, `SIG-296` … `SIG-302`.
 - Requirements: [`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md). Plan:
-  [`M6.E16-PLAN.md`](M6.E16-PLAN.md). Decisions `D-M6E16-1` … `-20`.
+  [`M6.E16-PLAN.md`](M6.E16-PLAN.md). Decisions `D-M6E16-1` … `-25`.
 - Not done from the small-fix batch: `SIG-285`, `SIG-139`.
 
 ### Previously (2026-10-10)
