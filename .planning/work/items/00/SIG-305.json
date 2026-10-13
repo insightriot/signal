@@ -1,0 +1,20 @@
+{
+  "id": "SIG-305",
+  "type": "BUG",
+  "title": "The edit hook misses a record written by its real path when .planning is a link",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E16 REVIEW pass 3",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-13T04:13:54.402Z",
+      "by": "claude (M6.E16 REVIEW)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-13T04:13:54.402Z",
+      "by": "claude (M6.E16 REVIEW)"
+    }
+  ]
+}

@@ -188,5 +188,10 @@
 | SIG-300 | `confirmed` | P3 | **A unit's text is cleaned or cut on write with no word to the caller** |
 | SIG-301 | `confirmed` | P3 | **One record over a limit, written past the writer, stops every write to the store** |
 | SIG-302 | `confirmed` | P3 | **`npm run lint` does not cover tests/; the Closed section of EPICS.md is in ID order** |
+| SIG-303 | `confirmed` | P3 | **Three timing tests fail under machine load and pass alone** |
+| SIG-304 | `confirmed` | P3 | **A slow pattern at milestones.js:229 is now reached by readMilestoneRows** |
+| SIG-305 | `confirmed` | P3 | **The edit hook misses a record written by its real path when .planning is a link** |
+| SIG-306 | `confirmed` | P3 | **Three older refusals print project text through JSON.stringify, not shownName** |
+| SIG-307 | `confirmed` | P3 | **Small notes from M6.E16 REVIEW pass 3 that no round took up** |
 
-*0 needs-triage · 58 confirmed · 6 closing · 121 closed (185 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 63 confirmed · 6 closing · 121 closed (190 total) · closes more than 30 days before the newest event are in `work/history/`*
