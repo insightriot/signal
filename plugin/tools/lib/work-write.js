@@ -294,7 +294,9 @@ export function defaultBranchRef(baseDir, execFn) {
   if (branch === null) return { reason: 'no-default-branch' };
   const ref = `refs/remotes/origin/${branch}`;
   try {
-    runGit(baseDir, ['rev-parse', '--verify', '--quiet', ref], execFn);
+    // `show-ref --verify` asks for this exact ref. `rev-parse --verify` would
+    // also accept a tag or a local branch that carries the same long name.
+    runGit(baseDir, ['show-ref', '--verify', '--quiet', ref], execFn);
   } catch {
     return { reason: 'no-default-branch' };
   }

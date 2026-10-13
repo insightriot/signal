@@ -25,7 +25,7 @@ last_updated: 2026-10-13T17:13:59.608Z
 ### ▶ WHERE THE WORK IS — read this first (2026-10-13)
 
 **`M6.E16` — *"Epics and units as records"* — at SHIP as `v0.1.51`, PR #301 open (2026-10-13). Its close is requested and waits for the merge.** Brett approved the pull request, the close request, the merge on a green `test` check, and the tag. Branch
-`feat/m6.e16-epics-units-as-records`. Suite: 347 files, 7560 passed, 1 skipped; lint clean. Report:
+`feat/m6.e16-epics-units-as-records`. Suite: 347 files, 7562 passed, 1 skipped; lint clean. Report:
 [`M6.E16-REVIEW.md`](M6.E16-REVIEW.md) (PASS-WITH-FIXES, last section). Retrospective:
 [`M6.E16-RETROSPECTIVE.md`](M6.E16-RETROSPECTIVE.md).
 

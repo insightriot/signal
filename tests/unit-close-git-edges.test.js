@@ -23,6 +23,7 @@ import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
 import { regenerateViews } from '../plugin/tools/lib/work-views.js';
 import { reportCloses, runConfirmCloses } from '../plugin/tools/lib/close-confirm.js';
 import { checkClosedProofs } from '../plugin/tools/lib/sweep.js';
+import { resolveDefaultBranch } from '../plugin/tools/lib/branch-guard.js';
 import { snapshotTree } from './helpers/write-inventory.js';
 
 const AT = '2026-10-11T10:00:00.000Z';
@@ -474,6 +475,28 @@ describe('a pushed tag does not change which branch a close is confirmed against
     await store(work, [opened, request(shas[1])]);
     const out = await records.confirmCloses(work, { now: NOW, regenerate: async () => {} });
     expect(out.units).toEqual({ confirmed: [EPIC], stillClosing: [], stale: [] });
+  });
+});
+
+// The stored default must be that exact remote ref. A tag carrying the same
+// long name is not the branch, though `rev-parse --verify` would accept it.
+describe('a tag named like the remote ref does not stand in for a default branch that is gone', () => {
+  it('origin/HEAD → origin/master, origin/master gone, a tag `refs/remotes/origin/master` on unmerged work: no default branch, nothing confirmed', async () => {
+    const { remote, seed } = await plantRemote('master');
+    const work = join(root, 'work');
+    g(root, 'clone', '-q', remote, work);
+    g(seed, 'checkout', '-q', '-b', 'side');
+    g(seed, 'commit', '-q', '--allow-empty', '-m', 'never merged');
+    const unmerged = g(seed, 'rev-parse', 'HEAD');
+    g(seed, 'push', '-q', 'origin', 'side');
+    g(work, 'fetch', '-q', 'origin');
+    g(work, 'update-ref', '-d', 'refs/remotes/origin/master');
+    g(work, 'tag', 'refs/remotes/origin/master', unmerged);
+    expect(g(work, 'symbolic-ref', 'refs/remotes/origin/HEAD')).toBe('refs/remotes/origin/master');
+    expect(resolveDefaultBranch(work, { guess: false })).toBeNull();
+    await store(work, [opened, request(unmerged)]);
+    const out = await records.confirmCloses(work, { now: NOW });
+    expect(out.units).toEqual({ confirmed: [], stillClosing: [{ id: EPIC, reason: 'no-default-branch' }], stale: [] });
   });
 });
 

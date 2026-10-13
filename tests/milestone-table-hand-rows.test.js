@@ -271,6 +271,24 @@ describe('a row for a unit that has a record is regenerated, whatever its cells 
     expect(found.map((r) => [r.text, r.repeated])).toEqual([['|  | shipped | typed by hand |', true]]);
   });
 
+  // The table's own rows are known by their whole text. A typed row that only
+  // shares their first cell is not one of them, wherever it stands.
+  it('rowsNotReprinted: a typed row sharing a first cell with the table\'s rows is not safe, before or after them, with one or both there', () => {
+    const one = '|  | shipped | one |';
+    const two = '|  | shipped | two |';
+    const typed = '|  | a note I typed | keep me |';
+    const table = ['| Epic | Status | Summary |', '|---|---|---|', one, two].join('\n');
+    const head = '| Epic | Status | Summary |\n|---|---|---|\n';
+    const opts = { milestone: '7', ids: ['M7.E2', 'M7.E3'] };
+    for (const between of [[one, typed], [typed, one], [typed, one, two], [one, two, typed]]) {
+      const found = rowsNotReprinted(milestone(`${head}${between.join('\n')}\n`), table, opts);
+      expect(found.map((r) => r.text), between.join(' / ')).toEqual([typed]);
+    }
+    // None of the table's rows there: one typed row stands in for the Epic's row, as it always did; a second does not.
+    const both = rowsNotReprinted(milestone(`${head}${typed}\n|  | another | typed |\n`), table, opts);
+    expect(both.map((r) => r.text)).toEqual(['|  | another | typed |']);
+  });
+
   it('rowsNotReprinted: a row for an Epic of another milestone is not safe just because that Epic has a record', () => {
     const table = renderEpicTable([], { milestone: '7' });
     const found = rowsNotReprinted(milestone(`${table}\n| \`M6.E1\` | shipped | from another file |\n`), table, { milestone: '7', ids: ['M6.E1'] });

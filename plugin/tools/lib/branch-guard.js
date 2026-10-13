@@ -176,8 +176,10 @@ export function resolveDefaultBranch(baseDir, opts = {}) {
     const ref = git(baseDir, ['symbolic-ref', '--quiet', ORIGIN_HEAD_REF], execFn);
     if (ref.startsWith(ORIGIN_REFS) && ref.length > ORIGIN_REFS.length) {
       // A stored target that is gone (the remote's default was renamed, then
-      // a pruning fetch) names no branch: `rev-parse --verify` throws.
-      git(baseDir, ['rev-parse', '--verify', '--quiet', ref], execFn);
+      // a pruning fetch) names no branch: `show-ref --verify` throws. It asks
+      // for that exact ref; `rev-parse` would also accept a tag or a local
+      // branch that carries the same long name.
+      git(baseDir, ['show-ref', '--verify', '--quiet', ref], execFn);
       return ref.slice(ORIGIN_REFS.length);
     }
   } catch {

@@ -358,23 +358,35 @@ export function rowsNotReprinted(content, tableText, { milestone, ids, legacy = 
   const at = epicMarkers(content);
   if (at.state !== 'ok') return [];
   const has = new Set([...ids].filter((id) => epicIdParts(id)?.milestone === String(milestone)));
+  const printedLines = tableText.split('\n');
+  const printed = new Set(printedLines.map(firstCell));
+  const rows = tableBetweenMarkers(content).rows;
   const keyOf = (cell) => legacy.get(cell) ?? namedEpic(cell, milestone) ?? cell;
-  // How many rows the table about to be written prints for each key: one,
-  // unless two recorded old rows share a first cell.
-  const prints = new Map();
-  for (const cell of tableText.split('\n').map(firstCell)) prints.set(keyOf(cell), (prints.get(keyOf(cell)) ?? 0) + 1);
-  const printed = new Set(tableText.split('\n').map(firstCell));
-  const seen = new Map();
+  // A row that is, character for character, a row the table prints is the
+  // table's own, however many it prints with that first cell (two recorded old
+  // rows can share one). Each printed row answers for one such row.
+  const left = new Map();
+  for (const line of printedLines) left.set(line.trim(), (left.get(line.trim()) ?? 0) + 1);
+  const exact = new Set();
+  const seen = new Set();
+  for (const row of rows) {
+    const text = row.text.trim();
+    if ((left.get(text) ?? 0) === 0) continue;
+    left.set(text, left.get(text) - 1);
+    exact.add(row);
+    seen.add(keyOf(firstCell(row.text)));
+  }
   const out = [];
-  for (const row of tableBetweenMarkers(content).rows) {
+  for (const row of rows) {
+    if (exact.has(row)) continue;
     const cell = firstCell(row.text);
     const id = legacy.get(cell) ?? namedEpic(cell, milestone);
     const own = printed.has(cell) || (id !== null && has.has(id));
-    // As many rows for each Epic as the table prints (one, at least): by its
-    // ID, or by the cell when it names none.
+    // Otherwise one row for each Epic — by its ID, or by the cell when it
+    // names none — and only when none of the table's own rows is there for it.
     const key = id ?? cell;
-    if (own && (seen.get(key) ?? 0) < Math.max(1, prints.get(key) ?? 0)) {
-      seen.set(key, (seen.get(key) ?? 0) + 1);
+    if (own && !seen.has(key)) {
+      seen.add(key);
       continue;
     }
     out.push({ ...row, cell, id, ...(own ? { repeated: true } : {}) });
