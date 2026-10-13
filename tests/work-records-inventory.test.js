@@ -104,6 +104,8 @@ const READERS = {
   probeCloses: (base) => records.probeCloses(base, { now: AT }),
   // Asks git two questions and reads nothing of the store (r1.2, C-I2).
   headProvesNothing: (base) => records.headProvesNothing(base, '0123abc'),
+  // Asks git whether a commit is on the default branch and reads nothing of the store (r3.4).
+  onDefaultBranch: (base) => records.onDefaultBranch(base, '0123abc'),
   // t7.3 prep: v1 work-ops.js's triage readers, ported to records.
   triageNext: (base) => records.triageNext(base),
   listNeedsReview: (base) => records.listNeedsReview(base),
@@ -149,6 +151,23 @@ const WRITERS = {
   },
   reopenItem: { run: (base) => records.reopenItem(base, 'SIG-1006', { reason: 'back', by }) },
   editItem: { run: (base) => records.editItem(base, 'SIG-2', { changes: { title: 'edited' }, by }) },
+  // Real events in one write, all kept (r3.4): `reopened`, then the new `close_requested` —
+  // two here, because SIG-5 is in no Epic; an item in one gets a third between them, the
+  // `queued` or `started` that keeps it there (tests/unit-close-head-proof.test.js). Git is
+  // stubbed: the new proof is a commit, and SIG-5's outstanding proof (0123abc) is a commit
+  // that is not in HEAD's history.
+  rerequestCloses: {
+    run: (base) => records.rerequestCloses(base, [{ id: 'SIG-5', proof: 'c'.repeat(40), by }], {
+      execFn: (cmd, args) => {
+        if (args.includes('--is-inside-work-tree')) return 'true\n';
+        if (args[0] === 'merge-base') throw Object.assign(new Error('not an ancestor'), { status: 1 });
+        if (args.includes(`${'c'.repeat(40)}^{commit}`)) return `${'c'.repeat(40)}\n`;
+        if (args.includes('0123abc^{commit}')) return `0123abc${'0'.repeat(33)}\n`;
+        return '';
+      },
+    }),
+    appended: 2,
+  },
   // The store is not a git repo, so git is stubbed: origin/main resolves and
   // SIG-5's proof (0123abc) is an ancestor of it. SIG-5 gains one `closed`.
   // Real-git scenarios are in tests/work-records-confirm.test.js.
@@ -168,6 +187,9 @@ const WRITERS = {
 
 const EXEMPT = {
   // name: 'reason, reviewed by …'
+  rerequestEpicClose: 'writes item records (three events each) and one unit record (one or two events) in ONE call, '
+    + 'and this check takes one event count per writer. The item half is `rerequestCloses`, checked above; the whole call, '
+    + 'event by event, is tests/unit-close-head-proof.test.js. Reviewed at M6.E16 r3.4.',
 };
 
 // Lock nesting outside this module, reviewed and out of scope (Decision 9):

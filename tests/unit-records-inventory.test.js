@@ -82,6 +82,8 @@ const READERS = {
   importUnitsTexts: () => units.importUnitsTexts([{ id: 'M7.E1', title: 'Lantern', opened: { at: AT, by } }]),
   // Builds the closes `confirmCloses` writes, under ITS lock; writes nothing itself (t4.2).
   planUnitConfirms: (base) => units.planUnitConfirms({ baseDir: base, key: 'SIG' }, [{ id: 'M6.E21', proof: SHA }], { at: AT, by, openItems: () => [] }),
+  // Builds the close request `rerequestEpicClose` (work-records.js) writes, under ITS lock; writes nothing itself (r3.4).
+  planUnitCloseRequest: (base) => units.planUnitCloseRequest({ baseDir: base, key: 'SIG' }, 'M6.E20', { proof: SHA, at: AT, by }),
 };
 
 const WRITERS = {

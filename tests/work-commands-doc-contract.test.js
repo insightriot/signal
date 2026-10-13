@@ -150,7 +150,7 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
   }
   // Backticked camelCase names on these lines that are an option or a result
   // field, not a function. Listed, so a new one is a decision and not a pass.
-  const NOT_FUNCTIONS = new Set(['closesLine', 'expectedHash', 'inputHash', 'confirmUnitCloses', 'holdReason', 'evictionLine', 'archivePath']);
+  const NOT_FUNCTIONS = new Set(['closesLine', 'expectedHash', 'inputHash', 'confirmUnitCloses', 'holdReason', 'evictionLine', 'archivePath', 'rerequestedItems']);
   const UNIT_LINE = /unit record|work\/units|unit-records\.js|work-ops\.js/i;
 
   it.each(UNIT_COMMANDS)('%s.md: every function named on a line about unit records is a real lib export', (name) => {

@@ -285,6 +285,16 @@ describe('no work/units/: with only the kinds of difference AC6.4 names taken ou
 });
 
 describe('store on, no work/units/: (a) what this Epic adds', () => {
+  // One more thing this Epic adds is a call `v0.1.50` did not have, so no answer of
+  // `v0.1.50`'s is compared with it: `rerequestCloses` (`work-records.js`) asks again
+  // for the close of an item left closing on a commit that never reached the branch.
+  // It works with or without `work/units/` — tests/unit-close-head-proof.test.js,
+  // "works on a project with no unit records". No key of the capture changes for it.
+  it('rerequestCloses is a new export of the item library; v0.1.50 had no such call (AC6.4 kind a)', async () => {
+    const lib = await import('../plugin/tools/lib/work-records.js');
+    expect(typeof lib.rerequestCloses).toBe('function');
+  });
+
   it('the edit hook blocks a write under work/units/ though the folder does not exist; v0.1.50 allowed it (AC2.2)', () => {
     expect(V0150['hook.unitRecord']).toEqual({ block: false });
     expect(now['hook.unitRecord'].block).toBe(true);

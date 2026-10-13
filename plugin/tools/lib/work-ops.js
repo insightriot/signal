@@ -50,7 +50,7 @@ import {
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
 import { assertNoHandKeptLists, EPIC_README } from './work-generate.js';
 import { rewriteRelativeLinks } from './work-links.js';
-import { assertWritable, closeEpicCheck, headProvesNothing } from './work-records.js';
+import { assertWritable, closeEpicCheck, headProvesNothing, onDefaultBranch, rerequestEpicClose } from './work-records.js';
 import { assertViewsWritable, regenerateViews, viewsNotRegenerated } from './work-views.js';
 import { isGeneratedText } from './work-marker.js';
 import { FOLDERS, isGitRepo, walkFiles, WORK_DIR, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
@@ -306,6 +306,15 @@ function removeEmptyTree(dir) {
  * record (unit records turned on while the Epic was open) gets one first,
  * after the same checks have passed once (`created: true`).
  *
+ * **After a squash or rebase merge** the branch commit recorded as proof never
+ * reaches the default branch, for the unit or for the Epic's items. Run on the
+ * default branch after the merge — the proof (HEAD, or `commit`) is then
+ * already on it — this call asks again, in ONE write, for the unit's close
+ * and for the close of each item still *closing* on a commit that is not in
+ * HEAD's history (`rerequestEpicClose`, `work-records.js`); `rerequestedItems`
+ * names them. Each item stays in the Epic. On any other checkout such an item
+ * is open, as it always was, and the close refuses (OPEN_ITEMS).
+ *
  * @param {string} baseDir
  * @param {string} epicId
  * @param {{by: string, pr?: string|number, release?: string, at?: string, commit?: string}} close — `at` defaults to now;
@@ -317,7 +326,7 @@ function removeEmptyTree(dir) {
  *       closingOnBranch: string[], unit: {id, path, status: 'closing', held, closing_proof, close: null}}
  *   | {status: 'already-requested', epic: string, commit: string, unit: object}
  *   | {status: 're-requested', epic: string, commit: string, previous: string, created: false, retro: string,
- *       items: string[], closingOnBranch: string[], unit: object}
+ *       items: string[], closingOnBranch: string[], rerequestedItems?: string[], unit: object}
  *   | {status: 'already-closed', epic: string, unit: object}>}
  *   `rewritten` — live files outside the folder whose links into it were
  *   retargeted at the archive, relative to `baseDir` — or `{aborted, sensitiveHits}` (the sensitive-data rule, over pr/release).
@@ -581,6 +590,21 @@ const unitView = (unit) => ({
   id: unit.id, path: unit.path, status: unit.status, held: unit.held, closing_proof: unit.closing_proof, close: unit.close,
 });
 
+// The error for a close that was not requested after this call had created
+// the unit's record: "Nothing was written" would be false.
+function createdButNotRequested(epicId, err) {
+  // `changeStands`: the request landed and only the views failed — the
+  // error already says so, and "was not requested" would be false.
+  if (err?.changeStands === true) return err;
+  const wrapped = new WorkStoreError(
+    err instanceof WorkStoreError ? err.code : 'IO',
+    `${epicId}: its unit record was created (opened), but the close was not requested — ${err?.message ?? String(err)}`,
+  );
+  wrapped.cause = err;
+  if (err?.retro) wrapped.retro = err.retro;
+  return wrapped;
+}
+
 async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, opts, execFn) {
   // A record's `pr` and `release` are text; a PR number is written as its digits.
   const text = (v) => (v === undefined || v === null ? undefined : String(v));
@@ -608,8 +632,20 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
   let checked;
   let retro;
   const gate = () => {
-    checked = closeEpicCheck(baseDir, epicId, { execFn });
+    checked = closeEpicCheck(baseDir, epicId, { execFn, unitRecords: true });
     retro = assertRetroComplete(baseDir, epicId);
+  };
+  // The recovery after a squash or rebase merge: when the proof is already on
+  // the default branch, an item still closing on a commit that never reached
+  // this branch does not refuse the close — its close is asked again with the
+  // proof, in the same write as the unit's. Anywhere else (a normal SHIP, on
+  // the Epic's branch) such an item is open, as it always was: there the proof
+  // is not known to hold anyone's fix.
+  const recovering = onDefaultBranch(baseDir, proof, { execFn });
+  const recoveryGate = () => {
+    checked = closeEpicCheck(baseDir, epicId, { execFn, unitRecords: true, rerequest: true });
+    retro = assertRetroComplete(baseDir, epicId);
+    return checked.rerequest;
   };
 
   // HEAD taken as the proof (no `commit` passed) is checked before each write
@@ -624,7 +660,8 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
     // Unit records were turned on while this Epic was open: its record is
     // created here, after everything that can refuse has been checked once.
     headProof();
-    gate();
+    if (recovering) recoveryGate();
+    else gate();
     assertUnitId(baseDir, epicId);
     try {
       const opened = await openUnit(baseDir, epicId, { by, at });
@@ -638,8 +675,41 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
   } else {
     const unit = getUnit(baseDir, epicId);
     if (unit.status === 'closed') return { status: 'already-closed', epic: epicId, unit: unitView(unit) };
+    if (unit.status === 'closing' && unit.closing_proof === proof) {
+      return { status: 'already-requested', epic: epicId, commit: proof, unit: unitView(unit) };
+    }
+  }
+
+  // Looked at once before the lock, and decided again under it (the gate).
+  if (recovering) {
+    if (!created) headProof();
+    if (recoveryGate().length > 0) {
+      let out;
+      try {
+        out = await rerequestEpicClose(baseDir, epicId, { proof, pr: prText, release: releaseText, by, at }, {
+          execFn, renameFn: opts.renameFn, gate: recoveryGate,
+        });
+      } catch (err) {
+        throw created ? createdButNotRequested(epicId, err) : err;
+      }
+      return {
+        status: out.previous === null ? 'close-requested' : 're-requested',
+        epic: epicId,
+        commit: proof,
+        ...(out.previous === null ? {} : { previous: out.previous }),
+        created,
+        retro,
+        items: checked.items,
+        closingOnBranch: checked.closingOnBranch,
+        rerequestedItems: out.items,
+        unit: unitView(out.unit),
+      };
+    }
+  }
+
+  if (!created) {
+    const unit = getUnit(baseDir, epicId);
     if (unit.status === 'closing') {
-      if (unit.closing_proof === proof) return { status: 'already-requested', epic: epicId, commit: proof, unit: unitView(unit) };
       // SHIP re-run after new commits (t5.0a): the earlier request is
       // reopened and the close requested again, in one write, behind the
       // same gate.
@@ -669,17 +739,7 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
       execFn, renameFn: opts.renameFn, acknowledgeSensitive: opts.acknowledgeSensitive, gate,
     });
   } catch (err) {
-    // `changeStands`: the request landed and only the views failed — the
-    // error already says so, and "was not requested" would be false.
-    if (!created || err?.changeStands === true) throw err;
-    // "Nothing was written" would be false: the record was created above.
-    const wrapped = new WorkStoreError(
-      err instanceof WorkStoreError ? err.code : 'IO',
-      `${epicId}: its unit record was created (opened), but the close was not requested — ${err?.message ?? String(err)}`,
-    );
-    wrapped.cause = err;
-    if (err?.retro) wrapped.retro = err.retro;
-    throw wrapped;
+    throw created ? createdButNotRequested(epicId, err) : err;
   }
   if (out?.aborted) return out;
   return {

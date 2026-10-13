@@ -1379,14 +1379,29 @@ export function isEpicArchived(baseDir, epicId) {
  * store is broken: a broken record's Epic cannot be known, and passing over it
  * could close an Epic with an open item in it.
  *
+ * Two options, for the caller on a project with unit records (`closeEpic`'s
+ * unit path); neither is passed anywhere else, and without them nothing here
+ * differs from before:
+ * - `unitRecords: true` words the refusal for a close that moves nothing
+ *   ("Nothing was written"), and says how an item left *closing* by a squash
+ *   or rebase merge is asked again;
+ * - `rerequest: true` does not count as open an item that is *closing* on a
+ *   commit that is certainly not in HEAD's history (`notInHead`): it is
+ *   returned in `rerequest`, for the caller to ask its close again with a new
+ *   commit in the same write (`rerequestEpicClose`). An item git cannot answer
+ *   for is still open.
+ *
  * @param {string} baseDir
  * @param {string} epicId
- * @param {{execFn?: Function}} [opts] — as `listRecords`'s; also runs the
- *   ancestry check
- * @returns {{epic: string, items: string[], closingOnBranch: string[], archived: boolean}}
+ * @param {{execFn?: Function, unitRecords?: boolean, rerequest?: boolean}} [opts] — `execFn` as
+ *   `listRecords`'s; also runs the ancestry check
+ * @returns {{epic: string, items: string[], closingOnBranch: string[], archived: boolean,
+ *   rerequest?: Array<{id: string, proof: string}>}}
  *   `items`: the Epic's records, by number, every one closed or closing on the
  *   branch; `closingOnBranch`: those still *closing* (confirmed after the
- *   merge); `archived`: as `isEpicArchived`
+ *   merge); `archived`: as `isEpicArchived`; `rerequest` (only with
+ *   `opts.rerequest`): the items closing on a commit that is not in HEAD, each
+ *   with that commit
  * @throws {WorkStoreError} SCHEMA (not an Epic ID, or a broken record), OPEN_ITEMS, CONFIG
  */
 export function closeEpicCheck(baseDir, epicId, opts = {}) {
@@ -1399,22 +1414,40 @@ export function closeEpicCheck(baseDir, epicId, opts = {}) {
   const mine = records.filter((r) => r.epic === epicId);
   const execFn = opts.execFn ?? execFileSync;
   const closingOnBranch = [];
+  const rerequest = [];
   let onHead;
+  let offHead;
   const open = mine.filter((r) => {
     if (r.status === 'C') return false;
     if (r.status !== 'closing') return true;
     onHead ??= headAncestry(baseDir, execFn);
-    if (!onHead(latestRequest(r.record)?.proof)) return true;
+    const proof = latestRequest(r.record)?.proof;
+    if (!onHead(proof)) {
+      if (opts.rerequest !== true) return true;
+      offHead ??= notInHead(baseDir, execFn);
+      if (!offHead(proof)) return true;
+      rerequest.push({ id: r.id, proof });
+      return false;
+    }
     closingOnBranch.push(r.id);
     return false;
   });
   if (open.length) {
     const lines = open.map((r) => `  ${r.id} (status ${r.status})${r.record.title ? ` — ${r.record.title}` : ''}`);
+    // With unit records nothing moves at a close, and an item left closing by
+    // a squash or rebase merge has a way out that the folder close never had.
+    const squashed = opts.unitRecords === true && open.some((r) => r.status === 'closing')
+      ? ' An item still closing on a commit that never reached this branch (the pull request was merged by squash or rebase) is asked again '
+        + 'by re-running this on the default branch after the merge, with a clean tree.'
+      : '';
     throw new WorkStoreError('OPEN_ITEMS', `${epicId} has ${open.length} open item${open.length === 1 ? '' : 's'} `
       + `in it — close each (\`/sig:item close\`; a closing item closes when confirmCloses finds its commit) `
-      + `or triage it out of the Epic, then re-run. Nothing was moved:\n${lines.join('\n')}`);
+      + `or triage it out of the Epic, then re-run.${squashed} Nothing was ${opts.unitRecords === true ? 'written' : 'moved'}:\n${lines.join('\n')}`);
   }
-  return { epic: epicId, items: mine.map((r) => r.id), closingOnBranch, archived: isEpicArchived(baseDir, epicId) };
+  return {
+    epic: epicId, items: mine.map((r) => r.id), closingOnBranch, archived: isEpicArchived(baseDir, epicId),
+    ...(opts.rerequest === true ? { rerequest } : {}),
+  };
 }
 
 /**
@@ -1465,6 +1498,200 @@ function headAncestry(baseDir, execFn) {
   const isShallow = shallowProbe(baseDir, execFn);
   return (proof) => typeof proof === 'string' && COMMIT_RE.test(proof)
     && ancestryFailure(baseDir, proof, 'HEAD', execFn, isShallow) === null;
+}
+
+// `proof => boolean`: is this proof CERTAINLY not a commit in the current
+// HEAD's history? True only when git says so: the commit is in this
+// repository and `merge-base --is-ancestor` answers no, or — in a clone that
+// is not shallow — no commit of that name is here at all (every ancestor of
+// HEAD is). False whenever git cannot answer: no repository, a shallow clone,
+// an invalid or ambiguous proof, a failure. The opposite of `headAncestry` is
+// not this: "not shown to be in HEAD" includes "cannot tell".
+function notInHead(baseDir, execFn) {
+  if (!isGitRepo(baseDir, execFn)) return () => false;
+  const isShallow = shallowProbe(baseDir, execFn);
+  return (proof) => {
+    if (typeof proof !== 'string' || !COMMIT_RE.test(proof)) return false;
+    const why = ancestryFailure(baseDir, proof, 'HEAD', execFn, isShallow);
+    return why === 'not-on-default-branch' || why === 'unknown-commit';
+  };
+}
+
+/**
+ * Is this commit already on the remote's default branch — the ref
+ * `confirmCloses` checks against (`refs/remotes/origin/<default>`)? False when
+ * it is not, and whenever git cannot answer. Reads only; never fetches.
+ *
+ * @param {string} baseDir
+ * @param {string} sha — a commit hash
+ * @param {{execFn?: Function}} [opts]
+ * @returns {boolean}
+ */
+export function onDefaultBranch(baseDir, sha, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  if (typeof sha !== 'string' || !COMMIT_RE.test(sha)) return false;
+  const target = defaultBranchRef(baseDir, execFn);
+  if (target.ref === undefined) return false;
+  return ancestryFailure(baseDir, sha, target.ref, execFn, shallowProbe(baseDir, execFn)) === null;
+}
+
+// ── Asking again for a close whose commit never landed (REVIEW pass 2) ──────
+//
+// A pull request merged by squash or rebase leaves every close that was
+// requested on the branch pointing at a commit the default branch will never
+// hold: the item stays *closing* for ever. The way out is to ask again with a
+// commit that did land. An item's close is asked again ONLY when the commit
+// it is closing on is certainly not in HEAD's history — a proof that HEAD can
+// reach is never replaced — and only with a full hash that names a commit
+// here.
+//
+// It is three events, all real and all kept, as a unit's re-request is two:
+// `reopened` (its reason names both commits), then the `queued` or `started`
+// that puts the item back in the unit it was in (a reopen takes an item out of
+// its unit), then the new `close_requested`. No event replaces a proof.
+
+const FULL_COMMIT_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
+
+// The new proof of a re-request: a full hash, naming a commit in this repository.
+function assertFullCommit(baseDir, what, proof, execFn) {
+  if (typeof proof !== 'string' || !FULL_COMMIT_RE.test(proof)) {
+    throw new WorkStoreError('SCHEMA', `${what}: a close is asked again only with a full commit hash — 40 or 64 lowercase hex characters `
+      + `(got ${echoed(typeof proof === 'string' ? proof.slice(0, 80) : proof)}). Use \`git rev-parse <commit>\`. Nothing was written.`);
+  }
+  let full = null;
+  try {
+    full = runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${proof}^{commit}`], execFn).trim().toLowerCase();
+  } catch {
+    full = null;
+  }
+  if (full !== proof) {
+    throw new WorkStoreError('SCHEMA', `${what}: ${proof} is not a commit in this repository (or git could not be asked), so a close cannot be `
+      + 'asked again with it. Nothing was written.');
+  }
+}
+
+// One item's re-request, built and checked under the lock, nothing written.
+// `offHead`: `notInHead`'s.
+function planRerequest(handle, id, { proof, by, at = nowIso() }, offHead) {
+  const { entry, text } = readForWrite(handle, id);
+  if (entry.status !== 'closing') {
+    throw new WorkStoreError('CONFLICT', `${id}: no close is outstanding (the item is ${entry.status === 'C' ? 'closed' : `at ${entry.status}`}) — `
+      + 'nothing was written. A close is asked again only while an earlier request is waiting.');
+  }
+  const events = entry.record.events;
+  const at0 = events.findLastIndex((e) => e.type === 'close_requested');
+  const previous = events[at0].proof;
+  if (previous === proof) throw new WorkStoreError('CONFLICT', `${id}: its close was already requested with ${proof} — nothing was written.`);
+  if (!offHead(previous)) {
+    throw new WorkStoreError('CONFLICT', `${id}: it is closing on ${echoed(previous)}, and that commit is in this branch's history (or git cannot say `
+      + 'that it is not) — a close is asked again only when its commit never reached the branch, as after a squash or rebase merge. Nothing was written.');
+  }
+  // Where the item stood when the earlier request was made: a reopen takes it
+  // out of its unit, so it is put back the way it was in.
+  const before = { ...entry.record, events: events.slice(0, at0) };
+  const was = deriveStatus(before);
+  const reason = `the close was requested again with the commit ${proof}; the earlier request named ${previous}, which never reached this branch`;
+  let next = withEvent(entry, { type: 'reopened', at, by, reason });
+  if (entry.epic !== null && entry.epic !== undefined) {
+    next = withEvent({ record: next }, epicEvent(was === 'P' ? 'started' : 'queued', { at, by, epic: entry.epic }));
+  }
+  next = withEvent({ record: next }, { type: 'close_requested', at, by, reason: 'fixed', proof });
+  return { next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path), previous };
+}
+
+/**
+ * Ask again for the close of items that are *closing* on a commit that never
+ * reached this branch (a squash or rebase merge), with a commit that did:
+ * ONE `work` lock, every request built and checked before any is written, all
+ * or nothing, then ONE `regenerate`.
+ *
+ * Refused, with nothing written: a `proof` that is not a full hash (40 or 64
+ * hex) or does not name a commit in this repository; an item that is not
+ * *closing*; one already closing on `proof`; and one whose outstanding commit
+ * is in HEAD's history, or that git cannot answer for (no repository, a
+ * shallow clone) — a proof that can be reached is never replaced. The same
+ * item twice is refused.
+ *
+ * Each item gets three events: `reopened`, the `queued` or `started` that
+ * keeps it in its unit, and the new `close_requested`. It reads *closing* on
+ * `proof`, in the unit it was in; `confirmCloses` closes it once `proof` is on
+ * the default branch.
+ *
+ * @param {string} baseDir
+ * @param {Array<{id: string, proof: string, by: string, at?: string}>} requests
+ * @param {object} [opts] — as `newItems`'s
+ * @returns {Promise<Array<object>>} the entries, in order, each with `previous_proof`
+ * @throws {WorkStoreError} SCHEMA, CONFLICT, NOT_FOUND, CONFIG, LOCKED, IO
+ */
+export async function rerequestCloses(baseDir, requests, opts = {}) {
+  if (!Array.isArray(requests) || requests.length === 0) {
+    throw new WorkStoreError('SCHEMA', 'rerequestCloses: pass at least one request — nothing was written.');
+  }
+  const ids = requests.map((r) => r?.id);
+  const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
+  if (twice.length) {
+    throw new WorkStoreError('SCHEMA', `rerequestCloses: ${[...new Set(twice)].join(', ')} named more than once — nothing was written.`);
+  }
+  const execFn = opts.execFn ?? execFileSync;
+  assertWritable(baseDir);
+  const checked = new Set();
+  for (const r of requests) {
+    if (checked.has(r?.proof)) continue;
+    checked.add(r?.proof);
+    assertFullCommit(baseDir, r?.id, r?.proof, execFn);
+  }
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
+    const offHead = notInHead(handle.baseDir, execFn);
+    const planned = requests.map((r) => planRerequest(handle, r.id, r, offHead));
+    const out = await writeRecords(handle, planned, opts);
+    await regenerateAfter(handle, `the close of ${ids.join(', ')} was requested again`, opts);
+    return out.map((entry, i) => ({ ...entry, previous_proof: planned[i].previous }));
+  });
+}
+
+/**
+ * Ask for an Epic's close — again, or for the first time — together with the
+ * re-request of every item of it that is *closing* on a commit that never
+ * reached this branch: the recovery after a pull request merged by squash or
+ * rebase, run on the default branch (`closeEpic`, `work-ops.js`, is the one
+ * caller). ONE take of the store's lock and ONE write, all or nothing: the
+ * items' re-requests (`rerequestCloses`' rule and events) and the unit's
+ * close request (`planUnitCloseRequest`, `unit-records.js` — two events when
+ * it was already closing, one when it was open), then ONE `regenerate`.
+ *
+ * `opts.gate` runs under the lock before anything is read here and returns
+ * the items to ask again (`closeEpicCheck`'s `rerequest`); what it throws is
+ * the refusal.
+ *
+ * @param {string} baseDir
+ * @param {string} epicId
+ * @param {{proof: string, by: string, at?: string, pr?: string, release?: string}} request — `proof`: a full commit hash
+ * @param {{gate: (handle: object) => Array<{id: string}>, execFn?: Function, renameFn?: Function, regenerate?: Function}} opts
+ * @returns {Promise<{unit: object, previous: string|null, items: string[]}>} `unit`: the unit's entry, now
+ *   *closing* on `proof`; `previous`: the commit it was closing on before, or null when it was open;
+ *   `items`: the items whose close was asked again
+ * @throws {WorkStoreError} as `rerequestCloses`, the gate's own, and CONFIG when the project has no unit records
+ */
+export async function rerequestEpicClose(baseDir, epicId, request = {}, opts = {}) {
+  assertEpicId(epicId);
+  const execFn = opts.execFn ?? execFileSync;
+  const { proof, by, at = nowIso() } = request;
+  assertFullCommit(baseDir, epicId, proof, execFn);
+  const units = await unitRecords(baseDir);
+  if (units === null) {
+    throw new WorkStoreError('CONFIG', `${epicId}: this project has no unit records (${UNITS_REL}/ does not exist) — nothing was written.`);
+  }
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
+    const again = await opts.gate(handle);
+    const offHead = notInHead(handle.baseDir, execFn);
+    const planned = again.map((r) => planRerequest(handle, r.id, { proof, by, at }, offHead));
+    const unit = units.planUnitCloseRequest(handle, epicId, { proof, by, at, pr: request.pr, release: request.release });
+    await writePlanned(handle, [...planned, unit], opts);
+    const ids = planned.map((p) => p.next.id);
+    await regenerateAfter(handle, `${epicId} is closing (its close was requested with ${proof})`
+      + (ids.length > 0 ? `, and the close of ${ids.join(', ')} was requested again` : ''), opts);
+    return { unit: units.getUnit(handle.baseDir, epicId), previous: unit.previous, items: ids };
+  });
 }
 
 // ── Confirming fixed closes (t2.6, AC7.2) ──────────────────────────────────

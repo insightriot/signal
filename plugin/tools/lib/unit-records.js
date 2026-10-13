@@ -1183,16 +1183,52 @@ export async function rerequestUnitClose(baseDir, id, request = {}, opts = {}) {
       throw new WorkStoreError('CONFLICT', `${id}: no close is outstanding (the unit is ${current.status}) — nothing was written. `
         + 'A close is requested again only while an earlier request is waiting.');
     }
-    const previous = current.closing_proof;
-    if (previous === proof) {
-      throw new WorkStoreError('CONFLICT', `${id}: the close was already requested with ${proof} — nothing was written.`);
-    }
-    const reason = `the close was requested again with the commit ${proof}; the earlier request named ${previous}`;
-    const reopened = withEvent(current, { type: 'reopened', at, by, reason });
-    const next = withEvent({ record: reopened }, pruneUndefined({ type: 'close_requested', at, by, proof, pr, release }));
+    const { next, previous } = rerequested(id, current, { proof, pr, release, by, at });
     const entry = await commit(handle, next, `${id} is closing (its close was requested again, with ${proof})`, opts);
     return { ...entry, previous_proof: previous };
   });
+}
+
+// A closing unit's record with its close asked again: `reopened`, its reason
+// naming both commits, then the new `close_requested`. → {next, previous}.
+function rerequested(id, current, { proof, pr, release, by, at }) {
+  const previous = current.closing_proof;
+  if (previous === proof) {
+    throw new WorkStoreError('CONFLICT', `${id}: the close was already requested with ${proof} — nothing was written.`);
+  }
+  const reason = `the close was requested again with the commit ${proof}; the earlier request named ${previous}`;
+  const reopened = withEvent(current, { type: 'reopened', at, by, reason });
+  return { next: withEvent({ record: reopened }, pruneUndefined({ type: 'close_requested', at, by, proof, pr, release })), previous };
+}
+
+/**
+ * A unit's close request, built and checked and NOT written — for the one
+ * caller that writes it together with item records under its own take of the
+ * store's lock (`rerequestEpicClose`, `work-records.js`: the recovery after a
+ * squash or rebase merge). From open it is `requestUnitClose`'s one event;
+ * from *closing* on another commit it is `rerequestUnitClose`'s two. A closed
+ * unit, and one already closing on `proof`, are refused. `pr` and `release`
+ * are stored as every writer here stores them. Reads only.
+ *
+ * @param {{baseDir: string, key: string}} handle — the caller's lock
+ * @param {string} id
+ * @param {{proof: string, pr?: string, release?: string, by: string, at: string}} request
+ * @returns {{next: object, text: string, oldText: string, abs: string, previous: string|null}} `previous`:
+ *   the commit the unit was closing on, or null when it was open
+ * @throws {WorkStoreError} SCHEMA, NOT_FOUND, CONFLICT
+ */
+export function planUnitCloseRequest(handle, id, request = {}) {
+  const { proof, by, at } = request;
+  const pr = clean(request.pr, UNIT_REF_MAX);
+  const release = clean(request.release, UNIT_REF_MAX);
+  assertShape(id);
+  assertProof(id, proof, 'a close request');
+  const { entry, text } = readForWrite(handle, id);
+  let next;
+  let previous = null;
+  if (entry.status === 'closing') ({ next, previous } = rerequested(id, entry, { proof, pr, release, by, at }));
+  else next = withEvent(entry, pruneUndefined({ type: 'close_requested', at, by, proof, pr, release }));
+  return { next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path), previous };
 }
 
 /**

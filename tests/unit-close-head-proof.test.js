@@ -20,6 +20,8 @@ import { tmpdir } from 'node:os';
 import { closeEpic } from '../plugin/tools/lib/work-ops.js';
 import * as records from '../plugin/tools/lib/work-records.js';
 import { getUnit } from '../plugin/tools/lib/unit-records.js';
+import { serializeRecord } from '../plugin/tools/lib/work-record.js';
+import { runConfirmCloses } from '../plugin/tools/lib/close-confirm.js';
 import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
 import { regenerateViews } from '../plugin/tools/lib/work-views.js';
 import { snapshotTree } from './helpers/write-inventory.js';
@@ -180,5 +182,226 @@ describe('closeEpic — what stays allowed', () => {
     const { base } = await project({ unit: [opened, { type: 'close_requested', at: AT, by, proof: '0123abc' }, { type: 'closed', at: AT, by, reason: 'shipped', proof: '0123abc' }] });
     await put(base, 'notes.txt', 'uncommitted\n');
     expect(await closeEpic(base, EPIC, { by, at: AT })).toMatchObject({ status: 'already-closed' });
+  });
+});
+
+// ── The recovery after a squash or rebase merge, end to end (REVIEW pass 2, C2-I2) ──
+//
+// `ship.md` §6.8 said: re-run the close step on the default branch after the
+// merge. It refused — the Epic's items were still *closing* on the branch
+// commit, which a squash never lands — and every remedy it named refused in
+// turn. Now the documented call asks again for the unit's close and for each
+// such item's, with the merged commit, in one write.
+
+const created = { type: 'created', at: AT, by };
+const triaged = { type: 'triaged', at: AT, by };
+const itemRecord = (id, events) => serializeRecord({ id, type: 'BUG', title: `t ${id}`, events });
+
+// What SHIP leaves on the Epic's branch: one item queued in the Epic and one
+// started in it, both closing on the branch commit, the unit closing on it
+// too, all committed and pushed as `feat`. Then the pull request is merged by
+// squash: `main` gets ONE new commit with the branch's tree, and the branch
+// commits are not in its history.
+async function squashMerged() {
+  const { repo, base } = await project();
+  g(repo, 'checkout', '-q', '-b', 'feat');
+  await put(base, 'src/the-epic.js', '// the Epic\'s work\n');
+  await put(base, records.recordPath('SIG-1'), itemRecord('SIG-1', [created, triaged, { type: 'queued', at: AT, by, epic: EPIC }]));
+  await put(base, records.recordPath('SIG-2'), itemRecord('SIG-2', [created, triaged, { type: 'started', at: AT, by, epic: EPIC }]));
+  await regenerateViews(base);
+  g(repo, 'add', '-A');
+  g(repo, 'commit', '-q', '-m', 'the Epic');
+  const branchCommit = g(repo, 'rev-parse', 'HEAD');
+  // SHIP: the items' closes (§6.6) and the unit's (§6.8), with the branch HEAD.
+  await records.requestCloses(base, [{ id: 'SIG-1', proof: branchCommit, by, at: AT }, { id: 'SIG-2', proof: branchCommit, by, at: AT }]);
+  expect(await closeEpic(base, EPIC, { by, at: AT, pr: 42 })).toMatchObject({ status: 'close-requested', commit: branchCommit });
+  g(repo, 'add', '-A');
+  g(repo, 'commit', '-q', '-m', 'SHIP');
+  g(repo, 'push', '-q', 'origin', 'feat');
+  // The squash merge, as the server makes it.
+  g(repo, 'checkout', '-q', 'main');
+  g(repo, 'merge', '-q', '--squash', 'feat');
+  g(repo, 'commit', '-q', '-m', 'the Epic (#42)');
+  g(repo, 'push', '-q', 'origin', 'main');
+  const squash = g(repo, 'rev-parse', 'HEAD');
+  // The branch commit is not in main's history: git answers 1.
+  expect(spawnSync('git', ['merge-base', '--is-ancestor', branchCommit, 'HEAD'], { cwd: repo }).status).toBe(1);
+  return { repo, base, branchCommit, squash };
+}
+
+describe('the recovery after a squash merge works through closeEpic (C2-I2)', () => {
+  it('before the recovery: the confirm step leaves the unit and both items closing — the branch commit never reached main', async () => {
+    const { base } = await squashMerged();
+    const out = await runConfirmCloses(base, { now: NOW });
+    expect(out.confirmed).toEqual([]);
+    expect(out.units.confirmed).toEqual([]);
+    expect(getUnit(base, EPIC).status).toBe('closing');
+  }, 60_000);
+
+  it('the documented call → commit → push → runConfirmCloses: the unit is closed, both items are closed, and both are still in the Epic', async () => {
+    const { repo, base, branchCommit, squash } = await squashMerged();
+    const out = await closeEpic(base, EPIC, { by, at: NOW, pr: 42, release: 'v9.9.9' });
+    expect(out).toMatchObject({ status: 're-requested', commit: squash, previous: branchCommit, rerequestedItems: ['SIG-1', 'SIG-2'] });
+    expect(out.unit).toMatchObject({ status: 'closing', closing_proof: squash });
+    // One write: the unit and both items now wait on the merged commit, each still in the Epic.
+    for (const id of ['SIG-1', 'SIG-2']) {
+      const item = records.getRecord(base, id);
+      expect(item.status).toBe('closing');
+      expect(item.epic).toBe(EPIC);
+      expect(item.record.events.findLast((e) => e.type === 'close_requested').proof).toBe(squash);
+    }
+    // The item that was started is back as started, the queued one as queued; every event is kept.
+    expect(records.getRecord(base, 'SIG-1').record.events.map((e) => e.type)).toEqual(['created', 'triaged', 'queued', 'close_requested', 'reopened', 'queued', 'close_requested']);
+    expect(records.getRecord(base, 'SIG-2').record.events.map((e) => e.type)).toEqual(['created', 'triaged', 'started', 'close_requested', 'reopened', 'started', 'close_requested']);
+    expect(records.getRecord(base, 'SIG-1').record.events[4].reason).toContain(branchCommit);
+    expect(records.checkRecords(base)).toEqual([]);
+
+    g(repo, 'add', '-A');
+    g(repo, 'commit', '-q', '-m', 'the close, asked again after the squash');
+    g(repo, 'push', '-q', 'origin', 'main');
+
+    const confirmed = await runConfirmCloses(base, { now: NOW });
+    expect(confirmed.confirmed).toEqual(['SIG-1', 'SIG-2']);
+    expect(confirmed.units.confirmed).toEqual([EPIC]);
+    const unit = getUnit(base, EPIC);
+    expect(unit.status).toBe('closed');
+    expect(unit.close).toMatchObject({ reason: 'shipped', proof: squash, pr: '42', release: 'v9.9.9' });
+    for (const id of ['SIG-1', 'SIG-2']) {
+      expect(records.getRecord(base, id).status).toBe('C');
+      expect(records.getRecord(base, id).epic).toBe(EPIC);
+    }
+  }, 60_000);
+
+  it('run twice: the second call changes nothing', async () => {
+    const { base } = await squashMerged();
+    await closeEpic(base, EPIC, { by, at: NOW });
+    const before = snapshotTree(base);
+    expect(await closeEpic(base, EPIC, { by, at: NOW })).toMatchObject({ status: 'already-requested' });
+    expect(snapshotTree(base)).toEqual(before);
+  }, 60_000);
+
+  it('a dirty tree on the default branch still refuses, and nothing is asked again', async () => {
+    const { base, branchCommit } = await squashMerged();
+    await put(base, 'notes.txt', 'uncommitted\n');
+    await refused(base, () => closeEpic(base, EPIC, { by, at: NOW }));
+    expect(getUnit(base, EPIC).closing_proof).toBe(branchCommit);
+  }, 60_000);
+
+  it('an item of the Epic that is plainly open still refuses the recovery, and names it', async () => {
+    const { repo, base } = await squashMerged();
+    await put(base, records.recordPath('SIG-3'), itemRecord('SIG-3', [created, triaged, { type: 'queued', at: AT, by, epic: EPIC }]));
+    await regenerateViews(base);
+    g(repo, 'add', '-A');
+    g(repo, 'commit', '-q', '-m', 'one more item');
+    g(repo, 'push', '-q', 'origin', 'main');
+    const before = snapshotTree(base);
+    const err = await closeEpic(base, EPIC, { by, at: NOW }).catch((e) => e);
+    expect(err.code).toBe('OPEN_ITEMS');
+    expect(err.message).toMatch(/SIG-3 \(status Q\)/);
+    expect(err.message).not.toMatch(/SIG-1|SIG-2/);
+    expect(err.message).toMatch(/Nothing was written/);
+    expect(err.message).not.toMatch(/Nothing was moved/);
+    expect(snapshotTree(base)).toEqual(before);
+  }, 60_000);
+
+  it('on the Epic\'s branch (a normal SHIP) an item closing on a commit from elsewhere is still open: nothing is asked again there', async () => {
+    const { repo, base } = await project();
+    g(repo, 'checkout', '-q', '-b', 'other');
+    g(repo, 'commit', '-q', '--allow-empty', '-m', 'a fix on another branch');
+    const elsewhere = g(repo, 'rev-parse', 'HEAD');
+    g(repo, 'checkout', '-q', '-b', 'feat', 'main');
+    await put(base, records.recordPath('SIG-1'), itemRecord('SIG-1', [created, triaged, { type: 'queued', at: AT, by, epic: EPIC }, { type: 'close_requested', at: AT, by, reason: 'fixed', proof: elsewhere }]));
+    await regenerateViews(base);
+    g(repo, 'add', '-A');
+    g(repo, 'commit', '-q', '-m', 'the Epic');
+    const before = snapshotTree(base);
+    const err = await closeEpic(base, EPIC, { by, at: NOW }).catch((e) => e);
+    expect(err.code).toBe('OPEN_ITEMS');
+    expect(err.message).toMatch(/SIG-1 \(status closing\)/);
+    expect(err.message).toMatch(/re-running this on the default branch after the merge/);
+    expect(err.message).toMatch(/Nothing was written/);
+    expect(snapshotTree(base)).toEqual(before);
+  }, 60_000);
+});
+
+describe('rerequestCloses — the item side, on its own', () => {
+  async function orphaned() {
+    const s = await squashMerged();
+    return s;
+  }
+
+  it('a short hash, a hash that names no commit, and a ref name are refused as the new proof; nothing is written', async () => {
+    const { base, squash } = await orphaned();
+    const before = snapshotTree(base);
+    for (const proof of [squash.slice(0, 12), 'f'.repeat(40), 'main', undefined]) {
+      const err = await records.rerequestCloses(base, [{ id: 'SIG-1', proof, by, at: NOW }]).catch((e) => e);
+      expect(err.code, String(proof)).toBe('SCHEMA');
+      expect(err.message).toMatch(/Nothing was written/);
+    }
+    expect(snapshotTree(base)).toEqual(before);
+  }, 60_000);
+
+  it('a proof that HEAD can reach is never replaced', async () => {
+    const { repo, base } = await project();
+    await put(base, records.recordPath('SIG-1'), itemRecord('SIG-1', [created, triaged, { type: 'queued', at: AT, by, epic: EPIC }]));
+    await regenerateViews(base);
+    g(repo, 'add', '-A');
+    g(repo, 'commit', '-q', '-m', 'an item');
+    const reachable = g(repo, 'rev-parse', 'HEAD');
+    await records.requestClose(base, 'SIG-1', { proof: reachable, by, at: AT });
+    g(repo, 'add', '-A');
+    g(repo, 'commit', '-q', '-m', 'requested');
+    const newer = g(repo, 'rev-parse', 'HEAD');
+    const before = snapshotTree(base);
+    const err = await records.rerequestCloses(base, [{ id: 'SIG-1', proof: newer, by, at: NOW }]).catch((e) => e);
+    expect(err.code).toBe('CONFLICT');
+    expect(err.message).toMatch(/is in this branch's history/);
+    expect(snapshotTree(base)).toEqual(before);
+  }, 60_000);
+
+  it('an item that is not closing, and the same item twice, are refused', async () => {
+    const { repo, base, squash } = await orphaned();
+    await put(base, records.recordPath('SIG-3'), itemRecord('SIG-3', [created, triaged]));
+    await regenerateViews(base);
+    g(repo, 'add', '-A');
+    g(repo, 'commit', '-q', '-m', 'one more');
+    await expect(records.rerequestCloses(base, [{ id: 'SIG-3', proof: squash, by, at: NOW }])).rejects.toMatchObject({ code: 'CONFLICT' });
+    await expect(records.rerequestCloses(base, [{ id: 'SIG-1', proof: squash, by }, { id: 'SIG-1', proof: squash, by }])).rejects.toMatchObject({ code: 'SCHEMA' });
+  }, 60_000);
+
+  it('asked again: the item is closing on the new commit, in the unit it was in, and all or nothing across the list', async () => {
+    const { base, squash, branchCommit } = await orphaned();
+    const before = snapshotTree(base);
+    // SIG-9 does not exist: the whole list is refused and SIG-1 is untouched.
+    await expect(records.rerequestCloses(base, [{ id: 'SIG-1', proof: squash, by, at: NOW }, { id: 'SIG-9', proof: squash, by, at: NOW }])).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(snapshotTree(base)).toEqual(before);
+    const [one] = await records.rerequestCloses(base, [{ id: 'SIG-1', proof: squash, by, at: NOW }]);
+    expect(one).toMatchObject({ id: 'SIG-1', status: 'closing', epic: EPIC, previous_proof: branchCommit });
+  }, 60_000);
+
+  // AC6.4 kind (a): a new call, and it needs no unit records.
+  it('works on a project with no unit records: the folder is not needed, and is not created', async () => {
+    const { repo, base } = await project({ unit: null });
+    await rm(join(base, UNITS), { recursive: true });
+    await put(base, records.recordPath('SIG-1'), itemRecord('SIG-1', [created, triaged, { type: 'queued', at: AT, by, epic: EPIC }]));
+    await regenerateViews(base);
+    g(repo, 'add', '-A');
+    g(repo, 'commit', '-q', '-m', 'an item, no unit records');
+    const landed = g(repo, 'rev-parse', 'HEAD');
+    g(repo, 'checkout', '-q', '-b', 'gone');
+    g(repo, 'commit', '-q', '--allow-empty', '-m', 'a commit that never lands');
+    const orphan = g(repo, 'rev-parse', 'HEAD');
+    g(repo, 'checkout', '-q', 'main');
+    await records.requestClose(base, 'SIG-1', { proof: orphan, by, at: AT });
+    const [one] = await records.rerequestCloses(base, [{ id: 'SIG-1', proof: landed, by, at: NOW }]);
+    expect(one).toMatchObject({ status: 'closing', epic: EPIC, previous_proof: orphan });
+    expect(records.checkRecords(base)).toEqual([]);
+    const { existsSync } = await import('node:fs');
+    expect(existsSync(join(base, UNITS))).toBe(false);
+  }, 60_000);
+
+  it('store off: refused as every item writer is', async () => {
+    await mkdir(join(root, 'plain'), { recursive: true });
+    await expect(records.rerequestCloses(join(root, 'plain'), [{ id: 'SIG-1', proof: 'a'.repeat(40), by }])).rejects.toMatchObject({ code: 'CONFIG' });
   });
 });

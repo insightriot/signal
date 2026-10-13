@@ -4343,3 +4343,19 @@ while AC6.2 said no reader did that. Reading a unit with no record as open would
 unit from archiving, so it stays judged from its files, `/sig:docs-sweep` names each one, and
 `/sig:docs-migrate --work-store` on a store that has unit records adds a record for each unit that
 has none and touches no record that exists.
+
+### D-M6E16-24 — An item closing on a commit that never reached the branch may have its close asked again (Claude)
+Settles REVIEW pass 2, `C2-I2`. After a pull request merged by squash or rebase, the Epic's items
+and its unit are *closing* on a branch commit the default branch will never hold. A unit's close
+could already be asked again (`rerequestUnitClose`); an item's could not, so the recovery `ship.md`
+§6.8 gave refused, and the only chain that worked went through `reopenUnit` and took the items out
+of the Epic. Now an item's close may be asked again with a new commit (`rerequestCloses`,
+`work-records.js`), under three guards: the new proof is a full hash; it names a commit in this
+repository; and the commit the item is closing on is certainly not in HEAD's history — a proof HEAD
+can reach is never replaced, and "git cannot tell" is not "not reachable". It is three recorded
+events (`reopened`, the `queued` or `started` that keeps the item in its unit, `close_requested`);
+the transition table is unchanged and no event replaces a proof. `closeEpic`, on a project with unit
+records, uses it only when its proof is already on the default branch — the recovery — and writes
+the items and the unit in one take of the lock. On the Epic's own branch such an item is still
+open. **What this trusts and cannot check:** that the merged commit holds the items' fixes. The
+person running the close on the default branch is saying so, as they are for the Epic.

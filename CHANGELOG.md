@@ -44,6 +44,10 @@ records now.
   each is created open with a note. `--also <ID>:dropped:<words>` declares a unit no file names.
   On a project that already has unit records the same command adds a record for each unit that has
   none and touches no record that exists; `/sig:docs-sweep` names the units that have none.
+- **The recovery after a squash or rebase merge works.** Run on the default branch after the merge,
+  `/sig:ship`'s close step asks again for the Epic's close and, in the same write, for the close of
+  each of its items still waiting on a branch commit that never landed; the items stay in the Epic.
+  Before, that step refused and every remedy it named refused too.
 - **A unit is never closed with an open item in it.** `/sig:ship` already refused one. Now the
   migration proposes such a unit open and names the items, closing a unit as dropped or legacy is
   refused until its items are closed or moved out, and `/sig:docs-sweep` reports a closed unit that
@@ -140,8 +144,10 @@ records now.
   then call `evictEpicNarrative` (`tools/lib/evict.js`).
 - A hold is placed by calling `holdUnit`; there is no slash command for it. Neither is there one to
   open a unit that is not an Epic ID, drop a unit or edit one: `/sig:docs-archive` names the calls.
-- A pull request merged by squash or rebase never confirms an Epic's close: the branch commit does
-  not reach the default branch. Re-run `/sig:ship`'s close step on the default branch after the merge.
+- A pull request merged by squash or rebase does not confirm an Epic's close on its own: the branch
+  commit does not reach the default branch. Re-run `/sig:ship`'s close step on the default branch
+  after the merge (§6.8 gives the four steps): it asks again for the unit's close and for each item
+  left closing, with the merged commit. It trusts that the merged commit holds the items' fixes.
 - On a project with unit records, a unit named only by a row of a milestone table is not proposed by
   `/sig:docs-migrate --work-store` (the rows are generated there, and not read).
 - While `work/units/` cannot be trusted, nothing lists or writes work items either, until it is fixed.
