@@ -68,6 +68,10 @@ records now.
   refused the same way, and the remedy is to move it outside the markers): if it is for an Epic with no unit record, or for
   nothing the records hold, the next store write is refused and names the row and the two ways out —
   give it a record, or move it outside the markers. A row for a unit that has a record is rewritten.
+  A row is an Epic's own only when its first cell is that Epic's ID and nothing else (or the first
+  cell of the old row its record keeps): `M6.E2.S3`, `E2-bis` or `E2 follow-ups` is a row you typed,
+  and so is a second row for the same Epic. Such a row was replaced without a word before; now the
+  write is refused and the row stays.
   When `/sig:docs-migrate --work-store` adds unit records, every unit keeps all the cells of its old
   milestone row in its record, open or closed; the dry run lists each row between the markers that
   goes into no record (it is removed), and says when a table with another header becomes three

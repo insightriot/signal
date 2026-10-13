@@ -265,14 +265,39 @@ function isSeparatorRow(row) {
   return cells.length > 0 && cells.every((c) => /^:?-{1,200}:?$/.test(c));
 }
 
-// The Epic a first cell names, as a full ID, or null: past the decoration a
-// hand-kept row carries (backticks, bold), `M6.E16`, or a bare `E16` read as
-// an Epic of `milestone`. The decoration run is bounded, so a long run of
-// stars costs its length once.
-const NAMED_EPIC_RE = /^[\s`*_]{0,10}(?:(M\d+(?:\.\d+)*)\.)?E(\d+)\b/;
+// The Epic a first cell is the ID of, as a full ID, or null: inside the
+// decoration a row carries (backticks, bold), `M6.E16`, or a bare `E16` read
+// as an Epic of `milestone` — and nothing else. A cell that goes on after the
+// ID (`M6.E16.S3`, `E16-bis`, `E16 follow-ups`) is not that Epic's row. The
+// decoration runs are bounded, so a long run of stars costs its length once.
+const NAMED_EPIC_RE = /^[\s`*_]{0,10}(?:(M\d+(?:\.\d+)*)\.)?E(\d+)[\s`*_]{0,10}$/;
 function namedEpic(cellText, milestone) {
   const m = cellText.match(NAMED_EPIC_RE);
   return m ? `${m[1] ?? `M${milestone}`}.E${m[2]}` : null;
+}
+
+/**
+ * The first cell of each old row the unit records of one milestone hold
+ * (`legacy_row`, what the migration stored of a hand-kept row), as the table
+ * prints it, with the Epic it belongs to. An old row's first cell may carry
+ * more than the ID (`**E2 — a title**`): the migration took that row as the
+ * Epic's, so `rowsNotReprinted` must too, also once the unit no longer reads
+ * closed as legacy and the table prints its ID instead. An empty cell is left
+ * out.
+ *
+ * @param {Array<{id: string, record: object}>} units — `listUnits(...).units`
+ * @param {{milestone: string}} opts
+ * @returns {Map<string, string>} first cell → unit ID
+ */
+export function legacyFirstCells(units, { milestone }) {
+  const out = new Map();
+  for (const u of units) {
+    const row = u.record?.legacy_row;
+    if (!Array.isArray(row) || row.length === 0 || epicIdParts(u.id)?.milestone !== String(milestone)) continue;
+    const first = firstCell(`| ${legacyCell(row[0])} |`);
+    if (first !== '') out.set(first, u.id);
+  }
+  return out;
 }
 
 /**
@@ -310,33 +335,42 @@ export function tableBetweenMarkers(content) {
  * markers, so a caller that must not lose such a row asks this first.
  *
  * A row is safe — it is regenerated, whatever its other cells say — when its
- * first cell is the first cell of a row of `tableText`, or names an Epic
- * (`M6.E16`, or `E16` read as an Epic of `milestone`) that is in `ids` and is
- * an Epic of this milestone — so one the table prints a row for. A
- * separator row, and a first row that a separator row follows (a header a
- * person wrote), are the table's structure and are safe too. Every other row
- * is returned. Lines that are not table rows are `linesBetweenMarkers`'.
- * Empty unless the markers are `ok`.
+ * first cell is the first cell of a row of `tableText`; or is, and is only,
+ * the ID of an Epic (`M6.E16`, or `E16` read as an Epic of `milestone`) that
+ * is in `ids` and is an Epic of this milestone — so one the table prints a
+ * row for; or is the first cell of that Epic's recorded old row (`legacy`).
+ * Only the first such row for an Epic is safe: the table prints one, so a
+ * second is a row a person typed (`repeated`). A separator row, and a first
+ * row that a separator row follows (a header a person wrote), are the table's
+ * structure and are safe too. Every other row is returned. Lines that are not
+ * table rows are `linesBetweenMarkers`'. Empty unless the markers are `ok`.
  *
  * @param {string} content — the milestone file's text
  * @param {string} tableText — `renderEpicTable`'s, about to be written
- * @param {{milestone: string, ids: Iterable<string>}} opts — `ids`: every unit ID that has a record
- *   (or is being given one by the write this check is made for)
- * @returns {Array<{line: number, text: string, cell: string, id: string|null}>} `line` is 1-based;
- *   `text` is the row as written; `cell` its first cell; `id` the Epic it names, when it names one
+ * @param {{milestone: string, ids: Iterable<string>, legacy?: Map<string, string>}} opts — `ids`: every unit ID
+ *   that has a record (or is being given one by the write this check is made for); `legacy`: `legacyFirstCells`'
+ * @returns {Array<{line: number, text: string, cell: string, id: string|null, repeated?: true}>} `line` is 1-based;
+ *   `text` is the row as written; `cell` its first cell; `id` the Epic it is the row of, when it is one;
+ *   `repeated`: an earlier row is that Epic's already
  */
-export function rowsNotReprinted(content, tableText, { milestone, ids }) {
+export function rowsNotReprinted(content, tableText, { milestone, ids, legacy = new Map() }) {
   const at = epicMarkers(content);
   if (at.state !== 'ok') return [];
   const has = new Set([...ids].filter((id) => epicIdParts(id)?.milestone === String(milestone)));
   const printed = new Set(tableText.split('\n').map(firstCell));
+  const seen = new Set();
   const out = [];
   for (const row of tableBetweenMarkers(content).rows) {
     const cell = firstCell(row.text);
-    if (printed.has(cell)) continue;
-    const id = namedEpic(cell, milestone);
-    if (id !== null && has.has(id)) continue;
-    out.push({ ...row, cell, id });
+    const id = legacy.get(cell) ?? namedEpic(cell, milestone);
+    const own = printed.has(cell) || (id !== null && has.has(id));
+    // One row for each Epic: by its ID, or by the cell when it names none.
+    const key = id ?? cell;
+    if (own && !seen.has(key)) {
+      seen.add(key);
+      continue;
+    }
+    out.push({ ...row, cell, id, ...(own ? { repeated: true } : {}) });
   }
   return out;
 }

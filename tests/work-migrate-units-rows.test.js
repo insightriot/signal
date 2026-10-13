@@ -21,7 +21,7 @@ import { renderEpicTable } from '../plugin/tools/lib/milestone-table.js';
 import { runWorkStoreMigrate } from '../plugin/tools/lib/work-migrate-lists.js';
 import { planUnits } from '../plugin/tools/lib/work-migrate-units.js';
 import { UNIT_KIND, foldUnit } from '../plugin/tools/lib/unit-record.js';
-import { getUnit, reopenUnit } from '../plugin/tools/lib/unit-records.js';
+import { editUnit, getUnit, reopenUnit } from '../plugin/tools/lib/unit-records.js';
 import { checkRecords } from '../plugin/tools/lib/work-records.js';
 import { MILESTONE, ROWS, bytesOf, cleanupUnitsStores, commitAll, put, read, unitsStore } from './helpers/units-store-fixture.js';
 
@@ -88,6 +88,25 @@ describe('(a) an open unit keeps every cell of its milestone row', () => {
     expect(text).toMatch(/\| `M7\.E1` \| \*\*in flight\*\* \|/);
     expect(text).not.toContain(ROWS['M7.E1']);
     expect(getUnit(base, 'M7.E1').record.legacy_row[1]).toMatch(/shipped/);
+  }, 60_000);
+
+  // The table refuses a row whose first cell is more than an Epic's ID — but
+  // not one the migration took as an Epic's row and stored: that stays the
+  // Epic's row for every later write.
+  it('rows whose first cell carries a title import, and no later write is refused over them — a reopen included', async () => {
+    const TITLED = '| **E1 — Lantern index** | **shipped** — 2026-09-01 | the old way of naming it |';
+    const base = await unitsStore({ repo: true });
+    put(base, MILESTONE, marked([TITLED, '| **E9 — the current one** | **in flight** — PLAN done | going |']));
+    commitAll(base);
+    const out = await applyWith(base, await dryRun(base), { confirmUnitCloses: true });
+    expect(out.applied).toBe(true);
+    expect(getUnit(base, 'M7.E1').record.legacy_row[0]).toBe('**E1 — Lantern index**');
+    expect(read(base, MILESTONE)).toContain(TITLED);
+    await editUnit(base, 'M7.E9', { changes: { summary: 'still going' }, by: 'claude' });
+    expect(read(base, MILESTONE)).toContain(TITLED);
+    await reopenUnit(base, 'M7.E1', { reason: 'it came back', by: 'claude' });
+    expect(read(base, MILESTONE)).toMatch(/\| `M7\.E1` \| \*\*in flight\*\* \|/);
+    expect(checkRecords(base)).toEqual([]);
   }, 60_000);
 });
 

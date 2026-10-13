@@ -47,6 +47,8 @@ const BEGIN = '<!-- signal:epics:begin -->';
 const END = '<!-- signal:epics:end -->';
 const opened = { type: 'opened', at: AT, by };
 const legacy = { type: 'closed', at: AT, by, reason: 'legacy' };
+// A first cell as a refusal quotes it.
+const cut = (cell) => cell.slice(0, 80);
 
 let base;
 async function put(rel, content) {
@@ -97,7 +99,7 @@ describe('a row typed by hand between the markers', () => {
     const err = await regenerateViews(base).catch((e) => e);
     expect(err.code).toBe('CONFIG');
     expect(err.message).toContain('a note to myself');
-    expect(err.message).toMatch(/names no Epic/);
+    expect(err.message).toMatch(/not an Epic's ID and nothing else/);
     expect(await read(FILE)).toBe(before);
   });
 
@@ -161,6 +163,61 @@ describe('a row typed by hand between the markers', () => {
   });
 });
 
+// Only a row whose first cell is an Epic's ID and nothing else is that Epic's
+// row. A cell that begins with a recorded Epic's ID and goes on — a slice, a
+// follow-up, two Epics — is a row a person typed for something else, and a
+// second row for an Epic is one too: the table prints one row for each.
+describe('a row whose first cell begins with a recorded Epic\'s ID and is not that ID alone', () => {
+  const CELLS = ['M7.E1.S3', 'E1-bis', 'M7.E1/E3 shared', '**E1 follow-ups (not an epic)**'];
+  for (const cell of CELLS) {
+    it(`“${cell}”: a unit write and an item write are refused, and the file is unchanged`, async () => {
+      const before = await typeRow(`| ${cell} | planned | typed by hand |`);
+      const err = await units.editUnit(base, 'M7.E1', { changes: { summary: 'a summary' }, by, at: AT }).catch((e) => e);
+      expect(err).toMatchObject({ name: 'WorkStoreError', code: 'CONFIG' });
+      expect(err.message).toContain(cut(cell));
+      expect(err.message).toMatch(/not an Epic's ID and nothing else/);
+      expect(units.getUnit(base, 'M7.E1').record.summary).toBeUndefined();
+      await expect(records.newItem(base, { title: 'a thing', type: 'BUG', by, at: AT })).rejects.toMatchObject({ code: 'CONFIG' });
+      expect(records.listRecords(base).records).toEqual([]);
+      await expect(regenerateViews(base)).rejects.toMatchObject({ handRows: [{ line: expect.any(Number), id: null }] });
+      expect(await read(FILE)).toBe(before);
+    });
+  }
+
+  it('a second row for an Epic that has a record: refused as a row typed by hand, naming the Epic, and the file is unchanged', async () => {
+    const before = await typeRow('| `M7.E1` | **in flight** | the same Epic again |');
+    const err = await units.editUnit(base, 'M7.E1', { changes: { summary: 'a summary' }, by, at: AT }).catch((e) => e);
+    expect(err).toMatchObject({ name: 'WorkStoreError', code: 'CONFIG' });
+    expect(err.message).toMatch(/another row for M7\.E1/);
+    await expect(records.newItem(base, { title: 'a thing', type: 'BUG', by, at: AT })).rejects.toMatchObject({ code: 'CONFIG' });
+    await expect(regenerateViews(base)).rejects.toMatchObject({ handRows: [{ line: expect.any(Number), id: 'M7.E1' }] });
+    expect(await read(FILE)).toBe(before);
+  });
+
+  it('a second row for a legacy Epic, named another way (bare “E2”): refused too', async () => {
+    const before = await typeRow('| **E2** | shipped | again |');
+    await expect(regenerateViews(base)).rejects.toMatchObject({ code: 'CONFIG', handRows: [{ line: expect.any(Number), id: 'M7.E2' }] });
+    expect(await read(FILE)).toBe(before);
+  });
+
+  it('the generated table round-trips: regenerated twice, nothing is refused and nothing changes', async () => {
+    const text = await read(FILE);
+    await regenerateViews(base);
+    await regenerateViews(base);
+    expect(await read(FILE)).toBe(text);
+    expect(records.checkRecords(base)).toEqual([]);
+  });
+
+  it('a legacy Epic\'s old row, its first cell carrying a title, is still that Epic\'s row when the Epic is reopened', async () => {
+    expect(await read(FILE)).toContain('| **E2 — the old way of naming it** |');
+    await units.reopenUnit(base, 'M7.E2', { reason: 'it came back', by, at: AT });
+    const after = await read(FILE);
+    expect(after).toContain('| `M7.E2` | **in flight** |');
+    expect(after).not.toContain('the old way of naming it');
+    expect(records.checkRecords(base)).toEqual([]);
+  });
+});
+
 describe('a row for a unit that has a record is regenerated, whatever its cells say', () => {
   it('edited text in a generated row is put back, with no refusal', async () => {
     const text = await read(FILE);
@@ -172,12 +229,19 @@ describe('a row for a unit that has a record is regenerated, whatever its cells 
   });
 
   it('a hand-kept table put between the markers for the first time — its own header, bare "E1" names — is replaced, since every row has a record', async () => {
-    await put(FILE, milestone('| Epic | State | Owner | Notes |\n|:--|---|---|--:|\n| **E1 — first** | going | me | x |\n| **E2** | shipped | me | y |\n'));
+    await put(FILE, milestone('| Epic | State | Owner | Notes |\n|:--|---|---|--:|\n| **E1** | going | me | x |\n| **E2** | shipped | me | y |\n'));
     await regenerateViews(base);
     const after = await read(FILE);
     expect(after).toContain('| Epic | Status | Summary |');
     expect(after).toContain('| `M7.E1` | **in flight** |');
     expect(after).not.toContain('Owner');
+  });
+
+  it('the same table with a title after the name ("E1 — first"), for an Epic with no recorded old row: refused, since the cell is not the ID alone', async () => {
+    const hand = milestone('| Epic | State | Owner | Notes |\n|:--|---|---|--:|\n| **E1 — first** | going | me | x |\n| **E2** | shipped | me | y |\n');
+    await put(FILE, hand);
+    await expect(regenerateViews(base)).rejects.toMatchObject({ code: 'CONFIG', handRows: [{ line: expect.any(Number), id: null }] });
+    expect(await read(FILE)).toBe(hand);
   });
 
   it('the table the generator wrote never refuses the next regeneration — a legacy row whose first cell is not an ID included', async () => {

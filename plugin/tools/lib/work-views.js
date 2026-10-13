@@ -39,7 +39,9 @@ import { existsSync, lstatSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { epicMarkers, linesBetweenMarkers, noComment, renderEpicTable, rowsNotReprinted, upsertEpicTable } from './milestone-table.js';
+import {
+  epicMarkers, legacyFirstCells, linesBetweenMarkers, noComment, renderEpicTable, rowsNotReprinted, upsertEpicTable,
+} from './milestone-table.js';
 import { assertRealInsidePlanning, linkedComponent, readRegularFile, regularFileRefusal } from './path-confine.js';
 import { cut, printable } from './printable-text.js';
 import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, PLANNING_DIR, StateSchemaError } from './state.js';
@@ -542,7 +544,8 @@ function refuseHandRows(rel, rows) {
   if (rows.length === 0) return;
   const one = rows.length === 1;
   const named = rows.slice(0, HAND_ROWS_SHOWN).map((r) => {
-    const what = r.id === null ? 'its first cell names no Epic' : `it names ${r.id}, which has no unit record`;
+    const what = r.repeated === true ? `another row for ${r.id ?? 'the same thing'}; the table prints one`
+      : r.id === null ? 'its first cell is not an Epic\'s ID and nothing else' : `it names ${r.id}, which has no unit record`;
     return `line ${r.line} (“${cut(printable(r.cell), 80)}” — ${what})`;
   });
   const more = rows.length > HAND_ROWS_SHOWN ? `, and ${rows.length - HAND_ROWS_SHOWN} more` : '';
@@ -607,10 +610,11 @@ function milestoneTable(baseDir, units, opts = {}) {
   }
   const table = renderEpicTable(units, { milestone });
   const ids = [...units.map((u) => u.id), ...(opts.adding ?? [])];
+  const legacy = legacyFirstCells(units, { milestone });
   // Run on the text read here, and again on the text read just before the write.
   const check = (text) => {
     if (opts.replaceHandRows === true) return;
-    refuseHandRows(rel, rowsNotReprinted(text, table, { milestone, ids }));
+    refuseHandRows(rel, rowsNotReprinted(text, table, { milestone, ids, legacy }));
     refuseHandLines(rel, linesBetweenMarkers(text));
   };
   try {
@@ -822,8 +826,10 @@ export function viewsNotRegenerated(done, err) {
  * So does a table row between the markers that the new table would not print
  * again — one typed by hand, for an ID with no unit record or for nothing the
  * records hold (CONFIG, naming the file, each row and the two remedies;
- * `err.handRows`): it is never deleted. A row for a unit that has a record is
- * regenerated whatever its cells say.
+ * `err.handRows`): it is never deleted. A row for a unit that has a record —
+ * its first cell is that Epic's ID and nothing else, or the first cell of its
+ * recorded old row — is regenerated whatever its other cells say; a second
+ * row for the same Epic is a row typed by hand.
  *
  * @param {string} baseDir
  * @param {{replaceHandRows?: boolean}} [opts] — `replaceHandRows`: write the table over such rows. Only for
