@@ -38,7 +38,7 @@ import { unitClosure, unitRecordsOn } from './unit-records.js';
 import { isStoreOn } from './work-store.js';
 import { assertWritable, isEpicArchived, listRecords, newItem, requestCloses } from './work-records.js';
 import { WorkStoreError } from './work-errors.js';
-import { COMMIT_SHAPE_RE, explicitCommit } from './work-ops.js';
+import { COMMIT_SHAPE_RE, explicitCommit, refuseHeadThatProvesNothing } from './work-ops.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
 const BUGS_REL = '.planning/BUGS.md';
@@ -687,6 +687,15 @@ async function dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn
   // and each row would read *closing* for ever. Recorded as the full hash, as
   // HEAD's is. One that is not shaped like a hash is `requestCloses`' to refuse.
   if (typeof commit === 'string' && COMMIT_SHAPE_RE.test(commit)) proof = explicitCommit(baseDir, 'the discharge', commit);
+  // HEAD taken as the proof (no `commit` passed) must be able to say something
+  // about the rows, as `closeEpic`'s must about the Epic: the same question,
+  // asked before `requestCloses` takes the store's lock (the lock is a file
+  // under the project, and would itself read as an untracked change).
+  if (commit === undefined || commit === null) {
+    refuseHeadThatProvesNothing(baseDir, null, proof, execFileSync, {
+      what: 'the discharge', about: 'these rows', wrongly: 'call them closed', advice: 'the work, then discharge.',
+    });
+  }
   await requestCloses(baseDir, toRequest.map((id) => ({ id, proof, by: who, at: when })), { renameFn });
   return { ...base, written: true, commit: proof, results };
 }

@@ -624,19 +624,27 @@ function assertRetroComplete(baseDir, epicId) {
 // recorded in this clone, with that work uncommitted.
 // An explicit `commit` never comes here: `explicitCommit` has checked that it
 // names a commit, and the caller chose it.
-function refuseHeadThatProvesNothing(baseDir, epicId, head, execFn) {
+//
+// `dischargeBacklogRows` (`backlog.js`) records HEAD the same way and asks
+// here too, with its own words: `what` begins the refusal, `about` is what
+// HEAD says nothing about, `wrongly` what the next confirm step would do, and
+// `advice` the way out, after "Commit" or "or commit".
+const EPIC_CLOSE_WORDS = (epicId) => ({
+  what: `${epicId}: the close`, about: 'this Epic', wrongly: 'call the Epic closed', advice: 'the Epic\'s work, then close.',
+});
+export function refuseHeadThatProvesNothing(baseDir, epicId, head, execFn, words = EPIC_CLOSE_WORDS(epicId)) {
   const stale = headProvesNothing(baseDir, head, { execFn });
   if (stale === null) return;
   if (stale.ref === null) {
-    throw new WorkStoreError('CONFLICT', `${epicId}: the close would record HEAD (${head.slice(0, 12)}) as its proof, and Signal cannot tell whether `
+    throw new WorkStoreError('CONFLICT', `${words.what} would record HEAD (${head.slice(0, 12)}) as its proof, and Signal cannot tell whether `
       + 'that commit is already on the default branch: the remote\'s default branch is not recorded in this clone, and this project has '
       + 'uncommitted or untracked changes. Nothing was written. Run `git remote set-head origin -a` once, then re-run; '
-      + 'or commit the Epic\'s work, then close.');
+      + `or commit ${words.advice}`);
   }
-  throw new WorkStoreError('CONFLICT', `${epicId}: the close would record HEAD (${head.slice(0, 12)}) as its proof, and that commit is `
+  throw new WorkStoreError('CONFLICT', `${words.what} would record HEAD (${head.slice(0, 12)}) as its proof, and that commit is `
     + `already on the default branch (${stale.ref.replace(/^refs\/remotes\//, '')}) while this project has uncommitted or untracked changes — `
-    + 'so it says nothing about this Epic, and the next confirm step would call the Epic closed. Nothing was written. '
-    + 'Commit the Epic\'s work, then close.');
+    + `so it says nothing about ${words.about}, and the next confirm step would ${words.wrongly}. Nothing was written. `
+    + `Commit ${words.advice}`);
 }
 
 const unitView = (unit) => ({
