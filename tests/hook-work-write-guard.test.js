@@ -218,6 +218,18 @@ describe('work write guard — v2 store', () => {
     expect(runHook(write(join(dir, 'sub/.planning/notes.md'))).status).toBe(0);
   });
 
+  // The reading `v0.1.50` had, by the innermost `.planning`, is still made: the
+  // outer project's reading of this path is not a target, the inner one's is.
+  it('a nested project with a v2 store of its own INSIDE the outer .planning: its item record is blocked', () => {
+    const inner = join(dir, '.planning', 'sub');
+    mkdirSync(join(inner, '.planning', 'work'), { recursive: true });
+    writeFileSync(join(inner, '.planning', 'work', 'WORK.md'), '---\nkey: SUB\nschema_version: 2\n---\n');
+    const record = join(inner, '.planning/work/items/00/SIG-1.json');
+    for (const ev of [edit, write, multi]) expect(runHook(ev(record)).status, ev.name).toBe(2);
+    expect(protectedTarget(record).candidates.map((c) => c.baseDir)).toContain(inner);
+    expect(runHook(write(join(inner, '.planning/work/items/00/SIG-1.md'))).status).toBe(0); // a body stays editable
+  });
+
   it('blocks the spellings Windows opens as the same file: a trailing dot, a trailing space, an alternate stream', () => {
     for (const rel of [
       '.planning/work/units/M6.E16.json.',

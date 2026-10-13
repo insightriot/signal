@@ -169,8 +169,11 @@ describe('closeUnit refuses while the unit has an item that is not closed', () =
   it('a broken item record refuses the close too: which unit it is in cannot be known', async () => {
     const base = await storeWithUnits();
     put(base, '.planning/work/items/00/LEAF-9.json', '{ not json');
-    const err = await refusal(() => units.closeUnit(base, 'M7.E3', { reason: 'legacy', by }));
+    // The views check refuses a broken record with the same code, and first:
+    // it is skipped so the refusal read here is the close's own.
+    const err = await refusal(() => units.closeUnit(base, 'M7.E3', { reason: 'legacy', by }, { _skipViewsCheck: true }));
     expect(err.code).toBe('SCHEMA');
+    expect(err.message).toMatch(/cannot be closed — a broken item record's unit is unknown/);
     expect(err.message).toMatch(/LEAF-9/);
     expect(units.getUnit(base, 'M7.E3').status).toBe('open');
   });

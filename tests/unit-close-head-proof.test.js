@@ -463,6 +463,14 @@ describe('closeEpic never swaps an item\'s proof on its own', () => {
     }
   }, 60_000);
 
+  // `rerequestEpicClose`'s own check: the new proof of an item's close is a full hash.
+  it('with the list, `commit` as a 12-character hash of the merged commit is refused: an item\'s close is asked again only with a full hash', async () => {
+    const { base, branchCommit, squash } = await squashMerged();
+    const both = [{ id: 'SIG-1', proof: branchCommit }, { id: 'SIG-2', proof: branchCommit }];
+    const err = await nothingWritten(base, () => closeEpic(base, EPIC, { by, at: NOW, commit: squash.slice(0, 12), rerequest: both }), 'SCHEMA');
+    expect(err.message).toMatch(/only with a full commit hash/);
+  }, 60_000);
+
   it('a list passed on a checkout that is not the default branch is refused', async () => {
     const { repo, base } = await project();
     g(repo, 'checkout', '-q', '-b', 'feat');
