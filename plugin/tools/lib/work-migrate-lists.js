@@ -102,7 +102,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 import { acquireLock as acquireAddLock, LOCK_FILE as ADD_LOCK_REL } from './add.js';
 import { atomicWrite } from './atomic-write.js';
-import { exactRefExists, hasRemote, resolveDefaultBranch } from './branch-guard.js';
+import { exactRefExists, remoteNames, resolveDefaultBranch } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
 import { gitEnv } from './git-env.js';
 import {
@@ -845,13 +845,19 @@ const masked = (m) => (m.length > 8 ? `${m.slice(0, 6)}…` : m);
 
 // One line, when the history the closes are checked against is NOT the
 // remote's recorded default branch (r6): which ref it is, why that matters,
-// and — only where there is a remote — the command that records the default.
+// and — only where there is a remote named `origin` — the command that
+// records the default.
 function evidenceSourceLine(evidence) {
   if (evidence.source !== 'git' || evidence.recorded !== false) return [];
   const local = evidence.ref !== 'HEAD';
   const what = local ? `the local branch ${evidence.ref}` : 'HEAD — whatever is checked out; there is no local main or master';
   if (!evidence.remote) {
     return [`The history read is ${what}: this repository has no remote, so there is no recorded default branch to check against.`];
+  }
+  // Remotes, none named `origin`: the command below names `origin` and fails there.
+  if (evidence.originRemote === false) {
+    return [`The history read is ${what}: Signal reads the default branch of the remote named \`origin\`, and this repository's `
+      + 'remotes are named otherwise, so there is no recorded default branch to check against.'];
   }
   return [`The history read is ${what}${local ? ',' : ' —'} which is not the remote's recorded default branch (origin/HEAD is not set): `
     + `${local ? 'a local branch' : 'it'} can hold commits nobody merged. \`git remote set-head origin -a\` records the remote's default branch; `
@@ -1664,11 +1670,14 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   // What the dry run calls it, and whether it is the remote's recorded
   // default branch: when it is not, the dry run says which ref this is
   // (`evidenceSourceLine`), and names the command that records the default
-  // only where there is a remote to record it from.
+  // only where there is a remote named `origin` to record it from
+  // (`originRemote: false`, there only when remotes exist and none is).
+  const remotes = recorded !== null ? null : remoteNames(baseDir, { execFn }) ?? [];
   const read = {
     ref: recorded !== null ? 'origin/HEAD' : ref.replace(/^refs\/heads\//, ''),
     recorded: recorded !== null,
-    ...(recorded !== null ? {} : { remote: hasRemote(baseDir, { execFn }) === true }),
+    ...(remotes === null ? {} : { remote: remotes.length > 0 }),
+    ...(remotes === null || remotes.length === 0 || remotes.includes('origin') ? {} : { originRemote: false }),
   };
   try {
     // The default branch (origin/HEAD, else main, else master, else HEAD), not --all (D-M6E15-25, AC4.1): unmerged branches, stashes and fetched

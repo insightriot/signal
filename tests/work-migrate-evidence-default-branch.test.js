@@ -163,6 +163,27 @@ describe('the dry run says which history was read, when it is not the remote\'s 
     expect(dry.report).not.toContain('set-head');
   });
 
+  // M6.E16 r6: the command names `origin`, and fails without a remote of that name.
+  it('remotes, none named origin: the report says that, and names no command', async () => {
+    git(root, ['init', '-q', '--bare', '-b', 'main', 'upstream.git']);
+    git(base, ['remote', 'add', 'upstream', join(root, 'upstream.git')]);
+    git(base, ['push', '-q', 'upstream', 'main']);
+    expect(buildEvidenceIndex(base)).toMatchObject({ ref: 'main', recorded: false, remote: true, originRemote: false });
+    const dry = await dryRun();
+    expect(sourceLines(dry.report)).toEqual([
+      'The history read is the local branch main: Signal reads the default branch of the remote named `origin`, and this repository\'s '
+        + 'remotes are named otherwise, so there is no recorded default branch to check against.',
+    ]);
+    expect(dry.report).not.toContain('set-head');
+  });
+
+  it('a remote named origin, or no remote: the evidence carries no `originRemote` key (it is there only to say origin is missing)', () => {
+    expect(buildEvidenceIndex(base)).not.toHaveProperty('originRemote');
+    addRemote();
+    unsetOriginHead();
+    expect(buildEvidenceIndex(base)).not.toHaveProperty('originRemote');
+  });
+
   it('no main, a local master: master is read and named', async () => {
     addRemote();
     unsetOriginHead();
