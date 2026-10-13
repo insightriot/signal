@@ -90,10 +90,10 @@ function makeProject(store) {
 }
 
 describe('hooks.json — the guard sees MultiEdit', () => {
-  it('the PreToolUse matcher is Edit|Write|MultiEdit', () => {
+  it('the PreToolUse matcher is Edit|Write|MultiEdit|NotebookEdit', () => {
     const cfg = JSON.parse(readFileSync(HOOKS_JSON, 'utf-8'));
     const entry = cfg.hooks.PreToolUse.find((e) => e.hooks.some((h) => h.command.includes('check-state-write.js')));
-    expect(entry.matcher).toBe('Edit|Write|MultiEdit');
+    expect(entry.matcher).toBe('Edit|Write|MultiEdit|NotebookEdit');
   });
 });
 

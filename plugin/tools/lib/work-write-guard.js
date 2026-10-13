@@ -45,8 +45,17 @@
 // the last one without anything from a `:` on (REVIEW pass 1, S-L4): on
 // Windows `M6.E16.json.`, `M6.E16.json ` and `M6.E16.json::$DATA` all open
 // `M6.E16.json`, so each of those spellings is that file here.
+//
+// Look-alike letters are read as the plain ones (`foldName`, REVIEW r6). And
+// two names for a guarded file that hold no `.planning` at all are found from
+// the project — the event's cwd and the target's folder, upward: the real path
+// of a `.planning`, or of a folder inside it, that is a symlink
+// (`underRealFolder`), and a hard link to a guarded file (`hardLinkTo`). The
+// hook's prefilter lets every edit in a project with a store through for them.
+// Not seen: a hard link (or such a real path) outside the project, edited
+// with a cwd that is outside it too — nothing then names the project.
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 import { shownName } from './printable-text.js';
@@ -72,6 +81,9 @@ export const BLOCK_MESSAGE = (rel) =>
       + 'A unit record has no body file.'
     : '');
 
+// Said before `BLOCK_MESSAGE` when the edit named the file by a hard link.
+const LINK_NOTE = (abs, rel) => `${shownName(abs)} is another name (a hard link) for ${shownName(rel)}. `;
+
 export const WORK_MD_MESSAGE = (rel) =>
   `${shownName(rel)} switches this project's v2 work store on (\`schema_version: 2\`) and names its \`key\`, which `
   + 'prefixes every item ID. This edit would change or remove one of those lines: a changed version switches '
@@ -79,12 +91,21 @@ export const WORK_MD_MESSAGE = (rel) =>
   + 'may be edited. Items are changed with /sig:item; the store\'s version is changed only by the migration '
   + 'tool, `node tools/work-migrate-v2.mjs`.';
 
-// A path's segments as they are compared: lower-cased, each without the dots
-// and spaces at its end, the last without anything from a `:` on. Loops, not
-// patterns: a segment is text from a tool call.
+// A name as it is compared (REVIEW r6): look-alike letters read as the plain
+// ones, then case set aside. macOS opens `unitſ` (U+017F) as `units`, `worK`
+// (U+212A) as `work` and `ißues-inbox.md` as `issues-inbox.md`, and a later
+// normalisation turns fullwidth `ｕｎｉｔｓ` into `units`. NFKC reads the long
+// s, the Kelvin sign, fullwidth letters and ligatures as plain letters; upper
+// then lower case reads `ß` as `ss`, which lower case alone leaves as it is.
+// A letter with a mark on it (`ś`) stays a different letter.
+const foldName = (s) => s.normalize('NFKC').toLowerCase().toUpperCase().toLowerCase();
+
+// A path's segments as they are compared: folded (`foldName`), each without
+// the dots and spaces at its end, the last without anything from a `:` on.
+// Loops, not patterns: a segment is text from a tool call.
 function comparable(parts) {
   return parts.map((part, i) => {
-    let s = part.toLowerCase();
+    let s = foldName(part);
     if (i === parts.length - 1 && s.includes(':')) s = s.slice(0, s.indexOf(':'));
     let to = s.length;
     while (to > 0 && (s[to - 1] === '.' || s[to - 1] === ' ')) to -= 1;
@@ -120,14 +141,14 @@ function isTarget(segs) {
 // (`<project>/sub/.planning/notes.md`) is still its own: no reading of it is a
 // target unless the path under that segment is one.
 //
-// A path is a target when it is one as written (lower-cased) OR as Windows
+// A path is a target when it is one as written (folded) OR as Windows
 // would open it (`comparable`): the second reading only ever adds a target, so
 // a name with a `:` in it that was guarded before still is.
 function classify(abs) {
   const parts = abs.split(sep);
   const out = [];
   const seen = new Set();
-  for (const lower of [parts.map((p) => p.toLowerCase()), comparable(parts)]) {
+  for (const lower of [parts.map(foldName), comparable(parts)]) {
     for (let i = lower.indexOf('.planning'); i >= 0; i = lower.indexOf('.planning', i + 1)) {
       const segs = lower.slice(i + 1);
       if (segs.length === 0 || !isTarget(segs)) continue;
@@ -177,6 +198,103 @@ export function protectedTarget(abs) {
     }
   }
   return { blocked: candidates.length > 0, candidates };
+}
+
+// ── Two routes with no `.planning` in the path (REVIEW r6) ──────────────────
+//
+// Neither can be read off the path, so both start from the project: every
+// folder, from the event's cwd and from the target's own folder upward, that
+// holds a work store. Each helper returns `{baseDir, rel}` candidates as
+// `classify` does, and `[]` on anything it cannot read.
+
+function storeRoots(...dirs) {
+  const roots = new Set();
+  for (const dir of dirs) {
+    for (let cur = dir; ; cur = dirname(cur)) {
+      if (existsSync(join(cur, '.planning', 'work', 'WORK.md'))) roots.add(cur);
+      if (dirname(cur) === cur) break;
+    }
+  }
+  return [...roots];
+}
+
+// Is this project-relative path (`.planning/…`) a protected target, as
+// written or as Windows would open it — the two readings `classify` makes?
+const isTargetRel = (rel) => {
+  const parts = rel.split('/');
+  return isTarget(parts.map(foldName).slice(1)) || isTarget(comparable(parts).slice(1));
+};
+
+// The folders a guarded file can be in. Any of them may be a symlink.
+const GUARDED_DIRS = ['.planning', '.planning/work', '.planning/work/items', '.planning/work/units', '.planning/work/history'];
+
+// A target named by the REAL path of a guarded folder: `.planning`, or a
+// folder inside it, is a symlink, and the edit is addressed to where it points.
+// The real path of the target is compared with the real path of each folder.
+function underRealFolder(real, root) {
+  const out = [];
+  const seen = new Set();
+  for (const dir of GUARDED_DIRS) {
+    let realDir;
+    try {
+      realDir = realpathSync.native(join(root, ...dir.split('/')));
+    } catch {
+      continue; // the folder is not there
+    }
+    if (!real.startsWith(realDir + sep)) continue;
+    const rel = [dir, ...real.slice(realDir.length + 1).split(sep)].join('/');
+    if (seen.has(rel) || !isTargetRel(rel)) continue;
+    seen.add(rel);
+    out.push({ baseDir: root, rel });
+  }
+  return out;
+}
+
+// How many entries a search for a hard link's other name reads before it
+// gives up and allows: Signal's own store holds a few hundred files.
+const LINK_SCAN_MAX = 20000;
+
+// A target that is a second name (a hard link) for a guarded file. Asked only
+// of a file that has more than one name; then the device and file numbers of
+// each guarded file of the project are compared with the target's.
+function hardLinkTo(abs, root) {
+  try {
+    const target = statSync(abs, { bigint: true });
+    if (!target.isFile() || target.nlink < 2n) return [];
+    const same = (rel) => {
+      try {
+        const s = statSync(join(root, ...rel.split('/')), { bigint: true });
+        return s.dev === target.dev && s.ino === target.ino;
+      } catch {
+        return false;
+      }
+    };
+    let read = 0;
+    // `.planning` itself (the views), then everything under `.planning/work`.
+    const pending = [['.planning', false], ['.planning/work', true]];
+    while (pending.length > 0) {
+      const [dir, deep] = pending.pop();
+      let entries;
+      try {
+        entries = readdirSync(join(root, ...dir.split('/')), { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      for (const e of entries) {
+        read += 1;
+        if (read > LINK_SCAN_MAX) return [];
+        const rel = `${dir}/${e.name}`;
+        if (e.isDirectory()) {
+          if (deep) pending.push([rel, true]);
+        } else if (isTargetRel(rel) && same(rel)) {
+          return [{ baseDir: root, rel, linkedFrom: abs }];
+        }
+      }
+    }
+    return [];
+  } catch {
+    return [];
+  }
 }
 
 // The content a tool call would leave in `abs`, or null when it cannot be
@@ -234,14 +352,18 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
     const base = typeof cwd === 'string' && isAbsolute(cwd) ? cwd : process.cwd();
     const abs = resolve(base, filePath);
     const { candidates } = protectedTarget(abs);
-    for (const { baseDir, rel } of candidates) {
+    // And the two routes the path does not show: the real path of a symlinked
+    // folder, and a second name for a guarded file.
+    const real = realpathLoose(abs);
+    for (const root of storeRoots(base, dirname(abs))) candidates.push(...underRealFolder(real, root), ...hardLinkTo(abs, root));
+    for (const { baseDir, rel, linkedFrom } of candidates) {
       // A stat before the import: a project with `.planning` and no store —
       // every project but Signal's — never loads the store library.
       if (!existsSync(join(baseDir, '.planning', 'work', 'WORK.md'))) continue;
       try {
         const { storeVersion } = await import('./work-records.js');
         if (storeVersion(baseDir) !== 2) continue;
-        if (!isWorkMd(rel)) return { block: true, reason: BLOCK_MESSAGE(rel) };
+        if (!isWorkMd(rel)) return { block: true, reason: (linkedFrom ? LINK_NOTE(linkedFrom, rel) : '') + BLOCK_MESSAGE(rel) };
         if (await changesVersionOrKey(abs, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
       } catch {
         // A broken or unknown WORK.md — allow.

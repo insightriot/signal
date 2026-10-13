@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PreToolUse(Edit|Write|MultiEdit) hook — D-E9-8 layer 2.
+// PreToolUse(Edit|Write|MultiEdit|NotebookEdit) hook — D-E9-8 layer 2.
 //
 // Reads the Claude Code hook event JSON from stdin. On a proposed write to
 // .planning/STATE.md it runs two checks with DIFFERENT strictness (the
@@ -20,7 +20,7 @@
 // us anything testable — the core logic is in tools/lib/retrospective.js
 // where unit tests can exercise it directly.
 
-import { readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import {
@@ -49,7 +49,10 @@ try {
 const tool = event?.tool_name;
 const input = event?.tool_input ?? {};
 
-if (tool !== 'Edit' && tool !== 'Write' && tool !== 'MultiEdit') process.exit(0);
+if (tool !== 'Edit' && tool !== 'Write' && tool !== 'MultiEdit' && tool !== 'NotebookEdit') process.exit(0);
+
+// The path the tool would write: NotebookEdit names it `notebook_path`.
+const target = tool === 'NotebookEdit' ? input.notebook_path : input.file_path;
 
 // The real path of `abs`, or of its nearest existing ancestor with the rest
 // appended (the file may not exist yet). `abs` itself when nothing resolves.
@@ -74,13 +77,31 @@ function realpathLoose(abs) {
 // is seen (REVIEW loop 1) — mentions `.planning`. An edit anywhere else pays
 // one string test and one realpath; the guard blocks only at
 // `schema_version: 2` and allows on any failure.
-if (typeof input.file_path === 'string') {
+//
+// The test reads look-alike letters as the plain ones (REVIEW r6, as
+// `foldName` in the guard): macOS opens `.planning/work/unitſ` as `units`.
+const mentionsPlanning = (p) => p.normalize('NFKC').toLowerCase().toUpperCase().toLowerCase().includes('.planning');
+
+// Is `dir`, or a folder above it, a project with a work store? Two routes to a
+// guarded file have no `.planning` in the path at all (REVIEW r6): a hard link
+// to a record, and the real path of a `.planning` that is a symlink. The guard
+// finds both from the project, so it is also loaded for any edit made in, or
+// to a file in, a project that has a store. The cost elsewhere is one
+// `existsSync` for each folder above the cwd and above the target.
+function storeAbove(dir) {
+  for (let cur = dir; ; cur = dirname(cur)) {
+    if (existsSync(join(cur, '.planning', 'work', 'WORK.md'))) return true;
+    if (dirname(cur) === cur) return false;
+  }
+}
+
+if (typeof target === 'string') {
   try {
     const cwd = typeof event.cwd === 'string' ? event.cwd : process.cwd();
-    const abs = resolve(cwd, input.file_path);
-    if (abs.toLowerCase().includes('.planning') || realpathLoose(abs).toLowerCase().includes('.planning')) {
+    const abs = resolve(cwd, target);
+    if (mentionsPlanning(abs) || mentionsPlanning(realpathLoose(abs)) || storeAbove(resolve(cwd)) || storeAbove(dirname(abs))) {
       const { checkWorkWrite } = await import('../tools/lib/work-write-guard.js');
-      const guard = await checkWorkWrite({ filePath: input.file_path, cwd, tool, input });
+      const guard = await checkWorkWrite({ filePath: target, cwd, tool, input });
       if (guard.block) {
         process.stderr.write(`[signal:check-state-write] ${guard.reason}\n`);
         process.exit(2);
@@ -90,9 +111,9 @@ if (typeof input.file_path === 'string') {
     // Fail open: the guard must never be the reason an ordinary edit fails.
   }
 }
-// MultiEdit reaches only the guard above; the STATE.md checks below judge
-// Edit and Write, as before.
-if (tool === 'MultiEdit') process.exit(0);
+// MultiEdit and NotebookEdit reach only the guard above; the STATE.md checks
+// below judge Edit and Write, as before.
+if (tool === 'MultiEdit' || tool === 'NotebookEdit') process.exit(0);
 
 const filePath = input.file_path ?? '';
 // Require a path-boundary (start-of-string or `/`) before `.planning/STATE.md`.
