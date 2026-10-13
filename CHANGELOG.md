@@ -142,9 +142,9 @@ records now.
   closed list "comes from retrospectives" — it says what holds a closed unit back.
 - **The message shown when a unit record is hand-edited** lists every command that writes one, not two.
 - **The default branch is no longer guessed when a close is confirmed.** If your clone has no
-  `origin/HEAD` (usual after `git remote add`, never after `git clone`), `/sig:ship`,
-  `/sig:docs-sweep` and `/sig:resume` confirm no close, of an item or an Epic, and say so in one
-  line. Run `git remote set-head origin -a` once and re-run. Before, `origin/main` or
+  `origin/HEAD` (usual after `git remote add`, never after `git clone`), no close is confirmed, of
+  an item or an Epic. `/sig:ship` and `/sig:resume` say so in one line; `/sig:docs-sweep` confirms
+  nothing and does not say why. Run `git remote set-head origin -a` once and re-run. Before, `origin/main` or
   `origin/master` was assumed, so on a project whose default branch has another name a pushed
   branch called `main` could confirm a close nobody merged. This applies to item closes on every
   project, with or without unit records.
