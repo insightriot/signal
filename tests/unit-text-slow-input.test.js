@@ -160,3 +160,45 @@ describe('S-M1 — the two functions, timed on a megabyte of spaces', () => {
     expect(ms).toBeLessThan(500);
   }, 60_000);
 });
+
+// REVIEW pass 2, T2-I2. The case above ends its megabyte of spaces with a line
+// break, which the old pattern matched at once: it passed with `clean` back on
+// that pattern. What was slow is a long run of spaces with NO line break after
+// it — every start in the run is tried and abandoned. 64 KB is enough to show
+// it (about two thousand million steps on the old pattern) and still finishes,
+// so a wrong `clean` fails this as too slow rather than hanging the suite.
+describe('S-M1 — a long run of spaces with no line break does not slow a writer (T2-I2)', () => {
+  const RUN = ' '.repeat(64 * 1024);
+  const INPUTS = { 'spaces only': RUN, 'a, spaces, b': `a${RUN}b` };
+  const opts = { regenerate: async () => {} };
+  const WRITERS = {
+    openUnit: (base, text) => units.openUnit(base, 'M7.E3', { title: text, by: 'claude', at: AT }, opts),
+    holdUnit: (base, text) => units.holdUnit(base, 'M7.E9', { reason: text, by: 'claude', at: AT }, opts),
+    closeUnit: (base, text) => units.closeUnit(base, 'M7.E9', { reason: 'dropped', words: text, by: 'claude', at: AT }, opts),
+  };
+
+  for (const [writer, run] of Object.entries(WRITERS)) {
+    for (const [shape, text] of Object.entries(INPUTS)) {
+      it(`${writer}, ${shape}: under 500 ms`, async () => {
+        const base = await unitsStore();
+        await units.ensureUnitsDir(base);
+        await units.openUnit(base, 'M7.E9', { by: 'claude', at: AT }, opts);
+        let out = null;
+        let thrown = null;
+        const ms = await elapsed(async () => {
+          try {
+            out = await run(base, text);
+          } catch (err) {
+            thrown = err;
+          }
+        });
+        console.log(`[T2-I2] ${writer}, ${shape} (64 KB): ${ms.toFixed(1)} ms`);
+        expect(ms).toBeLessThan(500);
+        // Spaces alone are blank and refused; text around the run is stored, cut at its limit.
+        if (shape === 'spaces only') expect(thrown ?? out?.record?.title, 'refused as blank, or stored without a title').not.toBe(RUN);
+        else expect(thrown).toBeNull();
+      }, 300_000);
+    }
+  }
+});
+

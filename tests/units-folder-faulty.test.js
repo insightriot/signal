@@ -29,7 +29,12 @@ import * as units from '../plugin/tools/lib/unit-records.js';
 import { evictEpicNarrative } from '../plugin/tools/lib/evict.js';
 import { storeDischargeStatus } from '../plugin/tools/lib/backlog.js';
 import { deriveNextEpicId } from '../plugin/tools/lib/milestones.js';
-import { cleanupUnitProjects, contradiction, HOLD_REASON, plant, put, retroFor } from './helpers/unit-fixture.js';
+import { detectDirtyExecute } from '../plugin/tools/lib/retrospective.js';
+import { gatherBigPicture } from '../plugin/tools/lib/advise-digest.js';
+import { readCorpus } from '../plugin/tools/lib/advise-corpus.js';
+import { proposeEpicCandidates } from '../plugin/tools/lib/drive.js';
+import { findWorkOnOtherBranches } from '../plugin/tools/lib/branch-work.js';
+import { branchRepo, cleanupUnitProjects, contradiction, HOLD_REASON, plant, put, retroFor, unitsOn } from './helpers/unit-fixture.js';
 
 const UNITS = '.planning/work/units';
 const by = 'claude';
@@ -244,6 +249,89 @@ describe.each(cases)('units/ is %s', (fault) => {
     expect(err).toMatchObject({ name: 'WorkStoreError' });
     named(err.message);
   });
+});
+
+// ── REVIEW pass 2, T2-I4 — the five readers the cases above did not call ────
+//
+// Each of these asks `unitRecordsOn` and, when the folder cannot be trusted,
+// must neither answer as if the project had no unit records nor read what it
+// read before them (a milestone row, a retrospective on HEAD). One case per
+// reader, with `units/` a symbolic link. Each fails when that reader's own
+// question is made to answer "off".
+describe('units/ is a symbolic link — the readers that choose between the records and a milestone row (T2-I4)', () => {
+  const ROW = '| `M7.E9` | **shipped** — DISTINCTIVE-ROW-TEXT | from the milestone file |';
+  const linked = () => {
+    const base = project();
+    // A milestone row that, read, would say the current Epic shipped.
+    put(base, '.planning/MILESTONE-7.md', `# Milestone 7\n\n| Epic | Status | Summary |\n|---|---|---|\n${ROW}\n`);
+    FAULTS['a symbolic link'](base);
+    return base;
+  };
+  const faultNamed = (text) => {
+    expect(text).toContain('.planning/work/units/');
+    expect(text).toMatch(/symbolic link/);
+    expect(text).toMatch(/cannot be trusted/);
+  };
+
+  it('detectDirtyExecute: no warning, and the milestone content is never read (an argument that throws on read)', () => {
+    const base = linked();
+    const args = Object.defineProperty({ state: { current_epic: 'M7.E9', phase: 'EXECUTE' }, baseDir: base }, 'milestoneContent', {
+      enumerable: true,
+      get() {
+        throw new Error('the milestone file was read');
+      },
+    });
+    expect(detectDirtyExecute(args)).toBeNull();
+    // The control: on a project with no unit records the same call reads the milestone content.
+    const off = contradiction();
+    expect(() => detectDirtyExecute({ ...args, baseDir: off, get milestoneContent() { throw new Error('the milestone file was read'); } })).toThrow(/the milestone file was read/);
+  });
+
+  it('gatherBigPicture: the fault is in cannotCheck, and nothing from the milestone row is in the digest', async () => {
+    const digest = await gatherBigPicture(linked());
+    faultNamed(digest.cannotCheck.map((c) => c.reason).join('\n'));
+    expect(JSON.stringify(digest)).not.toContain('DISTINCTIVE-ROW-TEXT');
+    // The control: with no unit records the row is read.
+    const off = contradiction();
+    put(off, '.planning/MILESTONE-7.md', `# Milestone 7\n\n| Epic | Status | Summary |\n|---|---|---|\n${ROW}\n`);
+    expect(JSON.stringify(await gatherBigPicture(off))).toContain('DISTINCTIVE-ROW-TEXT');
+  });
+
+  it('readCorpus: "milestone rows" could not be checked, with the fault, and no milestone file is opened', async () => {
+    const corpus = await readCorpus(linked());
+    const row = corpus.cannotCheck.find((c) => c.source === 'milestone rows');
+    expect(row, 'milestone rows is in cannotCheck').toBeDefined();
+    faultNamed(row.reason);
+    expect(corpus.checked).not.toContain('milestone rows');
+    expect(JSON.stringify(corpus.sources.milestones ?? null)).not.toContain('DISTINCTIVE-ROW-TEXT');
+    // The control: with no unit records the file is read.
+    const off = contradiction();
+    put(off, '.planning/MILESTONE-7.md', `# Milestone 7\n\n| Epic | Status | Summary |\n|---|---|---|\n${ROW}\n`);
+    expect(JSON.stringify((await readCorpus(off)).sources.milestones)).toContain('DISTINCTIVE-ROW-TEXT');
+  });
+
+  it('proposeEpicCandidates: the fault is reported as "unit records", once', async () => {
+    const base = linked();
+    put(base, '.planning/BACKLOG.md', '# Backlog\n');
+    const out = await proposeEpicCandidates(base);
+    const said = out.cannotCheck.filter((c) => c.source === 'unit records');
+    expect(said).toHaveLength(1);
+    faultNamed(said[0].reason);
+  });
+
+  it('findWorkOnOtherBranches: an Epic open on another branch is still offered — its retrospective on HEAD is not read in the records\' place — and the fault is reported', async () => {
+    // `main` holds M7.E1's retrospective; with no unit records that alone means "finished here".
+    expect((await findWorkOnOtherBranches(branchRepo({ retro: true }), { localEpic: 'M7.E9' })).open).toEqual([]);
+    const on = branchRepo({ retro: true });
+    unitsOn(on);
+    plant(on, 'M7.E1', 'closed'); // even a closed record does not count behind a folder that cannot be trusted
+    FAULTS['a symbolic link'](on);
+    const r = await findWorkOnOtherBranches(on, { localEpic: 'M7.E9' });
+    expect(r.open.map((o) => o.epic)).toEqual(['M7.E1']);
+    const said = r.cannotCheck.filter((c) => c.source === 'unit records');
+    expect(said).toHaveLength(1);
+    faultNamed(said[0].reason);
+  }, 60_000);
 });
 
 describe('a project with no units/ folder is still "off", with no problem (AC1.6)', () => {

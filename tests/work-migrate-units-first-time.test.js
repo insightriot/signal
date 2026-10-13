@@ -269,4 +269,22 @@ describe('refusals and failures', () => {
     // What was acknowledged is what is on disk: the key, without the invisible character.
     expect(getUnit(base, 'M7.E1').record.legacy_row[2]).toBe('key AKIAIOSFODNN7EXAMPLE');
   });
+
+  // REVIEW pass 2, T2-I1: the case above hides the key in the first 400 characters, where the
+  // unit's summary carried it to the scan whichever text was read. Here it sits after 500.
+  it('a key hidden by a zero-width space after 500 characters of a row is found, and stored without the invisible character', async () => {
+    const base = await project();
+    const filler = 'word '.repeat(100);
+    const hidden = `AKIA${String.fromCharCode(0x200b)}IOSFODNN7EXAMPLE`;
+    put(base, MILESTONE, milestone7([`| \`M7.E1\` | **shipped** | ${filler}${hidden} |`]));
+    commitAll(base);
+    const dry = await dryRun(base);
+    expect(dry.sensitiveHits).not.toEqual([]);
+    expect(dry.sensitiveHits).toContainEqual({ id: 'M7.E1', file: 'unit', type: 'aws-key', match: 'AKIAIO…' });
+    const before = bytesOf(base);
+    expect(await applyWith(base, dry, { confirmCloses: true, confirmUnitCloses: true })).toMatchObject({ applied: false, aborted: 'sensitive-data-pending' });
+    expect(bytesOf(base)).toEqual(before);
+    expect((await applyWith(base, dry, { confirmCloses: true, confirmUnitCloses: true, acknowledgeSensitive: true })).applied).toBe(true);
+    expect(getUnit(base, 'M7.E1').record.legacy_row[2]).toBe(`${filler}AKIAIOSFODNN7EXAMPLE`);
+  }, 60_000);
 });

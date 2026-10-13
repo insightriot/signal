@@ -407,6 +407,77 @@ describe('refusals — nothing written, no tag', () => {
   });
 });
 
+// REVIEW pass 2, T2-I1. The case above hides the key in the first 400
+// characters of the cell, where the unit's `summary` carried it to the scan
+// whichever text the scan read: it passed with the S-M3 fix reverted. Here the
+// key sits after 500 characters — past the summary's limit — so only the
+// stored row can carry it.
+describe('S-M3 — a key hidden by an invisible character, past the summary\'s limit (T2-I1)', () => {
+  const FILLER = 'word '.repeat(100);
+  const hidden = `AKIA${String.fromCharCode(0x200b)}IOSFODNN7EXAMPLE`;
+
+  it('the dry run reports it, the apply stops, and what is stored holds the key without the invisible character', async () => {
+    const base = await unitsStore({ repo: true });
+    put(base, MILESTONE, milestone7([`| \`M7.E1\` | **shipped** | ${FILLER}${hidden} |`]));
+    commitAll(base);
+    const dry = await dryRun(base);
+    expect(dry.sensitiveHits).not.toEqual([]);
+    expect(dry.sensitiveHits).toContainEqual({ id: 'M7.E1', file: 'unit', type: 'aws-key', match: 'AKIAIO…' });
+    const before = bytesOf(base);
+    expect(await applyWith(base, dry, { confirmUnitCloses: true })).toMatchObject({ applied: false, aborted: 'sensitive-data-pending' });
+    expect(bytesOf(base)).toEqual(before);
+    expect((await applyWith(base, dry, { confirmUnitCloses: true, acknowledgeSensitive: true })).applied).toBe(true);
+    expect(getUnit(base, 'M7.E1').record.legacy_row[2]).toBe(`${FILLER}AKIAIOSFODNN7EXAMPLE`);
+    expect(getUnit(base, 'M7.E1').record.legacy_row[2]).not.toMatch(INVISIBLE);
+  });
+
+  // Two functions each read the row, and either alone finds this key: the
+  // texts as they will be stored (`importUnitsTexts`, the S-M3 fix), and each
+  // source text whole (r3.7). So each is held on its own here.
+  it('importUnitsTexts alone returns the stored text, with the key whole', async () => {
+    const { importUnitsTexts } = await import('../plugin/tools/lib/unit-records.js');
+    const cell = `${FILLER}${hidden}`;
+    const texts = importUnitsTexts([
+      { id: 'M7.E1', legacy_row: ['`M7.E1`', 'shipped', cell], close: { reason: 'legacy', at: AT, by: 'migration' } },
+      { id: 'M7.E2', summary: `short ${hidden}`, migration_note: `note ${hidden}`, title: `title ${hidden}`, opened: { at: AT, by: 'migration' } },
+      { id: 'M7.E3', close: { reason: 'dropped', words: `words ${hidden}`, pr: `pr ${hidden}`, release: `rel ${hidden}`, at: AT, by: 'migration' } },
+    ]).map((t) => t.text);
+    expect(texts.filter((t) => t.includes('AKIAIOSFODNN7EXAMPLE'))).toHaveLength(7);
+    for (const t of texts) expect(t).not.toMatch(INVISIBLE);
+  });
+
+  it('a hidden key that also straddles the stored cell\'s limit is found: the whole source text is read cleaned', async () => {
+    const base = await unitsStore({ repo: true });
+    const long = `${'word '.repeat(1598)}${hidden} and the rest`; // 7,990 characters, then the key
+    put(base, MILESTONE, milestone7([`| \`M7.E1\` | **shipped** | ${long} |`]));
+    commitAll(base);
+    expect((await dryRun(base)).sensitiveHits).toContainEqual({ id: 'M7.E1', file: 'unit', type: 'aws-key', match: 'AKIAIO…' });
+  });
+});
+
+// REVIEW pass 2 (test reviewer): the apply's own count of what it wrote had no test.
+describe('the units-only apply counts the unit records it wrote', () => {
+  it('one record more than the plan, appearing before the check: the apply is undone and says both numbers', async () => {
+    const base = await unitsStore({ repo: true });
+    const before = bytesOf(base);
+    const dry = await dryRun(base);
+    const onSwapStep = (step) => {
+      if (step !== 'units-verify') return;
+      // A sound record nobody planned: every other check passes, only the count is off.
+      put(base, `${UNITS}/M9.E99.json`, `${JSON.stringify({ id: 'M9.E99', events: [{ type: 'opened', at: '2026-10-11T00:00:00.000Z', by: 'someone else' }] }, null, 2)}\n`);
+    };
+    const err = await applyWith(base, dry, { confirmUnitCloses: true, onSwapStep }).catch((e) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toMatch(/nothing was imported/);
+    expect(err.message).toMatch(/the unit records did not verify/);
+    expect(err.message).toMatch(/the store holds 12 unit records, not 11/);
+    // Every record this run wrote is gone, and so are the tag and the views it regenerated.
+    for (const id of UNIT_FILES) expect(existsSync(join(base, UNITS, `${id}.json`)), id).toBe(false);
+    expect(tags(base)).toEqual([]);
+    expect(changed(before, bytesOf(base)).filter((f) => !f.includes('M9.E99'))).toEqual([]);
+  });
+});
+
 describe('a failure part-way puts everything back', () => {
   it('the check after the write fails → no units/, no tag, every file as it was', async () => {
     const base = await unitsStore({ repo: true, markers: true });
