@@ -156,7 +156,7 @@
 | SIG-262 | `confirmed` | P3 | **advise cannot see a backlog kept in GitHub Issues** |
 | SIG-264 | `confirmed` | P2 | **advise "Other" answer must stay verbatim; summaries go in a separate field** |
 | SIG-265 | `confirmed` | P2 | **isStateStale counts STATE.md-only commits as unreflected work** |
-| SIG-266 | `closing` | P2 | **private-name guard can time out under a full parallel run** |
+| SIG-266 | `fixed` | P2 | **private-name guard can time out under a full parallel run** |
 | SIG-267 | `confirmed` | P2 | **advise digest never reads a roadmap file inside .planning/ — planned milestones vanish from the priorities** |
 | SIG-268 | `confirmed` | P3 | **advisory says "Could not read: nothing" while the digest lists two gaps** |
 | SIG-269 | `confirmed` | P3 | **SIG-146 and SIG-166 link to references/command-taxonomy.md, which moved to plugin/references/** |
@@ -198,4 +198,4 @@
 | SIG-310 | `confirmed` | P3 | **The units migration dry run does not list the lines it replaces in a marked milestone file other than the current one** |
 | SIG-311 | `confirmed` | P3 | **Suggestions from M6.E16 REVIEW pass 4 and the narrow review that no round took up** |
 
-*0 needs-triage · 67 confirmed · 6 closing · 121 closed (194 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 67 confirmed · 5 closing · 122 closed (194 total) · closes more than 30 days before the newest event are in `work/history/`*

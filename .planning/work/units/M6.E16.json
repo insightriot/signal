@@ -6,6 +6,14 @@
       "type": "opened",
       "at": "2026-10-12",
       "by": "migration"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-13T17:13:40.413Z",
+      "by": "claude (M6.E16 SHIP, approved by Brett)",
+      "proof": "57d39b09494c665b095269117fdeb77be7ea537f",
+      "pr": "301",
+      "release": "v0.1.51"
     }
   ]
 }

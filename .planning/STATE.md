@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: REVIEW
+phase: SHIP
 current_epic: M6.E16
 current_wave: null
 current_tasks: []
@@ -10,11 +10,13 @@ completed_phases:
   - PLAN (2026-10-11)
   - EXECUTE (2026-10-12)
   - VERIFY (2026-10-12)
+  - REVIEW (2026-10-13)
+  - SHIP (2026-10-13)
 blockers: []
 last_completed_task: null
 last_decision_at: 2026-10-10T00:40:29.810Z
 last_updated_commit: aba8f9e22401bf5612530edeec692314362a3ae4
-last_updated: 2026-10-13T16:50:41.861Z
+last_updated: 2026-10-13T17:13:32.249Z
 ---
 # Project State
 
@@ -22,17 +24,20 @@ last_updated: 2026-10-13T16:50:41.861Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-10-13)
 
-**`M6.E16` — *"Epics and units as records"* — REVIEW is PASS-WITH-FIXES; SHIP is next and its pull request and merge wait for Brett's go-ahead.** Report: [`M6.E16-REVIEW.md`](M6.E16-REVIEW.md), last section. Branch
-`feat/m6.e16-epics-units-as-records`, pushed. Suite: 347 files, 7558 passed, 1 skipped; lint clean.
-VERIFY passed on loop 3: [`M6.E16-VERIFICATION.md`](M6.E16-VERIFICATION.md). Progress:
-[`M6.E16-PROGRESS.md`](M6.E16-PROGRESS.md).
+**`M6.E16` — *"Epics and units as records"* — at SHIP as `v0.1.51`, PR #301 open (2026-10-13). Its close is requested and waits for the merge.** Brett approved the pull request, the close request, the merge on a green `test` check, and the tag. Branch
+`feat/m6.e16-epics-units-as-records`. Suite: 347 files, 7560 passed, 1 skipped; lint clean. Report:
+[`M6.E16-REVIEW.md`](M6.E16-REVIEW.md) (PASS-WITH-FIXES, last section). Retrospective:
+[`M6.E16-RETROSPECTIVE.md`](M6.E16-RETROSPECTIVE.md).
 
-- **How REVIEW got here:** four full passes failed, each in a different corner; pass 3 reached the
-  loop ceiling and Brett chose each step after it. Fix rounds 4 and 5 (`D-M6E16-26` … `-31`), then a
-  narrow review of round 5 by one fresh reviewer: nothing Critical or High; four of its five
-  Important findings fixed in place (`r5.9`), one filed.
-- **Known and filed, not fixed:** `SIG-303` … `SIG-311`.
-- **`r5.9` has not had a fresh read.** The pull request's own reviewer is the next one.
+- **After the merge:** run `/sig:docs-sweep` (or the next SHIP) on `main`. It confirms the close of
+  `M6.E16` and of `SIG-132`, `SIG-255`, `SIG-288`, `SIG-289`, `SIG-295`, and moves this Epic's narrative
+  out of this file. Then update the installed plugin and restart before using `/sig:` commands.
+- **Put off on purpose, on record, to come back to:** `SIG-294`, `SIG-296` … `SIG-311` (all open, in
+  `BUGS.md`). The ones from REVIEW are `SIG-303` … `SIG-311`; the largest is `SIG-310`. They are the
+  natural scope of a "harden unit records" Epic, as `M6.E14` was for `M6.E13`. `r5.9`, the last 28
+  lines of fixes, was read first by the pull request's reviewer, not by a REVIEW pass.
+- **How REVIEW went:** four full passes failed, each in a different corner; pass 3 reached the loop
+  ceiling and Brett chose each step after it (`D-M6E16-26` … `-31`).
 - **Signal's own cutover is done** (`010262f7`, 2026-10-12): 48 unit records under `work/units/` —
   `M6.E16` open, 43 legacy closes Brett confirmed, 4 Epic IDs closed as dropped (`M5.E11`, `M5.E12`,
   `M5.E14`, `M5.E20`). The Epic table in `MILESTONE-6.md` and `work/EPICS.md` are generated from the

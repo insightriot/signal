@@ -3,7 +3,7 @@
 
 ## Open
 
-### M6.E16 — open
+### M6.E16 — closing · proof 57d39b09494c665b095269117fdeb77be7ea537f
 
 _no items_
 
