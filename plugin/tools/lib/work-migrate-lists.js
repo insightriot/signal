@@ -102,7 +102,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 import { acquireLock as acquireAddLock, LOCK_FILE as ADD_LOCK_REL } from './add.js';
 import { atomicWrite } from './atomic-write.js';
-import { exactRefExists, remoteNames, resolveDefaultBranch } from './branch-guard.js';
+import { capitalised, exactRefExists, RECORD_DEFAULT_BRANCH_HINT, remoteNames, resolveDefaultBranch } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
 import { gitEnv } from './git-env.js';
 import {
@@ -860,7 +860,7 @@ function evidenceSourceLine(evidence) {
       + 'remotes are named otherwise, so there is no recorded default branch to check against.'];
   }
   return [`The history read is ${what}${local ? ',' : ' —'} which is not the remote's recorded default branch (origin/HEAD is not set): `
-    + `${local ? 'a local branch' : 'it'} can hold commits nobody merged. \`git remote set-head origin -a\` records the remote's default branch; `
+    + `${local ? 'a local branch' : 'it'} can hold commits nobody merged. ${capitalised(RECORD_DEFAULT_BRANCH_HINT)}; `
     + 'run it, then this again, to check against that.'];
 }
 

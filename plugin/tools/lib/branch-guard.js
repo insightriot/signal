@@ -164,6 +164,20 @@ export function remoteNames(baseDir, opts = {}) {
   }
 }
 
+/**
+ * How the remote's default branch gets recorded in a clone that does not have
+ * it — the one place the command is written (r6.1). It is worded to be true
+ * in both states a clone can be in: `git remote set-head origin -a` fails
+ * ("Cannot determine remote HEAD") while `origin` has no branch here, which
+ * is how things stand after `git init` and `git remote add origin …`.
+ * Lower-case, to follow a dash or "or"; a sentence that opens with it
+ * capitalises the first letter (`capitalised`).
+ */
+export const RECORD_DEFAULT_BRANCH_HINT = 'once `origin` has a branch in this clone (push or fetch one), `git remote set-head origin -a` records its default branch';
+
+/** `text` with its first letter in upper case. */
+export const capitalised = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+
 const ORIGIN_REFS = 'refs/remotes/origin/';
 const ORIGIN_HEAD_REF = `${ORIGIN_REFS}HEAD`;
 

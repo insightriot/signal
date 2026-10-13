@@ -127,7 +127,9 @@ describe('a tag cannot steer which history buildEvidenceIndex reads', () => {
 
 describe('the dry run says which history was read, when it is not the remote\'s recorded default branch', () => {
   const NOT_RECORDED = 'which is not the remote\'s recorded default branch (origin/HEAD is not set)';
-  const SET_HEAD = '`git remote set-head origin -a` records the remote\'s default branch; run it, then this again, to check against that.';
+  // r6.1: worded to be true before the remote has a branch here too (`RECORD_DEFAULT_BRANCH_HINT`, `tests/set-head-hint.test.js`).
+  const SET_HEAD = 'Once `origin` has a branch in this clone (push or fetch one), `git remote set-head origin -a` records its default branch; '
+    + 'run it, then this again, to check against that.';
 
   it('origin/HEAD recorded: its history is read, a commit that is only local is not evidence, and nothing more is said', async () => {
     addRemote();
