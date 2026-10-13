@@ -14,8 +14,9 @@
 // HEAD is. Real git, in temp repositories. Unit names are invented.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -548,6 +549,87 @@ describe('closeEpic never swaps an item\'s proof on its own', () => {
     await closingItem(repo, base, 'SIG-1', elsewhere);
     const err = await nothingWritten(base, () => closeEpic(base, EPIC, { by, at: NOW }), 'OPEN_ITEMS');
     expect(err.message).toMatch(/SIG-1 \(status closing\)/);
+  }, 60_000);
+});
+
+// ── The named list is checked again under the store's lock ─────────────────
+//
+// `closeEpic` looks at the named items once before the lock and again under
+// it. Between the two another writer can move an item: what a person said yes
+// to is then not what is there, and nothing may be swapped.
+
+// The project's files without git's own: `git status` rewrites `.git/index`
+// once a tracked file has changed, and that is not a write of the store's.
+const projectFiles = (base) => new Map([...snapshotTree(base)].filter(([rel]) => !rel.startsWith('.git/')));
+
+// The files of `to` written over those of `from` (a file only `from` has is removed).
+function putTree(base, from, to) {
+  for (const [rel, text] of to) {
+    if (from.get(rel) === text) continue;
+    mkdirSync(dirname(join(base, rel)), { recursive: true });
+    writeFileSync(join(base, rel), text, 'latin1');
+  }
+  for (const rel of from.keys()) if (!to.has(rel)) rmSync(join(base, rel));
+}
+
+// `change` is made to the store, its views regenerated, and all of it taken
+// back out; `execFn` then puts it in again after the last git call `closeEpic`
+// makes before it takes the lock (the full-hash check of the proof, which
+// follows the first look at the items) — as another writer would have left it.
+async function landsBeforeTheLock(base, squash, change) {
+  const before = projectFiles(base);
+  await change();
+  await regenerateViews(base);
+  const after = projectFiles(base);
+  putTree(base, after, before);
+  expect(projectFiles(base)).toEqual(before);
+  const seen = { looked: false, landed: 0, locked: null };
+  const execFn = (cmd, args, o) => {
+    // Set before the call: git answers "not an ancestor" by failing.
+    if (args[0] === 'merge-base' && args.at(-1) === 'HEAD') seen.looked = true;
+    const out = execFileSync(cmd, args, o);
+    if (seen.looked && seen.landed === 0 && args.at(-1) === `${squash}^{commit}`) {
+      seen.locked = existsSync(join(base, '.planning/work/.lock'));
+      putTree(base, before, after);
+      seen.landed += 1;
+    }
+    return out;
+  };
+  return { execFn, after, seen };
+}
+
+describe('closeEpic checks the named list again under the lock', () => {
+  it('a named item that moved to another, unmerged commit after the first look: CONFLICT, and its proof is not swapped', async () => {
+    const { repo, base, branchCommit, squash } = await squashMerged();
+    const elsewhere = unmergedCommit(repo);
+    const shown = await closeEpic(base, EPIC, { by, at: NOW });
+    expect(shown.candidates.map((c) => c.id)).toEqual(['SIG-1', 'SIG-2']);
+    const { execFn, after, seen } = await landsBeforeTheLock(base, squash, () => put(base, records.recordPath('SIG-1'),
+      itemRecord('SIG-1', [created, triaged, { type: 'queued', at: AT, by, epic: EPIC }, { type: 'close_requested', at: AT, by, reason: 'fixed', proof: elsewhere }])));
+    const err = await closeEpic(base, EPIC, { by, at: NOW, pr: 42, rerequest: yesTo(shown) }, { execFn }).catch((e) => e);
+    expect(seen).toEqual({ looked: true, landed: 1, locked: false });
+    expect(err).toMatchObject({ name: 'WorkStoreError', code: 'CONFLICT' });
+    expect(err.message).toMatch(/SIG-1 was named as closing on/);
+    expect(err.message).toContain(elsewhere);
+    expect(getUnit(base, EPIC)).toMatchObject({ status: 'closing', closing_proof: branchCommit });
+    expect(records.getRecord(base, 'SIG-1').record.events.findLast((e) => e.type === 'close_requested').proof).toBe(elsewhere);
+    // Nothing but what the other writer left.
+    expect(projectFiles(base)).toEqual(after);
+  }, 60_000);
+
+  it('a new item of the Epic, closing on an unmerged commit, that appeared after the first look: OPEN_ITEMS, nothing swapped', async () => {
+    const { repo, base, branchCommit, squash } = await squashMerged();
+    const elsewhere = unmergedCommit(repo);
+    const shown = await closeEpic(base, EPIC, { by, at: NOW });
+    const { execFn, after, seen } = await landsBeforeTheLock(base, squash, () => put(base, records.recordPath('SIG-3'),
+      itemRecord('SIG-3', [created, triaged, { type: 'queued', at: AT, by, epic: EPIC }, { type: 'close_requested', at: AT, by, reason: 'fixed', proof: elsewhere }])));
+    const err = await closeEpic(base, EPIC, { by, at: NOW, pr: 42, rerequest: yesTo(shown) }, { execFn }).catch((e) => e);
+    expect(seen).toEqual({ looked: true, landed: 1, locked: false });
+    expect(err).toMatchObject({ name: 'WorkStoreError', code: 'OPEN_ITEMS' });
+    expect(err.message).toMatch(/SIG-3 \(status closing\)/);
+    expect(getUnit(base, EPIC)).toMatchObject({ status: 'closing', closing_proof: branchCommit });
+    expect(records.getRecord(base, 'SIG-3').record.events.findLast((e) => e.type === 'close_requested').proof).toBe(elsewhere);
+    expect(projectFiles(base)).toEqual(after);
   }, 60_000);
 });
 
