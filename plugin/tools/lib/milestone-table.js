@@ -86,8 +86,10 @@ function statusText(unit) {
  * Epic number. Units of other milestones, and units that are not Epic IDs,
  * are not printed.
  *
- * A unit with `legacy_row` (an Epic that shipped before unit records) prints
- * those cells as they were recorded. Any other unit prints its ID, a status
+ * A unit closed as `legacy` that has a `legacy_row` (an Epic that shipped
+ * before unit records) prints those cells as they were recorded. Any other
+ * unit — one with a `legacy_row` that is open, closing, or closed another way
+ * included — prints its ID, a status
  * built from its folded state — `**in flight**`; `**closing** — proof
  * <7 characters>`; `**shipped** — <release>, <date> (PR <pr>)` with what is
  * recorded; `**dropped** — <words>`; and ` · held: <reason>` when held — and
@@ -103,7 +105,11 @@ export function renderEpicTable(units, { milestone }) {
     .filter((u) => epicIdParts(u.id)?.milestone === String(milestone))
     .sort((a, b) => compareUnitIds(a.id, b.id))
     .map((u) => {
-      const legacy = u.record.legacy_row;
+      // The old row is printed only while the unit reads closed as legacy. A
+      // unit that is open, closing, or closed another way has a status of its
+      // own to print, and its old row's words would contradict it: the cells
+      // stay in the record, where nothing a person wrote is lost.
+      const legacy = u.status === 'closed' && u.close?.reason === 'legacy' ? u.record.legacy_row : null;
       // At most `LEGACY_CELLS_MAX` cells are printed: a record that came by a merge may hold more than a writer keeps.
       if (Array.isArray(legacy) && legacy.length > 0) return `| ${legacy.slice(0, LEGACY_CELLS_MAX).map(legacyCell).join(' | ')} |`;
       return `| \`${u.id}\` | ${statusText(u)} | ${cell(u.record.summary ?? u.record.title ?? '', UNIT_SUMMARY_MAX)} |`;
@@ -248,10 +254,14 @@ function firstCell(row) {
   return trimmed(text.slice(0, i));
 }
 
+// A row's cells, each without the spaces around it (split on every `|`; an
+// escaped one is not told apart — this is for reading a header, not a cell).
+const cellsOf = (row) => trimmed(row).replace(/^\|/, '').replace(/\|$/, '').split('|').map(trimmed);
+
 // A table's separator row (`|---|:--:|`): every cell is dashes, with an
 // optional colon at either end.
 function isSeparatorRow(row) {
-  const cells = trimmed(row).replace(/^\|/, '').replace(/\|$/, '').split('|').map(trimmed);
+  const cells = cellsOf(row);
   return cells.length > 0 && cells.every((c) => /^:?-{1,200}:?$/.test(c));
 }
 
@@ -263,6 +273,34 @@ const NAMED_EPIC_RE = /^[\s`*_]{0,10}(?:(M\d+(?:\.\d+)*)\.)?E(\d+)\b/;
 function namedEpic(cellText, milestone) {
   const m = cellText.match(NAMED_EPIC_RE);
   return m ? `${m[1] ?? `M${milestone}`}.E${m[2]}` : null;
+}
+
+/**
+ * The table between the two marker lines, as a person wrote it: its header (a
+ * first row that a separator row follows), and every other row that is not a
+ * separator. For a caller that must say what a regeneration replaces — the
+ * migration's dry run. Lines that are not table rows are
+ * `linesBetweenMarkers`'. Nothing unless the markers are `ok`.
+ *
+ * @param {string} content — the milestone file's text
+ * @returns {{header: {line: number, text: string, generated: boolean}|null, rows: Array<{line: number, text: string}>}}
+ *   `line` is 1-based; `text` is the row as written; `header.generated`: its cells are the generated
+ *   table's own (`Epic`, `Status`, `Summary`)
+ */
+export function tableBetweenMarkers(content) {
+  const at = epicMarkers(content);
+  if (at.state !== 'ok') return { header: null, rows: [] };
+  const all = [];
+  let n = at.beginLine;
+  for (const l of linesOf(content.slice(at.from, at.to))) {
+    n += 1;
+    if (trimmed(l.text).startsWith('|')) all.push({ line: n, text: l.text });
+  }
+  const hasHeader = all.length > 1 && !isSeparatorRow(all[0].text) && isSeparatorRow(all[1].text);
+  const header = hasHeader
+    ? { ...all[0], generated: cellsOf(all[0].text).join('|') === cellsOf(HEADER[0]).join('|') }
+    : null;
+  return { header, rows: all.filter((row, i) => !(hasHeader && i === 0) && !isSeparatorRow(row.text)) };
 }
 
 /**
@@ -292,22 +330,14 @@ export function rowsNotReprinted(content, tableText, { milestone, ids }) {
   if (at.state !== 'ok') return [];
   const has = new Set([...ids].filter((id) => epicIdParts(id)?.milestone === String(milestone)));
   const printed = new Set(tableText.split('\n').map(firstCell));
-  const rows = [];
-  let n = at.beginLine;
-  for (const l of linesOf(content.slice(at.from, at.to))) {
-    n += 1;
-    if (trimmed(l.text).startsWith('|')) rows.push({ line: n, text: l.text });
-  }
   const out = [];
-  rows.forEach((row, i) => {
-    if (isSeparatorRow(row.text)) return;
-    if (i === 0 && rows.length > 1 && isSeparatorRow(rows[1].text)) return;
+  for (const row of tableBetweenMarkers(content).rows) {
     const cell = firstCell(row.text);
-    if (printed.has(cell)) return;
+    if (printed.has(cell)) continue;
     const id = namedEpic(cell, milestone);
-    if (id !== null && has.has(id)) return;
+    if (id !== null && has.has(id)) continue;
     out.push({ ...row, cell, id });
-  });
+  }
   return out;
 }
 

@@ -217,14 +217,17 @@ describe('unitImportList — what the apply writes', () => {
     const one = list.find((u) => u.id === 'M7.E1');
     expect(one.opened).toEqual({ at: '2026-10-11', by: 'migration' });
     expect(one.migration_note).toMatch(/^It looked finished when unit records were added, and the close was not confirmed, so it was left open\. Found: /);
-    // An open unit carries no old row (the table would print it for ever); its summary is the row's third cell.
-    expect(one.legacy_row).toBeUndefined();
+    // Changed at REVIEW pass 2 (r3.3): an open unit carries its old row too, so the row's status words are
+    // not lost. The table prints an old row only for a unit closed as legacy (tests/work-migrate-units-rows.test.js).
+    expect(one.legacy_row).toEqual(['`M7.E1`', '**shipped** — `v1.2`, 2026-09-01 (PR #12)', 'Lantern index']);
     expect(one.summary).toBe('Lantern index');
   });
 
   it('an open unit has no note unless it was flagged; a refused one is not in the list', async () => {
     const list = unitImportList(await planUnits(await unitsStore()), { confirmCloses: true, at: '2026-10-11' });
-    expect(list.find((u) => u.id === 'M7.E9')).toEqual({ id: 'M7.E9', summary: 'The current one', opened: { at: '2026-10-11', by: 'migration' } });
+    expect(list.find((u) => u.id === 'M7.E9')).toEqual({
+      id: 'M7.E9', summary: 'The current one', legacy_row: ['`M7.E9`', '**in flight** — PLAN done', 'The current one'], opened: { at: '2026-10-11', by: 'migration' },
+    });
     expect(list.find((u) => u.id === 'PHASE10-S4')).toEqual({ id: 'PHASE10-S4', opened: { at: '2026-10-11', by: 'migration' } });
     expect(list.find((u) => u.id === 'M7.E4').migration_note).toMatch(/^Left open when unit records were added: its milestone row says shipped and something else/);
     expect(list.map((u) => u.id)).toEqual(['M5.E2', 'M5.E3', 'M6.E1', 'M7.E1', 'M7.E2', 'M7.E3', 'M7.E4', 'M7.E5', 'M7.E9', 'GATE-A', 'PHASE10-S4']);

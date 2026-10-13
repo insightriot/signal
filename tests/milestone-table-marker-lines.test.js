@@ -124,7 +124,7 @@ describe('the migration\'s dry run lists what the apply removes between the mark
     const dry = await dryRun(base);
     expect(dry.refused).toBeUndefined();
     expect(dry.report).toMatch(/MILESTONE-7\.md carries the Epic-table markers/);
-    expect(dry.report).toMatch(/2 lines between the markers are not table rows and are removed by the apply/);
+    expect(dry.report).toMatch(/2 lines between the markers are kept nowhere and are removed by the apply/);
     expect(dry.report).toMatch(/\n {2}line 10: “A note a person left here\. x+…?”/);
     expect(dry.report).toMatch(/\n {2}line 12: “- and a list item”/);
     expect(dry.report).not.toContain('​');
@@ -163,7 +163,7 @@ describe('the migration\'s dry run lists what the apply removes between the mark
     put(base, MILESTONE, marked([...Object.values(ROWS), 'A note a person left.']));
     commitAll(base);
     const dry = await dryRun(base);
-    expect(dry.report).toMatch(/1 line between the markers is not a table row and is removed by the apply/);
+    expect(dry.report).toMatch(/1 line between the markers is kept nowhere and is removed by the apply/);
     const r = await applyWith(base, dry);
     expect(r.applied).toBe(true);
     const text = read(base, MILESTONE);

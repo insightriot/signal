@@ -80,7 +80,7 @@ describe('S-M1 — a record of long runs of spaces does not slow a store write',
   it('the limit is the schema\'s, and a renderer given more cells prints only that many', () => {
     expect(UNIT_SCHEMA.properties.legacy_row.maxItems).toBe(LEGACY_CELLS_MAX);
     const many = Array.from({ length: LEGACY_CELLS_MAX + 20 }, (_, i) => `c${i}`);
-    const table = renderEpicTable([{ id: 'M7.E1', record: { id: 'M7.E1', legacy_row: many }, status: 'closed' }], { milestone: '7' });
+    const table = renderEpicTable([{ id: 'M7.E1', record: { id: 'M7.E1', legacy_row: many }, status: 'closed', close: { reason: 'legacy' } }], { milestone: '7' });
     const row = table.split('\n')[2];
     expect(row).toBe(`| ${many.slice(0, LEGACY_CELLS_MAX).join(' | ')} |`);
   });
@@ -134,7 +134,7 @@ describe('S-M1 — the two functions, timed on a megabyte of spaces', () => {
   });
 
   it('a milestone-table cell of a megabyte of spaces renders in under 500 ms', () => {
-    const unit = { id: 'M7.E1', record: { id: 'M7.E1', legacy_row: ['`M7.E1`', MEGABYTE, `x${MEGABYTE}\n${MEGABYTE}y`] }, status: 'closed' };
+    const unit = { id: 'M7.E1', record: { id: 'M7.E1', legacy_row: ['`M7.E1`', MEGABYTE, `x${MEGABYTE}\n${MEGABYTE}y`] }, status: 'closed', close: { reason: 'legacy' } };
     renderEpicTable([unit], { milestone: '7' }); // warm-up
     const t0 = performance.now();
     const table = renderEpicTable([unit], { milestone: '7' });

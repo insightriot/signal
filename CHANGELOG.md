@@ -59,6 +59,10 @@ records now.
   A row you type between the markers is not deleted: if it is for an Epic with no unit record, or for
   nothing the records hold, the next store write is refused and names the row and the two ways out —
   give it a record, or move it outside the markers. A row for a unit that has a record is rewritten.
+  When `/sig:docs-migrate --work-store` adds unit records, every unit keeps all the cells of its old
+  milestone row in its record, open or closed; the dry run lists each row between the markers that
+  goes into no record (it is removed), and says when a table with another header becomes three
+  columns. The table prints an old row only for a unit closed as legacy.
   A unit closed as legacy prints no close date in `work/EPICS.md` — the date on that record is the
   day it was written — and prints its old milestone row's status words instead.
 - **Everything that asks "is this unit closed?" reads the record** when `work/units/` exists:
