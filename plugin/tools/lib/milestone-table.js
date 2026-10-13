@@ -236,6 +236,81 @@ export function linesBetweenMarkers(content) {
   return out;
 }
 
+// A table row's first cell: what stands between its opening `|` and the next
+// `|` that is not escaped, without the spaces around it.
+function firstCell(row) {
+  const text = trimmed(row).slice(1);
+  let i = 0;
+  for (; i < text.length; i += 1) {
+    if (text[i] === '\\') i += 1;
+    else if (text[i] === '|') break;
+  }
+  return trimmed(text.slice(0, i));
+}
+
+// A table's separator row (`|---|:--:|`): every cell is dashes, with an
+// optional colon at either end.
+function isSeparatorRow(row) {
+  const cells = trimmed(row).replace(/^\|/, '').replace(/\|$/, '').split('|').map(trimmed);
+  return cells.length > 0 && cells.every((c) => /^:?-{1,200}:?$/.test(c));
+}
+
+// The Epic a first cell names, as a full ID, or null: past the decoration a
+// hand-kept row carries (backticks, bold), `M6.E16`, or a bare `E16` read as
+// an Epic of `milestone`. The decoration run is bounded, so a long run of
+// stars costs its length once.
+const NAMED_EPIC_RE = /^[\s`*_]{0,10}(?:(M\d+(?:\.\d+)*)\.)?E(\d+)\b/;
+function namedEpic(cellText, milestone) {
+  const m = cellText.match(NAMED_EPIC_RE);
+  return m ? `${m[1] ?? `M${milestone}`}.E${m[2]}` : null;
+}
+
+/**
+ * The table rows between the two marker lines that writing `tableText` there
+ * would delete and not print again: a row a person typed for something the
+ * unit records do not hold. `upsertEpicTable` replaces everything between the
+ * markers, so a caller that must not lose such a row asks this first.
+ *
+ * A row is safe — it is regenerated, whatever its other cells say — when its
+ * first cell is the first cell of a row of `tableText`, or names an Epic
+ * (`M6.E16`, or `E16` read as an Epic of `milestone`) that is in `ids` and is
+ * an Epic of this milestone — so one the table prints a row for. A
+ * separator row, and a first row that a separator row follows (a header a
+ * person wrote), are the table's structure and are safe too. Every other row
+ * is returned. Lines that are not table rows are `linesBetweenMarkers`'.
+ * Empty unless the markers are `ok`.
+ *
+ * @param {string} content — the milestone file's text
+ * @param {string} tableText — `renderEpicTable`'s, about to be written
+ * @param {{milestone: string, ids: Iterable<string>}} opts — `ids`: every unit ID that has a record
+ *   (or is being given one by the write this check is made for)
+ * @returns {Array<{line: number, text: string, cell: string, id: string|null}>} `line` is 1-based;
+ *   `text` is the row as written; `cell` its first cell; `id` the Epic it names, when it names one
+ */
+export function rowsNotReprinted(content, tableText, { milestone, ids }) {
+  const at = epicMarkers(content);
+  if (at.state !== 'ok') return [];
+  const has = new Set([...ids].filter((id) => epicIdParts(id)?.milestone === String(milestone)));
+  const printed = new Set(tableText.split('\n').map(firstCell));
+  const rows = [];
+  let n = at.beginLine;
+  for (const l of linesOf(content.slice(at.from, at.to))) {
+    n += 1;
+    if (trimmed(l.text).startsWith('|')) rows.push({ line: n, text: l.text });
+  }
+  const out = [];
+  rows.forEach((row, i) => {
+    if (isSeparatorRow(row.text)) return;
+    if (i === 0 && rows.length > 1 && isSeparatorRow(rows[1].text)) return;
+    const cell = firstCell(row.text);
+    if (printed.has(cell)) return;
+    const id = namedEpic(cell, milestone);
+    if (id !== null && has.has(id)) return;
+    out.push({ ...row, cell, id });
+  });
+  return out;
+}
+
 /**
  * A milestone file's text with its Epic table replaced: only what lies
  * strictly between the two marker lines changes (it becomes the table, each

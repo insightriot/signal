@@ -262,11 +262,13 @@ describe('importUnits — all or nothing (NFR failure)', () => {
   it('a regeneration that fails puts the records and every view back', async () => {
     const dir = await store({ milestone: true });
     const before = snapshotTree(dir);
-    const regenerate = async (d) => {
-      await regenerateViews(d); // the views are written, then the step fails
+    // `replaceTableRows`, as the migration passes it: the fixture's table was kept by hand and holds
+    // rows for units that get no record here.
+    const regenerate = async (d, o) => {
+      await regenerateViews(d, o); // the views are written, then the step fails
       throw new Error('views broke');
     };
-    const err = await refusal(() => units.importUnits(dir, batch, { ensureDir: true, regenerate }));
+    const err = await refusal(() => units.importUnits(dir, batch, { ensureDir: true, replaceTableRows: true, regenerate }));
     expect(err.message).toMatch(/nothing was imported.*views broke/s);
     expect(snapshotTree(dir)).toEqual(before);
   });
@@ -279,7 +281,7 @@ describe('importUnits — all or nothing (NFR failure)', () => {
       seen = { epics: read(handle.baseDir, EPICS), milestone: read(handle.baseDir, MILESTONE), units: units.listUnits(handle.baseDir).units.length };
       throw new Error('not what was planned');
     };
-    const err = await refusal(() => units.importUnits(dir, batch, { ensureDir: true, verify }));
+    const err = await refusal(() => units.importUnits(dir, batch, { ensureDir: true, replaceTableRows: true, verify }));
     expect(err.message).toMatch(/nothing was imported.*not what was planned/s);
     // The step ran on the finished write: the records, and both views rendered from them.
     expect(seen.units).toBe(4);

@@ -667,6 +667,9 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
   try {
     await importUnits(baseDir, list, {
       ensureDir: true,
+      // The old table between the markers was kept by hand: its rows are
+      // replaced by the generated ones, as the dry run said.
+      replaceTableRows: !Array.isArray(a.plan.existing),
       acknowledgeSensitive: true, // gated above, on the same texts
       // Under the store's lock, before anything is written: look again.
       gate: async () => {

@@ -42,7 +42,9 @@ describe('S-M1 — a record of long runs of spaces does not slow a store write',
   it('32 cells of 8,000 spaces each: the views regenerate in under 1 s', async () => {
     const base = await unitsStore({ markers: true });
     put(base, `${UNITS}/.keep`, '');
-    await regenerateViews(base); // warm-up, and the views as they stand with unit records on
+    // Warm-up, and the views as they stand with unit records on. The fixture's table was kept by
+    // hand and no unit has a record yet, so the rows are replaced on purpose, as the migration does.
+    await regenerateViews(base, { replaceHandRows: true });
     const cells = ['`M7.E1`', ...Array.from({ length: 31 }, () => SPACES)];
     plantRow(base, 'M7.E1', cells);
     expect(UNIT_KIND.validateRecord({ id: 'M7.E1', legacy_row: cells, events: [LEGACY] })).toEqual([]);
@@ -55,7 +57,7 @@ describe('S-M1 — a record of long runs of spaces does not slow a store write',
   it('60 cells is past the limit: the record is reported broken by name, at once, and no view is written from it', async () => {
     const base = await unitsStore({ markers: true });
     put(base, `${UNITS}/.keep`, '');
-    await regenerateViews(base);
+    await regenerateViews(base, { replaceHandRows: true });
     const before = read(base, MILESTONE);
     plantRow(base, 'M7.E1', Array.from({ length: 60 }, () => SPACES));
     let listed;

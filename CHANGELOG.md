@@ -52,6 +52,9 @@ records now.
   one mentioned in a sentence or a code example is text — and `/sig:docs-migrate`'s dry run lists
   any line between the markers that is not a table row, since the apply replaces it. `/sig:docs-sweep` reports a view that does
   not match its records.
+  A row you type between the markers is not deleted: if it is for an Epic with no unit record, or for
+  nothing the records hold, the next store write is refused and names the row and the two ways out —
+  give it a record, or move it outside the markers. A row for a unit that has a record is rewritten.
   A unit closed as legacy prints no close date in `work/EPICS.md` — the date on that record is the
   day it was written — and prints its old milestone row's status words instead.
 - **Everything that asks "is this unit closed?" reads the record** when `work/units/` exists:

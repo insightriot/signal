@@ -638,9 +638,11 @@ async function withUnitLock(baseDir, fn) {
 // seam, for tests only). Called by each writer AFTER its own refusals — the
 // record's state, the ID, a file already there — so those are still what a
 // caller is told first; an item writer runs the same check first.
-function viewsWritableOrRefuse(handle, opts) {
+function viewsWritableOrRefuse(handle, opts, adding = []) {
   if (opts._skipViewsCheck === true) return;
-  assertViewsWritable(handle.baseDir);
+  // `adding`: the units this write gives a record. A row typed by hand for one
+  // of them in the milestone's Epic table is then no reason to refuse.
+  assertViewsWritable(handle.baseDir, { adding });
 }
 
 // The error for a unit write that landed and whose views then failed to
@@ -816,7 +818,7 @@ export async function openUnit(baseDir, id, fields = {}, opts = {}) {
     const abs = join(handle.baseDir, rel);
     confine(handle.baseDir, abs);
     if (existsNoFollow(abs)) throw new WorkStoreError('CONFLICT', `${rel} already exists — nothing was written.`);
-    viewsWritableOrRefuse(handle, opts);
+    viewsWritableOrRefuse(handle, opts, [id]);
     try {
       await atomicWrite(abs, text, { renameFn: opts.renameFn });
     } catch (err) {
@@ -968,12 +970,16 @@ export async function importUnit(baseDir, unit, opts = {}) {
  *   close?: {reason: 'legacy'|'dropped', words?: string, pr?: string, release?: string, at?: string, by: string},
  *   opened?: {at?: string, by: string}}>} list
  * @param {{ensureDir?: boolean, renameFn?: Function, acknowledgeSensitive?: boolean, regenerate?: Function,
+ *   replaceTableRows?: boolean,
  *   gate?: (handle: {baseDir: string, key: string}) => void|Promise<void>,
  *   verify?: (handle: {baseDir: string, key: string}) => void|Promise<void>}} [opts]
  *   `ensureDir`: create `units/` and its `.keep` when missing, in the same take of the lock (the migration
  *   turns unit records on and writes the first records together); `gate`: the caller's own condition, run
  *   under the lock before anything is read or written — a throw is the refusal; `verify`: run under the
- *   lock after the records and the views are written — a throw undoes the import
+ *   lock after the records and the views are written — a throw undoes the import;
+ *   `replaceTableRows`: let the regeneration write the milestone's Epic table over rows a person typed
+ *   between its markers for something that gets no record here (`regenerateViews`' `replaceHandRows`) —
+ *   only for a caller that showed the person those rows first; without it such a row refuses the import
  * @returns {Promise<object[]>} the entries, in list order — or `{aborted, sensitiveHits}`
  * @throws {WorkStoreError} CONFIG (store off, v1, or no `units/` folder), SCHEMA, CONFLICT, LOCKED, IO
  */
@@ -1008,7 +1014,8 @@ export async function importUnits(baseDir, list, opts = {}) {
         + 'case cannot both be units. Nothing was written.');
     }
     const planned = records.map((record) => ({ record, text: recordText(record), abs: join(handle.baseDir, relOf(record.id)) }));
-    viewsWritableOrRefuse(handle, opts);
+    viewsWritableOrRefuse(handle, opts, ids);
+    const replaceHandRows = opts.replaceTableRows === true;
 
     const written = [];
     let dir = { created: false, keep: false };
@@ -1023,8 +1030,8 @@ export async function importUnits(baseDir, list, opts = {}) {
       }
       if (planned.length > 0 || dir.created) {
         // What the views hold now, for the put-back: every path the regeneration may write.
-        views = Object.keys(regenerateToMemory(handle.baseDir) ?? {}).map((rel) => ({ rel, was: bytesOrNull(join(handle.baseDir, rel)) }));
-        await (opts.regenerate ?? regenerateViews)(handle.baseDir);
+        views = Object.keys(regenerateToMemory(handle.baseDir, { replaceHandRows }) ?? {}).map((rel) => ({ rel, was: bytesOrNull(join(handle.baseDir, rel)) }));
+        await (opts.regenerate ?? regenerateViews)(handle.baseDir, { replaceHandRows });
       }
       if (typeof opts.verify === 'function') await opts.verify(handle);
     } catch (err) {

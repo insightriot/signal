@@ -195,7 +195,9 @@ describe('regenerateViews writes the current milestone\'s Epic table (AC7.2)', (
     for (const u of SAMPLE) await plant(u);
     await plant(unit('M6.E1', [U.opened], { summary: 'Another milestone.' }));
     await state('M7.E5');
-    await put(MS, fileWith('\n| stale |\n'));
+    // A stale row for a unit that has a record: such a row is regenerated. (A row for
+    // nothing the records hold refuses instead — tests/milestone-table-hand-rows.test.js.)
+    await put(MS, fileWith('\n| `M7.E1` | stale |\n'));
   });
   afterEach(async () => {
     await rm(base, { recursive: true, force: true });
@@ -298,7 +300,7 @@ describe('regenerateViews writes the current milestone\'s Epic table (AC7.2)', (
   it('without a units folder the milestone file is never read or written (AC6.4)', async () => {
     await rm(join(base, UNITS), { recursive: true });
     const out = await regenerateViews(base);
-    expect(await read(MS)).toBe(fileWith('\n| stale |\n'));
+    expect(await read(MS)).toBe(fileWith('\n| `M7.E1` | stale |\n'));
     expect(out).toEqual({ written: expect.any(Array) });
     expect(Object.keys(regenerateToMemory(base))).not.toContain(MS);
   });
