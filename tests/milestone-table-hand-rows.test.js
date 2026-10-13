@@ -177,6 +177,26 @@ describe('a row typed by hand between the markers', () => {
     await expect(regenerateViews(base)).resolves.toEqual({ written: expect.any(Array) });
   });
 
+  // A first row that a separator follows is read as a header a person wrote,
+  // which a regeneration replaces. Above the generated table's own header it
+  // is not one: the table has its header, so this is a row a person typed.
+  it('a row and a separator typed above the generated header: both refused, and the file is unchanged', async () => {
+    const text = await read(FILE);
+    const before = text.replace(`${BEGIN}\n`, `${BEGIN}\n| a note I typed | keep me |\n|---|---|\n`);
+    await put(FILE, before);
+    const table = renderEpicTable(units.listUnits(base).units, { milestone: '7' });
+    const found = rowsNotReprinted(before, table, { milestone: '7', ids: ['M7.E1', 'M7.E2'] });
+    expect(found.map((r) => [r.line, r.text, r.id])).toEqual([[6, '| a note I typed | keep me |', null], [7, '|---|---|', null]]);
+    const err = await regenerateViews(base).catch((e) => e);
+    expect(err.code).toBe('CONFIG');
+    expect(err.message).toContain('a note I typed');
+    expect(err.handRows).toEqual([{ line: 6, id: null }, { line: 7, id: null }]);
+    expect(await read(FILE)).toBe(before);
+    // A hand-kept table with a header of its own and no generated header under it is still the table's to replace.
+    const own = milestone('| Epic | State | Owner |\n|:--|---|--:|\n| **E1** | going | me |\n| **E2** | shipped | me |\n');
+    expect(rowsNotReprinted(own, table, { milestone: '7', ids: ['M7.E1', 'M7.E2'] })).toEqual([]);
+  });
+
   it('a heading typed between the markers is a line that is not a table row: refused, and the file is unchanged', async () => {
     const before = await typeRow('# Notes on this table');
     const err = await regenerateViews(base).catch((e) => e);

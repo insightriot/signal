@@ -309,13 +309,14 @@ export function legacyFirstCells(units, { milestone }) {
  * `linesBetweenMarkers`'. Nothing unless the markers are `ok`.
  *
  * @param {string} content — the milestone file's text
- * @returns {{header: {line: number, text: string, generated: boolean}|null, rows: Array<{line: number, text: string}>}}
+ * @returns {{header: {line: number, text: string, generated: boolean}|null, separator: {line: number, text: string}|null,
+ *   rows: Array<{line: number, text: string}>}}
  *   `line` is 1-based; `text` is the row as written; `header.generated`: its cells are the generated
- *   table's own (`Epic`, `Status`, `Summary`)
+ *   table's own (`Epic`, `Status`, `Summary`); `separator`: the separator row that makes the first row a header
  */
 export function tableBetweenMarkers(content) {
   const at = epicMarkers(content);
-  if (at.state !== 'ok') return { header: null, rows: [] };
+  if (at.state !== 'ok') return { header: null, separator: null, rows: [] };
   const all = [];
   let n = at.beginLine;
   for (const l of linesOf(content.slice(at.from, at.to))) {
@@ -326,7 +327,7 @@ export function tableBetweenMarkers(content) {
   const header = hasHeader
     ? { ...all[0], generated: cellsOf(all[0].text).join('|') === cellsOf(HEADER[0]).join('|') }
     : null;
-  return { header, rows: all.filter((row, i) => !(hasHeader && i === 0) && !isSeparatorRow(row.text)) };
+  return { header, separator: hasHeader ? all[1] : null, rows: all.filter((row, i) => !(hasHeader && i === 0) && !isSeparatorRow(row.text)) };
 }
 
 /**
@@ -344,7 +345,10 @@ export function tableBetweenMarkers(content) {
  * Only the first such row for an Epic is safe: the table prints one, so a
  * second is a row a person typed (`repeated`). A separator row, and a first
  * row that a separator row follows (a header a person wrote), are the table's
- * structure and are safe too. Every other row is returned. Lines that are not
+ * structure and are safe too — unless that first row is not the generated
+ * header and the generated header stands among the rows under it: then it is
+ * a row typed above the table, read as any other row, and its separator is
+ * returned with it. Every other row is returned. Lines that are not
  * table rows are `linesBetweenMarkers`'. Empty unless the markers are `ok`.
  *
  * @param {string} content — the milestone file's text
@@ -366,7 +370,14 @@ export function rowsNotReprinted(content, tableText, { milestone, ids, legacy = 
   // taken for one of them. Nor does a unit's row that is dashes only: it reads
   // as a separator, so it is never among `rows` to answer for itself.
   const printed = new Set(printedLines.slice(HEADER.length).filter((line) => !isSeparatorRow(line)).map(firstCell));
-  const rows = tableBetweenMarkers(content).rows;
+  const between = tableBetweenMarkers(content);
+  // A header a person wrote is the table's structure only while it is the
+  // table's one header. With the generated header standing among the rows
+  // under it, it is a row typed above the table (and a separator typed after
+  // it), and is read as any other row.
+  const above = between.header !== null && !between.header.generated && between.rows.some((row) => row.text.trim() === HEADER[0])
+    ? { line: between.header.line, text: between.header.text } : null;
+  const rows = above === null ? between.rows : [above, ...between.rows];
   const keyOf = (cell) => legacy.get(cell) ?? namedEpic(cell, milestone) ?? cell;
   // A row that is, character for character, a row the table prints is the
   // table's own, however many it prints with that first cell (two recorded old
@@ -397,6 +408,8 @@ export function rowsNotReprinted(content, tableText, { milestone, ids, legacy = 
     }
     out.push({ ...row, cell, id, ...(own ? { repeated: true } : {}) });
   }
+  // The separator typed after such a row goes with it: it would be deleted too.
+  if (above !== null && out[0]?.line === above.line) out.splice(1, 0, { ...between.separator, cell: firstCell(between.separator.text), id: null });
   return out;
 }
 
