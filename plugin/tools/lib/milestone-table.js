@@ -336,7 +336,8 @@ export function tableBetweenMarkers(content) {
  * markers, so a caller that must not lose such a row asks this first.
  *
  * A row is safe — it is regenerated, whatever its other cells say — when its
- * first cell is the first cell of a row of `tableText`; or is, and is only,
+ * first cell is the first cell of a unit's row of `tableText` (not of its
+ * header or separator, which are known by their whole text); or is, and is only,
  * the ID of an Epic (`M6.E16`, or `E16` read as an Epic of `milestone`) that
  * is in `ids` and is an Epic of this milestone — so one the table prints a
  * row for; or is the first cell of that Epic's recorded old row (`legacy`).
@@ -359,7 +360,12 @@ export function rowsNotReprinted(content, tableText, { milestone, ids, legacy = 
   if (at.state !== 'ok') return [];
   const has = new Set([...ids].filter((id) => epicIdParts(id)?.milestone === String(milestone)));
   const printedLines = tableText.split('\n');
-  const printed = new Set(printedLines.map(firstCell));
+  // Only a unit's row lends its first cell. The header and the separator are
+  // the table's own by their whole text alone (`left`, below): no record
+  // stands behind `Epic` or `---`, so a typed row with that first cell is not
+  // taken for one of them. Nor does a unit's row that is dashes only: it reads
+  // as a separator, so it is never among `rows` to answer for itself.
+  const printed = new Set(printedLines.slice(HEADER.length).filter((line) => !isSeparatorRow(line)).map(firstCell));
   const rows = tableBetweenMarkers(content).rows;
   const keyOf = (cell) => legacy.get(cell) ?? namedEpic(cell, milestone) ?? cell;
   // A row that is, character for character, a row the table prints is the

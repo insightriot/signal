@@ -150,6 +150,33 @@ describe('a row typed by hand between the markers', () => {
     expect(await read(FILE)).toContain('| `M7.E5` | planned | typed |\n\nAfter.');
   });
 
+  // The header and the separator are lines of the table too, but no unit
+  // record stands behind them: a typed row that only shares their first cell
+  // (`Epic`, `---`) is not the table's own.
+  for (const row of ['| Epic | a row a person typed | keep me |', '| --- | a note in a dashed row | x |']) {
+    it(`whose first cell is the header's or the separator's (“${row}”): refused, and the file is unchanged`, async () => {
+      const before = await typeRow(row);
+      const table = renderEpicTable(units.listUnits(base).units, { milestone: '7' });
+      const found = rowsNotReprinted(before, table, { milestone: '7', ids: ['M7.E1', 'M7.E2'] });
+      expect(found.map((r) => [r.text, r.id, r.repeated])).toEqual([[row, null, undefined]]);
+      const err = await regenerateViews(base).catch((e) => e);
+      expect(err.code).toBe('CONFIG');
+      expect(err.message).toMatch(/typed by hand/);
+      expect(err.handRows).toEqual([{ line: expect.any(Number), id: null }]);
+      expect(await read(FILE)).toBe(before);
+    });
+  }
+
+  it('the controls: “Epic 5” and a bold “Epic” are refused too, and the header and separator themselves never are', async () => {
+    for (const row of ['| Epic 5 | planned | typed |', '| **Epic** | bold | x |']) {
+      const before = await typeRow(row);
+      await expect(regenerateViews(base), row).rejects.toMatchObject({ code: 'CONFIG', handRows: [{ line: expect.any(Number), id: null }] });
+      expect(await read(FILE)).toBe(before);
+      await put(FILE, before.replace(`${row}\n`, ''));
+    }
+    await expect(regenerateViews(base)).resolves.toEqual({ written: expect.any(Array) });
+  });
+
   it('a row typed after the check and before the write is not deleted either', async () => {
     // The check passes on the file as it is; the row arrives while the first view is being written.
     const text = await read(FILE);
@@ -259,6 +286,22 @@ describe('a row for a unit that has a record is regenerated, whatever its cells 
     }));
     const table = renderEpicTable(list, { milestone: '7' });
     expect(rowsNotReprinted(milestone(`${table}\n`), table, { milestone: '7', ids: list.map((u) => u.id) })).toEqual([]);
+  });
+
+  // A recorded old row can be nothing but dashes, and then prints as a line
+  // that reads as a separator. Such a line is never read back as a row, so it
+  // lends its first cell to no typed row either.
+  it('rowsNotReprinted: a unit row that prints as dashes only does not make a typed “---” row safe', () => {
+    const list = [{
+      id: 'M7.E10', status: 'closed', held: false, hold_reason: null, closing_proof: null,
+      close: { reason: 'legacy', at: AT }, record: { id: 'M7.E10', legacy_row: ['---', '---', '---'], events: [legacy] },
+    }];
+    const table = renderEpicTable(list, { milestone: '7' });
+    expect(table.split('\n')[2]).toBe('| --- | --- | --- |');
+    expect(rowsNotReprinted(milestone(`${table}\n`), table, { milestone: '7', ids: ['M7.E10'] })).toEqual([]);
+    const typed = '| --- | a note in a dashed row | x |';
+    const found = rowsNotReprinted(milestone(`${table}\n${typed}\n`), table, { milestone: '7', ids: ['M7.E10'] });
+    expect(found.map((r) => r.text)).toEqual([typed]);
   });
 
   // Two recorded old rows can share a first cell (both empty, say). The table
