@@ -558,6 +558,27 @@ function headCommit(baseDir, execFn) {
   }
 }
 
+// The full hash of the commit an explicit `commit` names (M6.E16 r6). It is
+// checked, not trusted: one that names no commit in this repository could
+// never be confirmed, and the unit would read *closing* for ever. Refused too
+// when what resolves does not start with what was passed — git resolves a
+// branch or tag called `abcdef1` before it tries a short hash.
+function explicitCommit(baseDir, epicId, commit, execFn) {
+  let full = null;
+  try {
+    full = String(execFn('git', ['rev-parse', '--verify', '--quiet', '--end-of-options', `${commit}^{commit}`], {
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(),
+    })).trim().toLowerCase();
+  } catch {
+    full = null;
+  }
+  if (full === null || !COMMIT_SHAPE_RE.test(full) || !full.startsWith(commit)) {
+    throw new WorkStoreError('CONFIG', `${epicId}: \`commit\` ${commit} does not name a commit in this repository (or git could not be `
+      + 'asked). Use `git rev-parse <commit>` for its hash. Nothing was written.');
+  }
+  return full;
+}
+
 // The Epic's retrospective must exist and be filled in (AC4.3): a file that is
 // missing, or still holds a `[FILL IN]` placeholder, refuses the close. Read
 // only as a regular file. The refusal names the file and carries
@@ -598,7 +619,8 @@ function assertRetroComplete(baseDir, epicId) {
 // finds it already on the default branch with the project's work uncommitted
 // — or cannot tell whether it is, because the remote's default branch is not
 // recorded in this clone, with that work uncommitted.
-// An explicit `commit` never comes here: it is trusted.
+// An explicit `commit` never comes here: `explicitCommit` has checked that it
+// names a commit, and the caller chose it.
 function refuseHeadThatProvesNothing(baseDir, epicId, head, execFn) {
   const stale = headProvesNothing(baseDir, head, { execFn });
   if (stale === null) return;
@@ -606,12 +628,12 @@ function refuseHeadThatProvesNothing(baseDir, epicId, head, execFn) {
     throw new WorkStoreError('CONFLICT', `${epicId}: the close would record HEAD (${head.slice(0, 12)}) as its proof, and Signal cannot tell whether `
       + 'that commit is already on the default branch: the remote\'s default branch is not recorded in this clone, and this project has '
       + 'uncommitted or untracked changes. Nothing was written. Run `git remote set-head origin -a` once, then re-run; '
-      + 'or commit the Epic\'s work first; or pass `commit` with the commit that holds it.');
+      + 'or commit the Epic\'s work, then close.');
   }
   throw new WorkStoreError('CONFLICT', `${epicId}: the close would record HEAD (${head.slice(0, 12)}) as its proof, and that commit is `
     + `already on the default branch (${stale.ref.replace(/^refs\/remotes\//, '')}) while this project has uncommitted or untracked changes — `
     + 'so it says nothing about this Epic, and the next confirm step would call the Epic closed. Nothing was written. '
-    + 'Commit the Epic\'s work first, then re-run; or pass `commit` with the commit that holds it.');
+    + 'Commit the Epic\'s work, then close.');
 }
 
 const unitView = (unit) => ({
@@ -644,15 +666,17 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit, rer
   const pending = sensitivePending([storedRef(prText), storedRef(releaseText)], opts);
   if (pending) return pending;
 
-  const proof = commit ?? headCommit(baseDir, execFn);
+  let proof = commit ?? headCommit(baseDir, execFn);
   if (proof === null) {
     throw new WorkStoreError('CONFIG', `${epicId}: the close records the Epic's commit as its proof, and this is not a git `
-      + 'repository with a commit — pass `commit`. Nothing was written.');
+      + 'repository with a commit. Nothing was written.');
   }
   if (typeof proof !== 'string' || !COMMIT_SHAPE_RE.test(proof)) {
     throw new WorkStoreError('SCHEMA', `${epicId}: the close's proof is a commit hash — lowercase hex, 7 to 64 characters `
       + `(got ${JSON.stringify(String(proof).slice(0, 80))}). Nothing was written.`);
   }
+  // Recorded as the full hash, as HEAD's is.
+  if (commit !== undefined && commit !== null) proof = explicitCommit(baseDir, epicId, proof, execFn);
 
   // The items a person said yes to, after this call listed them (below).
   const named = rerequest === undefined || rerequest === null ? null : rerequest;

@@ -245,7 +245,42 @@ describe('closeEpic with unit records — refusals write nothing (AC4.3, NFR fai
     const noGit = () => {
       throw new Error('not a git repository');
     };
-    await refused(() => closeEpic(root, EPIC, { by, at: AT }, { execFn: noGit }), 'CONFIG', /pass `commit`/);
+    const err = await refused(() => closeEpic(root, EPIC, { by, at: AT }, { execFn: noGit }), 'CONFIG', /not a git repository with a commit/);
+    // `commit` is no way out here: it has to name a commit in a repository too.
+    expect(err.message).not.toMatch(/pass `commit`/);
+    await refused(() => closeEpic(root, EPIC, { by, at: AT, commit: 'a'.repeat(40) }, { execFn: noGit }), 'CONFIG', /does not name a commit/);
+  });
+
+  // M6.E16 r6: an explicit `commit` is checked, not trusted — it must name a
+  // commit in this repository, and what is recorded is that commit's full hash.
+  it('a `commit` that names no commit here: CONFIG, nothing written, and no record is created for it', async () => {
+    await project({ unit: null });
+    const err = await refused(() => closeEpic(root, EPIC, { by, at: AT, commit: 'a'.repeat(40) }), 'CONFIG', /does not name a commit in this repository/);
+    expect(err.message).toMatch(/Nothing was written/);
+    await refused(() => closeEpic(root, EPIC, { by, at: AT, commit: 'abcdef1' }), 'CONFIG', /does not name a commit/);
+    expect(existsSync(join(root, `${UNITS}/${EPIC}.json`))).toBe(false);
+  });
+
+  it('a `commit` that is a tree\'s or a blob\'s hash is not a commit: CONFIG', async () => {
+    await project();
+    for (const object of [git('rev-parse', 'HEAD^{tree}'), git('rev-parse', 'HEAD:.planning/work/WORK.md')]) {
+      await refused(() => closeEpic(root, EPIC, { by, at: AT, commit: object }), 'CONFIG', /does not name a commit/);
+    }
+  });
+
+  it('a branch whose name is hex does not stand in for a commit: CONFIG', async () => {
+    await project();
+    git('branch', 'abcdef1');
+    await refused(() => closeEpic(root, EPIC, { by, at: AT, commit: 'abcdef1' }), 'CONFIG', /does not name a commit/);
+  });
+
+  it('a short `commit` is recorded as the commit\'s full hash', async () => {
+    const head = await project();
+    const out = await closeEpic(root, EPIC, { by, at: AT, commit: head.slice(0, 10) });
+    expect(out).toMatchObject({ status: 'close-requested', commit: head, unit: { closing_proof: head } });
+    expect(getUnit(root, EPIC).record.events.at(-1)).toMatchObject({ type: 'close_requested', proof: head });
+    // asked again with the short form: the same request, not a second one
+    expect(await closeEpic(root, EPIC, { by, at: AT, commit: head.slice(0, 10) })).toMatchObject({ status: 'already-requested', commit: head });
   });
 
   it.each([['main'], ['HEAD'], ['--all'], ['ABCDEF1'], ['0123ab']])('a `commit` that is not a bare hash (%s): SCHEMA', async (commit) => {

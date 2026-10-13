@@ -91,7 +91,9 @@ async function refused(base, run) {
   expect(err.message).toMatch(/already on the default branch/);
   expect(err.message).toMatch(/uncommitted or untracked/);
   expect(err.message).toMatch(/Nothing was written/);
-  expect(err.message).toMatch(/[Cc]ommit the Epic's work first.*or pass `commit`/s);
+  // The way out is to commit the work; `commit` is not offered as a way around the refusal (M6.E16 r6).
+  expect(err.message).toMatch(/Commit the Epic's work, then close/);
+  expect(err.message).not.toMatch(/pass `commit`/);
   expect(snapshotTree(base)).toEqual(before);
   return err;
 }
@@ -479,12 +481,17 @@ describe('closeEpic never swaps an item\'s proof on its own', () => {
     }
   }, 60_000);
 
-  // `rerequestEpicClose`'s own check: the new proof of an item's close is a full hash.
-  it('with the list, `commit` as a 12-character hash of the merged commit is refused: an item\'s close is asked again only with a full hash', async () => {
+  // The new proof of an item's close is a full hash (`rerequestEpicClose`'s own
+  // check). Since M6.E16 r6 `closeEpic` resolves an explicit `commit` to the
+  // commit's full hash before anything else, so a short one is no longer
+  // refused there: what is recorded, for the unit and for each item, is the
+  // full hash.
+  it('with the list, `commit` as a 12-character hash of the merged commit is recorded as its full hash, for the unit and the items', async () => {
     const { base, branchCommit, squash } = await squashMerged();
     const both = [{ id: 'SIG-1', proof: branchCommit }, { id: 'SIG-2', proof: branchCommit }];
-    const err = await nothingWritten(base, () => closeEpic(base, EPIC, { by, at: NOW, commit: squash.slice(0, 12), rerequest: both }), 'SCHEMA');
-    expect(err.message).toMatch(/only with a full commit hash/);
+    const out = await closeEpic(base, EPIC, { by, at: NOW, commit: squash.slice(0, 12), rerequest: both });
+    expect(out).toMatchObject({ status: 're-requested', commit: squash, rerequestedItems: ['SIG-1', 'SIG-2'], unit: { closing_proof: squash } });
+    for (const id of ['SIG-1', 'SIG-2']) expect(records.getRecord(base, id).record.events.at(-1)).toMatchObject({ type: 'close_requested', proof: squash });
   }, 60_000);
 
   it('a list passed on a checkout that is not the default branch is refused', async () => {

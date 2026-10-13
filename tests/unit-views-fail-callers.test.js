@@ -10,6 +10,7 @@
 // after the views check has passed, which no real fixture reaches on purpose.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -33,7 +34,6 @@ const { getUnit } = await import('../plugin/tools/lib/unit-records.js');
 
 const by = 'claude';
 const AT = '2026-10-11T10:00:00.000Z';
-const SHA = 'a'.repeat(40);
 const UNITS = '.planning/work/units';
 const COMPLETE_RETRO = '# Retrospective\n\n## Timeline\n\nIt shipped.\n\n## What surprised us\n\nNothing much.\n';
 
@@ -67,6 +67,12 @@ describe('a unit write that landed, with the views not regenerated', () => {
 
   it('closeEpic creating the record first: the error does not say the close was not requested when it was', async () => {
     await put('.planning/M7.E9-RETROSPECTIVE.md', COMPLETE_RETRO);
+    // `commit` must name a commit here (M6.E16 r6), so this one is real.
+    const git = (...args) => execFileSync('git', ['-c', 'commit.gpgsign=false', '-c', 'user.email=t@t.co', '-c', 'user.name=T', ...args], { cwd: base, encoding: 'utf8' }).trim();
+    git('init', '-q', '-b', 'feat');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'the Epic');
+    const SHA = git('rev-parse', 'HEAD');
     flaky.fail = true;
     const err = await closeEpic(base, 'M7.E9', { by, at: AT, commit: SHA }).catch((e) => e);
     expect(err).toBeInstanceOf(Error);

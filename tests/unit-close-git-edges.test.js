@@ -236,7 +236,9 @@ describe('origin/HEAD unset: the default branch is not guessed for a proof', () 
     expect(err.message).toMatch(/cannot tell whether .* is already on the default branch/);
     expect(err.message).toContain(SET_HEAD);
     expect(err.message).toMatch(/Nothing was written/);
-    expect(err.message).toMatch(/[Cc]ommit the Epic's work first.*or pass `commit`/s);
+    // The way out is to commit the work; `commit` is not offered as a way around the refusal (M6.E16 r6).
+    expect(err.message).toMatch(/commit the Epic's work, then close/);
+    expect(err.message).not.toMatch(/pass `commit`/);
     expect(snapshotTree(work)).toEqual(before);
     return err;
   }
