@@ -18,7 +18,6 @@
       "type": "string",
       "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z)?$"
     },
-    "text": { "type": "string", "pattern": "\\S" },
     "short_text": { "type": "string", "pattern": "^(?=.*\\S)[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{1,200}$" },
     "long_text": { "type": "string", "pattern": "^(?=.*\\S)[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{1,2000}$" },
     "value": { "type": ["string", "number", "null"] },
@@ -47,7 +46,7 @@
       "properties": {
         "type": { "const": "opened" },
         "at": { "$ref": "#/$defs/at" },
-        "by": { "$ref": "#/$defs/text" }
+        "by": { "$ref": "#/$defs/short_text" }
       }
     },
     "close_requested": {
@@ -57,7 +56,7 @@
       "properties": {
         "type": { "const": "close_requested" },
         "at": { "$ref": "#/$defs/at" },
-        "by": { "$ref": "#/$defs/text" },
+        "by": { "$ref": "#/$defs/short_text" },
         "proof": { "$ref": "#/$defs/commit" },
         "pr": { "$ref": "#/$defs/short_text" },
         "release": { "$ref": "#/$defs/short_text" }
@@ -70,7 +69,7 @@
       "properties": {
         "type": { "const": "closed" },
         "at": { "$ref": "#/$defs/at" },
-        "by": { "$ref": "#/$defs/text" },
+        "by": { "$ref": "#/$defs/short_text" },
         "reason": { "enum": ["shipped", "dropped", "legacy"] },
         "proof": { "$ref": "#/$defs/commit" },
         "pr": { "$ref": "#/$defs/short_text" },
@@ -85,7 +84,7 @@
       "properties": {
         "type": { "const": "reopened" },
         "at": { "$ref": "#/$defs/at" },
-        "by": { "$ref": "#/$defs/text" },
+        "by": { "$ref": "#/$defs/short_text" },
         "reason": { "$ref": "#/$defs/long_text" }
       }
     },
@@ -96,7 +95,7 @@
       "properties": {
         "type": { "const": "held" },
         "at": { "$ref": "#/$defs/at" },
-        "by": { "$ref": "#/$defs/text" },
+        "by": { "$ref": "#/$defs/short_text" },
         "reason": { "$ref": "#/$defs/long_text" }
       }
     },
@@ -107,7 +106,7 @@
       "properties": {
         "type": { "const": "released" },
         "at": { "$ref": "#/$defs/at" },
-        "by": { "$ref": "#/$defs/text" }
+        "by": { "$ref": "#/$defs/short_text" }
       }
     },
     "edited": {
@@ -117,7 +116,7 @@
       "properties": {
         "type": { "const": "edited" },
         "at": { "$ref": "#/$defs/at" },
-        "by": { "$ref": "#/$defs/text" },
+        "by": { "$ref": "#/$defs/short_text" },
         "changes": { "$ref": "#/$defs/changes" }
       }
     }
