@@ -11,6 +11,7 @@
 // removes between the markers. Every name is invented.
 
 import { describe, it, expect, afterEach } from 'vitest';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 
@@ -155,7 +156,7 @@ describe('the migration\'s dry run lists what the apply removes between the mark
     put(base, MILESTONE, marked([...Object.values(ROWS), `${long}B`]));
     commitAll(base);
     expect((await dryRun(base)).inputHash).not.toBe(one.inputHash);
-    expect(join(base, UNITS)).toBeTruthy();
+    expect(existsSync(join(base, UNITS))).toBe(false); // none of the dry runs, nor the refused apply, made a unit record
   });
 
   it('the apply removes exactly the lines the dry run named, and keeps every byte outside the markers', async () => {

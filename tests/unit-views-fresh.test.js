@@ -12,11 +12,12 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-import { EPICS_BEGIN, EPICS_END } from '../plugin/tools/lib/milestone-table.js';
+import { epicMarkers, EPICS_BEGIN, EPICS_END } from '../plugin/tools/lib/milestone-table.js';
 import { regenerateViews, regenerateToMemory } from '../plugin/tools/lib/work-views.js';
 import * as records from '../plugin/tools/lib/work-records.js';
 import * as unitLib from '../plugin/tools/lib/unit-records.js';
@@ -124,6 +125,11 @@ describe('this repository (AC7.4, live)', () => {
     } else {
       expect(milestoneKeys).toEqual([]);
     }
-    expect(milestoneKeys.length).toBeLessThanOrEqual(1);
+    // A milestone file is a view only when it carries the markers. The current
+    // milestone's is one whatever its table says; any other marked milestone
+    // file is one only while its table is stale — so at most one is fresh.
+    const onDisk = (rel) => readFileSync(join(REPO, rel), 'utf-8');
+    for (const rel of milestoneKeys) expect(epicMarkers(onDisk(rel)).state, rel).toBe('ok');
+    expect(milestoneKeys.filter((rel) => views[rel] === onDisk(rel)).length).toBeLessThanOrEqual(1);
   });
 });
