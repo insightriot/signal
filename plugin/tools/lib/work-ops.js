@@ -308,17 +308,27 @@ function removeEmptyTree(dir) {
  *
  * **After a squash or rebase merge** the branch commit recorded as proof never
  * reaches the default branch, for the unit or for the Epic's items. Run on the
- * default branch after the merge — the proof (HEAD, or `commit`) is then
- * already on it — this call asks again, in ONE write, for the unit's close
- * and for the close of each item still *closing* on a commit that is not in
- * HEAD's history (`rerequestEpicClose`, `work-records.js`); `rerequestedItems`
- * names them. Each item stays in the Epic. On any other checkout such an item
- * is open, as it always was, and the close refuses (OPEN_ITEMS).
+ * default branch after the merge — the checkout's HEAD and the proof (HEAD, or
+ * `commit`) are then both on it — this call LISTS each item still *closing* on
+ * a commit that is not in HEAD's history and writes nothing
+ * (`rerequest-proposed`): whether such a commit was part of the merged pull
+ * request is not something git can say, so a person does. Called again with
+ * `close.rerequest` — the listed items the person said yes to, each with the
+ * commit it was shown closing on — it asks again, in ONE write, for the unit's
+ * close and for theirs (`rerequestEpicClose`, `work-records.js`);
+ * `rerequestedItems` names them, and each stays in the Epic. A listed item
+ * that was not named is open and refuses the close (OPEN_ITEMS); a named item
+ * that is not on the list, or is closing on another commit by then, refuses
+ * (CONFLICT). On any other checkout such an item is open, as it always was,
+ * and so is one git cannot answer for (a shallow clone, no remote, no
+ * default-branch ref).
  *
  * @param {string} baseDir
  * @param {string} epicId
- * @param {{by: string, pr?: string|number, release?: string, at?: string, commit?: string}} close — `at` defaults to now;
- *   `commit` (unit records only) is the proof, default the branch HEAD
+ * @param {{by: string, pr?: string|number, release?: string, at?: string, commit?: string,
+ *   rerequest?: Array<{id: string, proof: string}>}} close — `at` defaults to now;
+ *   `commit` (unit records only) is the proof, default the branch HEAD;
+ *   `rerequest` (unit records only): see above
  * @param {{execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean}} [opts]
  * @returns {Promise<{status: 'no-folder'} | {status: 'already-archived', path: string}
  *   | {status: 'closed', from: string, to: string, moved: string[], rewritten: string[], close: object}
@@ -327,16 +337,19 @@ function removeEmptyTree(dir) {
  *   | {status: 'already-requested', epic: string, commit: string, unit: object}
  *   | {status: 're-requested', epic: string, commit: string, previous: string, created: false, retro: string,
  *       items: string[], closingOnBranch: string[], rerequestedItems?: string[], unit: object}
+ *   | {status: 'rerequest-proposed', epic: string, commit: string,
+ *       candidates: Array<{id: string, title: string|null, proof: string, why: 'not-in-history'|'unknown-commit'}>}
  *   | {status: 'already-closed', epic: string, unit: object}>}
  *   `rewritten` — live files outside the folder whose links into it were
  *   retargeted at the archive, relative to `baseDir` — or `{aborted, sensitiveHits}` (the sensitive-data rule, over pr/release).
- *   The last four are the unit-records answers: the close was requested;
+ *   The last five are the unit-records answers: the close was requested;
  *   it had already been requested with this commit (nothing written); it had
  *   been requested with another commit, `previous` — the normal case when SHIP
  *   is re-run after review fixes were pushed — so the earlier request was
  *   reopened and the close requested again with `commit`, two events in one
- *   write, behind the same gate (`rerequestUnitClose`, t5.0a); the unit is
- *   already closed (nothing written)
+ *   write, behind the same gate (`rerequestUnitClose`, t5.0a); the list of
+ *   items to ask a person about after a squash or rebase merge (nothing
+ *   written); the unit is already closed (nothing written)
  * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (bad ID, no `by`,
  *   a broken record or README),
  *   OPEN_ITEMS (each open item named), CONFLICT (archive folder exists, the
@@ -361,7 +374,7 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
   // throws): it is not "no unit records", and the folder move below is not
   // the fallback for it.
   if (unitRecordsOn(baseDir)) {
-    return closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit: close.commit }, opts, execFn);
+    return closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit: close.commit, rerequest: close.rerequest }, opts, execFn);
   }
   const pending = sensitivePending([pr, release], opts);
   if (pending) return pending;
@@ -605,7 +618,7 @@ function createdButNotRequested(epicId, err) {
   return wrapped;
 }
 
-async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, opts, execFn) {
+async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit, rerequest }, opts, execFn) {
   // A record's `pr` and `release` are text; a PR number is written as its digits.
   const text = (v) => (v === undefined || v === null ? undefined : String(v));
   const prText = text(pr);
@@ -626,6 +639,13 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
       + `(got ${JSON.stringify(String(proof).slice(0, 80))}). Nothing was written.`);
   }
 
+  // The items a person said yes to, after this call listed them (below).
+  const named = rerequest === undefined || rerequest === null ? null : rerequest;
+  if (named !== null && !(Array.isArray(named) && named.every((n) => typeof n?.id === 'string' && typeof n?.proof === 'string'))) {
+    throw new WorkStoreError('SCHEMA', `${epicId}: \`rerequest\` is a list of {id, proof} — each item this call listed that a person said yes to, `
+      + 'with the commit it was shown closing on. Nothing was written.');
+  }
+
   // What the Epic owes before it may close: every item closed, or closing with
   // its fix in HEAD (`closeEpicCheck` throws OPEN_ITEMS or SCHEMA itself), and
   // a complete retrospective. Run again under the lock by `requestUnitClose`.
@@ -634,18 +654,33 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
   const gate = () => {
     checked = closeEpicCheck(baseDir, epicId, { execFn, unitRecords: true });
     retro = assertRetroComplete(baseDir, epicId);
+    if (named !== null && named.length > 0) {
+      throw new WorkStoreError('CONFLICT', `${epicId}: an item's close is asked again only on the default branch after the merge, and no item is `
+        + 'waiting to be here. Nothing was written.');
+    }
   };
-  // The recovery after a squash or rebase merge: when the proof is already on
-  // the default branch, an item still closing on a commit that never reached
-  // this branch does not refuse the close — its close is asked again with the
-  // proof, in the same write as the unit's. Anywhere else (a normal SHIP, on
-  // the Epic's branch) such an item is open, as it always was: there the proof
-  // is not known to hold anyone's fix.
-  const recovering = onDefaultBranch(baseDir, proof, { execFn });
-  const recoveryGate = () => {
-    checked = closeEpicCheck(baseDir, epicId, { execFn, unitRecords: true, rerequest: true });
+  // The recovery after a squash or rebase merge: only when this checkout's
+  // HEAD and the proof are both already on the default branch. There, an item
+  // still closing on a commit that never reached this branch is listed for a
+  // person, and its close is asked again — with the proof, in
+  // the same write as the unit's — only when it comes back named. Anywhere else
+  // (a normal SHIP, on the Epic's branch; `commit` naming an older commit of
+  // the default branch from there) such an item is open, as it always was:
+  // there the proof is not known to hold anyone's fix.
+  const head = commit === undefined || commit === null ? proof : headCommit(baseDir, execFn);
+  const recovering = onDefaultBranch(baseDir, proof, { execFn })
+    && (head === proof || (head !== null && onDefaultBranch(baseDir, head, { execFn })));
+  const recoveryGate = (list) => {
+    checked = closeEpicCheck(baseDir, epicId, { execFn, unitRecords: true, rerequest: list });
     retro = assertRetroComplete(baseDir, epicId);
     return checked.rerequest;
+  };
+  // Before the lock: with no list from the caller, every candidate is shown
+  // and nothing is written. Null when there is nothing to ask a person.
+  const proposal = () => {
+    const candidates = recoveryGate(named ?? true);
+    if (named !== null || candidates.length === 0) return null;
+    return { status: 'rerequest-proposed', epic: epicId, commit: proof, candidates };
   };
 
   // HEAD taken as the proof (no `commit` passed) is checked before each write
@@ -660,8 +695,10 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
     // Unit records were turned on while this Epic was open: its record is
     // created here, after everything that can refuse has been checked once.
     headProof();
-    if (recovering) recoveryGate();
-    else gate();
+    if (recovering) {
+      const proposed = proposal();
+      if (proposed !== null) return proposed;
+    } else gate();
     assertUnitId(baseDir, epicId);
     try {
       const opened = await openUnit(baseDir, epicId, { by, at });
@@ -682,12 +719,16 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit }, o
 
   // Looked at once before the lock, and decided again under it (the gate).
   if (recovering) {
-    if (!created) headProof();
-    if (recoveryGate().length > 0) {
+    if (!created) {
+      headProof();
+      const proposed = proposal();
+      if (proposed !== null) return proposed;
+    }
+    if (checked.rerequest.length > 0) {
       let out;
       try {
         out = await rerequestEpicClose(baseDir, epicId, { proof, pr: prText, release: releaseText, by, at }, {
-          execFn, renameFn: opts.renameFn, gate: recoveryGate,
+          execFn, renameFn: opts.renameFn, gate: () => recoveryGate(named),
         });
       } catch (err) {
         throw created ? createdButNotRequested(epicId, err) : err;

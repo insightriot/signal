@@ -1384,25 +1384,31 @@ export function isEpicArchived(baseDir, epicId) {
  * differs from before:
  * - `unitRecords: true` words the refusal for a close that moves nothing
  *   ("Nothing was written"), and says how an item left *closing* by a squash
- *   or rebase merge is asked again;
- * - `rerequest: true` does not count as open an item that is *closing* on a
- *   commit that is certainly not in HEAD's history (`notInHead`): it is
- *   returned in `rerequest`, for the caller to ask its close again with a new
- *   commit in the same write (`rerequestEpicClose`). An item git cannot answer
- *   for is still open.
+ *   or rebase merge gets listed;
+ * - `rerequest` is about an item that is *closing* on a commit that is
+ *   certainly not in HEAD's history (`notInHead`) — a candidate to have its
+ *   close asked again (`rerequestEpicClose`). An item git cannot answer for is
+ *   never one: it is open.
+ *   `rerequest: true` lists the candidates and counts none of them as open.
+ *   `rerequest: [{id, proof}]` is the ones a person named, each with the
+ *   commit it was shown closing on: a candidate that is not named is open
+ *   (OPEN_ITEMS); a named item that is not a candidate, or that is closing on
+ *   another commit now, refuses (CONFLICT).
  *
  * @param {string} baseDir
  * @param {string} epicId
- * @param {{execFn?: Function, unitRecords?: boolean, rerequest?: boolean}} [opts] — `execFn` as
+ * @param {{execFn?: Function, unitRecords?: boolean, rerequest?: true|Array<{id: string, proof: string}>}} [opts] — `execFn` as
  *   `listRecords`'s; also runs the ancestry check
  * @returns {{epic: string, items: string[], closingOnBranch: string[], archived: boolean,
- *   rerequest?: Array<{id: string, proof: string}>}}
+ *   rerequest?: Array<{id: string, title: string|null, proof: string, why: 'not-in-history'|'unknown-commit'}>}}
  *   `items`: the Epic's records, by number, every one closed or closing on the
  *   branch; `closingOnBranch`: those still *closing* (confirmed after the
  *   merge); `archived`: as `isEpicArchived`; `rerequest` (only with
- *   `opts.rerequest`): the items closing on a commit that is not in HEAD, each
- *   with that commit
- * @throws {WorkStoreError} SCHEMA (not an Epic ID, or a broken record), OPEN_ITEMS, CONFIG
+ *   `opts.rerequest`): the candidates — all of them, or the named ones — each
+ *   with the commit it is closing on and `why` it is not in HEAD's history
+ *   (`not-in-history`: git has the commit and HEAD does not descend from it;
+ *   `unknown-commit`: no commit of that name is in this clone)
+ * @throws {WorkStoreError} SCHEMA (not an Epic ID, or a broken record), OPEN_ITEMS, CONFLICT (a named item), CONFIG
  */
 export function closeEpicCheck(baseDir, epicId, opts = {}) {
   assertEpicId(epicId);
@@ -1414,7 +1420,8 @@ export function closeEpicCheck(baseDir, epicId, opts = {}) {
   const mine = records.filter((r) => r.epic === epicId);
   const execFn = opts.execFn ?? execFileSync;
   const closingOnBranch = [];
-  const rerequest = [];
+  const named = Array.isArray(opts.rerequest) ? opts.rerequest : null;
+  const candidates = [];
   let onHead;
   let offHead;
   const open = mine.filter((r) => {
@@ -1423,30 +1430,49 @@ export function closeEpicCheck(baseDir, epicId, opts = {}) {
     onHead ??= headAncestry(baseDir, execFn);
     const proof = latestRequest(r.record)?.proof;
     if (!onHead(proof)) {
-      if (opts.rerequest !== true) return true;
+      if (opts.rerequest !== true && named === null) return true;
       offHead ??= notInHead(baseDir, execFn);
-      if (!offHead(proof)) return true;
-      rerequest.push({ id: r.id, proof });
-      return false;
+      const why = offHead(proof);
+      if (why === null) return true;
+      candidates.push({ id: r.id, title: r.record.title ?? null, proof, why });
+      // Listed, or named by a person: not open. A candidate nobody named is.
+      return named !== null && !named.some((n) => n?.id === r.id);
     }
     closingOnBranch.push(r.id);
     return false;
   });
+  // What was named must be what is there now: the caller runs this again under
+  // the store's lock, so an item that moved since it was shown refuses here.
+  for (const n of named ?? []) {
+    const now = candidates.find((c) => c.id === n?.id);
+    if (now === undefined) {
+      throw new WorkStoreError('CONFLICT', `${epicId}: ${echoed(n?.id)} was named to have its close asked again, and it is not an item of this Epic `
+        + 'that is closing on a commit outside this branch\'s history. Nothing was written. Re-run without the list to see the items as they are now.');
+    }
+    if (now.proof !== n.proof) {
+      throw new WorkStoreError('CONFLICT', `${epicId}: ${now.id} was named as closing on ${echoed(n.proof)}, and it is closing on ${now.proof} now. `
+        + 'Nothing was written. Re-run without the list to see the items as they are now.');
+    }
+  }
   if (open.length) {
     const lines = open.map((r) => `  ${r.id} (status ${r.status})${r.record.title ? ` — ${r.record.title}` : ''}`);
     // With unit records nothing moves at a close, and an item left closing by
     // a squash or rebase merge has a way out that the folder close never had.
-    const squashed = opts.unitRecords === true && open.some((r) => r.status === 'closing')
-      ? ' An item still closing on a commit that never reached this branch (the pull request was merged by squash or rebase) is asked again '
-        + 'by re-running this on the default branch after the merge, with a clean tree.'
-      : '';
+    const closing = opts.unitRecords === true && open.some((r) => r.status === 'closing');
+    const squashed = !closing ? ''
+      : named !== null
+        ? ' An item closing on a commit that is not in this branch\'s history has its close asked again only when a person names it as part of '
+          + 'the merged pull request; one that was not named is open.'
+        : ' For an item still closing on a commit that never reached this branch (the pull request was merged by squash or rebase): re-running '
+          + 'this on the default branch after the merge, with a clean tree, lists each such item, so a person can say which were in the merge.';
     throw new WorkStoreError('OPEN_ITEMS', `${epicId} has ${open.length} open item${open.length === 1 ? '' : 's'} `
       + `in it — close each (\`/sig:item close\`; a closing item closes when confirmCloses finds its commit) `
       + `or triage it out of the Epic, then re-run.${squashed} Nothing was ${opts.unitRecords === true ? 'written' : 'moved'}:\n${lines.join('\n')}`);
   }
   return {
     epic: epicId, items: mine.map((r) => r.id), closingOnBranch, archived: isEpicArchived(baseDir, epicId),
-    ...(opts.rerequest === true ? { rerequest } : {}),
+    ...(opts.rerequest === true ? { rerequest: candidates } : {}),
+    ...(named !== null ? { rerequest: candidates.filter((c) => named.some((n) => n.id === c.id)) } : {}),
   };
 }
 
@@ -1500,20 +1526,22 @@ function headAncestry(baseDir, execFn) {
     && ancestryFailure(baseDir, proof, 'HEAD', execFn, isShallow) === null;
 }
 
-// `proof => boolean`: is this proof CERTAINLY not a commit in the current
-// HEAD's history? True only when git says so: the commit is in this
-// repository and `merge-base --is-ancestor` answers no, or — in a clone that
-// is not shallow — no commit of that name is here at all (every ancestor of
-// HEAD is). False whenever git cannot answer: no repository, a shallow clone,
-// an invalid or ambiguous proof, a failure. The opposite of `headAncestry` is
-// not this: "not shown to be in HEAD" includes "cannot tell".
+// `proof => string|null`: is this proof CERTAINLY not a commit in the current
+// HEAD's history, and why? A reason only when git says so: `not-in-history` —
+// the commit is in this repository and `merge-base --is-ancestor` answers no;
+// `unknown-commit` — in a clone that is not shallow, no commit of that name is
+// here at all (every ancestor of HEAD is). Null whenever git cannot answer: no
+// repository, a shallow clone, an invalid or ambiguous proof, a failure. The
+// opposite of `headAncestry` is not this: "not shown to be in HEAD" includes
+// "cannot tell".
 function notInHead(baseDir, execFn) {
-  if (!isGitRepo(baseDir, execFn)) return () => false;
+  if (!isGitRepo(baseDir, execFn)) return () => null;
   const isShallow = shallowProbe(baseDir, execFn);
   return (proof) => {
-    if (typeof proof !== 'string' || !COMMIT_RE.test(proof)) return false;
+    if (typeof proof !== 'string' || !COMMIT_RE.test(proof)) return null;
     const why = ancestryFailure(baseDir, proof, 'HEAD', execFn, isShallow);
-    return why === 'not-on-default-branch' || why === 'unknown-commit';
+    if (why === 'not-on-default-branch') return 'not-in-history';
+    return why === 'unknown-commit' ? why : null;
   };
 }
 
@@ -1651,17 +1679,17 @@ export async function rerequestCloses(baseDir, requests, opts = {}) {
 
 /**
  * Ask for an Epic's close — again, or for the first time — together with the
- * re-request of every item of it that is *closing* on a commit that never
- * reached this branch: the recovery after a pull request merged by squash or
- * rebase, run on the default branch (`closeEpic`, `work-ops.js`, is the one
- * caller). ONE take of the store's lock and ONE write, all or nothing: the
+ * re-request of the items of it that are *closing* on a commit that never
+ * reached this branch and that a person named: the recovery after a pull
+ * request merged by squash or rebase, run on the default branch (`closeEpic`,
+ * `work-ops.js`, is the one caller). ONE take of the store's lock and ONE write, all or nothing: the
  * items' re-requests (`rerequestCloses`' rule and events) and the unit's
  * close request (`planUnitCloseRequest`, `unit-records.js` — two events when
  * it was already closing, one when it was open), then ONE `regenerate`.
  *
  * `opts.gate` runs under the lock before anything is read here and returns
- * the items to ask again (`closeEpicCheck`'s `rerequest`); what it throws is
- * the refusal.
+ * the items to ask again (`closeEpicCheck`'s `rerequest`, for a list of named
+ * items); what it throws is the refusal.
  *
  * @param {string} baseDir
  * @param {string} epicId
