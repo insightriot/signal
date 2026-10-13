@@ -1422,7 +1422,11 @@ export async function releaseUnit(baseDir, id, release = {}, opts = {}) {
   const { at = nowIso() } = release;
   const by = who(release.by);
   assertShape(id);
-  return withUnitLock(baseDir, async (handle) => appendEvent(handle, id, { type: 'released', at, by }, `${id} was released from its hold`, opts));
+  return withUnitLock(baseDir, async (handle) => {
+    // As `holdUnit`: without the folder, say unit records are off.
+    if (confinedUnitsDir(handle.baseDir) === null) throw new WorkStoreError('CONFIG', NO_UNITS_DIR(id));
+    return appendEvent(handle, id, { type: 'released', at, by }, `${id} was released from its hold`, opts);
+  });
 }
 
 /**

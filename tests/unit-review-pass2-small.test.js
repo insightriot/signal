@@ -213,6 +213,9 @@ describe('(f) holdUnit on a project with no work/units/', () => {
     expect(hold.message).toMatch(/has no unit records/);
     expect(hold.message).toMatch(/\/sig:docs-migrate --work-store/);
     expect(hold.message).not.toMatch(/no such unit/);
+    const release = await refusal(() => units.releaseUnit(base, 'M7.E1', { by }));
+    expect(release.code).toBe('CONFIG');
+    expect(release.message).toBe(open.message);
     expect(bytesOf(base)).toEqual(before);
   });
 

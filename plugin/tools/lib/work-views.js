@@ -39,7 +39,7 @@ import { existsSync, lstatSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { epicMarkers, noComment, renderEpicTable, rowsNotReprinted, upsertEpicTable } from './milestone-table.js';
+import { epicMarkers, linesBetweenMarkers, noComment, renderEpicTable, rowsNotReprinted, upsertEpicTable } from './milestone-table.js';
 import { assertRealInsidePlanning, linkedComponent, readRegularFile, regularFileRefusal } from './path-confine.js';
 import { cut, printable } from './printable-text.js';
 import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, PLANNING_DIR, StateSchemaError } from './state.js';
@@ -555,6 +555,20 @@ function refuseHandRows(rel, rows) {
   throw err;
 }
 
+// The same for a line between the markers that is not a table row (a note, a
+// heading): the regeneration would delete it too.
+function refuseHandLines(rel, lines) {
+  if (lines.length === 0) return;
+  const one = lines.length === 1;
+  const named = lines.slice(0, HAND_ROWS_SHOWN).map((l) => `line ${l.line} (“${cut(printable(l.text), 80)}”)`);
+  const more = lines.length > HAND_ROWS_SHOWN ? `, and ${lines.length - HAND_ROWS_SHOWN} more` : '';
+  const err = new WorkStoreError('CONFIG', `${rel}: ${one ? 'a line' : `${lines.length} lines`} between the Epic-table markers `
+    + `${one ? 'is' : 'are'} not part of the table and would be deleted by a regeneration — ${named.join('; ')}${more}. Only the generated `
+    + `table belongs between the markers, so nothing was written. Move ${one ? 'the line' : 'the lines'} outside the two marker lines, where ${one ? 'it stays' : 'they stay'} yours.`);
+  err.handRows = lines.map((l) => ({ line: l.line, id: null }));
+  throw err;
+}
+
 // The current milestone file with its Epic table rendered from `units`:
 // `{milestone: {rel, table, text, check}, notes}`. Only the CURRENT milestone's file
 // (`D-M6E16-12`), and only when it carries the markers. Everything else is a
@@ -595,7 +609,9 @@ function milestoneTable(baseDir, units, opts = {}) {
   const ids = [...units.map((u) => u.id), ...(opts.adding ?? [])];
   // Run on the text read here, and again on the text read just before the write.
   const check = (text) => {
-    if (opts.replaceHandRows !== true) refuseHandRows(rel, rowsNotReprinted(text, table, { milestone, ids }));
+    if (opts.replaceHandRows === true) return;
+    refuseHandRows(rel, rowsNotReprinted(text, table, { milestone, ids }));
+    refuseHandLines(rel, linesBetweenMarkers(text));
   };
   try {
     const text = upsertEpicTable(content, table);

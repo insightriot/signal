@@ -60,7 +60,8 @@ records now.
   one mentioned in a sentence or a code example is text — and `/sig:docs-migrate`'s dry run lists
   any line between the markers that is not a table row, since the apply replaces it. `/sig:docs-sweep` reports a view that does
   not match its records.
-  A row you type between the markers is not deleted: if it is for an Epic with no unit record, or for
+  A row or a line you type between the markers is not deleted (a line that is not a table row is
+  refused the same way, and the remedy is to move it outside the markers): if it is for an Epic with no unit record, or for
   nothing the records hold, the next store write is refused and names the row and the two ways out —
   give it a record, or move it outside the markers. A row for a unit that has a record is rewritten.
   When `/sig:docs-migrate --work-store` adds unit records, every unit keeps all the cells of its old
@@ -142,6 +143,10 @@ records now.
   The file itself is yours and is not rewritten.
 
 #### Known limits
+- A close is confirmed against the default branch of `origin`. When `origin/HEAD` is not set in the
+  clone, the default is taken to be `origin/main` or `origin/master`, as for item closes since
+  `v0.1.48`. On a project whose default branch has another name, a pushed branch called `main` would
+  be taken for it. `git remote set-head origin -a` records the real default and removes the guess.
 - With unit records, a finished Epic's narrative leaves `STATE.md` when its close is confirmed — at
   the next `/sig:docs-sweep` or SHIP after the merge — not at the SHIP that requests the close.
 - If the narrative is kept at that point (the retrospective does not cover it, say), no later sweep,

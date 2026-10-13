@@ -101,6 +101,19 @@ describe('a row typed by hand between the markers', () => {
     expect(await read(FILE)).toBe(before);
   });
 
+  it('a line that is not a table row (a note): refused too, quoting the line, and the file is unchanged', async () => {
+    const before = await typeRow('Note to self: E5 waits on the vendor.');
+    const err = await regenerateViews(base).catch((e) => e);
+    expect(err.code).toBe('CONFIG');
+    expect(err.message).toContain(FILE);
+    expect(err.message).toContain('Note to self');
+    expect(err.message).toMatch(/outside the two marker lines/);
+    expect(err.handRows).toEqual([{ line: expect.any(Number), id: null }]);
+    expect(await read(FILE)).toBe(before);
+    await expect(records.newItem(base, { title: 'x', body: 'y', source: 'test', by })).rejects.toMatchObject({ code: 'CONFIG' });
+    expect(await read(FILE)).toBe(before);
+  });
+
   it('refuses every store write before it lands: an item write, a unit write, an item edit', async () => {
     await typeRow('| `M7.E5` | planned | typed |');
     const before = await read(FILE);
