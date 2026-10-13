@@ -544,7 +544,7 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
 // (`D-M6E16-14`). The unit reads *closing* until `confirmCloses`
 // (`work-records.js`) finds that commit on the default branch.
 
-const COMMIT_SHAPE_RE = /^[0-9a-f]{7,64}$/;
+export const COMMIT_SHAPE_RE = /^[0-9a-f]{7,64}$/;
 
 // The branch HEAD's full hash, or null (not a repository, or no commit yet) —
 // what `dischargeBacklogRows` (`backlog.js`) records for the same SHIP.
@@ -563,7 +563,10 @@ function headCommit(baseDir, execFn) {
 // never be confirmed, and the unit would read *closing* for ever. Refused too
 // when what resolves does not start with what was passed — git resolves a
 // branch or tag called `abcdef1` before it tries a short hash.
-function explicitCommit(baseDir, epicId, commit, execFn) {
+// `commit` has the shape of a hash (`COMMIT_SHAPE_RE`): the caller checks.
+// `epicId` begins the refusal — the Epic, or what else the commit is for
+// (`dischargeBacklogRows`, `backlog.js`, records one the same way).
+export function explicitCommit(baseDir, epicId, commit, execFn = execFileSync) {
   let full = null;
   try {
     full = String(execFn('git', ['rev-parse', '--verify', '--quiet', '--end-of-options', `${commit}^{commit}`], {

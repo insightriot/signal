@@ -38,6 +38,7 @@ import { unitClosure, unitRecordsOn } from './unit-records.js';
 import { isStoreOn } from './work-store.js';
 import { assertWritable, isEpicArchived, listRecords, newItem, requestCloses } from './work-records.js';
 import { WorkStoreError } from './work-errors.js';
+import { COMMIT_SHAPE_RE, explicitCommit } from './work-ops.js';
 
 const BACKLOG_REL = '.planning/BACKLOG.md';
 const BUGS_REL = '.planning/BUGS.md';
@@ -675,11 +676,17 @@ async function dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn
   }
 
   if (toRequest.length === 0) return { ...base, results };
-  const proof = commit ?? headCommit(baseDir);
+  let proof = commit ?? headCommit(baseDir);
   if (proof === null) {
+    // Not "pass `commit`": one passed here could not name a commit either.
     throw new WorkStoreError('CONFIG', 'the discharge on a v2 work store records the Epic\'s commit as each row\'s proof, '
-      + 'and there is none: this is not a git repository with a commit. Pass `commit`. Nothing was written.');
+      + 'and there is none: this is not a git repository with a commit. Nothing was written.');
   }
+  // A `commit` that was passed is checked, not trusted (M6.E16 r6), as
+  // `closeEpic`'s is: one that names no commit here could never be confirmed,
+  // and each row would read *closing* for ever. Recorded as the full hash, as
+  // HEAD's is. One that is not shaped like a hash is `requestCloses`' to refuse.
+  if (typeof commit === 'string' && COMMIT_SHAPE_RE.test(commit)) proof = explicitCommit(baseDir, 'the discharge', commit);
   await requestCloses(baseDir, toRequest.map((id) => ({ id, proof, by: who, at: when })), { renameFn });
   return { ...base, written: true, commit: proof, results };
 }
