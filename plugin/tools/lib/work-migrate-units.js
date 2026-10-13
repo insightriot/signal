@@ -18,9 +18,12 @@
 //   - its milestone row's status cell BEGINS with "shipped" as a word (bold,
 //     a check mark or other punctuation before it aside; or with "closed",
 //     when it goes on to say shipped), and does not also say pending, in
-//     flight or parked, or "not/never shipped". A cell that says shipped
-//     further on ("S1 shipped; S2 in progress") is about a part of the unit:
-//     it is not evidence, and is flagged;
+//     flight or parked, or "not/never shipped" — and says nothing after it
+//     but a version, a date, a pull request or issue number, a commit hash,
+//     and "in", "on", "as", "via" (`SHIP_FACT_RES`). A cell that says shipped
+//     further on ("S1 shipped; S2 in progress"), or leads with it and goes on
+//     in other words ("shipped — S2 remaining"), is not evidence, and is
+//     flagged;
 //   - its retrospective is complete (a stub is not evidence);
 //   - today's closure check (`resolveClosures`) answers closed.
 // The current unit is open whatever the evidence says; when there is
@@ -71,10 +74,32 @@ const WALK_DEPTH = 8;
 // not evidence, and neither is one that says the unit did not ship.
 const SHIPPED_RE = /\bshipped\b/i;
 const NOT_OVER_RE = /\b(pending|in[ -]flight|parked)\b/i;
-// Asked of a cell that leads with "shipped": words that name work still to
-// do, or a ship that was taken back.
+// Asked of a cell that leads with "shipped": what else it may say and still
+// be evidence. Only these, and characters that are neither letters nor digits
+// — "shipped" and "closed" themselves; a version (`v0.1.7`); a date
+// (`2026-07-15`); a pull request or issue number (`#123`, `PR 123`); a commit
+// hash (seven or more hex characters, a digit among them); and the four words
+// that join those: "in", "on", "as", "via". Any other word is about something
+// the cell does not let this rule judge ("S2 remaining", "docs outstanding"),
+// so the row is not counted. A list of the words for work left over would
+// always be one word short.
+const SHIP_FACT_RES = [
+  /\b(?:shipped|closed)\b/gi,
+  /\bv\d+(?:\.\d+)*\b/gi,
+  /\b\d{4}-\d{2}-\d{2}\b/g,
+  /\bPRs?\s*#?\d+\b|#\d+\b/gi,
+  /\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b/gi,
+  /\b(?:in|on|as|via)\b/gi,
+];
+// The first words of a cell that are none of those, or null.
+function leftOver(status) {
+  const rest = SHIP_FACT_RES.reduce((text, re) => text.replace(re, '\n'), status);
+  return rest.match(/[\p{L}\p{N}](?:[^\n]*[\p{L}\p{N}])?/u)?.[0] ?? null;
+}
+// Which of them to name in the sentence, when the cell has one: a word for
+// work still to do, or for a ship that was taken back.
 const LEFT_OVER_RE = /\b(in[ -]progress|to[ -]?do|blocked|reverted|follow[ -]?ups?|partial(?:ly)?|deferred|planned|not started)\b/i;
-const NOT_SHIPPED_RE = /\b(?:not|never)\s+(?:yet\s+)?shipped\b|\bunshipped\b/i;
+const NOT_SHIPPED_RE = /\b(?:not|never)\s+(?:yet\s+)?shipped\b/i;
 // The word must lead the cell: only characters that are neither letters nor
 // digits (bold, backticks, a check mark) may stand before it. Asked only of a
 // cell that says "shipped", so "closed" alone is never evidence.
@@ -543,9 +568,10 @@ export async function planUnits(baseDir, opts = {}) {
         } else if (!LEADS_RE.test(status)) {
           rowUnclear = true;
           against.push(`its milestone row says shipped, but not as the first word of its status, so the row is not counted (${where}: ${quoted(status)})`);
-        } else if (LEFT_OVER_RE.test(status)) {
+        } else if (leftOver(status) !== null) {
           rowUnclear = true;
-          against.push(`its milestone row says shipped and also "${status.match(LEFT_OVER_RE)[1].toLowerCase()}", so the row is not counted (${where}: ${quoted(status)})`);
+          const word = status.match(LEFT_OVER_RE)?.[1] ?? shownText(leftOver(status), 40);
+          against.push(`its milestone row says shipped and also "${word.toLowerCase()}", so the row is not counted (${where}: ${quoted(status)})`);
         } else {
           evidence.push(`its milestone row says shipped (${where}: ${quoted(status)})`);
         }

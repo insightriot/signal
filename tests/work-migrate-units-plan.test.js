@@ -109,7 +109,10 @@ describe('planUnits — the union of units, one proposal each (AC9.1)', () => {
   // The row counts only when "shipped" leads its status cell. A cell that
   // says it further on is about a part of the unit, or about another unit.
   const NOT_LEADING = ['S1 shipped; S2 in progress', 'partially shipped, rest deferred', 'planned — not started; ships after E4 is shipped'];
-  const LEADING = ['**shipped** v0.1.12', '✅ SHIPPED 2026-07-01', 'closed — shipped as v0.1.3'];
+  const LEADING = [
+    '**shipped** v0.1.12', '✅ SHIPPED 2026-07-01', 'closed — shipped as v0.1.3',
+    'Shipped v0.1.7', 'shipped 2026-07-15 (PR #123)', 'Shipped in v0.1.7 on 2026-07-15', 'shipped via PR 123, #124 — 0a1b2c3',
+  ];
 
   // Leading with "shipped" is not enough when the cell goes on to name work
   // still to do, or a ship that was taken back.
@@ -118,6 +121,11 @@ describe('planUnits — the union of units, one proposal each (AC9.1)', () => {
     const cells = {
       'Shipped S1; S2 in progress': 'in progress', 'Shipped — slice 1 of 3; rest TODO': 'todo', 'shipped to staging only; prod blocked': 'blocked',
       'SHIPPED (reverted)': 'reverted', 'Shipped; open follow-ups: 3': 'follow-ups', 'shipped, partially': 'partially',
+      'Shipped; S3 deferred': 'deferred', 'Shipped — phase 2 planned': 'planned', 'shipped (docs not started)': 'not started',
+      // No word of any list: after "shipped" only a version, a date, a pull
+      // request or issue number, a commit hash and "in", "on", "as", "via" count.
+      'shipped — S2 remaining': 's2 remaining', 'Shipped, then unshipped': 'then unshipped', 'shipped v0.1.7 (docs outstanding)': 'docs outstanding',
+      'Shipped as planned': 'planned', 'shipped in part': 'part', 'shipped defaced': 'defaced',
     };
     for (const [cell, word] of Object.entries(cells)) {
       put(base, MILESTONE, milestone7([`| \`M7.E6\` | ${cell} | x |`]));
@@ -388,13 +396,14 @@ describe('planUnits — hostile input (NFR input)', () => {
 
   it('invisible characters and a 10 kB cell are cut and made printable in everything a person is shown', async () => {
     const base = await unitsStore();
-    const hidden = '**shipped**\u200b \u202enow\u0007 \u{e0041}';
-    put(base, MILESTONE, milestone7([`| \`M7.E1\` | ${hidden} | ${'n'.repeat(10_000)} |`, `| \`M7.E2\` | shipped ${'s'.repeat(10_000)} | x |`]));
+    // What follows "shipped" is a date: any other word and the row would not be counted.
+    const hidden = '**shipped**\u200b \u202e2026-09-01\u0007 \u{e0041}';
+    put(base, MILESTONE, milestone7([`| \`M7.E1\` | ${hidden} | ${'n'.repeat(10_000)} |`, `| \`M7.E2\` | shipped ${'2026-09-01 '.repeat(1_000)} | x |`]));
     const plan = await planUnits(base);
     const text = unitsReportLines(plan).join('\n');
     expect(text).not.toMatch(INVISIBLE);
     expect(Math.max(...text.split('\n').map((l) => l.length))).toBeLessThan(1200);
-    expect(byId(plan)['M7.E1'].evidence[0]).toBe('its milestone row says shipped (MILESTONE-7.md:7: “**shipped** now”)');
+    expect(byId(plan)['M7.E1'].evidence[0]).toBe('its milestone row says shipped (MILESTONE-7.md:7: “**shipped** 2026-09-01”)');
     expect(byId(plan)['M7.E2'].evidence[0].length).toBeLessThan(220);
     // The cells themselves are kept whole in the plan; the writer cuts them (t7.1).
     expect(byId(plan)['M7.E1'].row.cells[2]).toHaveLength(10_000);
