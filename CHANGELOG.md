@@ -44,6 +44,10 @@ records now.
   each is created open with a note. `--also <ID>:dropped:<words>` declares a unit no file names.
   On a project that already has unit records the same command adds a record for each unit that has
   none and touches no record that exists; `/sig:docs-sweep` names the units that have none.
+- **A unit is never closed with an open item in it.** `/sig:ship` already refused one. Now the
+  migration proposes such a unit open and names the items, closing a unit as dropped or legacy is
+  refused until its items are closed or moved out, and `/sig:docs-sweep` reports a closed unit that
+  still holds one (`closed-unit-open-items`).
 
 #### Changed
 - **`work/EPICS.md` and the Epic table in the current milestone file are generated from the

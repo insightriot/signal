@@ -50,7 +50,7 @@ import {
   UNIT_TITLE_MAX, foldUnit,
 } from './unit-record.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
-import { assertWritable } from './work-records.js';
+import { assertWritable, listRecords } from './work-records.js';
 // A cycle, by design: work-views.js renders these records (`listUnits`).
 // Neither module uses the other's bindings while it is being evaluated.
 import { assertViewsWritable, regenerateToMemory, regenerateViews, viewsNotRegenerated } from './work-views.js';
@@ -705,6 +705,39 @@ function assertOneCommit(baseDir, id, proof, opts) {
   }
 }
 
+// A unit is never closed with an item in it that is not closed — whatever the
+// reason, and whoever asks (AC4.3). Under the lock, before a close is written:
+// `ids` are the units about to be closed, each with its reason. The item store
+// is read whole; a broken item record refuses too, because the unit it is in
+// cannot be known. Throws OPEN_ITEMS naming every item, with `err.openItems`.
+const OPEN_ITEMS_NAMED = 20;
+function refuseCloseWithOpenItems(handle, closes) {
+  if (closes.length === 0) return;
+  const { records, broken } = listRecords(handle.baseDir);
+  if (broken.length > 0) {
+    throw new WorkStoreError('SCHEMA', `${closes.map((c) => c.id).join(', ')} cannot be closed — a broken item record's unit is unknown, so `
+      + `whether an open item is in it cannot be told. Nothing was written. Fix these first:\n${broken.map((b) => `  ${b.error}`).join('\n')}`);
+  }
+  const found = [];
+  for (const c of closes) {
+    const open = records.filter((r) => r.epic === c.id && r.status !== 'C');
+    if (open.length > 0) found.push({ ...c, items: open.map((r) => ({ id: r.id, status: r.status })) });
+  }
+  if (found.length === 0) return;
+  const lines = found.map((f) => {
+    const named = f.items.slice(0, OPEN_ITEMS_NAMED).map((i) => `${i.id} (status ${i.status})`).join(', ');
+    const more = f.items.length > OPEN_ITEMS_NAMED ? `, and ${f.items.length - OPEN_ITEMS_NAMED} more` : '';
+    return `${f.id} has ${f.items.length} item${f.items.length === 1 ? '' : 's'} that ${f.items.length === 1 ? 'is' : 'are'} not closed, `
+      + `so it cannot be closed (${f.reason}): ${named}${more}.`;
+  });
+  const err = new WorkStoreError('OPEN_ITEMS', `${lines.join(' ')} Nothing was written. `
+    + (found.some((f) => f.reason === 'dropped')
+      ? 'Close or move the items first — `/sig:item close <id>` for one that will not be done, `/sig:item move <id> T` to put one back in the backlog — then re-run.'
+      : 'Close each (`/sig:item close <id>`) or move it out of the unit (`/sig:item move <id> T`), then re-run.'));
+  err.openItems = found.map((f) => ({ id: f.id, items: f.items.map((i) => i.id) }));
+  throw err;
+}
+
 const KEEP_FILE = '.keep';
 
 const NO_UNITS_DIR = (id) => `${id}: this project has no unit records (${UNITS_REL}/ does not exist) — nothing was written. `
@@ -948,7 +981,8 @@ export async function importUnit(baseDir, unit, opts = {}) {
  * through `requestUnitClose` and its confirmation); a `dropped` close with no
  * words; an ID `assertUnitId` refuses; an ID listed twice, or two that differ
  * only by case (in the list, or against a record that exists); a record that
- * already exists; no `units/` folder, unless `opts.ensureDir`.
+ * already exists; no `units/` folder, unless `opts.ensureDir`; a close of a
+ * unit that has an item not closed (OPEN_ITEMS, each item named).
  *
  * Kept text: each `legacy_row` cell and a close's `words` lose control and
  * invisible characters (`printable-text.js`) and are cut at `LEGACY_CELL_MAX`
@@ -981,7 +1015,7 @@ export async function importUnit(baseDir, unit, opts = {}) {
  *   between its markers for something that gets no record here (`regenerateViews`' `replaceHandRows`) —
  *   only for a caller that showed the person those rows first; without it such a row refuses the import
  * @returns {Promise<object[]>} the entries, in list order — or `{aborted, sensitiveHits}`
- * @throws {WorkStoreError} CONFIG (store off, v1, or no `units/` folder), SCHEMA, CONFLICT, LOCKED, IO
+ * @throws {WorkStoreError} CONFIG (store off, v1, or no `units/` folder), SCHEMA, CONFLICT, OPEN_ITEMS, LOCKED, IO
  */
 export async function importUnits(baseDir, list, opts = {}) {
   if (!Array.isArray(list)) {
@@ -1014,6 +1048,7 @@ export async function importUnits(baseDir, list, opts = {}) {
         + 'case cannot both be units. Nothing was written.');
     }
     const planned = records.map((record) => ({ record, text: recordText(record), abs: join(handle.baseDir, relOf(record.id)) }));
+    refuseCloseWithOpenItems(handle, records.filter((r) => r.events[0].type === 'closed').map((r) => ({ id: r.id, reason: r.events[0].reason })));
     viewsWritableOrRefuse(handle, opts, ids);
     const replaceHandRows = opts.replaceTableRows === true;
 
@@ -1228,6 +1263,10 @@ export function planUnitConfirms(handle, candidates, { at, by, openItems }) {
  * Appends to an existing record only. A record that begins with a close (a
  * unit recorded as already over, never opened) is not created here.
  *
+ * Refused (OPEN_ITEMS, nothing written, `err.openItems`) while the unit has an
+ * item that is not closed — a closing item included. A unit is not closed
+ * around open work: close the items, or move them out, first.
+ *
  * Sensitive data: `words`, `pr` and `release`.
  *
  * @param {string} baseDir
@@ -1256,9 +1295,11 @@ export async function closeUnit(baseDir, id, close = {}, opts = {}) {
   assertWritable(baseDir);
   const pending = sensitivePending([words, pr, release], opts);
   if (pending) return pending;
-  return withUnitLock(baseDir, async (handle) => (
-    appendEvent(handle, id, { type: 'closed', at, by, reason, proof, pr, release, words }, `${id} was closed (${reason})`, opts)
-  ));
+  return withUnitLock(baseDir, async (handle) => {
+    readForWrite(handle, id); // no such unit, or a broken record, is said before the items are looked at
+    refuseCloseWithOpenItems(handle, [{ id, reason }]);
+    return appendEvent(handle, id, { type: 'closed', at, by, reason, proof, pr, release, words }, `${id} was closed (${reason})`, opts);
+  });
 }
 
 /**

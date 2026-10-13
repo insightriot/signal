@@ -78,7 +78,8 @@ the library. Do any of these only when the user asks.
   `closeUnit(baseDir, id, {reason: 'dropped', words, by})` from `tools/lib/unit-records.js` — the
   unit stopped, or its work went elsewhere. `words` is required: say where it went, or why it
   stopped. A `shipped` close is refused here: only `/sig:ship` requests one, and it is confirmed once
-  its commit is on the default branch.
+  its commit is on the default branch. Refused (`OPEN_ITEMS`, nothing written) while the unit has an item
+  that is not closed: close or move the items first (`/sig:item close <id>`, `/sig:item move <id> T`).
 - **Reopen:** `reopenUnit(baseDir, id, {reason, by})` from `tools/lib/unit-records.js` — a closed
   unit record, or one whose close has been requested, back to open. The reason is required.
 - **Edit:** `editUnit(baseDir, id, {changes, by})` from `tools/lib/unit-records.js`, where `changes`

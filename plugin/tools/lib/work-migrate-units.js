@@ -20,7 +20,9 @@
 //   - its retrospective is complete (a stub is not evidence);
 //   - today's closure check (`resolveClosures`) answers closed.
 // The current unit is open whatever the evidence says; when there is
-// evidence, that is flagged.
+// evidence, that is flagged. So is a unit with an item that is not closed:
+// a close with an open item in it is refused everywhere else, so none is
+// proposed here, and the items are named beside the proposal.
 //
 // Reads only. Nothing here writes: `unitImportList` turns a plan into the list
 // `importUnits` (`unit-records.js`) writes.
@@ -68,6 +70,7 @@ const NOT_OVER_RE = /\b(pending|in[ -]flight|parked)\b/i;
 const NOT_SHIPPED_RE = /\b(?:not|never)\s+(?:yet\s+)?shipped\b|\bunshipped\b/i;
 
 const SHOWN_MAX = 120; // a quoted cell in an evidence line
+const OPEN_ITEMS_SHOWN = 10; // how many open items a proposal names; the rest are counted
 const SUMMARY_MAX = 400;
 const NOTE_MAX = 2000;
 const ALSO_REASONS = ['dropped'];
@@ -189,7 +192,10 @@ function readArchiveDirs(baseDir) {
   return found;
 }
 
-// Which unit each item is in, from its events — on a v2 store only.
+// Which unit each item is in, from its events, and the item's status — on a
+// v2 store only: `[item ID, unit, status]`. A project not yet on the store has
+// no item in a unit (the lists it migrates name none), so there is nothing to
+// read there.
 function readMembership(baseDir, notes) {
   let listed;
   try {
@@ -200,14 +206,14 @@ function readMembership(baseDir, notes) {
     return [];
   }
   const pairs = [];
-  for (const { record } of listed.records) {
+  for (const { record, status } of listed.records) {
     let unit = null;
     try {
       unit = epicOf(record);
     } catch {
       unit = null;
     }
-    if (typeof unit === 'string') pairs.push([record.id, unit]);
+    if (typeof unit === 'string') pairs.push([record.id, unit, status]);
   }
   if (listed.broken.length > 0) notes.push(`${listed.broken.length} work item record(s) could not be read; a unit only they name is not listed.`);
   return pairs.sort((a, b) => byText(a[0], b[0]));
@@ -330,7 +336,7 @@ function readAlso(baseDir, also, named, storeKey) {
  *   `milestone.removes` (only with `markers: 'ok'` and at least one such line): the lines between the
  *   markers that are not table rows, which the apply removes with the old table.
  *   Each unit: `{id, proposal: 'open'|'legacy-close'|'dropped'|'refused', flag: string|null, evidence: string[],
- *   against: string[], reason?: string, sources: string[], row: {file, line, cells}|null, retro: string,
+ *   against: string[], open_items?: string[], reason?: string, sources: string[], row: {file, line, cells}|null, retro: string,
  *   retro_path: string|null}` — `evidence` and `against` are sentences; `reason` is why a refused ID is refused.
  *   Deterministic: the same files give the same plan and the same `inputHash`, which covers every
  *   input read and every proposal made.
@@ -347,7 +353,7 @@ export async function planUnits(baseDir, opts = {}) {
   const notes = [];
   const units = new Map();
   const unit = (id) => {
-    if (!units.has(id)) units.set(id, { id, named: new Set(), row: null, retro: null, archive: [], items: 0, files: [] });
+    if (!units.has(id)) units.set(id, { id, named: new Set(), row: null, retro: null, archive: [], items: 0, openItems: [], files: [] });
     return units.get(id);
   };
 
@@ -378,10 +384,11 @@ export async function planUnits(baseDir, opts = {}) {
   }
 
   const membership = readMembership(baseDir, notes);
-  for (const [, id] of membership) {
+  for (const [itemId, id, status] of membership) {
     const u = unit(id);
     u.named.add('work items');
     u.items += 1;
+    if (status !== 'C') u.openItems.push(itemId);
   }
 
   const rootFiles = entries(join(baseDir, PLANNING)).filter((e) => e.isFile()).map((e) => e.name);
@@ -472,16 +479,29 @@ export async function planUnits(baseDir, opts = {}) {
       else against.push(`today's closure check reads it ${r.status === CLOSURE.OPEN ? 'open' : 'as one it cannot determine'} (${shownText(r.reason ?? '', 200)})`);
     }
 
+    // A unit with an item that is not closed is open, whatever else says it
+    // is over: every item is named, so the person can see why.
+    if (u.openItems.length > 0) {
+      const n = u.openItems.length;
+      const named = u.openItems.slice(0, OPEN_ITEMS_SHOWN).join(', ');
+      against.push(`${n} of its items ${n === 1 ? 'is' : 'are'} not closed: ${named}${n > OPEN_ITEMS_SHOWN ? `, and ${n - OPEN_ITEMS_SHOWN} more` : ''}`);
+    }
+
     let proposal = 'open';
     let flag = null;
     if (u.id === current) {
       if (evidence.length > 0) flag = 'current-but-looks-finished';
+    } else if (u.openItems.length > 0) {
+      if (evidence.length > 0) flag = 'looks-finished-with-open-items';
     } else if (evidence.length > 0) {
       proposal = 'legacy-close';
     } else if (rowUnclear) {
       flag = 'row-unclear';
     }
-    planned.push({ ...base, proposal, flag, evidence, against, current: u.id === current });
+    planned.push({
+      ...base, proposal, flag, evidence, against, current: u.id === current,
+      ...(u.openItems.length > 0 ? { open_items: u.openItems } : {}),
+    });
   }
   for (const d of also.declared) {
     planned.push({
@@ -499,7 +519,7 @@ export async function planUnits(baseDir, opts = {}) {
     retros: retros.map((r) => [r.id, r.path, r.status]),
     archive: archiveDirs.map((d) => [d.id, d.path]),
     current,
-    items: membership,
+    items: membership.map(([itemId, id]) => [itemId, id]),
     also: also.declared.map((d) => [d.id, d.reason, d.words]),
     proposals: planned.map((p) => [p.id, p.proposal, p.flag, p.evidence, p.against, p.reason ?? null]),
     notes,
@@ -570,6 +590,7 @@ export async function unitsWithoutRecord(baseDir) {
 const FLAG_WORDS = {
   'current-but-looks-finished': 'it is the current unit (STATE.md) and there is evidence it is over — a unit being worked is open',
   'row-unclear': 'its milestone row says shipped and something else, and nothing else says it is over',
+  'looks-finished-with-open-items': 'there is evidence it is over, and it has items that are not closed — a unit with an open item is open',
 };
 
 const sentence = (parts) => parts.join('; ');

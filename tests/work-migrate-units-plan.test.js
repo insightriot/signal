@@ -411,7 +411,8 @@ describe('unitsReportLines — the plan as a person reads it', () => {
     const text = unitsReportLines(plan).join('\n');
     expect(text).toMatch(/^Unit records — one record per Epic or unit this project names \(15 named\):/);
     expect(text).toMatch(/\n {2}M7\.E9 {2}open {2}— the current unit/);
-    expect(text).toMatch(/\n {2}M7\.E3 {2}open {2}— named by work items; nothing says it is over/);
+    // Changed at REVIEW pass 2 (r3.2): a unit's items that are not closed are named on its line.
+    expect(text).toMatch(/\n {2}M7\.E3 {2}open {2}— 1 of its items is not closed: LEAF-2/);
     expect(text).toMatch(/\nProposed legacy closes \(5\) — confirm to record these units as closed; if you say no, each is created open/);
     expect(text).toMatch(/\nFlagged \(1\) — created open.*\n {2}M7\.E4 {2}— its milestone row says shipped and something else/);
     expect(text).toMatch(/\nRefused \(3\) — no record is created:\n {2}LEAF-7 /);

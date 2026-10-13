@@ -49,7 +49,7 @@ import { ALL_DRIFT_CHECKS, REACH } from './published-facts.js';
 import { backlogDischargeStatus, storeDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
 import { isStoreOn } from './work-store.js';
 import { checkRecords, listClosing, listRecords, recordPath, storeVersion } from './work-records.js';
-import { checkUnits, UNITS_REL } from './unit-records.js';
+import { checkUnits, listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 import { unitsWithoutRecord } from './work-migrate-units.js';
 import { evictionWords, runConfirmCloses } from './close-confirm.js';
 
@@ -466,6 +466,44 @@ export async function checkUnitsWithoutRecord(baseDir) {
 }
 
 /**
+ * Closed units that hold an item that is not closed (portable, advisory).
+ *
+ * Every writer refuses a close while the unit has an open item, so this
+ * should find nothing. It is here for a record that did not come through a
+ * writer — a merge, a record written before the refusal existed — because a
+ * unit that reads closed with open work in it is archived and passed over.
+ * The fix is named: close the item, or move it out of the unit.
+ *
+ * No store, a v1 store, or no `work/units/` folder → nothing. A `units/`
+ * folder that cannot be trusted, or a broken record → nothing here:
+ * `checkWorkStore` reports those.
+ *
+ * @param {string} baseDir — project root
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export function checkClosedUnitsWithOpenItems(baseDir) {
+  let units;
+  let records;
+  try {
+    if (storeVersion(baseDir) !== 2 || !unitRecordsOn(baseDir)) return [];
+    ({ units } = listUnits(baseDir));
+    ({ records } = listRecords(baseDir));
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const u of units.filter((x) => x.status === 'closed')) {
+    const open = records.filter((r) => r.epic === u.id && r.status !== 'C').map((r) => r.id);
+    if (open.length === 0) continue;
+    const named = open.slice(0, 10).join(', ') + (open.length > 10 ? `, and ${open.length - 10} more` : '');
+    out.push(mkFinding('closed-unit-open-items', 'advisory', shownName(u.path),
+      `${u.id} is closed and has ${open.length} item${open.length === 1 ? '' : 's'} that ${open.length === 1 ? 'is' : 'are'} not closed (${named}) — `
+      + 'close each (`/sig:item close <id>`) or move it out of the unit (`/sig:item move <id> T`)'));
+  }
+  return out;
+}
+
+/**
  * Items — and, with unit records, units (M6.E16 t5.0c) — left *closing* too
  * long (portable, advisory — M6.E13 t4.4, PLAN risk 3).
  *
@@ -806,6 +844,8 @@ export async function runSweep(baseDir = process.cwd()) {
   raw.push(...checkWorkStore(baseDir));
   // Beside the unit-record findings: the units that have no record at all.
   raw.push(...(await checkUnitsWithoutRecord(baseDir)));
+  // And the closed units that still hold an item that is not closed.
+  raw.push(...checkClosedUnitsWithOpenItems(baseDir));
   // The one step that writes (D-M6E13-21): confirmed closes, on a v2 store only.
   // It runs before the closing-too-long check, so an item it confirms is not
   // also reported as stuck closing in the same report (REVIEW pass 1).
