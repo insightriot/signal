@@ -111,7 +111,7 @@ function runGit(baseDir, args, execFn) {
       cwd: baseDir,
       stdio: ['ignore', 'pipe', 'ignore'],
       maxBuffer: GIT_MAX_BUFFER,
-      env: gitEnv(),
+      env: gitEnv(baseDir),
     })
   );
 }

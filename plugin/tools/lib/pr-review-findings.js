@@ -24,6 +24,8 @@
 // this repository files bugs about. What it does guarantee is that a merge
 // cannot be *unaware*.
 
+import { gitEnv } from './git-env.js';
+
 /** A thread is "needs a person" when it is unresolved and still applies. */
 const NEEDS_A_PERSON = (t) => !t.resolved && !t.outdated;
 
@@ -46,8 +48,11 @@ const GRAPHQL = `query($owner:String!,$repo:String!,$pr:Int!){
  *
  * @param {{
  *   owner: string, repo: string, pr: number,
- *   execFn?: (cmd: string, args: string[]) => string,
- * }} opts
+ *   execFn?: (cmd: string, args: string[], options?: {cwd: string, env: object}) => string,
+ *   cwd?: string,
+ * }} opts — `execFn` is handed the folder and the environment `gh` should run
+ *   with (git's own, `gitEnv`: `gh` runs git) as its third argument; pass them
+ *   on to the process it starts. `cwd` defaults to the current folder.
  * @returns {{
  *   status: 'clean'|'findings'|'cannot-check',
  *   open: Array<{path: string, line: number|null, author: string, excerpt: string}>,
@@ -62,7 +67,7 @@ const GRAPHQL = `query($owner:String!,$repo:String!,$pr:Int!){
  * consulted and a reviewer that found nothing look identical otherwise, which is
  * `B39`'s shape and the reason four real findings went unread in the first place.
  */
-export function readPrReviewFindings({ owner, repo, pr, execFn }) {
+export function readPrReviewFindings({ owner, repo, pr, execFn, cwd = process.cwd() }) {
   const empty = { status: 'cannot-check', open: [], outdated: 0, resolved: 0, reason: null };
   if (!owner || !repo || !Number.isInteger(pr)) {
     return { ...empty, reason: 'no pull request identified for this branch' };
@@ -79,7 +84,7 @@ export function readPrReviewFindings({ owner, repo, pr, execFn }) {
       '-F', `owner=${owner}`,
       '-F', `repo=${repo}`,
       '-F', `pr=${pr}`,
-    ]);
+    ], { cwd, env: gitEnv(cwd) });
   } catch (err) {
     return {
       ...empty,
@@ -206,8 +211,9 @@ const REVIEW_WORKFLOW = 'claude-code-review.yml';
  *
  * @param {{
  *   owner: string, repo: string, pr: number,
- *   execFn?: (cmd: string, args: string[]) => string,
- * }} opts
+ *   execFn?: (cmd: string, args: string[], options?: {cwd: string, env: object}) => string,
+ *   cwd?: string,
+ * }} opts — `execFn` and `cwd` as `readPrReviewFindings`'
  * @returns {{
  *   status: 'reviewed'|'hollow'|'small-change'|'cannot-check',
  *   turns: number|null, costUsd: number|null, changedLines: number|null,
@@ -218,7 +224,7 @@ const REVIEW_WORKFLOW = 'claude-code-review.yml';
  * a log with no result line — the reviewer action refuses to run on a PR that
  * edits its own workflow, and that must not read as a review either.
  */
-export function readReviewerEffort({ owner, repo, pr, execFn }) {
+export function readReviewerEffort({ owner, repo, pr, execFn, cwd = process.cwd() }) {
   const empty = { status: 'cannot-check', turns: null, costUsd: null, changedLines: null, reason: null };
   if (!owner || !repo || !Number.isInteger(pr)) {
     return { ...empty, reason: 'no pull request identified for this branch' };
@@ -227,7 +233,7 @@ export function readReviewerEffort({ owner, repo, pr, execFn }) {
     return { ...empty, reason: 'no exec function supplied' };
   }
   const R = `${owner}/${repo}`;
-  const run = (args) => String(execFn('gh', args));
+  const run = (args) => String(execFn('gh', args, { cwd, env: gitEnv(cwd) }));
 
   let pull;
   try {

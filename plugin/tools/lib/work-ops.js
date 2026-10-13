@@ -112,7 +112,7 @@ function assertEpicId(epic) {
 
 function isTracked(baseDir, rel, execFn) {
   try {
-    execFn('git', ['--literal-pathspecs', 'ls-files', '--error-unmatch', '--', rel], { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() });
+    execFn('git', ['--literal-pathspecs', 'ls-files', '--error-unmatch', '--', rel], { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) });
     return true;
   } catch {
     return false;
@@ -124,7 +124,7 @@ function isTracked(baseDir, rel, execFn) {
 // turns a failed move into a silent no-op.
 function moveFile(baseDir, fromRel, toRel, git, execFn) {
   if (git) {
-    execFn('git', ['--literal-pathspecs', 'mv', '--', fromRel, toRel], { cwd: baseDir, stdio: ['ignore', 'pipe', 'pipe'], env: gitEnv() });
+    execFn('git', ['--literal-pathspecs', 'mv', '--', fromRel, toRel], { cwd: baseDir, stdio: ['ignore', 'pipe', 'pipe'], env: gitEnv(baseDir) });
   } else {
     renameSync(join(baseDir, fromRel), join(baseDir, toRel));
   }
@@ -551,7 +551,7 @@ export const COMMIT_SHAPE_RE = /^[0-9a-f]{7,64}$/;
 function headCommit(baseDir, execFn) {
   try {
     return String(execFn('git', ['rev-parse', '--verify', '--quiet', 'HEAD'], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(),
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir),
     })).trim() || null;
   } catch {
     return null;
@@ -570,7 +570,7 @@ export function explicitCommit(baseDir, epicId, commit, execFn = execFileSync) {
   let full = null;
   try {
     full = String(execFn('git', ['rev-parse', '--verify', '--quiet', '--end-of-options', `${commit}^{commit}`], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(),
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir),
     })).trim().toLowerCase();
   } catch {
     full = null;

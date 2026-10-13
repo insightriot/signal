@@ -383,7 +383,7 @@ function firstAddedDates(baseDir, key, execFn) {
       'git',
       ['log', '--all', '--no-renames', '--diff-filter=A', '--date=short', '--format=%x00%ad', '--name-only', '--',
         `:(glob).planning/**/${key}-*.md`],
-      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024, env: gitEnv() },
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024, env: gitEnv(baseDir) },
     ));
   } catch {
     return dates;

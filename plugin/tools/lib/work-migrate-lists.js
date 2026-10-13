@@ -239,7 +239,7 @@ function listDates(baseDir, rel, execFn) {
   let out = '';
   try {
     out = String(execFn('git', ['log', '--follow', '--format=%ad', '--date=short', '--', rel], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 16 * 1024 * 1024, env: gitEnv(),
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 16 * 1024 * 1024, env: gitEnv(baseDir),
     })).trim();
   } catch {
     out = '';
@@ -718,7 +718,7 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
   const dropTag = () => {
     if (tag === null) return;
     try {
-      execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv() });
+      execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv(baseDir) });
     } catch {
       /* best-effort — keep the original throw */
     }
@@ -806,7 +806,7 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
 // `git tag -l`; none outside git.
 function preStoreTags(baseDir, execFn = execFileSync) {
   try {
-    return String(execFn('git', ['tag', '-l', 'pre-work-store-*'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() }))
+    return String(execFn('git', ['tag', '-l', 'pre-work-store-*'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) }))
       .split('\n').map((t) => t.trim()).filter(Boolean);
   } catch {
     return [];
@@ -1259,7 +1259,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
         failed = true;
         if (tag) {
           try {
-            execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv() });
+            execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv(baseDir) });
           } catch {
             /* best-effort — keep the original throw */
           }
@@ -1684,7 +1684,7 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
     // remote work are not what this project shipped; native closes, too, are
     // confirmed only once their commit is on the default branch.
     out = String(execFn('git', ['log', '--format=%H%x09%s', ref, '--'], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024, env: gitEnv(),
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024, env: gitEnv(baseDir),
     }));
   } catch {
     out = '';
@@ -1713,7 +1713,7 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   let origin = null;
   try {
     origin = parseOrigin(String(execFn('git', ['remote', 'get-url', 'origin'], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(),
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir),
     })).trim());
   } catch {
     origin = null;

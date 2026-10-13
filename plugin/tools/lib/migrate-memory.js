@@ -1145,7 +1145,7 @@ export function probeGitState(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   const force = opts.force ?? false;
   const git = (args) =>
-    String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() })).trim();
+    String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) })).trim();
   const warnings = [];
 
   // 1. A git work tree at all? (non-repo → fs-backup)
@@ -1245,7 +1245,7 @@ export function probeGitState(baseDir, opts = {}) {
  */
 export function tagPreApply(baseDir, name, execFn = execFileSync) {
   try {
-    execFn('git', ['tag', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv() });
+    execFn('git', ['tag', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv(baseDir) });
     return name;
   } catch {
     return null;
@@ -1263,7 +1263,7 @@ export function tagPreApply(baseDir, name, execFn = execFileSync) {
  */
 export function stagePaths(baseDir, paths, execFn = execFileSync) {
   try {
-    execFn('git', ['add', '--', ...paths], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv() });
+    execFn('git', ['add', '--', ...paths], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv(baseDir) });
   } catch {
     /* staging is best-effort — the changes are on disk regardless */
   }
@@ -2820,7 +2820,7 @@ export async function applyMigrate(baseDir, opts = {}) {
       // last-resort pointer. Best-effort: a failed `tag -d` must not mask the real error.
       if (tag) {
         try {
-          execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv() });
+          execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv(baseDir) });
         } catch {
           /* best-effort — keep the original throw */
         }

@@ -259,7 +259,7 @@ const GIT_MAX_BUFFER = 256 * 1024 * 1024;
 export { gitEnv };
 
 export function runGit(baseDir, args, execFn) {
-  return String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: GIT_MAX_BUFFER, env: gitEnv() }));
+  return String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: GIT_MAX_BUFFER, env: gitEnv(baseDir) }));
 }
 
 // A lazy, memoised `git rev-parse --is-shallow-repository` (false on failure).
@@ -369,7 +369,7 @@ export function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
     execFn('git', ['merge-base', '--is-ancestor', full, ref], {
       cwd: baseDir,
       stdio: ['ignore', 'ignore', 'ignore'],
-      env: gitEnv(),
+      env: gitEnv(baseDir),
     });
     return null;
   } catch (err) {

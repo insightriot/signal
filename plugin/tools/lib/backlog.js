@@ -704,7 +704,7 @@ async function dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn
 function headCommit(baseDir) {
   try {
     return String(execFileSync('git', ['rev-parse', '--verify', '--quiet', 'HEAD'], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(),
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir),
     })).trim() || null;
   } catch {
     return null;

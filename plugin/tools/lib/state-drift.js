@@ -695,7 +695,7 @@ export const checkBaselineCommitOffHistory = defineCheck({
       execFileSync('git', ['merge-base', '--is-ancestor', commit, 'HEAD'], {
         cwd: baseDir,
         stdio: 'ignore',
-        env: gitEnv(),
+        env: gitEnv(baseDir),
       });
       return [];
     } catch {
@@ -703,7 +703,7 @@ export const checkBaselineCommitOffHistory = defineCheck({
       // they read very differently to someone deciding whether work was lost.
       let known = false;
       try {
-        execFileSync('git', ['cat-file', '-e', `${commit}^{commit}`], { cwd: baseDir, stdio: 'ignore', env: gitEnv() });
+        execFileSync('git', ['cat-file', '-e', `${commit}^{commit}`], { cwd: baseDir, stdio: 'ignore', env: gitEnv(baseDir) });
         known = true;
       } catch {
         known = false;

@@ -128,7 +128,7 @@ function firstAddedDates(baseDir, key, execFn) {
       'git',
       ['log', '--all', '--no-renames', '--diff-filter=A', '--date=short', '--format=%x00%ad', '--name-only', '--',
         `:(glob).planning/**/${key}-*.md`],
-      { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024, env: gitEnv() },
+      { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024, env: gitEnv(baseDir) },
     ));
   } catch {
     return dates;
@@ -483,7 +483,9 @@ function withRecovery(err) {
 
 // A run of git against the SOURCE repo, whatever cwd the caller passed — so
 // the aside copy (no `.git`) is probed against the real `origin/<default>`.
-const inRepo = (repo, execFn) => (cmd, args, o = {}) => execFn(cmd, args, { ...o, cwd: repo });
+// The environment is the SOURCE repo's too: `gitEnv` looks at the folder a
+// call runs in, and the one the caller built was for the folder it named.
+const inRepo = (repo, execFn) => (cmd, args, o = {}) => execFn(cmd, args, { ...o, cwd: repo, env: gitEnv(repo) });
 
 function originRef(baseDir, execFn) {
   if (!isGitRepo(baseDir, execFn)) return { ref: null, sha: null };
@@ -492,7 +494,7 @@ function originRef(baseDir, execFn) {
   const ref = `refs/remotes/origin/${branch}`;
   try {
     const sha = String(execFn('git', ['rev-parse', '--verify', '--quiet', ref], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(),
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir),
     })).trim();
     return { ref, sha };
   } catch {
@@ -502,7 +504,7 @@ function originRef(baseDir, execFn) {
 
 function headSha(baseDir, execFn) {
   try {
-    return String(execFn('git', ['rev-parse', 'HEAD'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() })).trim();
+    return String(execFn('git', ['rev-parse', 'HEAD'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) })).trim();
   } catch {
     return null;
   }
@@ -571,7 +573,7 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
 
   if (apply) {
     if (!isGitRepo(baseDir, execFn)) throw new WorkStoreError('CONFIG', '--apply needs a git repository (the cutover is one reviewable commit, and confirmCloses asks git).');
-    const dirty = String(execFn('git', ['status', '--porcelain'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() })).trim();
+    const dirty = String(execFn('git', ['status', '--porcelain'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) })).trim();
     if (dirty !== '') {
       throw new WorkStoreError('CONFIG', `--apply refuses a dirty working tree (uncommitted changes): commit or move them first.\n${dirty}`);
     }
@@ -674,7 +676,7 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
     try {
       assertUnchanged(baseDir, results);
       // The recovery is git's: an ignored v1 file passes the clean-tree check, and git cannot restore it.
-      const tracked = new Set(String(execFn('git', ['--literal-pathspecs', 'ls-files', '-z', '--', '.planning'], { cwd: baseDir, encoding: 'utf8', env: gitEnv() })).split('\0'));
+      const tracked = new Set(String(execFn('git', ['--literal-pathspecs', 'ls-files', '-z', '--', '.planning'], { cwd: baseDir, encoding: 'utf8', env: gitEnv(baseDir) })).split('\0'));
       const untracked = ['work/WORK.md', ...results.map((r) => r.relPath)].map((p) => `.planning/${p}`).filter((p) => !tracked.has(p));
       if (untracked.length > 0) throw new WorkStoreError('CONFIG', `--apply needs every v1 file tracked by git; not tracked (ignored?): ${untracked.join(', ')}. Commit or remove them, then re-run.`);
       preflight(baseDir, results);

@@ -8,9 +8,13 @@
 // without it is the whole hole again. So this is a STATIC check over every
 // file under `plugin/tools` and `plugin/hooks`:
 //
-//   - a call whose first argument is the literal `'git'` — under any callee
-//     name: `execFileSync`, `spawnSync`, an injected `execFn`, a local wrapper
-//     — must have `gitEnv()` inside its own parentheses;
+//   - a call whose first argument is the literal `'git'` or `'gh'` (which
+//     runs git) — under any callee name: `execFileSync`, `spawnSync`, an
+//     injected `execFn`, a local wrapper — must have `gitEnv(<folder>)` inside
+//     its own parentheses, and where the call names its `cwd` the folder is
+//     that one (r6.1: the folder is what `gitEnv` looks at, to turn git away
+//     from a planted layout whatever the git version). Bare `gitEnv()` is for
+//     `git init` alone;
 //   - the file must import `gitEnv` from `git-env.js` (or from `work-write.js`,
 //     which re-exports it), so the name is the shared one;
 //   - git may not be run as a shell string (`exec('git status')`) or from a
@@ -24,6 +28,10 @@
 // (`const bin = 'git'; execFileSync(bin, …)`) is invisible here. Nothing in the
 // tree does that today, and the wrappers that pass a command through
 // (`inRepo`, `work-migrate-v2.js`) are called with the literal, which is seen.
+// A call that takes its `cwd` from a spread (`{ ...opts, env: gitEnv(root) }`)
+// is not checked for the folder being the same one. And the `gh` calls in
+// `pr-review-findings.js` hand the environment to an `execFn` the caller
+// wrote: one that drops its third argument runs `gh` with its own.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -56,8 +64,16 @@ function filesUnder(rel) {
 // reported, which errs on the side of looking.
 const stripComments = (text) => text.split('\n').map((l) => (/^\s*(\/\/|\*|\/\*)/.test(l) ? '' : l)).join('\n');
 
-const GIT_CALL = /[\w$.]+\(\s*(['"`])git\1\s*[,)]/g;
-const GIT_SHELL_STRING = /\b(?:exec|execSync|spawn|spawnSync|execFile|execFileSync|execFn)\(\s*(['"`])git\s/g;
+// `gh` too (r6.1): it runs git to learn which repository it is in.
+const GIT_CALL = /[\w$.]+\(\s*(['"`])(?:git|gh)\1\s*[,)]/g;
+const GIT_SHELL_STRING = /\b(?:exec|execSync|spawn|spawnSync|execFile|execFileSync|execFn)\(\s*(['"`])(?:git|gh)\s/g;
+// `gitEnv(<folder>)`: the folder the call runs in, which is what makes it
+// look at that folder (r6.1). Bare `gitEnv()` looks at nothing, and is for
+// `git init` alone — it runs where there is no repository yet.
+const ENV_WITH_FOLDER = /\bgitEnv\(\s*([\w$.]+)\s*\)/;
+const ENV_BARE = /\bgitEnv\(\s*\)/;
+const INIT_CALL = /^\(\s*(['"`])git\1\s*,\s*\[\s*(['"`])init\2/;
+const CWD = /\bcwd:\s*([\w$.]+)/;
 const ENV_IMPORT = /import\s*\{[^}]*\bgitEnv\b[^}]*\}\s*from\s*'\.\/(?:git-env|work-write)\.js'/;
 
 // The text of the call that opens at `text[open]` (a `(`), to its matching `)`.
@@ -97,7 +113,16 @@ function unprotectedGitCalls(source, { shell = false } = {}) {
   const calls = [...text.matchAll(GIT_CALL)];
   for (const m of calls) {
     const call = callText(text, m.index + m[0].indexOf('('));
-    if (!/\bgitEnv\(\)/.test(call)) out.push({ line: lineOf(text, m.index), why: 'the call does not pass `gitEnv()`' });
+    const line = lineOf(text, m.index);
+    const folder = ENV_WITH_FOLDER.exec(call)?.[1];
+    const cwd = CWD.exec(call)?.[1];
+    if (folder === undefined && ENV_BARE.test(call)) {
+      if (!INIT_CALL.test(call)) out.push({ line, why: '`gitEnv()` is given no folder, and the call is not `git init`' });
+    } else if (folder === undefined) {
+      out.push({ line, why: 'the call does not pass `gitEnv()`' });
+    } else if (cwd !== undefined && cwd !== folder) {
+      out.push({ line, why: `\`gitEnv(${folder})\` looks at another folder than the call runs in (\`cwd: ${cwd}\`)` });
+    }
   }
   if (calls.length > 0 && !ENV_IMPORT.test(text)) {
     out.push({ line: 1, why: '`gitEnv` is not imported from git-env.js (or work-write.js)' });
@@ -145,19 +170,29 @@ describe('every git call carries the shared environment', () => {
       "run('git', args);",
     ]) expect(unprotectedGitCalls(imp + planted), planted).toMatchObject([{ why: 'the call does not pass `gitEnv()`' }]);
     // `gitEnv()` in the NEXT call does not cover this one
-    expect(unprotectedGitCalls(`${imp}a('git', x, { cwd });\nb('git', y, { cwd, env: gitEnv() });`)).toHaveLength(1);
+    expect(unprotectedGitCalls(`${imp}a('git', x, { cwd });\nb('git', y, { cwd, env: gitEnv(cwd) });`)).toHaveLength(1);
     // a local function of the same name is not the shared one
-    expect(unprotectedGitCalls("const gitEnv = () => process.env;\nexecFileSync('git', ['status'], { env: gitEnv() });"))
+    expect(unprotectedGitCalls("const gitEnv = () => process.env;\nexecFileSync('git', ['status'], { env: gitEnv(dir) });"))
       .toMatchObject([{ why: expect.stringContaining('not imported') }]);
+    // r6.1: no folder — nothing is looked at; another folder than the call's own; and `gh`
+    expect(unprotectedGitCalls(`${imp}execFn('git', ['status'], { cwd: baseDir, env: gitEnv() });`))
+      .toMatchObject([{ why: expect.stringContaining('given no folder') }]);
+    expect(unprotectedGitCalls(`${imp}execFn('git', ['status'], { cwd: repo, env: gitEnv(baseDir) });`))
+      .toMatchObject([{ why: expect.stringContaining('another folder') }]);
+    expect(unprotectedGitCalls(`${imp}execFn('gh', ['pr', 'view'], { cwd: baseDir, env: { ...process.env } });`))
+      .toMatchObject([{ why: 'the call does not pass `gitEnv()`' }]);
+    expect(unprotectedGitCalls(`${imp}run('gh', args);`)).toHaveLength(1);
     expect(unprotectedGitCalls("execSync('git status --porcelain', { cwd });")).toMatchObject([{ why: 'git is run as a shell string' }]);
     expect(unprotectedGitCalls('#!/bin/sh\nbranch=$(git branch --show-current)\n', { shell: true })).toHaveLength(1);
   });
 
   it('and what is not a violation is not reported', () => {
     const imp = "import { gitEnv } from './git-env.js';\n";
-    expect(unprotectedGitCalls(`${imp}execFn('git', ['status'], { cwd: baseDir, env: gitEnv() });`)).toEqual([]);
-    expect(unprotectedGitCalls(`${imp}execFn(\n  'git',\n  ['fetch'],\n  { cwd, env: { ...gitEnv(), GIT_TERMINAL_PROMPT: '0' } }\n);`)).toEqual([]);
-    expect(unprotectedGitCalls("// execFileSync('git', ['status'])\nconst source = 'git';\nexecFn('gh', args);")).toEqual([]);
+    expect(unprotectedGitCalls(`${imp}execFn('git', ['status'], { cwd: baseDir, env: gitEnv(baseDir) });`)).toEqual([]);
+    expect(unprotectedGitCalls(`${imp}execFn(\n  'git',\n  ['fetch'],\n  { cwd, env: { ...gitEnv(cwd), GIT_TERMINAL_PROMPT: '0' } }\n);`)).toEqual([]);
+    expect(unprotectedGitCalls(`${imp}execFileSync('git', ['init', '-q'], { ...opts, env: gitEnv() });`)).toEqual([]);
+    expect(unprotectedGitCalls(`${imp}execFn('gh', args, { cwd, env: gitEnv(cwd) });`)).toEqual([]);
+    expect(unprotectedGitCalls("// execFileSync('git', ['status'])\nconst source = 'git';\nexecFn('npm', args);")).toEqual([]);
     expect(unprotectedGitCalls('#!/bin/sh\n# git log is not run here\necho "no repository"\n', { shell: true })).toEqual([]);
   });
 });
@@ -198,6 +233,16 @@ describe('gitEnv', () => {
       process.env.GIT_CONFIG_COUNT = bad;
       expect(gitEnv(), JSON.stringify(bad)).toMatchObject({ GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'safe.bareRepository' });
     }
+  });
+
+  // r6.1: with any of these inherited, git would not look at the folder it is
+  // run in, or would take settings (`-c core.fsmonitor=…`) from whoever set them.
+  it('does not pass on the variables that point git somewhere else', () => {
+    const redirects = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_CONFIG_PARAMETERS', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY'];
+    for (const name of redirects) process.env[name] = '/somewhere/else';
+    const env = gitEnv();
+    for (const name of redirects) expect(env, name).not.toHaveProperty(name);
+    expect(process.env.GIT_DIR).toBe('/somewhere/else'); // the process's own environment is not touched
   });
 
   it('keeps the rest of the environment, and is the one work-write.js re-exports', () => {

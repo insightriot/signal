@@ -68,7 +68,7 @@ function defaultGit(baseDir, args, input) {
     timeout: GIT_TIMEOUT_MS,
     stdio: ['pipe', 'pipe', 'pipe'],
     maxBuffer: 64 * 1024 * 1024,
-    env: gitEnv(),
+    env: gitEnv(baseDir),
     ...(input !== undefined ? { input } : {}),
   });
 }

@@ -53,7 +53,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { gitEnv } from './git-env.js';
+import { gitEnv, repositoryWithoutDotGit } from './git-env.js';
 
 /**
  * Gate outcomes. Exactly one is returned; there is no default bucket.
@@ -96,7 +96,7 @@ const DEFAULT_BRANCH_CANDIDATES = Object.freeze(['main', 'master']);
 
 function git(baseDir, args, execFn) {
   return String(
-    execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() })
+    execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) })
   ).trim();
 }
 
@@ -355,9 +355,17 @@ export function readPullRequestEvidence(baseDir, opts = {}) {
         stdio: ['ignore', 'pipe', 'ignore'],
         timeout: opts.timeoutMs ?? GH_TIMEOUT_MS,
         killSignal: 'SIGKILL',
-        env: { ...process.env, GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1' },
+        // `gh` runs git to learn which repository this is, so it gets git's
+        // environment (r6.1).
+        env: { ...gitEnv(baseDir), GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1' },
       })
     ).trim();
+
+  // A folder that only looks like a repository names no repository to ask
+  // about — its `config` could name anyone's — so `gh` is not run at all.
+  if (repositoryWithoutDotGit(baseDir)) {
+    return { status: 'cannot-determine', url: null, state: null, reason: 'not a git repository' };
+  }
 
   try {
     run(['auth', 'status']);
