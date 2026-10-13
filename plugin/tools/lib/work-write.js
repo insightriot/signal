@@ -280,14 +280,17 @@ export function shallowProbe(baseDir, execFn) {
 
 // The ref a confirmed commit must be an ancestor of, or why there is none.
 // The REMOTE ref (`refs/remotes/origin/<branch>`), not the local branch: a
-// local `main` can hold commits nobody merged. The ref is built here from a
-// fixed prefix, so it cannot begin with `-`.
+// local `main` can hold commits nobody merged. The branch is the one
+// `origin/HEAD` names and is never guessed (`guess: false`): with `origin/HEAD`
+// unset the answer is `no-default-branch`, and `git remote set-head origin -a`
+// records it. The ref is built here from a fixed prefix, so it cannot begin
+// with `-`.
 export function defaultBranchRef(baseDir, execFn) {
   if (!isGitRepo(baseDir, execFn)) return { reason: 'not-a-repo' };
   const remote = hasRemote(baseDir, { execFn });
   if (remote === null) return { reason: 'git-failed' };
   if (remote === false) return { reason: 'no-remote' };
-  const branch = resolveDefaultBranch(baseDir, { execFn });
+  const branch = resolveDefaultBranch(baseDir, { execFn, guess: false });
   if (branch === null) return { reason: 'no-default-branch' };
   const ref = `refs/remotes/origin/${branch}`;
   try {

@@ -55,6 +55,14 @@ function closeParts({ confirmed = [], stillClosing = [], stale = [] }, what) {
   return parts;
 }
 
+// `no-default-branch` alone does not say what to do. One sentence for the
+// whole line, items and units together, or null when no close has that reason.
+function noDefaultBranchPart(result) {
+  const reasons = [...(result.stillClosing ?? []), ...(result.units?.stillClosing ?? [])];
+  if (!reasons.some((s) => s.reason === 'no-default-branch')) return null;
+  return 'no-default-branch: the remote\'s default branch is not recorded in this clone — run `git remote set-head origin -a` and re-run';
+}
+
 const ITEM_WORDS = {
   changed: (n) => `${n === 1 ? 'its record' : 'their records'} and the views changed; commit them`,
   ambiguous: 'ambiguous-proof: the proof is the start of more than one commit — reopen the item and close it again with a longer hash',
@@ -86,11 +94,13 @@ export function formatConfirmClosesLine(result) {
   if (!result) return null;
   const parts = closeParts(result, ITEM_WORDS);
   const unitParts = result.units ? closeParts(result.units, UNIT_WORDS) : [];
-  if (unitParts.length === 0) return parts.length === 0 ? null : `Closes: ${parts.join(' · ')}`;
+  const noDefault = noDefaultBranchPart(result);
+  const tail = noDefault === null ? [] : [noDefault];
+  if (unitParts.length === 0) return parts.length === 0 ? null : `Closes: ${[...parts, ...tail].join(' · ')}`;
   const groups = [];
   if (parts.length > 0) groups.push(`items — ${parts.join(' · ')}`);
   groups.push(`units — ${unitParts.join(' · ')}`);
-  return `Closes: ${groups.join(' · ')}`;
+  return `Closes: ${[...groups, ...tail].join(' · ')}`;
 }
 
 // Evict the narrative of each unit this run confirmed closed (`SIG-295`). One
@@ -265,11 +275,15 @@ export function formatCloseReportLine(result) {
   const parts = partsOf(result);
   // Units (M6.E16 t5.0c), named separately, as `formatConfirmClosesLine` does.
   const unitParts = result.units ? partsOf(result.units) : [];
-  if (unitParts.length === 0) return parts.length === 0 ? null : `Closes: ${parts.join(' · ')}`;
+  // This line names no other reason a close is waiting; this one it does,
+  // because nothing can be confirmed until the person acts on it.
+  const noDefault = noDefaultBranchPart(result);
+  const tail = noDefault === null ? [] : [noDefault];
+  if (unitParts.length === 0) return parts.length + tail.length === 0 ? null : `Closes: ${[...parts, ...tail].join(' · ')}`;
   const groups = [];
   if (parts.length > 0) groups.push(`items — ${parts.join(' · ')}`);
   groups.push(`units — ${unitParts.join(' · ')}`);
-  return `Closes: ${groups.join(' · ')}`;
+  return `Closes: ${[...groups, ...tail].join(' · ')}`;
 }
 
 /**

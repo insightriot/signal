@@ -4160,7 +4160,7 @@ from the default branch's history (`git log HEAD`), as native closes require, no
 proposal is now visible before it is acted on, which is the property three passes could not get from
 wording rules alone. Loop 3 runs past the ceiling by Brett's choice.
 
-## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-25)
+## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-27)
 
 Picked by Brett as priority 1 of [`BACKLOG-REVIEW-2026-10-10.md`](BACKLOG-REVIEW-2026-10-10.md). Stage 1
 of the "after Epic 1" list in
@@ -4370,3 +4370,19 @@ a caller names it closed), `/sig:docs-migrate` leaves its files and its narrativ
 says "closed; still the current unit, so its files stay until the next Epic opens". A current unit
 whose record is open, closing, unreadable or missing is open as before, and so is every current
 unit on a project without unit records.
+
+### D-M6E16-27 — The default branch is not guessed when a close is confirmed (Brett, 2026-10-13)
+Decided by Brett at the REVIEW loop ceiling; settles REVIEW pass 2, `S2-M1`, which `r3.9` had
+written down as a known limit. A close is confirmed when its commit is on
+`refs/remotes/origin/<default>`. With `origin/HEAD` not set in the clone, the default was taken to
+be whichever one of `origin/main` / `origin/master` existed — the rule item closes have used since
+`v0.1.48`. On a project whose default branch has another name, anyone who can push a branch called
+`main` could then confirm a close nobody merged. Now the default is the branch `origin/HEAD` names
+and nothing else (`defaultBranchRef`, `work-write.js`, through `resolveDefaultBranch`'s
+`guess: false`): with it unset every close stays *closing* with the reason `no-default-branch`,
+and the confirm step's line says to run `git remote set-head origin -a`. **What it costs:** a clone
+made with `git remote add` rather than `git clone` confirms nothing until that one command is run.
+**What it changes outside this Epic:** item closes on every project, with or without unit records —
+a named difference from `v0.1.50` (AC6.4, kind d). **What it leaves alone:** the branch gate
+(`checkBranchPosture`) and the `v1 → v2` migration's report (`work-migrate-v2.js`) still call
+`resolveDefaultBranch` with the guess; neither takes the answer as proof of a close.

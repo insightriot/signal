@@ -139,14 +139,17 @@ records now.
   record decides, wherever that file sits. The `/sig:docs-migrate` dry run also no longer says its
   closed list "comes from retrospectives" — it says what holds a closed unit back.
 - **The message shown when a unit record is hand-edited** lists every command that writes one, not two.
+- **The default branch is no longer guessed when a close is confirmed.** If your clone has no
+  `origin/HEAD` (usual after `git remote add`, never after `git clone`), `/sig:ship`,
+  `/sig:docs-sweep` and `/sig:resume` confirm no close, of an item or an Epic, and say so in one
+  line. Run `git remote set-head origin -a` once and re-run. Before, `origin/main` or
+  `origin/master` was assumed, so on a project whose default branch has another name a pushed
+  branch called `main` could confirm a close nobody merged. This applies to item closes on every
+  project, with or without unit records.
 - **Adding unit records to an existing store** prints the one line to add to `WORK.md`'s folder list.
   The file itself is yours and is not rewritten.
 
 #### Known limits
-- A close is confirmed against the default branch of `origin`. When `origin/HEAD` is not set in the
-  clone, the default is taken to be `origin/main` or `origin/master`, as for item closes since
-  `v0.1.48`. On a project whose default branch has another name, a pushed branch called `main` would
-  be taken for it. `git remote set-head origin -a` records the real default and removes the guess.
 - With unit records, a finished Epic's narrative leaves `STATE.md` when its close is confirmed — at
   the next `/sig:docs-sweep` or SHIP after the merge — not at the SHIP that requests the close.
 - If the narrative is kept at that point (the retrospective does not cover it, say), no later sweep,

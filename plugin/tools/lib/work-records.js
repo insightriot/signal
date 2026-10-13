@@ -1742,8 +1742,9 @@ const latestRequest = (record) => record.events.findLast((e) => e.type === 'clos
  * with `git rev-parse --verify <sha>^{commit}` to a full SHA that must start
  * with the proof (a ref named like a hash is not a commit), then checked with
  * `git merge-base --is-ancestor <full sha> refs/remotes/origin/<default>`.
- * The default branch is `resolveDefaultBranch`'s (origin/HEAD, else the one of
- * main/master that exists); local refs only, never a fetch.
+ * The default branch is the one `origin/HEAD` names (`defaultBranchRef`); with
+ * `origin/HEAD` unset it is not guessed, and every close stays *closing* with
+ * the reason `no-default-branch`. Local refs only, never a fetch.
  *
  * Exit 0 → a `closed` event (reason fixed, the request's proof copied, by
  * `confirmCloses`), written through the library under ONE `work` lock, each

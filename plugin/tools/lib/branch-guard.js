@@ -154,6 +154,11 @@ export function hasRemote(baseDir, opts = {}) {
  *    remote refs that actually exist. Exactly one of main/master present → that
  *    one. Both or neither → null, because picking either would be a guess.
  *
+ * `opts.guess: false` stops after step 1: `origin/HEAD` or null. For a caller
+ * that takes the answer as proof (`defaultBranchRef`, `work-write.js`), where
+ * a pushed branch that happens to be called `main` must not stand in for the
+ * default.
+ *
  * Offline throughout — `for-each-ref` reads local refs, no network.
  *
  * @returns {string|null} null means "could not determine", never "main".
@@ -170,6 +175,7 @@ export function resolveDefaultBranch(baseDir, opts = {}) {
   } catch {
     // fall through to disambiguation
   }
+  if (opts.guess === false) return null;
 
   const present = DEFAULT_BRANCH_CANDIDATES.filter((name) => {
     try {

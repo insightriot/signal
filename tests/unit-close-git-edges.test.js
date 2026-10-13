@@ -21,6 +21,7 @@ import { serializeRecord } from '../plugin/tools/lib/work-record.js';
 import { getUnit } from '../plugin/tools/lib/unit-records.js';
 import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
 import { regenerateViews } from '../plugin/tools/lib/work-views.js';
+import { reportCloses, runConfirmCloses } from '../plugin/tools/lib/close-confirm.js';
 
 const AT = '2026-10-11T10:00:00.000Z';
 const NOW = '2026-10-12T10:00:00.000Z';
@@ -131,6 +132,71 @@ describe('a remote with no default-branch ref', () => {
     const out = await records.confirmCloses(work, { now: NOW });
     expect(out.units.confirmed).toEqual([]);
     expect(out.units.stillClosing).toEqual([{ id: EPIC, reason: 'no-default-branch' }]);
+  });
+});
+
+// The default branch is the one `origin/HEAD` names, and nothing else: with it
+// unset, the one of `origin/main` / `origin/master` that exists is not taken
+// as the default when a close is confirmed. On a project whose default has
+// another name, a pushed branch called `main` would otherwise confirm a close
+// nobody merged.
+describe('origin/HEAD unset: the default branch is not guessed for a proof', () => {
+  const SET_HEAD = 'git remote set-head origin -a';
+  const item = (proof) => ({ id: 'SIG-1', type: 'BUG', title: 't', events: [{ type: 'created', at: AT, by }, { type: 'close_requested', at: AT, by, reason: 'fixed', proof }] });
+
+  // `git remote add` + fetch: origin/main is here, origin/HEAD is not.
+  async function addedNotCloned(branch = 'main') {
+    const { remote, seed, shas } = await plantRemote(branch);
+    const work = join(root, 'work');
+    await mkdir(work, { recursive: true });
+    g(work, 'init', '-q', '-b', branch);
+    g(work, 'remote', 'add', 'origin', remote);
+    g(work, 'fetch', '-q', 'origin');
+    g(work, 'reset', '-q', '--hard', `origin/${branch}`);
+    expect(spawnSync('git', ['symbolic-ref', '-q', 'refs/remotes/origin/HEAD'], { cwd: work, env: GIT_ENV }).status).not.toBe(0);
+    return { remote, seed, work, shas };
+  }
+
+  it('only origin/main present: an item and a unit closing on a commit that is on it stay closing, and the line says which command to run — once', async () => {
+    const { work, shas } = await addedNotCloned();
+    await store(work, [opened, request(shas[1])], [item(shas[1])]);
+    const reported = reportCloses(work, { now: NOW });
+    expect(reported.ready).toEqual([]);
+    expect(reported.line.split(SET_HEAD)).toHaveLength(2);
+    const out = await runConfirmCloses(work, { now: NOW });
+    expect(out.confirmed).toEqual([]);
+    expect(out.stillClosing).toEqual([{ id: 'SIG-1', reason: 'no-default-branch' }]);
+    expect(out.units).toEqual({ confirmed: [], stillClosing: [{ id: EPIC, reason: 'no-default-branch' }], stale: [] });
+    expect(out.line).toMatch(/the remote's default branch is not recorded in this clone/);
+    expect(out.line.split(SET_HEAD)).toHaveLength(2);
+
+    // With origin/HEAD set, by the command the line names: confirmed as before.
+    g(work, 'remote', 'set-head', 'origin', '-a');
+    const after = await runConfirmCloses(work, { now: NOW });
+    expect(after.confirmed).toEqual(['SIG-1']);
+    expect(after.units.confirmed).toEqual([EPIC]);
+    expect(after.line).not.toContain(SET_HEAD);
+  });
+
+  it('the default is `trunk`, and someone pushed a branch called `main` holding the proof: not confirmed, with origin/HEAD set or not', async () => {
+    const { seed, work } = await addedNotCloned('trunk');
+    g(seed, 'checkout', '-q', '-b', 'main');
+    g(seed, 'commit', '-q', '--allow-empty', '-m', 'on a stray branch called main, never merged');
+    const stray = g(seed, 'rev-parse', 'HEAD');
+    g(seed, 'push', '-q', 'origin', 'main');
+    g(work, 'fetch', '-q', 'origin');
+    await store(work, [opened, request(stray)], [item(stray)]);
+    const unset = await records.confirmCloses(work, { now: NOW });
+    expect(unset.confirmed).toEqual([]);
+    expect(unset.stillClosing).toEqual([{ id: 'SIG-1', reason: 'no-default-branch' }]);
+    expect(unset.units.stillClosing).toEqual([{ id: EPIC, reason: 'no-default-branch' }]);
+
+    g(work, 'remote', 'set-head', 'origin', '-a');
+    expect(g(work, 'symbolic-ref', 'refs/remotes/origin/HEAD')).toBe('refs/remotes/origin/trunk');
+    const set = await records.confirmCloses(work, { now: NOW });
+    expect(set.confirmed).toEqual([]);
+    expect(set.stillClosing).toEqual([{ id: 'SIG-1', reason: 'not-on-default-branch' }]);
+    expect(set.units.stillClosing).toEqual([{ id: EPIC, reason: 'not-on-default-branch' }]);
   });
 });
 
