@@ -102,6 +102,11 @@ const LOOKALIKES = [
   ['a fullwidth `.json`', '.planning/work/items/00/SIG-9．json'],
   ['a ligature (U+FB06, st) in `history`', '.planning/work/hiﬆory/2026-11.md'],
   ['a long s and an upper-case name', '.PLANNING/WORK/UNITſ/X.JSON'],
+  // A target by one of the guard's two readings only, so each reading folds:
+  // the trailing dot is a record only as Windows would open it, the `:` only as written.
+  ['a long s, and a trailing dot', '.planning/work/itemſ/00/SIG-9.json.'],
+  ['a sharp s, and a trailing space', '.planning/ißues-inbox.md '],
+  ['a long s, and a `:` in the name', '.planning/work/itemſ/00/SIG:1.json'],
 ];
 // Marks that join the letter before them: the name is another name, on every
 // filesystem, and stays editable.
