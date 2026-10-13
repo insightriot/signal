@@ -177,6 +177,40 @@ describe('a row typed by hand between the markers', () => {
     await expect(regenerateViews(base)).resolves.toEqual({ written: expect.any(Array) });
   });
 
+  it('a heading typed between the markers is a line that is not a table row: refused, and the file is unchanged', async () => {
+    const before = await typeRow('# Notes on this table');
+    const err = await regenerateViews(base).catch((e) => e);
+    expect(err.code).toBe('CONFIG');
+    expect(err.message).toContain('# Notes on this table');
+    expect(err.handRows).toEqual([{ line: expect.any(Number), id: null }]);
+    expect(await read(FILE)).toBe(before);
+  });
+
+  it('an exact copy of a row the table prints, typed under it: the table prints one, so the copy is refused', async () => {
+    const printed = '| `M7.E1` | **in flight** |  |';
+    expect(await read(FILE)).toContain(`${printed}\n`);
+    const before = await typeRow(printed);
+    const table = renderEpicTable(units.listUnits(base).units, { milestone: '7' });
+    const found = rowsNotReprinted(before, table, { milestone: '7', ids: ['M7.E1', 'M7.E2'] });
+    expect(found.map((r) => [r.text, r.id, r.repeated])).toEqual([[printed, 'M7.E1', true]]);
+    await expect(regenerateViews(base)).rejects.toMatchObject({ code: 'CONFIG', handRows: [{ line: found[0].line, id: 'M7.E1' }] });
+    expect(await read(FILE)).toBe(before);
+  });
+
+  it('text changed outside the markers after the check and before the write is kept: the table is set into the file as it is then', async () => {
+    const text = await read(FILE);
+    await plant('M7.E3', [opened]); // makes the table differ, so the milestone file is written
+    const { writeFileSync } = await import('node:fs');
+    seam.beforeWrite = () => writeFileSync(join(base, FILE), text.replace('Intro.', 'Intro, rewritten meanwhile.').replace('After.', 'After, too.'));
+    await regenerateViews(base);
+    expect(seam.beforeWrite).toBe(null); // the seam fired
+    const after = await read(FILE);
+    expect(after).toContain('| `M7.E3` | **in flight** |'); // the milestone file was written after the change
+    expect(after).toContain('Intro, rewritten meanwhile.');
+    expect(after).toContain('After, too.');
+    expect(after).not.toContain('Intro.\n');
+  });
+
   it('a row typed after the check and before the write is not deleted either', async () => {
     // The check passes on the file as it is; the row arrives while the first view is being written.
     const text = await read(FILE);
