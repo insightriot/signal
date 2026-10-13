@@ -22,7 +22,7 @@ import { getUnit } from '../plugin/tools/lib/unit-records.js';
 import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
 import { regenerateViews } from '../plugin/tools/lib/work-views.js';
 import { reportCloses, runConfirmCloses } from '../plugin/tools/lib/close-confirm.js';
-import { checkClosedProofs } from '../plugin/tools/lib/sweep.js';
+import { checkClosedProofs, confirmClosesInSweep, runSweep } from '../plugin/tools/lib/sweep.js';
 import { resolveDefaultBranch } from '../plugin/tools/lib/branch-guard.js';
 import { snapshotTree } from './helpers/write-inventory.js';
 
@@ -145,6 +145,41 @@ describe('a remote with no default-branch ref', () => {
   });
 });
 
+// A repository with no remote can never confirm a close: there is no default
+// branch to find the commit on. The lines say that (REVIEW r6), and name
+// neither a command that needs a remote nor a branch the commit is "not on".
+describe('a repository with no remote', () => {
+  const SET_HEAD = 'git remote set-head origin -a';
+  const OLD = '2026-09-01T10:00:00.000Z';
+  const SAYS = /no-remote: this project has no remote\. Signal confirms a close only against a remote's default branch, so these closes stay closing until it has one/;
+
+  it('a unit closing over 14 days, alone and with an item: the confirm line, the report line and the sweep say there is no remote', async () => {
+    const work = join(root, 'work');
+    await mkdir(work, { recursive: true });
+    g(work, 'init', '-q', '-b', 'main');
+    g(work, 'commit', '-q', '--allow-empty', '-m', 'local');
+    const head = g(work, 'rev-parse', 'HEAD');
+    const item = { id: 'SIG-1', type: 'BUG', title: 't', events: [{ type: 'created', at: OLD, by }, { type: 'close_requested', at: OLD, by, reason: 'fixed', proof: head }] };
+    for (const items of [[], [item]]) {
+      await store(work, [opened, { ...request(head), at: OLD }], items);
+      const before = await unitText(work);
+      const out = await runConfirmCloses(work, { now: NOW });
+      expect(out.units).toEqual({ confirmed: [], stillClosing: [{ id: EPIC, reason: 'no-remote' }], stale: [EPIC] });
+      const lines = [out.line, reportCloses(work, { now: NOW }).line];
+      const unchecked = (await confirmClosesInSweep(work, { now: NOW })).filter((f) => /^closes not checked/.test(f.message));
+      expect(unchecked).toHaveLength(1);
+      lines.push(unchecked[0].message);
+      for (const line of lines) {
+        expect(line).toMatch(SAYS);
+        expect(line.split('this project has no remote.')).toHaveLength(2);
+        expect(line).not.toContain(SET_HEAD);
+        expect(line).not.toContain('is not on the default branch');
+      }
+      expect(await unitText(work)).toBe(before);
+    }
+  });
+});
+
 // The default branch is the one `origin/HEAD` names, and nothing else: with it
 // unset, the one of `origin/main` / `origin/master` that exists is not taken
 // as the default when a close is confirmed. On a project whose default has
@@ -187,6 +222,24 @@ describe('origin/HEAD unset: the default branch is not guessed for a proof', () 
     expect(after.confirmed).toEqual(['SIG-1']);
     expect(after.units.confirmed).toEqual([EPIC]);
     expect(after.line).not.toContain(SET_HEAD);
+  });
+
+  // REVIEW r6: the test above has an item and a unit both waiting, so a line
+  // that looked only at the items still passed it.
+  it('only a unit is closing, no item: the confirm line, the report line and the sweep each name the command — once', async () => {
+    const { work, shas } = await addedNotCloned();
+    await store(work, [opened, request(shas[1])]);
+    const reported = reportCloses(work, { now: NOW });
+    expect(reported.stillClosing).toEqual([]);
+    expect(reported.units.stillClosing).toEqual([{ id: EPIC, reason: 'no-default-branch' }]);
+    expect(reported.line.split(SET_HEAD)).toHaveLength(2);
+    const out = await runConfirmCloses(work, { now: NOW });
+    expect(out.stillClosing).toEqual([]);
+    expect(out.units.stillClosing).toEqual([{ id: EPIC, reason: 'no-default-branch' }]);
+    expect(out.line.split(SET_HEAD)).toHaveLength(2);
+    const unchecked = (await confirmClosesInSweep(work, { now: NOW })).filter((f) => /^closes not checked/.test(f.message));
+    expect(unchecked).toHaveLength(1);
+    expect(unchecked[0].message.split(SET_HEAD)).toHaveLength(2);
   });
 
   it('the default is `trunk`, and someone pushed a branch called `main` holding the proof: not confirmed, with origin/HEAD set or not', async () => {
@@ -537,6 +590,18 @@ describe('the sweep asks git again about recorded closes (checkClosedProofs)', (
     expect(findings[1].message).toContain('origin/main');
     expect(await unitText(work)).toBe(before);
   });
+
+  // REVIEW r6: the check was held on its own and not as a step of the sweep.
+  it('runSweep carries the finding: a unit closed as shipped on a commit nobody merged', async () => {
+    const { work, unmerged } = await cloneWithStray();
+    await store(work, closedUnit(unmerged));
+    const before = await unitText(work);
+    const { findings } = await runSweep(work);
+    const found = findings.filter((f) => f.check === 'close-not-on-default-branch');
+    expect(found.map((f) => f.file)).toEqual([`${UNITS}/${EPIC}.json`]);
+    expect(found[0].message).toContain(`${EPIC} is recorded closed with the commit ${unmerged}`);
+    expect(await unitText(work)).toBe(before);
+  }, 60_000);
 
   it('a commit that names nothing in this clone is reported too; a close whose proof is words is not', async () => {
     const { work, shas } = await cloneWithStray();

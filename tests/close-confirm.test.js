@@ -249,6 +249,93 @@ describe('formatConfirmClosesLine', () => {
   });
 });
 
+// REVIEW r6: every unit closing over 14 days was said to wait on a commit that
+// "is not on the default branch". That is one reason of several, and for
+// `open-items` the commit IS on it.
+describe('a unit closing over 14 days: the line says why, by that unit\'s own reason', () => {
+  const NOT_ON = 'is not on the default branch';
+  const SET_HEAD = 'git remote set-head origin -a';
+  const unitsOf = (pairs) => ({ confirmed: [], stillClosing: pairs.map(([id, reason]) => ({ id, reason })), stale: pairs.map(([id]) => id) });
+  const lineOf = (pairs) => formatConfirmClosesLine({ confirmed: [], stillClosing: [], stale: [], units: unitsOf(pairs) });
+  // What follows "closing over 14 days (…) — ", up to the next part of the line.
+  const staleWords = (line) => line.split('closing over 14 days (')[1].split(' — ').slice(1).join(' — ').split(' · ')[0];
+
+  it('not-on-default-branch, and a commit this clone does not hold: the commit is not on the default branch', () => {
+    for (const reason of ['not-on-default-branch', 'unknown-commit']) {
+      expect(staleWords(lineOf([['M7.E3', reason]]))).toBe('the commit each was requested with is not on the default branch');
+    }
+  });
+
+  it('open-items: the commit is on the default branch, and an item is not closed', () => {
+    const words = staleWords(lineOf([['M7.E3', 'open-items']]));
+    expect(words).toMatch(/is on the default branch/);
+    expect(words).toMatch(/item that is not closed/);
+    expect(words).not.toContain(NOT_ON);
+  });
+
+  it('no-default-branch: the default branch is not recorded', () => {
+    const words = staleWords(lineOf([['M7.E3', 'no-default-branch']]));
+    expect(words).toBe('the remote\'s default branch is not recorded in this clone');
+    expect(words).not.toContain(NOT_ON);
+  });
+
+  it('no-remote: the project has no remote', () => {
+    const words = staleWords(lineOf([['M7.E3', 'no-remote']]));
+    expect(words).toBe('this project has no remote');
+    expect(lineOf([['M7.E3', 'no-remote']])).not.toContain(NOT_ON);
+  });
+
+  it('any other reason is given as it is, and nothing is claimed about the branch', () => {
+    const words = staleWords(lineOf([['M7.E3', 'shallow']]));
+    expect(words).toBe('not confirmed (shallow)');
+    expect(words).not.toContain(NOT_ON);
+  });
+
+  it('two units waiting for different reasons: each is named with its own', () => {
+    const line = lineOf([['M7.E3', 'open-items'], ['M7.E4', 'not-on-default-branch'], ['M7.E5', 'open-items']]);
+    expect(line).toContain('3 closing over 14 days (M7.E3, M7.E4, M7.E5) — ');
+    const words = staleWords(line);
+    expect(words).toMatch(/^M7\.E3, M7\.E5: .*is on the default branch.*item that is not closed; M7\.E4: the commit each was requested with is not on the default branch$/);
+  });
+
+  it('an item\'s stale wait is worded as it was', () => {
+    expect(formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-4', reason: 'no-remote' }], stale: ['SIG-4'] }))
+      .toContain('1 closing over 14 days (SIG-4) — see /sig:docs-sweep');
+  });
+
+  // A project with no remote cannot confirm a close at all (REVIEW r6).
+  describe('no remote at all', () => {
+    const results = {
+      'a unit only': { confirmed: [], stillClosing: [], stale: [], units: unitsOf([['M7.E3', 'no-remote']]) },
+      'an item only': { confirmed: [], stillClosing: [{ id: 'SIG-4', reason: 'no-remote' }], stale: [] },
+      'an item and a unit': { confirmed: [], stillClosing: [{ id: 'SIG-4', reason: 'no-remote' }], stale: ['SIG-4'], units: unitsOf([['M7.E3', 'no-remote']]) },
+    };
+    const SAYS = 'no-remote: this project has no remote. Signal confirms a close only against a remote\'s default branch, '
+      + 'so these closes stay closing until it has one';
+
+    it.each(Object.entries(results))('%s: the confirm line says so once, names no command that needs a remote, and claims nothing about a branch', (_label, result) => {
+      const line = formatConfirmClosesLine(result);
+      expect(line.split(SAYS)).toHaveLength(2);
+      expect(line.endsWith(SAYS)).toBe(true);
+      expect(line).not.toContain(SET_HEAD);
+      expect(line).not.toContain(NOT_ON);
+    });
+
+    it.each(Object.entries(results))('%s: the report line (/sig:resume) says the same', (_label, result) => {
+      const line = formatCloseReportLine({ ...result, ready: [], units: result.units && { ready: [], ...result.units } });
+      expect(line.split(SAYS)).toHaveLength(2);
+      expect(line).not.toContain(SET_HEAD);
+      expect(line).not.toContain(NOT_ON);
+    });
+
+    it('a remote whose default branch is not recorded is still told the command, and is not told it has no remote', () => {
+      const line = formatConfirmClosesLine({ confirmed: [], stillClosing: [], stale: [], units: unitsOf([['M7.E3', 'no-default-branch']]) });
+      expect(line.split(SET_HEAD)).toHaveLength(2);
+      expect(line).not.toContain('has no remote');
+    });
+  });
+});
+
 describe('reportCloses — /sig:resume reports, and writes nothing (D-M6E13-21)', () => {
   it('v2: names what is ready to close and says how to close it; the store is unchanged', async () => {
     const { work } = await mixedClone();

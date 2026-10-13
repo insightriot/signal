@@ -51,29 +51,70 @@ function closeParts({ confirmed = [], stillClosing = [], stale = [] }, what) {
     // SIG-276: the reason alone does not say what to do.
     if (stillClosing.some((s) => s.reason === 'ambiguous-proof')) parts.push(what.ambiguous);
   }
-  if (stale.length > 0) parts.push(`${stale.length} closing over 14 days (${list(stale)})${what.stale}`);
+  if (stale.length > 0) parts.push(`${stale.length} closing over 14 days (${list(stale)})${what.stale(stale, stillClosing)}`);
   return parts;
 }
+
+const anyReason = (result, reason) =>
+  [...(result.stillClosing ?? []), ...(result.units?.stillClosing ?? [])].some((s) => s.reason === reason);
 
 // `no-default-branch` alone does not say what to do. One sentence for the
 // whole line, items and units together, or null when no close has that reason.
 export function noDefaultBranchPart(result) {
-  const reasons = [...(result.stillClosing ?? []), ...(result.units?.stillClosing ?? [])];
-  if (!reasons.some((s) => s.reason === 'no-default-branch')) return null;
+  if (!anyReason(result, 'no-default-branch')) return null;
   return 'no-default-branch: the remote\'s default branch is not recorded in this clone — run `git remote set-head origin -a` and re-run';
+}
+
+// The same for `no-remote` (REVIEW r6): a project with no remote has no
+// default branch for a commit to be on, so nothing there can be confirmed.
+// It names no command: `git remote set-head` fails without a remote.
+export function noRemotePart(result) {
+  if (!anyReason(result, 'no-remote')) return null;
+  return 'no-remote: this project has no remote. Signal confirms a close only against a remote\'s default branch, '
+    + 'so these closes stay closing until it has one';
+}
+
+// The sentences that say why nothing could be checked, for the end of a line.
+const uncheckedParts = (result) => [noDefaultBranchPart(result), noRemotePart(result)].filter((p) => p !== null);
+
+// Why a unit has stayed closing over 14 days, by the reason it is still
+// closing for (REVIEW r6): the commit is not on the default branch for two of
+// them only, and for `open-items` it is on it.
+const NOT_ON_BRANCH = 'the commit each was requested with is not on the default branch';
+const UNIT_STALE_WHY = {
+  'not-on-default-branch': NOT_ON_BRANCH,
+  'unknown-commit': NOT_ON_BRANCH,
+  'open-items': 'the commit each was requested with is on the default branch, and each has an item that is not closed',
+  'no-default-branch': 'the remote\'s default branch is not recorded in this clone',
+  'no-remote': 'this project has no remote',
+};
+
+// One reason among the stale units → its sentence; more than one → each
+// sentence after the units it is about.
+function unitStaleWords(stale, stillClosing) {
+  const reasonOf = new Map(stillClosing.map((s) => [s.id, s.reason]));
+  const byReason = new Map();
+  for (const id of stale) {
+    const reason = reasonOf.get(id);
+    if (!byReason.has(reason)) byReason.set(reason, []);
+    byReason.get(reason).push(id);
+  }
+  const why = (reason) => UNIT_STALE_WHY[reason] ?? `not confirmed (${reason})`;
+  if (byReason.size === 1) return ` — ${why([...byReason.keys()][0])}`;
+  return ` — ${[...byReason].map(([reason, ids]) => `${list(ids)}: ${why(reason)}`).join('; ')}`;
 }
 
 const ITEM_WORDS = {
   changed: (n) => `${n === 1 ? 'its record' : 'their records'} and the views changed; commit them`,
   ambiguous: 'ambiguous-proof: the proof is the start of more than one commit — reopen the item and close it again with a longer hash',
-  stale: ' — see /sig:docs-sweep',
+  stale: () => ' — see /sig:docs-sweep',
 };
 const UNIT_WORDS = {
   // A unit confirm regenerates the views too (`work/EPICS.md`, the milestone
   // file's Epic table), so the words are the items' (M6.E16 t9.0).
   changed: ITEM_WORDS.changed,
   ambiguous: 'ambiguous-proof: the proof is the start of more than one commit — reopen the unit and request its close again with a longer hash',
-  stale: ' — the commit each was requested with is not on the default branch',
+  stale: unitStaleWords,
 };
 
 /**
@@ -94,8 +135,7 @@ export function formatConfirmClosesLine(result) {
   if (!result) return null;
   const parts = closeParts(result, ITEM_WORDS);
   const unitParts = result.units ? closeParts(result.units, UNIT_WORDS) : [];
-  const noDefault = noDefaultBranchPart(result);
-  const tail = noDefault === null ? [] : [noDefault];
+  const tail = uncheckedParts(result);
   if (unitParts.length === 0) return parts.length === 0 ? null : `Closes: ${[...parts, ...tail].join(' · ')}`;
   const groups = [];
   if (parts.length > 0) groups.push(`items — ${parts.join(' · ')}`);
@@ -275,10 +315,9 @@ export function formatCloseReportLine(result) {
   const parts = partsOf(result);
   // Units (M6.E16 t5.0c), named separately, as `formatConfirmClosesLine` does.
   const unitParts = result.units ? partsOf(result.units) : [];
-  // This line names no other reason a close is waiting; this one it does,
-  // because nothing can be confirmed until the person acts on it.
-  const noDefault = noDefaultBranchPart(result);
-  const tail = noDefault === null ? [] : [noDefault];
+  // This line names no other reason a close is waiting; these two it does,
+  // because nothing can be confirmed until the person acts on them.
+  const tail = uncheckedParts(result);
   if (unitParts.length === 0) return parts.length + tail.length === 0 ? null : `Closes: ${[...parts, ...tail].join(' · ')}`;
   const groups = [];
   if (parts.length > 0) groups.push(`items — ${parts.join(' · ')}`);

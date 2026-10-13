@@ -51,7 +51,7 @@ import { isStoreOn } from './work-store.js';
 import { checkRecords, listClosing, listRecords, probeClosedProofs, recordPath, storeVersion } from './work-records.js';
 import { checkUnits, listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 import { unitsWithoutRecord } from './work-migrate-units.js';
-import { evictionWords, noDefaultBranchPart, runConfirmCloses } from './close-confirm.js';
+import { evictionWords, noDefaultBranchPart, noRemotePart, runConfirmCloses } from './close-confirm.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -647,10 +647,10 @@ export async function confirmClosesInSweep(baseDir, opts = {}) {
     );
   });
   // Closes that could not be checked because this clone does not record the
-  // remote's default branch: said once, with the command that fixes it.
-  const noDefault = noDefaultBranchPart(out);
-  const unchecked = noDefault === null ? []
-    : [mkFinding('closes-confirmed', 'advisory', WORK_MD_REL, `closes not checked — ${noDefault}`)];
+  // remote's default branch: said once, with the command that fixes it. And
+  // because the project has no remote: said once, with no command.
+  const unchecked = [noDefaultBranchPart(out), noRemotePart(out)].filter((part) => part !== null)
+    .map((part) => mkFinding('closes-confirmed', 'advisory', WORK_MD_REL, `closes not checked — ${part}`));
   return [...items, ...units, ...unchecked];
 }
 
