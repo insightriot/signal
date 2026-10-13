@@ -22,6 +22,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+import { gitEnv } from './git-env.js';
+
 export const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 
 // The model the M6.E3 measurement ran on (`D-M6E3-13`). Overridable with
@@ -113,7 +115,7 @@ function dotenvName(baseDir) {
  * `name` is ignored (exit 0 — tracked files never are), or this is no git repo.
  */
 export function dotenvRefusal(baseDir, name) {
-  const r = spawnSync('git', ['check-ignore', '-q', '--', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'pipe'], timeout: 2000, encoding: 'utf8' });
+  const r = spawnSync('git', ['check-ignore', '-q', '--', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'pipe'], timeout: 2000, encoding: 'utf8', env: gitEnv() });
   if (r.status === 0) return null;
   if (r.status === 128 && /not a git repository/i.test(r.stderr ?? '')) return null;
   if (r.status === 1) return `${name} is not git-ignored (a committed key is the repository author's, not yours)`;

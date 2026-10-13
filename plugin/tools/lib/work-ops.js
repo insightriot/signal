@@ -40,6 +40,7 @@ import { scrubSensitive } from './add.js';
 import { applyKeyedReplacements, computeLinkEdits } from './archive-tree.js';
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
+import { gitEnv } from './git-env.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, setCurrentEpic, StateSchemaError, stringifyFrontmatter } from './state.js';
 import { deriveRetroPath } from './retrospective.js';
@@ -111,7 +112,7 @@ function assertEpicId(epic) {
 
 function isTracked(baseDir, rel, execFn) {
   try {
-    execFn('git', ['--literal-pathspecs', 'ls-files', '--error-unmatch', '--', rel], { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] });
+    execFn('git', ['--literal-pathspecs', 'ls-files', '--error-unmatch', '--', rel], { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() });
     return true;
   } catch {
     return false;
@@ -123,7 +124,7 @@ function isTracked(baseDir, rel, execFn) {
 // turns a failed move into a silent no-op.
 function moveFile(baseDir, fromRel, toRel, git, execFn) {
   if (git) {
-    execFn('git', ['--literal-pathspecs', 'mv', '--', fromRel, toRel], { cwd: baseDir, stdio: ['ignore', 'pipe', 'pipe'] });
+    execFn('git', ['--literal-pathspecs', 'mv', '--', fromRel, toRel], { cwd: baseDir, stdio: ['ignore', 'pipe', 'pipe'], env: gitEnv() });
   } else {
     renameSync(join(baseDir, fromRel), join(baseDir, toRel));
   }
@@ -550,7 +551,7 @@ const COMMIT_SHAPE_RE = /^[0-9a-f]{7,64}$/;
 function headCommit(baseDir, execFn) {
   try {
     return String(execFn('git', ['rev-parse', '--verify', '--quiet', 'HEAD'], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(),
     })).trim() || null;
   } catch {
     return null;

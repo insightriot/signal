@@ -33,6 +33,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { gitEnv } from './git-env.js';
 import { parseFrontmatter, StateSchemaError } from './state.js';
 import { WorkStoreError } from './work-errors.js';
 
@@ -110,6 +111,7 @@ function runGit(baseDir, args, execFn) {
       cwd: baseDir,
       stdio: ['ignore', 'pipe', 'ignore'],
       maxBuffer: GIT_MAX_BUFFER,
+      env: gitEnv(),
     })
   );
 }

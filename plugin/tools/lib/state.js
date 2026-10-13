@@ -6,6 +6,7 @@ import { randomBytes } from 'node:crypto';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 import { atomicWrite } from './atomic-write.js';
+import { gitEnv } from './git-env.js';
 import { LAYOUT_VERSION } from './layout-stamp.js';
 import {
   acquireLock as fileAcquireLock,
@@ -129,6 +130,7 @@ function getCurrentGitCommit(baseDir) {
     const out = execFileSync('git', ['rev-parse', 'HEAD'], {
       cwd: baseDir,
       stdio: ['ignore', 'pipe', 'ignore'],
+      env: gitEnv(),
     });
     return String(out).trim() || null;
   } catch {
@@ -1098,7 +1100,7 @@ export async function detectOrphans(baseDir, opts = {}) {
     const out = execFn(
       'git',
       ['log', '--since', sinceIso, '--pretty=format:%s', '--', '.planning/'],
-      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() }
     );
     subjects = String(out).split('\n').filter(Boolean);
   } catch (err) {
@@ -1241,7 +1243,7 @@ export async function isStateStale(baseDir, opts = {}) {
         '--',
         ...affecting,
       ],
-      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() }
     );
     const lines = String(out).split('\n').filter(Boolean);
     const commits = lines.map((line) => {
@@ -1270,7 +1272,7 @@ export async function isStateStale(baseDir, opts = {}) {
         '.',
         ...BOOKKEEPING_EXCLUDES,
       ],
-      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() }
     );
     const genuineWork = String(workOut).split('\n').filter(Boolean).length;
     if (genuineWork === 0) return empty;
@@ -1345,6 +1347,7 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
       execFn('git', ['rev-parse', '--abbrev-ref', 'origin/HEAD'], {
         cwd: baseDir,
         stdio: ['ignore', 'pipe', 'ignore'],
+        env: gitEnv(),
       })
     ).trim();
     if (ref && ref !== 'origin/HEAD') {
@@ -1371,7 +1374,7 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
         timeout: ORIGIN_FETCH_TIMEOUT_MS,
         killSignal: 'SIGKILL',
         stdio: ['ignore', 'ignore', 'ignore'],
-        env: { ...process.env, ...ORIGIN_FETCH_ENV },
+        env: { ...gitEnv(), ...ORIGIN_FETCH_ENV },
       }
     );
   } catch {
@@ -1392,6 +1395,7 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
         execFn('git', ['rev-list', '--count', `HEAD..${tracking}`], {
           cwd: baseDir,
           stdio: ['ignore', 'pipe', 'ignore'],
+          env: gitEnv(),
         })
       ).trim(),
       10
@@ -1409,7 +1413,7 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
     const out = execFn(
       'git',
       ['log', '--pretty=format:%H %s', `HEAD..${tracking}`],
-      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() }
     );
     commits = String(out)
       .split('\n')
@@ -1435,7 +1439,7 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
           execFn(
             'git',
             ['rev-list', '--count', `HEAD..${tracking}`, '--', '.planning/'],
-            { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+            { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() }
           )
         ).trim(),
         10
@@ -1779,6 +1783,7 @@ function resolveHeadCommit(baseDir, execFn) {
     const out = execFn('git', ['rev-parse', 'HEAD'], {
       cwd: baseDir,
       stdio: ['ignore', 'pipe', 'ignore'],
+      env: gitEnv(),
     });
     return String(out).trim() || null;
   } catch {

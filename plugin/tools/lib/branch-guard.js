@@ -52,6 +52,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { gitEnv } from './git-env.js';
+
 /**
  * Gate outcomes. Exactly one is returned; there is no default bucket.
  *
@@ -93,7 +95,7 @@ const DEFAULT_BRANCH_CANDIDATES = Object.freeze(['main', 'master']);
 
 function git(baseDir, args, execFn) {
   return String(
-    execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] })
+    execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() })
   ).trim();
 }
 

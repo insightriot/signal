@@ -27,6 +27,7 @@ import { join, dirname, resolve, relative, sep } from 'node:path';
 // archive-tree.js and work-generate.js — deterministic plan/moves order.
 import { PLANNING_DIR, withStateLock, EPIC_ID_STRICT_RE, compareEpicIds } from './state.js';
 import { atomicWrite } from './atomic-write.js';
+import { gitEnv } from './git-env.js';
 import {
   extractEpicSection,
   verifyCardCoverage,
@@ -1144,7 +1145,7 @@ export function probeGitState(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   const force = opts.force ?? false;
   const git = (args) =>
-    String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] })).trim();
+    String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() })).trim();
   const warnings = [];
 
   // 1. A git work tree at all? (non-repo → fs-backup)
@@ -1244,7 +1245,7 @@ export function probeGitState(baseDir, opts = {}) {
  */
 export function tagPreApply(baseDir, name, execFn = execFileSync) {
   try {
-    execFn('git', ['tag', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+    execFn('git', ['tag', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv() });
     return name;
   } catch {
     return null;
@@ -1262,7 +1263,7 @@ export function tagPreApply(baseDir, name, execFn = execFileSync) {
  */
 export function stagePaths(baseDir, paths, execFn = execFileSync) {
   try {
-    execFn('git', ['add', '--', ...paths], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+    execFn('git', ['add', '--', ...paths], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv() });
   } catch {
     /* staging is best-effort — the changes are on disk regardless */
   }
@@ -2819,7 +2820,7 @@ export async function applyMigrate(baseDir, opts = {}) {
       // last-resort pointer. Best-effort: a failed `tag -d` must not mask the real error.
       if (tag) {
         try {
-          execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+          execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv() });
         } catch {
           /* best-effort — keep the original throw */
         }

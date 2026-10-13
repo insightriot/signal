@@ -19,6 +19,7 @@ import { join } from 'node:path';
 import { atomicWrite } from './atomic-write.js';
 import { hasRemote, resolveDefaultBranch } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
+import { gitEnv } from './git-env.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { scrubSensitive } from './scrub.js';
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
@@ -252,12 +253,10 @@ export function readRecordFile(abs) {
 
 const GIT_MAX_BUFFER = 256 * 1024 * 1024;
 
-// The environment of every git call here: replace refs are not honoured
-// (REVIEW pass 1, S-L5). `git replace` can make a commit on the default branch
-// stand for another whose parent is unmerged work, and the ancestry question
-// would then answer yes for a commit nobody merged. With
-// `GIT_NO_REPLACE_OBJECTS` git reads the objects as they are.
-const gitEnv = () => ({ ...process.env, GIT_NO_REPLACE_OBJECTS: '1' });
+// The environment of every git call here is `gitEnv()` (`git-env.js`, where
+// each setting is explained): replace refs and grafts are not honoured, and a
+// planted bare-repository layout is not taken for the repository.
+export { gitEnv };
 
 export function runGit(baseDir, args, execFn) {
   return String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: GIT_MAX_BUFFER, env: gitEnv() }));

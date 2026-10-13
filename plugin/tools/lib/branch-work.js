@@ -39,6 +39,7 @@
 import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 
+import { gitEnv } from './git-env.js';
 import { parseFrontmatter, partitionCompletedPhases } from './state.js';
 import { unitClosure, unitRecordsOn } from './unit-records.js';
 
@@ -67,6 +68,7 @@ function defaultGit(baseDir, args, input) {
     timeout: GIT_TIMEOUT_MS,
     stdio: ['pipe', 'pipe', 'pipe'],
     maxBuffer: 64 * 1024 * 1024,
+    env: gitEnv(),
     ...(input !== undefined ? { input } : {}),
   });
 }

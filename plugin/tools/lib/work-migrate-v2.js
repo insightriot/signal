@@ -51,6 +51,7 @@ import { dirname, join, posix, relative, resolve, sep, isAbsolute } from 'node:p
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
 import { resolveDefaultBranch } from './branch-guard.js';
+import { gitEnv } from './git-env.js';
 import { assertRealInsidePlanning, linkedComponent } from './path-confine.js';
 import { bodyDirFor, convertV1Item } from './work-convert.js';
 import { WorkStoreError, asWorkStoreError, lockFailure } from './work-errors.js';
@@ -127,7 +128,7 @@ function firstAddedDates(baseDir, key, execFn) {
       'git',
       ['log', '--all', '--no-renames', '--diff-filter=A', '--date=short', '--format=%x00%ad', '--name-only', '--',
         `:(glob).planning/**/${key}-*.md`],
-      { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024 },
+      { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024, env: gitEnv() },
     ));
   } catch {
     return dates;
@@ -491,7 +492,7 @@ function originRef(baseDir, execFn) {
   const ref = `refs/remotes/origin/${branch}`;
   try {
     const sha = String(execFn('git', ['rev-parse', '--verify', '--quiet', ref], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(),
     })).trim();
     return { ref, sha };
   } catch {
@@ -501,7 +502,7 @@ function originRef(baseDir, execFn) {
 
 function headSha(baseDir, execFn) {
   try {
-    return String(execFn('git', ['rev-parse', 'HEAD'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })).trim();
+    return String(execFn('git', ['rev-parse', 'HEAD'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() })).trim();
   } catch {
     return null;
   }
@@ -570,7 +571,7 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
 
   if (apply) {
     if (!isGitRepo(baseDir, execFn)) throw new WorkStoreError('CONFIG', '--apply needs a git repository (the cutover is one reviewable commit, and confirmCloses asks git).');
-    const dirty = String(execFn('git', ['status', '--porcelain'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })).trim();
+    const dirty = String(execFn('git', ['status', '--porcelain'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv() })).trim();
     if (dirty !== '') {
       throw new WorkStoreError('CONFIG', `--apply refuses a dirty working tree (uncommitted changes): commit or move them first.\n${dirty}`);
     }
@@ -673,7 +674,7 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
     try {
       assertUnchanged(baseDir, results);
       // The recovery is git's: an ignored v1 file passes the clean-tree check, and git cannot restore it.
-      const tracked = new Set(String(execFn('git', ['--literal-pathspecs', 'ls-files', '-z', '--', '.planning'], { cwd: baseDir, encoding: 'utf8' })).split('\0'));
+      const tracked = new Set(String(execFn('git', ['--literal-pathspecs', 'ls-files', '-z', '--', '.planning'], { cwd: baseDir, encoding: 'utf8', env: gitEnv() })).split('\0'));
       const untracked = ['work/WORK.md', ...results.map((r) => r.relPath)].map((p) => `.planning/${p}`).filter((p) => !tracked.has(p));
       if (untracked.length > 0) throw new WorkStoreError('CONFIG', `--apply needs every v1 file tracked by git; not tracked (ignored?): ${untracked.join(', ')}. Commit or remove them, then re-run.`);
       preflight(baseDir, results);

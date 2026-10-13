@@ -34,6 +34,7 @@ import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 
+import { gitEnv } from './git-env.js';
 import { readState, PHASES, EPIC_ID_STRICT_RE } from './state.js';
 import { readProfileIssues } from './profile.js';
 import { deriveUnits, WORKED_SUFFIXES } from './work-units.js';
@@ -694,6 +695,7 @@ export const checkBaselineCommitOffHistory = defineCheck({
       execFileSync('git', ['merge-base', '--is-ancestor', commit, 'HEAD'], {
         cwd: baseDir,
         stdio: 'ignore',
+        env: gitEnv(),
       });
       return [];
     } catch {
@@ -701,7 +703,7 @@ export const checkBaselineCommitOffHistory = defineCheck({
       // they read very differently to someone deciding whether work was lost.
       let known = false;
       try {
-        execFileSync('git', ['cat-file', '-e', `${commit}^{commit}`], { cwd: baseDir, stdio: 'ignore' });
+        execFileSync('git', ['cat-file', '-e', `${commit}^{commit}`], { cwd: baseDir, stdio: 'ignore', env: gitEnv() });
         known = true;
       } catch {
         known = false;
