@@ -54,6 +54,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { gitEnv, repositoryWithoutDotGit } from './git-env.js';
+import { shownName } from './printable-text.js';
 
 /**
  * Gate outcomes. Exactly one is returned; there is no default bucket.
@@ -287,7 +288,7 @@ export function checkBranchPosture(baseDir, opts = {}) {
       // remote is read, and which ones this repository has.
       reason: remotes.includes('origin')
         ? 'origin/HEAD is unset and neither origin/main nor origin/master is unambiguously present'
-        : `no remote is named \`origin\` (this repository has: ${remotes.join(', ')}) — the default branch is read from the remote named \`origin\``,
+        : `no remote is named \`origin\` (this repository has: ${remotes.map((name) => shownName(name)).join(', ')}) — the default branch is read from the remote named \`origin\``,
     });
   }
 
@@ -298,7 +299,7 @@ export function checkBranchPosture(baseDir, opts = {}) {
   return base(override ? BRANCH_GATE.OVERRIDDEN : BRANCH_GATE.ON_DEFAULT, {
     currentBranch,
     defaultBranch,
-    reason: `HEAD is the default branch (${defaultBranch})`,
+    reason: `HEAD is the default branch (${shownName(defaultBranch)})`,
   });
 }
 
@@ -312,18 +313,21 @@ export function checkBranchPosture(baseDir, opts = {}) {
  */
 export function formatBranchHalt(result, ctx) {
   const suggested = ctx.suggestedBranch ?? 'feat/<short-name>';
+  // The name as a message may print it (`shownName`): a branch can be called
+  // almost anything, by whoever pushed it.
+  const branch = shownName(result.defaultBranch);
   return [
-    `HALT — you are on ${result.defaultBranch}, the default branch.`,
+    `HALT — you are on ${branch}, the default branch.`,
     '',
-    `Signal's rule is that every change reaches ${result.defaultBranch} through a branch and a`,
+    `Signal's rule is that every change reaches ${branch} through a branch and a`,
     'pull request with a green test check. Committing here bypasses both, and once the',
-    `commits have landed on ${result.defaultBranch} there is nothing left to open a PR from.`,
+    `commits have landed on ${branch} there is nothing left to open a PR from.`,
     '',
     'Fix — create a branch, then re-run:',
     `    git checkout -b ${suggested}`,
     `    ${ctx.command}`,
     '',
-    `Working directly on ${result.defaultBranch} on purpose? Re-run with ${OVERRIDE_FLAG}.`,
+    `Working directly on ${branch} on purpose? Re-run with ${OVERRIDE_FLAG}.`,
   ].join('\n');
 }
 
@@ -406,7 +410,7 @@ export function readPullRequestEvidence(baseDir, opts = {}) {
         status: 'none',
         url: null,
         state: null,
-        reason: `HEAD is ${posture.defaultBranch}; a pull request cannot exist for the default branch`,
+        reason: `HEAD is ${shownName(posture.defaultBranch)}; a pull request cannot exist for the default branch`,
       };
     }
     return {
@@ -473,9 +477,9 @@ export function formatBranchLine(result) {
     case BRANCH_GATE.OK:
       return null;
     case BRANCH_GATE.ON_DEFAULT:
-      return `Branch: HALT — on ${result.defaultBranch} (the default branch).`;
+      return `Branch: HALT — on ${shownName(result.defaultBranch)} (the default branch).`;
     case BRANCH_GATE.OVERRIDDEN:
-      return `Branch: on ${result.defaultBranch} — allowed by ${OVERRIDE_FLAG}.`;
+      return `Branch: on ${shownName(result.defaultBranch)} — allowed by ${OVERRIDE_FLAG}.`;
     case BRANCH_GATE.NOT_APPLICABLE:
       return `Branch: not checked — ${result.reason}.`;
     case BRANCH_GATE.CANNOT_DETERMINE:
