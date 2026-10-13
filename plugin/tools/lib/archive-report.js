@@ -151,6 +151,12 @@ export function explainArchiveOutcome(args = {}) {
     for (const h of held) L.push(`${indent}    ${h.unit} — held: ${h.reason}`);
   }
 
+  // A unit closed by its record that is still the current unit: closed, and its files stay for now.
+  const current = args.current ?? [];
+  if (stateReadable && current.length > 0) {
+    for (const unit of current) L.push(`${indent}↳ ${unit} is closed; still the current unit, so its files stay until the next Epic opens.`);
+  }
+
   if (dropped.length > 0) {
     L.push(`${indent}↳ ${dropped.length} unit(s) were skipped and not considered:`);
     for (const d of dropped) L.push(`${indent}    ${d.unit} — ${d.reason}`);

@@ -89,6 +89,102 @@ describe('senseArchiveTree with unit records (t6.2)', () => {
   it('without unit records nothing is held', async () => {
     expect((await senseArchiveTree(contradiction())).held).toEqual([]);
   });
+
+  // REVIEW pass 2 (T2-I5): a closed record against a stub retrospective was not held by a test.
+  it('a unit closed as dropped whose retrospective is still a stub archives: the record decides, and a stub does not veto it', async () => {
+    const base = tempProject();
+    put(base, '.planning/STATE.md', state());
+    put(base, '.planning/M7.E3-PLAN.md', '# plan\n');
+    put(base, '.planning/M7.E3-RETROSPECTIVE.md', '# M7.E3 Retrospective\n\n## What went well\n\n[FILL IN]\n');
+    unitsOn(base);
+    plant(base, 'M7.E3', 'dropped');
+    const sense = await senseArchiveTree(base);
+    expect(sense.closedUnits).toEqual(['M7.E3']);
+    expect(sense.closedEpicIds).toEqual([]); // the stub is not a finished retrospective
+    expect(sense.moves.map((m) => m.from)).toContain('.planning/M7.E3-PLAN.md');
+    const report = await buildArchiveReport(base);
+    expect(planned(report)).toEqual(['M7.E3']);
+    // And with an open record the same files archive nothing.
+    plant(base, 'M7.E3', 'open');
+    expect((await senseArchiveTree(base)).closedUnits).toEqual([]);
+  });
+});
+
+// REVIEW pass 2 (C2-I5, `D-M6E16-25`): a unit whose record is closed and which is still
+// `current_epic` read open here and closed to every other reader. Now it reads closed
+// everywhere, and its files stay while it is current.
+describe('a closed unit that is still the current unit: closed, and its files stay', () => {
+  const currentClosed = () => {
+    const base = contradiction({ units: true }); // M7.E9 is current, and its record is closed
+    put(base, '.planning/M7.E9-PLAN.md', '# plan\n');
+    return base;
+  };
+
+  it('senseArchiveTree names it in `current`, keeps it out of the closed set, and plans no move of it', async () => {
+    const sense = await senseArchiveTree(currentClosed());
+    expect(sense.current).toEqual(['M7.E9']);
+    expect([...sense.closedUnits].sort()).toEqual(['M7.E2', 'M7.E3']);
+    expect(sense.moves.map((m) => m.from).filter((f) => f.includes('M7.E9'))).toEqual([]);
+  });
+
+  it('it does not move even when the caller names it closed', async () => {
+    const sense = await senseArchiveTree(currentClosed(), { closedUnits: ['M7.E9', 'M7.E3'] });
+    expect([...sense.closedUnits]).toEqual(['M7.E3']);
+    expect(sense.current).toEqual(['M7.E9']);
+    expect(sense.moves.map((m) => m.from).filter((f) => f.includes('M7.E9'))).toEqual([]);
+  });
+
+  it('the report declines it as [current], in these words, and --apply leaves its files', async () => {
+    const base = currentClosed();
+    const report = await buildArchiveReport(base);
+    expect(planned(report)).not.toContain('M7.E9');
+    expect(refusal(report, 'M7.E9')).toEqual({
+      unit: 'M7.E9', status: 'current', reason: 'M7.E9 is closed; still the current unit, so its files stay until the next Epic opens',
+    });
+    expect(renderArchiveReport(report).join('\n')).toMatch(/M7\.E9 {2}\[current\] {2}M7\.E9 is closed; still the current unit, so its files stay until the next Epic opens/);
+    await applyArchive(base);
+    expect(here(base, 'M7.E9-PLAN.md')).toBe(true);
+  });
+
+  it('once another Epic is current, the same unit archives', async () => {
+    const base = currentClosed();
+    put(base, '.planning/STATE.md', state({ epic: 'M7.E4' }));
+    const sense = await senseArchiveTree(base);
+    expect(sense.current).toEqual([]);
+    expect(sense.closedUnits).toContain('M7.E9');
+    expect(sense.moves.map((m) => m.from)).toContain('.planning/M7.E9-PLAN.md');
+  });
+
+  it('a current unit that is closed AND held is said as held, once', async () => {
+    const base = currentClosed();
+    plant(base, 'M7.E9', 'held');
+    const sense = await senseArchiveTree(base);
+    expect(sense.current).toEqual([]);
+    expect(sense.held).toEqual([{ unit: 'M7.E9', reason: HOLD_REASON }]);
+    expect(refusal(await buildArchiveReport(base), 'M7.E9').status).toBe('held');
+  });
+
+  it('a current unit whose record is open is declined as the current unit, as before, and is not in `current`', async () => {
+    const base = currentClosed();
+    plant(base, 'M7.E9', 'open');
+    expect((await senseArchiveTree(base)).current).toEqual([]);
+    expect(refusal(await buildArchiveReport(base), 'M7.E9')).toMatchObject({ status: 'open' });
+    expect(refusal(await buildArchiveReport(base), 'M7.E9').reason).toMatch(/current unit/);
+  });
+
+  it('without unit records the answer has no `current` key, and the current unit is declined as before', async () => {
+    const base = contradiction();
+    put(base, '.planning/M7.E9-PLAN.md', '# plan\n');
+    expect(await senseArchiveTree(base)).not.toHaveProperty('current');
+    expect(refusal(await buildArchiveReport(base), 'M7.E9')).toMatchObject({ status: 'open' });
+  });
+
+  it('/sig:docs-migrate treats it the same: not in its closed set, so neither its files nor its narrative move', async () => {
+    const { resolveMigrateClosedUnits } = await import('../plugin/tools/lib/migrate-memory.js');
+    const got = await resolveMigrateClosedUnits(currentClosed());
+    expect(got.closedUnits).not.toContain('M7.E9');
+    expect(got.closures.units.find((u) => u.unit === 'M7.E9')).toMatchObject({ status: 'closed', current: true });
+  });
 });
 
 describe('/sig:docs-archive report with unit records (t6.2, AC5.2)', () => {

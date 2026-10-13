@@ -161,6 +161,9 @@ export async function buildArchiveReport(baseDir) {
         status: 'held',
         reason: `${u.unit} is closed and held, so nothing of it moves — ${heldReason.get(u.unit)}`,
       });
+    } else if (u.current === true && u.status === CLOSURE.CLOSED) {
+      // Closed by its record and still the current unit: declined for now.
+      refusals.push({ unit: u.unit, status: 'current', reason: `${u.unit} is closed; still the current unit, so its files stay until the next Epic opens` });
     } else if (u.source === 'record' && u.status === CLOSURE.CLOSED && !droppedReason.has(u.unit)) {
       settled.push(u.unit);
     } else {

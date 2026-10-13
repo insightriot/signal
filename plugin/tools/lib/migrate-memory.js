@@ -1043,8 +1043,10 @@ export async function resolveMigrateClosedUnits(baseDir) {
   // (`source: 'record'`) is closed because the record says so: a stub
   // retrospective does not veto it, and a held one is left out — its files and
   // its narrative stay — and returned in `held` with the reason.
+  // Nor is a unit that is closed and still the current unit (`current`): its
+  // files and its narrative stay until another unit is current.
   const closedUnits = closures.units
-    .filter((u) => u.status === 'closed' && (u.source === 'record' ? u.held !== true : !stubbed.has(u.unit)))
+    .filter((u) => u.status === 'closed' && (u.source === 'record' ? u.held !== true && u.current !== true : !stubbed.has(u.unit)))
     .map((u) => u.unit);
   const held = closures.units
     .filter((u) => u.source === 'record' && u.status === 'closed' && u.held === true)
@@ -2150,6 +2152,7 @@ export async function renderDryRun(baseDir, opts = {}) {
         closures: closures.units,
         dropped: archive.dropped,
         held: archive.held,
+        current: archive.current,
         unitRecords: readUnitRecords(baseDir) !== null,
         moveCount: archive.moves.length,
         stateReadable: closures.stateReadable,

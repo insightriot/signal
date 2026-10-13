@@ -4359,3 +4359,14 @@ records, uses it only when its proof is already on the default branch — the re
 the items and the unit in one take of the lock. On the Epic's own branch such an item is still
 open. **What this trusts and cannot check:** that the merged commit holds the items' fixes. The
 person running the close on the default branch is saying so, as they are for the Epic.
+
+### D-M6E16-25 — A closed unit that is still the current unit reads closed; its files stay while it is current (Claude)
+Settles REVIEW pass 2, `C2-I5` / `T2-I5`, and amends AC6.2. A unit whose record was closed and
+which `STATE.md` still named as `current_epic` read **open** to `resolveClosures` and
+`senseArchiveTree` and **closed** to every other reader of the same record, while AC6.2 said "by
+its record alone". The record decides: both now answer `closed`, with `current: true`. What being
+current still decides is that nothing of the unit moves: the archive plan leaves it out (also when
+a caller names it closed), `/sig:docs-migrate` leaves its files and its narrative, and the report
+says "closed; still the current unit, so its files stay until the next Epic opens". A current unit
+whose record is open, closing, unreadable or missing is open as before, and so is every current
+unit on a project without unit records.

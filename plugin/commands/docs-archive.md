@@ -44,8 +44,9 @@ run says so rather than moving it with a caveat attached.
 **With unit records** (`.planning/work/units/` exists), a unit that has a record is closed when its
 **record** is closed — a retrospective, a verdict line or where its VERIFICATION sits does not decide
 it. A closed unit that is **held** is declined: the dry run prints it as `[held]` with the hold
-reason, and `--apply` moves nothing of it. A unit with no record is judged from its files, as the
-rest of this page describes.
+reason, and `--apply` moves nothing of it. A closed unit that is still the **current** unit
+(`current_epic` in `STATE.md`) is declined too, as `[current]`: it is closed, and its files stay until
+the next Epic opens. A unit with no record is judged from its files, as the rest of this page describes.
 
 ## Holding a unit
 

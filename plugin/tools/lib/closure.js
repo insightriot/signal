@@ -146,8 +146,10 @@ function closureFromRecord(unit, record) {
  * `held: true` with `hold_reason` when the closed unit is held. A record that
  * does not read is `cannotDetermine` (`source: 'record'`), never read from the
  * unit's files; so is every unit when the `units/` folder itself cannot be
- * trusted (`readUnitRecords`' `problem`). Clause 1 below still comes first: the current unit is open
- * whatever its record says. A unit with no record takes clauses 3 and 4.
+ * trusted (`readUnitRecords`' `problem`). Clause 1 below still comes first, with one exception: a
+ * current unit whose own record reads closed is `closed`, with `current: true` — the record decides,
+ * and the flag tells a caller that moves files to leave this unit's in place while it is current.
+ * A unit with no record takes clauses 3 and 4.
  *
  * Clause order (each is a decision, not an accident):
  *
@@ -180,26 +182,37 @@ function closureFromRecord(unit, record) {
  * @param {ReturnType<typeof readUnitRecords>} [args.unitRecords]  the project's unit records, when the
  *   caller has read them; read here (from the folder `planningDir` sits in) when not passed
  * @returns {Promise<{unit: string, status: string, reason: string, evidence: string|null,
- *   source?: 'record', held?: true, hold_reason?: string}>}
+ *   source?: 'record', held?: true, hold_reason?: string, current?: true}>}
  */
 export async function resolveUnitClosure(args) {
   const { unit, files, currentUnitId, planningDir } = args;
   const readFileFn = args.readFileFn ?? ((p) => readFile(p, 'utf-8'));
 
+  // With unit records, the unit's record decides when it has one (see above).
+  const unitRecords = args.unitRecords === undefined ? readUnitRecords(dirname(planningDir)) : args.unitRecords;
+
   // 1. Not-current. Compared against the RAW field (S2 / D-M5E18-4): two real
   // projects carry a non-strict unit name there, and a strict-gated read would
   // return null and silently never fire this clause.
-  if (currentUnitId !== null && unit === currentUnitId) {
-    return {
-      unit,
-      status: CLOSURE.OPEN,
-      reason: `${unit} is the current unit — mid-flight, not closed`,
-      evidence: null,
-    };
+  //
+  // One exception: the current unit's own record reads closed. Then the record
+  // decides, as it does for every other reader — the answer is `closed`,
+  // marked `current: true`, and whoever moves files leaves this unit's where
+  // they are until another unit is current.
+  const isCurrent = currentUnitId !== null && unit === currentUnitId;
+  if (isCurrent) {
+    const own = unitRecords !== null && typeof unitRecords.problem !== 'string' && !unitRecords.broken.has(unit)
+      ? unitRecords.byId.get(unit) : undefined;
+    if (own?.status !== 'closed') {
+      return {
+        unit,
+        status: CLOSURE.OPEN,
+        reason: `${unit} is the current unit — mid-flight, not closed`,
+        evidence: null,
+      };
+    }
   }
 
-  // With unit records, the unit's record decides when it has one (see above).
-  const unitRecords = args.unitRecords === undefined ? readUnitRecords(dirname(planningDir)) : args.unitRecords;
   if (unitRecords !== null) {
     // The folder itself cannot be trusted: whether this unit has a record is
     // not known, so its files are not asked either.
@@ -222,7 +235,14 @@ export async function resolveUnitClosure(args) {
       };
     }
     const record = unitRecords.byId.get(unit);
-    if (record !== undefined) return closureFromRecord(unit, record);
+    if (record !== undefined) {
+      const out = closureFromRecord(unit, record);
+      if (isCurrent) {
+        out.current = true;
+        out.reason += '; it is still the current unit, so its files stay until the next Epic opens';
+      }
+      return out;
+    }
   }
 
   // 3. No terminal artifact at all.

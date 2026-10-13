@@ -76,6 +76,8 @@ records now.
   decides it. A unit with no record is still judged from its files, and `/sig:docs-sweep` says so.
   `/sig:docs-archive` declines a held unit and prints the reason. SHIP no longer reads the milestone
   row to decide whether it closes the Epic, and the next Epic ID counts records as well as filenames.
+  A unit whose record is closed reads closed even while it is still the current Epic; its files
+  stay where they are until the next Epic opens, and `/sig:docs-archive` prints it as `[current]`.
 - **A project without `work/units/` gets the same closure answers, file moves and refusals as on
   `v0.1.50`.** Every reader keeps its old path, and the existing tests for those projects pass
   unchanged. Three kinds of thing differ, and a test that compares 94 answers with `v0.1.50`'s

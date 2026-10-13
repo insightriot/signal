@@ -82,10 +82,35 @@ describe('resolveClosures with unit records (t6.1)', () => {
     expect(on['M7.E2'].source).toBe('record');
   });
 
-  it('the current unit is open whatever its record says', async () => {
+  // Changed at REVIEW pass 2 (r3.5, `D-M6E16-25`). This case used to say "the current unit is open
+  // whatever its record says" — and every other reader of the same record said closed. The record
+  // decides now: closed, marked `current`, so whoever moves files leaves this unit's where they are.
+  it('a current unit whose record is closed reads closed, marked current — one answer, the record\'s', async () => {
     const on = byUnit(await resolveClosures(contradiction({ units: true })));
-    expect(on['M7.E9'].status).toBe(CLOSURE.OPEN);
-    expect(on['M7.E9'].reason).toMatch(/current unit/);
+    expect(on['M7.E9']).toMatchObject({ status: CLOSURE.CLOSED, source: 'record', current: true });
+    expect(on['M7.E9'].reason).toMatch(/unit record is closed/);
+    expect(on['M7.E9'].reason).toMatch(/still the current unit, so its files stay until the next Epic opens/);
+    // No other unit carries the flag.
+    expect(Object.values(on).filter((u) => u.current).map((u) => u.unit)).toEqual(['M7.E9']);
+  });
+
+  it('a current unit whose record is open, closing, broken or missing is open as the current unit, as before', async () => {
+    for (const history of ['open', 'closing']) {
+      const base = contradiction({ units: true });
+      plant(base, 'M7.E9', history);
+      const got = byUnit(await resolveClosures(base))['M7.E9'];
+      expect(got, history).toMatchObject({ status: CLOSURE.OPEN });
+      expect(got.reason, history).toMatch(/is the current unit — mid-flight/);
+      expect(got.current, history).toBeUndefined();
+    }
+    const broken = contradiction({ units: true });
+    plantBroken(broken, 'M7.E9');
+    expect(byUnit(await resolveClosures(broken))['M7.E9'].reason).toMatch(/is the current unit — mid-flight/);
+  });
+
+  it('without unit records no answer carries the flag', async () => {
+    const off = byUnit(await resolveClosures(contradiction()));
+    for (const u of Object.values(off)) expect(u.current).toBeUndefined();
   });
 
   it('a record that does not read is cannotDetermine for that unit only, and never read from its files', async () => {
