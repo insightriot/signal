@@ -63,13 +63,13 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   the stdout/exit contract; `tests/hook-state-write.test.js` proves the
   `detectDirtyExecute` decision logic.
 
-### `PreToolUse(Edit|Write|MultiEdit)` → `check-state-write.js`
+### `PreToolUse(Edit|Write|MultiEdit|NotebookEdit)` → `check-state-write.js`
 
-- **Trigger:** before every `Edit`, `Write` or `MultiEdit` tool call (`matcher: "Edit|Write|MultiEdit"`).
+- **Trigger:** before every `Edit`, `Write`, `MultiEdit` or `NotebookEdit` tool call (`matcher: "Edit|Write|MultiEdit|NotebookEdit"`).
 - **stdin:** **required** — the Claude Code hook event JSON:
 
   ```json
-  {"tool_name":"Edit|Write|MultiEdit","cwd":"…","tool_input":{"file_path":"…","content":"…","old_string":"…","new_string":"…","replace_all":false}}
+  {"tool_name":"Edit|Write|MultiEdit|NotebookEdit","cwd":"…","tool_input":{"file_path":"…","content":"…","old_string":"…","new_string":"…","replace_all":false}}
   ```
 
 - **What it does:** ignores everything except a write whose `file_path` matches
@@ -101,24 +101,31 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   (`tools/lib/unit-records.js`; see `/sig:docs-archive`), only when the user
   asks. A path is matched without regard to case, and with each segment's
   trailing dot or space and anything from a `:` in its last segment taken off —
-  the spellings Windows opens as the same file. Item bodies
+  the spellings Windows opens as the same file. Look-alike letters are folded first
+  (`unitſ` reads as `units`: NFKC, then lower, upper, lower case), a file that is
+  another name (a hard link) for a guarded file inside the project is refused, and
+  the real path of the target is compared with the real path of `.planning` and
+  the store's folders, so a symlinked `.planning` is guarded by either address.
+  `NotebookEdit` is read by its `notebook_path`. Item bodies
   (`items/**/*.md`) are allowed. On `work/WORK.md` itself
   it blocks only an edit that would change or remove `schema_version: 2` or the
   `key:` line (the key prefixes every item ID, so changing it orphans every
   record; the proposed content is computed for Write, Edit and MultiEdit),
-  naming the migration tool; other text in WORK.md may be edited. `MultiEdit` reaches only this guard.
+  naming the migration tool; other text in WORK.md may be edited. `MultiEdit` and `NotebookEdit` reach only this guard.
 - **exit:** `2` + a `[signal:check-state-write]` stderr line to **block** the
   write (surfaces to the user); `0` to allow. `baseDir` is derived from the
-  file path (`resolve(file_path, '..', '..')`), NOT from cwd.
-- **Fail-open:** no stdin, malformed JSON, a tool other than Edit/Write/MultiEdit, a
+  file path (`resolve(file_path, '..', '..')`), NOT from cwd; the work-store
+  guard also looks for a store upward from the cwd and from the target's folder.
+- **Fail-open:** no stdin, malformed JSON, a tool other than Edit/Write/MultiEdit/NotebookEdit, a
   non-STATE path outside a v2 store's generated files, any error in the work-store guard,
   a missing Edit target, or a malformed Edit (no `old_string`) → `exit 0` (allow).
   A hook bug must never wedge normal editing.
 
 ### What the work-store guard cannot see (REVIEW I7)
 
-The guard is a `PreToolUse` hook on `Edit|Write|MultiEdit`, so it sees those
-three tools and nothing else. **An edit made through Bash** — `sed -i`, a shell
+The guard is a `PreToolUse` hook on `Edit|Write|MultiEdit|NotebookEdit`, so it sees those
+four tools and nothing else. A hard link or a real path outside the project, edited
+with a cwd also outside it, is not seen. **An edit made through Bash** — `sed -i`, a shell
 redirect, a script, `git checkout` of an old file — reaches a record (an item's
 or a unit's), a view or `WORK.md` without the hook running. That is the spirit of AC5.1 (*records
 change only through `/sig:item`*) held by convention, not enforcement, on that

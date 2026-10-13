@@ -48,7 +48,7 @@ committed, an undo line printed.
   entry on its own** (`D-M6E15-25`): an entry is *proposed* for closing only when its wording says so plainly — struck through, or DONE / RESOLVED / ANSWERED / FIXED /
   CLOSED / SHIPPED, not-a-bug, won't-fix, superseded, followed by nothing but dates, `in <ref>`,
   references or a slice tag like `(S5)` — no note of words (`Fixed — needs QA` is unclear) — **and** a commit, PR (`#N` in a commit subject) or Epic (with a retrospective)
-  it cites is found in this repository; the dry run lists each proposal with its wording and evidence,
+  it cites is found in this repository's history — the remote's recorded default branch (`origin/HEAD`), else the local `main`, else `master`, else `HEAD`, and the dry run says which it read whenever that is not the recorded default branch; the dry run lists each proposal with its wording and evidence,
   and you confirm the list with one yes (each then closes as a legacy close whose proof names both) or
   say no (each stays open, flagged `looks-finished`). Anything else stays open and **flagged**,
   with a note saying what was found and not found. Text outside any entry becomes one flagged item per file.
@@ -79,8 +79,7 @@ The same command gives every Epic or unit the project names one record under `.p
 - **A project already on the store with no `work/units/`:** `--work-store` adds the unit records and
   changes nothing else — no item, and no view but `work/EPICS.md` and, when the current milestone file
   already carries the markers, the Epic table between them. Another milestone's file that carries
-  the markers has its table written from the records as well: the dry run names each such file in
-  a note, and a row or a line typed between its markers refuses the apply and is never deleted. A
+  the markers has its table written from the records as well: the dry run names each such file and lists what changes between its markers, the apply stages and reports each one, and a row or a line typed between its markers refuses the apply and is never deleted. On a project not yet on the store, a marked file of another milestone refuses in the dry run, naming the file. A
   marker counts only on a line of its own. Everything between the two marker lines is replaced, so the dry run lists each line there that
   is not a table row, by line number — move it outside the markers to keep it — and a line added
   between them after the dry run refuses the apply. **A store that already has
@@ -95,9 +94,9 @@ The same command gives every Epic or unit the project names one record under `.p
 - **What is proposed for each unit**, from its milestone table row, its retrospective, its files in
   `.planning/`, its archive folder, the items queued in it and `STATE.md`: **open** — the current unit,
   and any unit nothing says is over; **a legacy close** — its row's status cell begins with *shipped*
-  (and does not also say pending, in flight or parked), or its retrospective is complete, or today's
-  closure check reads it closed. A cell that says *shipped* further on (`S1 shipped; S2 in progress`)
-  is about a part of the unit: the unit is proposed open and flagged `row-unclear`, with the cell
+  and goes on with nothing but a version, a date, a PR or issue number, a commit hash, *released*, *merged* and in/on/as/via/and, or its retrospective is complete, or today's
+  closure check reads it closed. A cell that says *shipped* further on (`S1 shipped; S2 in progress`), or leads with it and goes on in other words (`shipped — S2 remaining`),
+  may be about a part of the unit: the unit is proposed open and flagged `row-unclear`, with the cell
   quoted; **refused, no record** — a name that cannot be a unit ID, or two names that differ only by
   case. A stub retrospective is not evidence.
 - **Nothing is closed on its own** (`D-M6E15-25`): the proposed legacy closes are shown as **one list,
