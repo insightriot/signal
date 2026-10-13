@@ -6,6 +6,7 @@ import { randomBytes } from 'node:crypto';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 import { atomicWrite } from './atomic-write.js';
+import { resolveDefaultBranch } from './branch-guard.js';
 import { gitEnv } from './git-env.js';
 import { LAYOUT_VERSION } from './layout-stamp.js';
 import {
@@ -1338,25 +1339,13 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
   if (!stored) return notStale; // no baseline — can't measure
   if (!COMMIT_TOKEN_RE.test(stored)) return notStale; // Sec-2: reject option-like tokens
 
-  // 1. Resolve the remote default branch. Unset origin/HEAD prints the
-  //    literal "origin/HEAD" and exits 128; both the throw and the literal
-  //    fall back to `main` (AC2.5).
-  let branch = 'main';
-  try {
-    const ref = String(
-      execFn('git', ['rev-parse', '--abbrev-ref', 'origin/HEAD'], {
-        cwd: baseDir,
-        stdio: ['ignore', 'pipe', 'ignore'],
-        env: gitEnv(),
-      })
-    ).trim();
-    if (ref && ref !== 'origin/HEAD') {
-      branch = ref.startsWith('origin/') ? ref.slice('origin/'.length) : ref;
-    }
-  } catch {
-    branch = 'main';
-  }
-  const tracking = `origin/${branch}`;
+  // 1. Resolve the remote default branch from the stored `origin/HEAD`
+  //    (`resolveDefaultBranch`, `branch-guard.js`), which reads full refs: a
+  //    lookup by short name (`origin/HEAD`, `origin/main`) is also answered by
+  //    a tag of that name, and tags arrive with any fetch. When it cannot say,
+  //    fall back to `main` (AC2.5). The branch is named by its full ref below.
+  const branch = resolveDefaultBranch(baseDir, { execFn }) ?? 'main';
+  const tracking = `refs/remotes/origin/${branch}`;
 
   // 2. Bounded, non-interactive fetch of just that branch. Any throw
   //    (offline / no-remote / timeout / auth-hang) → fail open.
@@ -1367,7 +1356,7 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
         '-c', 'credential.helper=',
         '-c', 'core.askPass=',
         'fetch', '--no-tags', '--quiet', '--no-recurse-submodules',
-        'origin', branch,
+        'origin', `refs/heads/${branch}`,
       ],
       {
         cwd: baseDir,

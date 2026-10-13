@@ -6,7 +6,7 @@
 // mode (offline, no remote, timeout, auth-hang, unset origin/HEAD, diverged
 // history, non-git dir) must resolve to {stale:false} and never throw.
 //
-// The execFn stub dispatches by subcommand (rev-parse / fetch / rev-list /
+// The execFn stub dispatches by subcommand (symbolic-ref / show-ref / fetch / rev-list /
 // log) because a single run makes up to four distinct git calls with
 // different expected outputs — the flat one-value stubs used by
 // is-state-stale.test.js can't model that.
@@ -92,7 +92,14 @@ function makeExec(responses = {}) {
   };
   const fn = (cmd, args) => {
     calls.push(args);
-    if (args[0] === 'rev-parse') return respond(responses.revParse);
+    // The default branch (`resolveDefaultBranch`): `originHead` is what the
+    // stored origin/HEAD names (an Error: unset); `present` lists the remote
+    // refs that exist (default: whatever is asked for).
+    if (args[0] === 'symbolic-ref') return respond(responses.originHead);
+    if (args[0] === 'show-ref') {
+      if (responses.present && !responses.present.includes(args.at(-1))) throw new Error('no such ref');
+      return buf('');
+    }
     if (args.includes('fetch')) return respond(responses.fetch);
     if (args[0] === 'rev-list') {
       const isPlanning = args.includes('.planning/');
@@ -118,7 +125,7 @@ describe('isStaleVsOrigin', () => {
   it('reports {stale, aheadCount, commits, touchedPlanning} when ahead by N', async () => {
     await plantState(tempDir, { last_updated_commit: 'stored123' });
     const execFn = makeExec({
-      revParse: 'origin/main',
+      originHead: 'refs/remotes/origin/main',
       fetch: '',
       revListCount: '3',
       log: buf(
@@ -142,7 +149,7 @@ describe('isStaleVsOrigin', () => {
   // AC2.2 — equal HEAD (0 ahead) -> not stale, no throw.
   it('returns {stale:false} when origin is equal (0 ahead)', async () => {
     await plantState(tempDir, { last_updated_commit: 'stored123' });
-    const execFn = makeExec({ revParse: 'origin/main', fetch: '', revListCount: '0' });
+    const execFn = makeExec({ originHead: 'refs/remotes/origin/main', fetch: '', revListCount: '0' });
     const result = await isStaleVsOrigin(tempDir, { execFn });
     expect(result).toEqual({ stale: false, aheadCount: 0, commits: [], touchedPlanning: false });
   });
@@ -151,7 +158,7 @@ describe('isStaleVsOrigin', () => {
   it('sets touchedPlanning false when no ahead commit touches .planning/', async () => {
     await plantState(tempDir, { last_updated_commit: 'stored123' });
     const execFn = makeExec({
-      revParse: 'origin/main',
+      originHead: 'refs/remotes/origin/main',
       fetch: '',
       revListCount: '1',
       log: 'sha1 chore: src-only change',
@@ -167,7 +174,7 @@ describe('isStaleVsOrigin', () => {
   it('fails open ({stale:false}) when fetch throws (offline/no-remote)', async () => {
     await plantState(tempDir, { last_updated_commit: 'stored123' });
     const execFn = makeExec({
-      revParse: 'origin/main',
+      originHead: 'refs/remotes/origin/main',
       fetch: new Error('fatal: unable to access remote'),
     });
     const result = await isStaleVsOrigin(tempDir, { execFn });
@@ -178,7 +185,7 @@ describe('isStaleVsOrigin', () => {
   it('resolves a non-main default branch from origin/HEAD', async () => {
     await plantState(tempDir, { last_updated_commit: 'stored123' });
     const execFn = makeExec({
-      revParse: 'origin/develop',
+      originHead: 'refs/remotes/origin/develop',
       fetch: '',
       revListCount: '1',
       log: 'sha1 x',
@@ -186,45 +193,47 @@ describe('isStaleVsOrigin', () => {
     });
     const result = await isStaleVsOrigin(tempDir, { execFn });
     expect(result.stale).toBe(true);
-    // fetch refspec + rev-range must use the resolved branch.
+    // fetch refspec + rev-range must use the resolved branch, by its full ref.
     const fetchCall = execFn.calls.find((a) => a.includes('fetch'));
-    expect(fetchCall[fetchCall.length - 1]).toBe('develop');
+    expect(fetchCall[fetchCall.length - 1]).toBe('refs/heads/develop');
     const revList = execFn.calls.find((a) => a[0] === 'rev-list' && !a.includes('.planning/'));
-    expect(revList).toContain('HEAD..origin/develop');
+    expect(revList).toContain('HEAD..refs/remotes/origin/develop');
   });
 
-  // AC2.5b — literal 'origin/HEAD' (unset symbolic ref) falls back to main.
-  it('falls back to main when origin/HEAD is unset (literal output)', async () => {
+  // AC2.5b — origin/HEAD unset and neither candidate ref here -> main.
+  it('falls back to main when origin/HEAD is unset and no candidate branch is here', async () => {
     await plantState(tempDir, { last_updated_commit: 'stored123' });
     const execFn = makeExec({
-      revParse: 'origin/HEAD',
+      originHead: new Error('fatal: ref refs/remotes/origin/HEAD is not a symbolic ref'),
+      present: [],
       fetch: '',
       revListCount: '0',
     });
     const result = await isStaleVsOrigin(tempDir, { execFn });
     expect(result.stale).toBe(false);
     const fetchCall = execFn.calls.find((a) => a.includes('fetch'));
-    expect(fetchCall[fetchCall.length - 1]).toBe('main');
+    expect(fetchCall[fetchCall.length - 1]).toBe('refs/heads/main');
   });
 
-  // AC2.5c — rev-parse throwing (unset origin/HEAD exits 128) -> main.
-  it('falls back to main when rev-parse origin/HEAD throws (exit 128)', async () => {
+  // AC2.5c — origin/HEAD unset, and exactly one of main/master is here -> that one.
+  it('takes the one candidate branch present when origin/HEAD is unset', async () => {
     await plantState(tempDir, { last_updated_commit: 'stored123' });
     const execFn = makeExec({
-      revParse: new Error('fatal: ref refs/remotes/origin/HEAD is not a symbolic ref'),
+      originHead: new Error('fatal: ref refs/remotes/origin/HEAD is not a symbolic ref'),
+      present: ['refs/remotes/origin/master'],
       fetch: '',
       revListCount: '0',
     });
     const result = await isStaleVsOrigin(tempDir, { execFn });
     expect(result.stale).toBe(false);
     const fetchCall = execFn.calls.find((a) => a.includes('fetch'));
-    expect(fetchCall[fetchCall.length - 1]).toBe('main');
+    expect(fetchCall[fetchCall.length - 1]).toBe('refs/heads/master');
   });
 
   // AC2.7 — fetch timeout (SIGKILL) -> drift check skipped, fail open.
   it('fails open when fetch times out (ETIMEDOUT/SIGKILL)', async () => {
     await plantState(tempDir, { last_updated_commit: 'stored123' });
-    const execFn = makeExec({ revParse: 'origin/main', fetch: timeoutError() });
+    const execFn = makeExec({ originHead: 'refs/remotes/origin/main', fetch: timeoutError() });
     const result = await isStaleVsOrigin(tempDir, { execFn });
     expect(result).toEqual({ stale: false, aheadCount: 0, commits: [], touchedPlanning: false });
   });
@@ -234,7 +243,7 @@ describe('isStaleVsOrigin', () => {
   it('fails open when rev-list count throws (diverged/bad revision)', async () => {
     await plantState(tempDir, { last_updated_commit: 'stored123' });
     const execFn = makeExec({
-      revParse: 'origin/main',
+      originHead: 'refs/remotes/origin/main',
       fetch: '',
       revListCount: new Error("fatal: bad revision 'HEAD..origin/main'"),
     });
@@ -245,7 +254,7 @@ describe('isStaleVsOrigin', () => {
   // Null baseline: no last_updated_commit -> can't measure, no git calls.
   it('returns {stale:false} with no git calls when last_updated_commit is null', async () => {
     await plantState(tempDir, { last_updated_commit: null });
-    const execFn = makeExec({ revParse: 'origin/main', fetch: '', revListCount: '5' });
+    const execFn = makeExec({ originHead: 'refs/remotes/origin/main', fetch: '', revListCount: '5' });
     const result = await isStaleVsOrigin(tempDir, { execFn });
     expect(result).toEqual({ stale: false, aheadCount: 0, commits: [], touchedPlanning: false });
     expect(execFn.calls).toHaveLength(0);
@@ -253,7 +262,7 @@ describe('isStaleVsOrigin', () => {
 
   // No STATE.md at all -> fail open, no throw.
   it('returns {stale:false} when there is no STATE.md', async () => {
-    const execFn = makeExec({ revParse: 'origin/main', fetch: '', revListCount: '5' });
+    const execFn = makeExec({ originHead: 'refs/remotes/origin/main', fetch: '', revListCount: '5' });
     const result = await isStaleVsOrigin(tempDir, { execFn });
     expect(result).toEqual({ stale: false, aheadCount: 0, commits: [], touchedPlanning: false });
     expect(execFn.calls).toHaveLength(0);
@@ -263,7 +272,7 @@ describe('isStaleVsOrigin', () => {
   it('keeps aheadCount but empties commits[] when git log throws', async () => {
     await plantState(tempDir, { last_updated_commit: 'stored123' });
     const execFn = makeExec({
-      revParse: 'origin/main',
+      originHead: 'refs/remotes/origin/main',
       fetch: '',
       revListCount: '2',
       log: new Error('git log blew up'),
@@ -282,7 +291,7 @@ describe('isStaleVsOrigin', () => {
     await plantState(tempDir, { last_updated_commit: 'stored123' });
     let fetchOpts;
     const execFn = (cmd, args, opts) => {
-      if (args[0] === 'rev-parse') return buf('origin/main');
+      if (args[0] === 'symbolic-ref') return buf('refs/remotes/origin/main');
       if (args.includes('fetch')) { fetchOpts = opts; return buf(''); }
       if (args[0] === 'rev-list') return buf('0');
       return buf('');
@@ -300,7 +309,7 @@ describe('isStaleVsOrigin', () => {
   // surface. isStaleVsOrigin must fail open, not crash the command.
   it('REVIEW F1: fails open (no throw, no git) on a schema-drifted STATE.md', async () => {
     await plantState(tempDir, { schema_version: 999, last_updated_commit: 'abc123' });
-    const execFn = makeExec({ revParse: 'origin/main', fetch: '', revListCount: '3' });
+    const execFn = makeExec({ originHead: 'refs/remotes/origin/main', fetch: '', revListCount: '3' });
     let result;
     await expect(
       (async () => { result = await isStaleVsOrigin(tempDir, { execFn }); })()
@@ -314,7 +323,7 @@ describe('isStaleVsOrigin', () => {
   // git argv, so it can never become an arbitrary-file-write primitive.
   it('REVIEW Sec-2: rejects an option-like last_updated_commit before any git call', async () => {
     await plantState(tempDir, { last_updated_commit: '--output=/tmp/pwned' });
-    const execFn = makeExec({ revParse: 'origin/main', fetch: '', revListCount: '3', log: 'x', revListPlanning: '1' });
+    const execFn = makeExec({ originHead: 'refs/remotes/origin/main', fetch: '', revListCount: '3', log: 'x', revListPlanning: '1' });
     const result = await isStaleVsOrigin(tempDir, { execFn });
     expect(result).toEqual({ stale: false, aheadCount: 0, commits: [], touchedPlanning: false });
     expect(execFn.calls).toHaveLength(0);
@@ -390,4 +399,81 @@ describe('isStaleVsOrigin', () => {
       await rm(otherParent, { recursive: true, force: true });
     }
   }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
+  // --- M6.E16 r6: the branch is read by its full ref, never looked up by a
+  // short name (real git) ---
+  //
+  // `origin/main` as a NAME is also what a tag called `origin/main` answers
+  // to, and git takes the tag first. Tags arrive with any fetch, so whoever
+  // can push one could hide commits the remote really has, or invent some.
+
+  // A clone of a remote whose default branch is `main`, one STATE-write commit
+  // made and pushed, then two commits pushed from elsewhere and fetched: the
+  // remote is 2 ahead of HEAD.
+  async function twoBehind(work) {
+    const bare = await mkdtemp(join(tmpdir(), 'signal-origin-bare-'));
+    const otherParent = await mkdtemp(join(tmpdir(), 'signal-origin-other-'));
+    const other = join(otherParent, 'wc');
+    git(bare, ['init', '--bare', '-q', '-b', 'main']);
+    initRepo(work);
+    git(work, ['remote', 'add', 'origin', bare]);
+    await writeFile(join(work, 'app.js'), 'v0\n', 'utf-8');
+    commitAll(work, 'base: initial work');
+    await plantState(work, { last_updated_commit: headSha(work) });
+    commitAll(work, 'chore: refresh STATE.md');
+    git(work, ['push', '-q', 'origin', 'main']);
+    execFileSync('git', ['clone', '-q', bare, other], { stdio: ['ignore', 'pipe', 'ignore'] });
+    git(other, ['config', 'user.email', 't@t.co']);
+    git(other, ['config', 'user.name', 'T']);
+    git(other, ['config', 'commit.gpgsign', 'false']);
+    for (const v of ['a', 'b']) {
+      await writeFile(join(other, 'feature.js'), `${v}\n`, 'utf-8');
+      commitAll(other, `feat: remote ${v}`);
+    }
+    git(other, ['push', '-q', 'origin', 'main']);
+    return { cleanup: async () => { await rm(bare, { recursive: true, force: true }); await rm(otherParent, { recursive: true, force: true }); } };
+  }
+
+  it('a tag named origin/main does not stand in for the remote branch', async () => {
+    const { cleanup } = await twoBehind(tempDir);
+    try {
+      git(tempDir, ['fetch', '-q', 'origin', 'main']);
+      git(tempDir, ['remote', 'set-head', 'origin', 'main']);
+      git(tempDir, ['tag', 'origin/main', 'HEAD']); // the name now answers "nothing new"
+      const result = await isStaleVsOrigin(tempDir, { execFn: realGitExceptFetch });
+      expect(result).toMatchObject({ stale: true, aheadCount: 2 });
+      expect(result.commits.map((c) => c.subject)).toEqual(['feat: remote b', 'feat: remote a']);
+    } finally {
+      await cleanup();
+    }
+  }, 30000);
+
+  it('a tag named origin/HEAD does not change which branch is the default', async () => {
+    const { cleanup } = await twoBehind(tempDir);
+    try {
+      git(tempDir, ['fetch', '-q', 'origin', 'main']);
+      git(tempDir, ['remote', 'set-head', 'origin', 'main']);
+      git(tempDir, ['tag', 'origin/HEAD', 'HEAD']);
+      const calls = [];
+      const execFn = (cmd, args, opts) => { calls.push(args); return realGitExceptFetch(cmd, args, opts); };
+      expect(await isStaleVsOrigin(tempDir, { execFn })).toMatchObject({ stale: true, aheadCount: 2 });
+      expect(calls.find((a) => a.includes('fetch')).at(-1)).toBe('refs/heads/main');
+    } finally {
+      await cleanup();
+    }
+  }, 30000);
+
+  // The fetch names the branch by its full ref too, and that still moves the
+  // remote-tracking ref the count is read from. The function's own fetch is
+  // run here with its arguments and environment, without its 2 s limit.
+  it('the fetch it issues (`origin refs/heads/<branch>`) brings the remote branch up to date', async () => {
+    const { cleanup } = await twoBehind(tempDir);
+    try {
+      git(tempDir, ['remote', 'set-head', 'origin', 'main']); // nothing fetched yet: origin/main is where HEAD is
+      const unbounded = (cmd, args, opts) => execFileSync(cmd, args, args.includes('fetch') ? { ...opts, timeout: undefined } : opts);
+      expect(await isStaleVsOrigin(tempDir, { execFn: unbounded })).toMatchObject({ stale: true, aheadCount: 2 });
+    } finally {
+      await cleanup();
+    }
+  }, 30000);
 });
