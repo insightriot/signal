@@ -4360,6 +4360,10 @@ the items and the unit in one take of the lock. On the Epic's own branch such an
 open. **What this trusts and cannot check:** that the merged commit holds the items' fixes. The
 person running the close on the default branch is saying so, as they are for the Epic.
 
+**Replaced in part by `D-M6E16-26` (2026-10-13):** the last three sentences. `closeEpic` no longer
+asks again for every such item on its own, and running the close on the default branch is no
+longer taken as the person's word for each item. `rerequestCloses` and its three guards stand.
+
 ### D-M6E16-25 — A closed unit that is still the current unit reads closed; its files stay while it is current (Claude)
 Settles REVIEW pass 2, `C2-I5` / `T2-I5`, and amends AC6.2. A unit whose record was closed and
 which `STATE.md` still named as `current_epic` read **open** to `resolveClosures` and
@@ -4370,6 +4374,32 @@ a caller names it closed), `/sig:docs-migrate` leaves its files and its narrativ
 says "closed; still the current unit, so its files stay until the next Epic opens". A current unit
 whose record is open, closing, unreadable or missing is open as before, and so is every current
 unit on a project without unit records.
+
+### D-M6E16-26 — After a squash, an item's close is asked again only for the items a person names (Brett, 2026-10-13)
+Decided by Brett at the REVIEW loop ceiling; settles REVIEW pass 3, `S3-H1` / `C3-I1` / `T3-I2` /
+`T3-I3`, and replaces the automatic part of `D-M6E16-24`. **How the defect came about:** the
+automatic swap in `-24` was chosen by the session driving this Epic, without asking Brett. Pass 3
+found that it closed unmerged work: on the default branch, `closeEpic` asked again, with HEAD as
+the proof, for every item closing on a commit that was "not in HEAD" — which is also true of an
+item whose fix sits on a branch nobody merged, and of a proof that names no commit. The next
+confirm then closed the item and the Epic. Git cannot tell a squashed branch from an unmerged one,
+so a person does. The rule:
+- It is the recovery only when this checkout's HEAD **and** the proof are both on the remote's
+  default branch. Passing an older default-branch commit as `commit` from a feature branch does not
+  qualify (pass 3's second way in).
+- With no list from the caller, `closeEpic` returns `rerequest-proposed`: each such item, the
+  commit it is closing on, and why (`not-in-history`, or `unknown-commit` when the clone no longer
+  has the commit). It writes nothing: no event, no unit record, no view.
+- The caller passes back the items the person said yes to, each with the commit it was shown
+  (`close.rerequest`). Only those are asked again, in the one write with the unit's close. A listed
+  item that was not named is open and refuses the close (`OPEN_ITEMS`). A named item that is no
+  longer on the list, or is closing on another commit by then, refuses (`CONFLICT`); this is
+  checked again under the store's lock.
+- An item git cannot answer for (a shallow clone, no remote, no default-branch ref, an invalid or
+  ambiguous proof) is open, and never listed.
+- The retrospective check runs before a list is returned, as before any write.
+`rerequestCloses`, the by-ID library call, is unchanged. `ship.md` §6.8 gives the steps and says to
+ask the person; nothing is swapped without that yes.
 
 ### D-M6E16-27 — The default branch is not guessed when a close is confirmed (Brett, 2026-10-13)
 Decided by Brett at the REVIEW loop ceiling; settles REVIEW pass 2, `S2-M1`, which `r3.9` had
