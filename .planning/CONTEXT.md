@@ -4,14 +4,16 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-10-11) — M6.E16 at DISCUSS
+## Where things stand (2026-10-13) — M6.E16 at SHIP (`v0.1.51`)
 
-**`M6.E16` — *"Epics and units as records"*** — an Epic or unit becomes a JSON record that says it
-exists, which items belong to it, its close (with proof) and a hold. Phase progress stays in
-`STATE.md` (`D-M6E16-1`). Branch `feat/m6.e16-epics-units-as-records`. Requirements:
-[`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md); decisions `D-M6E16-1` … `-15`; the list of
-code it touches: [`M6.E16-INVENTORY.md`](M6.E16-INVENTORY.md). Picked by Brett from
-[`BACKLOG-REVIEW-2026-10-10.md`](BACKLOG-REVIEW-2026-10-10.md).
+**`M6.E16` — *"Epics and units as records"*** — an Epic or unit is a JSON record
+(`.planning/work/units/<ID>.json`) that says it exists, which items belong to it, its close (with
+proof) and a hold. Phase progress stays in `STATE.md` (`D-M6E16-1`). A close is requested at SHIP and
+confirmed when its commit is on the remote's recorded default branch, which is never guessed
+(`D-M6E16-27`). Branch `feat/m6.e16-epics-units-as-records`. Requirements:
+[`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md); decisions `D-M6E16-1` … `-31`. Four full REVIEW
+passes and a narrow one; what was learned: [`M6.E16-RETROSPECTIVE.md`](M6.E16-RETROSPECTIVE.md).
+Filed and open after it: `SIG-303` … `SIG-311`.
 
 ## Previously (2026-10-10) — M6.E15 shipped (`v0.1.50`, PR #296)
 

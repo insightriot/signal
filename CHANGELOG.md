@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.51] — 2026-10-13 — Epics and units are records
 
 ### M6.E16 — Epics and units are records
 
