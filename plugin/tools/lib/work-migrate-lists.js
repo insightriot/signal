@@ -104,7 +104,7 @@ import { acquireLock as acquireAddLock, LOCK_FILE as ADD_LOCK_REL } from './add.
 import { atomicWrite } from './atomic-write.js';
 import { capitalised, exactRefExists, RECORD_DEFAULT_BRANCH_HINT, remoteNames, resolveDefaultBranch } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
-import { gitEnv } from './git-env.js';
+import { gitCannotAsk, gitEnv } from './git-env.js';
 import {
   CURRENT_LAYOUT_VERSION,
   hashState,
@@ -1206,6 +1206,12 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
     reason: `${hits.length} sensitive-data hit${hits.length === 1 ? '' : 's'} in the lists (see the dry run); nothing was written. `
       + 'Keep the text as it is (re-run the apply with acknowledgeSensitive), or abort and edit the list first.',
   });
+
+  // Git could not be asked (r6.5): no history to read closes from and no
+  // working tree state to respect. The dry run proposes nothing; the apply
+  // is refused. Said first, before anything is read as "not a git checkout".
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) return refused(`${cannotAsk}. Nothing was written.`);
 
   const a = await assess(baseDir, { ...opts, execFn });
   if (a.refusal) return refused(a.refusal);

@@ -27,6 +27,7 @@ import { readFileSync, readdirSync, realpathSync, existsSync, lstatSync, mkdirSy
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
+import { gitCannotAsk } from './git-env.js';
 import { echoed, shownName } from './printable-text.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { ITEM_KIND, RECORD_SCHEMA, parseRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
@@ -611,6 +612,12 @@ export function nextIdV2(baseDir, opts = {}) {
   let max = 0;
   for (const rel of ID_TREE_DIRS) max = Math.max(max, maxFromNames(walkFiles(join(baseDir, rel)), key));
 
+  // "Git could not be asked" is not "outside a repo" (r6.5): read as one, an
+  // ID another branch already holds was handed out.
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) {
+    throw new WorkStoreError('IO', `cannot allocate an ID: the IDs on other branches could not be read (${cannotAsk}). Nothing was written.`);
+  }
   if (!isGitRepo(baseDir, execFn)) return { id: `${key}-${max + 1}`, basis: 'worktree-only' };
 
   try {
@@ -1126,8 +1133,19 @@ function assertProof(id, proof) {
 // an enclosing one included, the same one the confirm-time checks ask. With no
 // repository it cannot say, and the request is accepted; `ancestryFailure`
 // checks again at confirm time.
+//
+// When git could not be ASKED (r6.5) a short proof is refused: recorded
+// unchecked, it may name two commits or none.
+export function refuseUncheckedShortProof(baseDir, id, proof) {
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk === null) return;
+  throw new WorkStoreError('CONFIG', `${id}: the proof ${proof} is a short hash, and whether it names one commit could not be checked: `
+    + `${cannotAsk}. Nothing was written.`);
+}
+
 function assertUnambiguousProof(baseDir, id, proof, opts = {}) {
   if (proof.length >= 40) return;
+  refuseUncheckedShortProof(baseDir, id, proof);
   const n = commitsStartingWith(baseDir, proof, opts.execFn ?? execFileSync);
   if (n > 1) {
     throw new WorkStoreError('SCHEMA', `${id}: the proof ${proof} is the start of ${n} commits or tags, so it names none of them — `

@@ -47,6 +47,8 @@
 //   answered from.
 
 import { execFileSync } from 'node:child_process';
+import { lstatSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 
 const REDIRECTS = [
   'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_CONFIG_PARAMETERS', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY',
@@ -112,6 +114,46 @@ export function gitUnusableReason() {
   const [major, minor] = [Number(m[1]), Number(m[2])];
   if (major > GIT_NEEDED.major || (major === GIT_NEEDED.major && minor >= GIT_NEEDED.minor)) return null;
   return `${need}; this is git ${first.slice('git version '.length).split(' ')[0]}`;
+}
+
+// Is there an entry named `.git` in `baseDir` or a folder above it? Only ever
+// used to choose between refusing and treating the folder as no repository
+// when git cannot be run at all — never to decide what git may read.
+function dotGitAtOrAbove(baseDir) {
+  for (let dir = resolve(String(baseDir)); ; dir = dirname(dir)) {
+    if (lstatSync(join(dir, '.git'), { throwIfNoEntry: false }) !== undefined) return true;
+    if (dirname(dir) === dir) return false;
+  }
+}
+
+/**
+ * Why git could NOT BE ASKED about `baseDir` — which is not the same as
+ * "this is not a repository" (M6.E16 r6.5). Null when it can be asked.
+ *
+ * A git that is too old, or whose version cannot be read: always the reason
+ * — there may be a repository, and nothing may conclude there is none. No
+ * git at all: the reason when a `.git` entry is at or above the folder (a
+ * repository somebody made, which Signal must not write past unasked); null
+ * when there is none, where the folder is treated as no repository, as it
+ * was before the gate.
+ *
+ * A caller that WRITES, or that would weaken a check, on "no repository"
+ * asks this first and refuses with what it returns.
+ *
+ * @param {string} baseDir
+ * @returns {string|null}
+ */
+export function gitCannotAsk(baseDir) {
+  const reason = gitUnusableReason();
+  if (reason === null) return null;
+  if (versionLine() !== null) return reason;
+  let found;
+  try {
+    found = dotGitAtOrAbove(baseDir);
+  } catch {
+    found = true; // the folders above could not be read: the safe side
+  }
+  return found ? reason : null;
 }
 
 /**

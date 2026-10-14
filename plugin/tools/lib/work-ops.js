@@ -41,7 +41,7 @@ import { applyKeyedReplacements, computeLinkEdits } from './archive-tree.js';
 import { atomicWrite } from './atomic-write.js';
 import { capitalised, RECORD_DEFAULT_BRANCH_HINT } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
-import { gitEnv, gitUnusableReason } from './git-env.js';
+import { gitCannotAsk, gitEnv, gitUnusableReason } from './git-env.js';
 import { commitsStartingWith } from './git-objects.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { shownRef } from './printable-text.js';
@@ -573,6 +573,11 @@ export function explicitCommit(baseDir, epicId, commit, execFn = execFileSync) {
   // A short hash that more than one commit starts with names neither
   // (SIG-276), and is asked about FIRST: with a branch or tag named those
   // digits, the resolution below takes the ref and would pass.
+  // Git could not be asked (r6.5): said as that, not as "names no commit".
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) {
+    throw new WorkStoreError('CONFIG', `${epicId}: \`commit\` ${commit} could not be checked: ${cannotAsk}. Nothing was written.`);
+  }
   const sharing = commit.length < 40 ? commitsStartingWith(baseDir, commit, execFn) : 0;
   if (sharing > 1) {
     throw new WorkStoreError('SCHEMA', `${epicId}: \`commit\` ${commit} is the start of ${sharing} commits or tags, so it names none of them — `
@@ -644,6 +649,13 @@ const EPIC_CLOSE_WORDS = (epicId) => ({
   what: `${epicId}: the close`, about: 'this Epic', wrongly: 'call the Epic closed', advice: 'the Epic\'s work, then close.',
 });
 export function refuseHeadThatProvesNothing(baseDir, epicId, head, execFn, words = EPIC_CLOSE_WORDS(epicId)) {
+  // Git could not be asked (r6.5): this check then cannot pass, and says so
+  // itself rather than lean on its callers having refused first.
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) {
+    throw new WorkStoreError('CONFIG', `${words.what} would record HEAD as its proof, and whether that commit says anything about `
+      + `${words.about} could not be checked: ${cannotAsk}. Nothing was written.`);
+  }
   const stale = headProvesNothing(baseDir, head, { execFn });
   if (stale === null) return;
   if (stale.ref === null) {

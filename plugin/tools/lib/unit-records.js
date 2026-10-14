@@ -50,7 +50,7 @@ import {
   UNIT_SUMMARY_MAX, UNIT_TITLE_MAX, foldUnit,
 } from './unit-record.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
-import { assertWritable, listRecords } from './work-records.js';
+import { assertWritable, listRecords, refuseUncheckedShortProof } from './work-records.js';
 // A cycle, by design: work-views.js renders these records (`listUnits`).
 // Neither module uses the other's bindings while it is being evaluated.
 import { assertViewsWritable, regenerateToMemory, regenerateViews, viewsNotRegenerated } from './work-views.js';
@@ -701,6 +701,7 @@ function assertProof(id, proof, what) {
 // (best effort: with no repository the request is accepted).
 function assertOneCommit(baseDir, id, proof, opts) {
   if (proof.length >= 40) return;
+  refuseUncheckedShortProof(baseDir, id, proof);
   const n = commitsStartingWith(baseDir, proof, opts.execFn ?? execFileSync);
   if (n > 1) {
     throw new WorkStoreError('SCHEMA', `${id}: the proof ${proof} is the start of ${n} commits or tags, so it names none of them — `

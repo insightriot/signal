@@ -105,6 +105,7 @@ const READERS = {
   probeClosedProofs: (base) => records.probeClosedProofs(base),
   // Asks git two questions and reads nothing of the store (r1.2, C-I2).
   headProvesNothing: (base) => records.headProvesNothing(base, '0123abc'),
+  refuseUncheckedShortProof: (base) => records.refuseUncheckedShortProof(base, 'SIG-1', '0123abc'),
   // Asks git whether a commit is on the default branch and reads nothing of the store (r3.4).
   onDefaultBranch: (base) => records.onDefaultBranch(base, '0123abc'),
   // t7.3 prep: v1 work-ops.js's triage readers, ported to records.

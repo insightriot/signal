@@ -51,7 +51,7 @@ import { dirname, join, posix, relative, resolve, sep, isAbsolute } from 'node:p
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
 import { resolveDefaultBranch } from './branch-guard.js';
-import { gitEnv } from './git-env.js';
+import { gitCannotAsk, gitEnv } from './git-env.js';
 import { assertRealInsidePlanning, linkedComponent } from './path-confine.js';
 import { bodyDirFor, convertV1Item } from './work-convert.js';
 import { WorkStoreError, asWorkStoreError, lockFailure } from './work-errors.js';
@@ -572,6 +572,8 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
   if (version === 2) throw new WorkStoreError('CONFIG', '.planning/work/WORK.md already reads schema_version: 2 — this store is already v2.');
 
   if (apply) {
+    const cannotAsk = gitCannotAsk(baseDir);
+    if (cannotAsk !== null) throw new WorkStoreError('CONFIG', `--apply could not ask git about this project: ${cannotAsk}. Nothing was written.`);
     if (!isGitRepo(baseDir, execFn)) throw new WorkStoreError('CONFIG', '--apply needs a git repository (the cutover is one reviewable commit, and confirmCloses asks git).');
     const dirty = String(execFn('git', ['status', '--porcelain'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) })).trim();
     if (dirty !== '') {

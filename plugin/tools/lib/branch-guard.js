@@ -109,6 +109,10 @@ function git(baseDir, args, execFn) {
  */
 export function isGitRepo(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
+  // One rule with `work-store.js`'s `isGitRepo` (r6.5): when git cannot be
+  // used the answer is false — "not known to be one" — and a caller that
+  // writes, or weakens a check, on false asks `gitCannotAsk` first.
+  if (gitUnusableReason() !== null) return false;
   if (!existsSync(join(baseDir, '.git'))) {
     // Not conclusive: baseDir may be a subdirectory of the work tree.
     try {

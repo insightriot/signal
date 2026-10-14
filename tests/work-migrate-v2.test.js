@@ -19,6 +19,7 @@ import { tmpdir } from 'node:os';
 
 import { migrateWorkStoreV2, verifyConversion, convertStore } from '../plugin/tools/lib/work-migrate-v2.js';
 import { stringifyItem } from '../plugin/tools/lib/work-item.js';
+import { testSeam } from '../plugin/tools/lib/git-env.js';
 import { checkRecords, listRecords, storeVersion, recordPath, findDuplicateIds } from '../plugin/tools/lib/work-records.js';
 import { snapshotTree } from './helpers/write-inventory.js';
 
@@ -326,6 +327,24 @@ describe('migrateWorkStoreV2 — apply (temp git repos only)', () => {
     const { work } = v1Clone({ dirty: true });
     const before = snapshotTree(join(work, '.planning'));
     await expect(migrateWorkStoreV2(work, { apply: true, outDir: join(root, 'out'), now: NOW })).rejects.toThrow(/dirty|uncommitted/);
+    expect(snapshotTree(join(work, '.planning'))).toEqual(before);
+    expect(storeVersion(work)).toBe(1);
+  });
+
+  // r6.5: in a real repository, with a git Signal does not use, the refusal
+  // is that git could not be asked — not that a repository is needed.
+  it('a git older than 2.38, in a clean repository: refused with the version, changing nothing', async () => {
+    const { work } = v1Clone();
+    const before = snapshotTree(join(work, '.planning'));
+    testSeam.gitVersion = 'git version 2.34.1';
+    let err;
+    try {
+      err = await migrateWorkStoreV2(work, { apply: true, outDir: join(root, 'out'), now: NOW }).catch((e) => e);
+    } finally {
+      testSeam.gitVersion = undefined;
+    }
+    expect(err).toMatchObject({ code: 'CONFIG' });
+    expect(err.message).toBe('--apply could not ask git about this project: Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1. Nothing was written.');
     expect(snapshotTree(join(work, '.planning'))).toEqual(before);
     expect(storeVersion(work)).toBe(1);
   });

@@ -135,6 +135,10 @@ export function walkFiles(dir, out = []) {
   return out;
 }
 
+// False also when git cannot be used at all — "not known to be one", the
+// same answer `branch-guard.js`'s `isGitRepo` gives then (r6.5). A caller
+// that WRITES, or weakens a check, on false asks `gitCannotAsk`
+// (`git-env.js`) first: "could not ask" is not "no repository".
 export function isGitRepo(baseDir, execFn = execFileSync) {
   try {
     return runGit(baseDir, ['rev-parse', '--is-inside-work-tree'], execFn).trim() === 'true';

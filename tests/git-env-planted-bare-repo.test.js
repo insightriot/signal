@@ -412,6 +412,9 @@ describe('with a git older than 2.38: no git-backed check is run, and no process
     expect(got.prEvidence).toMatchObject({ status: 'cannot-determine', reason: OLD });
     expect(got.prReview).toMatchObject({ status: 'cannot-check', reason: `${OLD} — nothing was asked` });
     expect(got.dotenv).toBe(`git could not confirm .env is ignored (${OLD})`);
-    expect(got.probeGitState).toMatchObject({ mode: 'fs-backup', warnings: [`${OLD} — using a filesystem snapshot for reversibility.`] });
+    // r6.5: NOT a filesystem snapshot — that is the branch for "no repository",
+    // and it goes on to write. "Could not ask" does not proceed.
+    expect(got.probeGitState).toMatchObject({ proceed: false, reason: `${OLD}. Nothing was written.` });
+    expect(got.probeGitState.mode).not.toBe('fs-backup');
   });
 });

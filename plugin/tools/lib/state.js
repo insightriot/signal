@@ -7,7 +7,7 @@ import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 import { atomicWrite } from './atomic-write.js';
 import { resolveDefaultBranch } from './branch-guard.js';
-import { gitEnv } from './git-env.js';
+import { gitCannotAsk, gitEnv } from './git-env.js';
 import { LAYOUT_VERSION } from './layout-stamp.js';
 import {
   acquireLock as fileAcquireLock,
@@ -1198,7 +1198,11 @@ const COMMIT_TOKEN_RE = /^[0-9A-Za-z][0-9A-Za-z._/-]*$/;
  */
 export async function isStateStale(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
-  const empty = { stale: false, commitCount: 0, commits: [] };
+  // Git could not be asked (r6.5): not stale as far as anyone can tell, and
+  // `cannotCheck` says why nobody could tell.
+  const cannotAsk = gitCannotAsk(baseDir);
+  const empty = { stale: false, commitCount: 0, commits: [], ...(cannotAsk === null ? {} : { cannotCheck: cannotAsk }) };
+  if (cannotAsk !== null) return empty;
 
   // Fail open on a schema-drifted / malformed STATE.md — readState throws
   // StateSchemaError on an ahead/unknown/missing schema_version, and this feeds
@@ -1321,7 +1325,11 @@ const ORIGIN_FETCH_ENV = {
  */
 export async function isStaleVsOrigin(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
-  const notStale = { stale: false, aheadCount: 0, commits: [], touchedPlanning: false };
+  // Git could not be asked (r6.5): `cannotCheck` carries the reason, so the
+  // caller can say origin was not checked instead of saying nothing.
+  const cannotAsk = gitCannotAsk(baseDir);
+  const notStale = { stale: false, aheadCount: 0, commits: [], touchedPlanning: false, ...(cannotAsk === null ? {} : { cannotCheck: cannotAsk }) };
+  if (cannotAsk !== null) return notStale;
 
   // Fail open on a schema-drifted / malformed STATE.md — readState throws
   // StateSchemaError on an ahead/unknown/missing schema_version (exactly the

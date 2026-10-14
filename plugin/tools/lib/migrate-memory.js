@@ -27,7 +27,7 @@ import { join, dirname, resolve, relative, sep } from 'node:path';
 // archive-tree.js and work-generate.js — deterministic plan/moves order.
 import { PLANNING_DIR, withStateLock, EPIC_ID_STRICT_RE, compareEpicIds } from './state.js';
 import { atomicWrite } from './atomic-write.js';
-import { gitEnv, gitUnusableReason } from './git-env.js';
+import { gitCannotAsk, gitEnv } from './git-env.js';
 import {
   extractEpicSection,
   verifyCardCoverage,
@@ -1148,6 +1148,14 @@ export function probeGitState(baseDir, opts = {}) {
     String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) })).trim();
   const warnings = [];
 
+  // 0. Could git be asked at all? "Could not ask" is not "not a repository"
+  //    (M6.E16 r6.5): read as one, a migration applied on a dirty tree of a
+  //    real repository and reported "not a git checkout". Refused instead.
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) {
+    return { mode: 'git', proceed: false, dirty: false, warnings, reason: `${cannotAsk}. Nothing was written.` };
+  }
+
   // 1. A git work tree at all? (non-repo → fs-backup)
   try {
     git(['rev-parse', '--is-inside-work-tree']);
@@ -1156,7 +1164,7 @@ export function probeGitState(baseDir, opts = {}) {
       mode: 'fs-backup',
       proceed: true,
       dirty: false,
-      warnings: [`${gitUnusableReason() ?? 'Not a git repository'} — using a filesystem snapshot for reversibility.`],
+      warnings: ['Not a git repository — using a filesystem snapshot for reversibility.'],
     };
   }
 
@@ -2899,6 +2907,10 @@ export async function applyMigrate(baseDir, opts = {}) {
 export async function runMigrate(baseDir, opts = {}) {
   const apply = opts.apply ?? false;
   const sense = opts.sense ?? senseProject;
+  // Git could not be asked: the dry run proposes nothing and the apply is
+  // refused, with the reason first (r6.5; `probeGitState`).
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) return { applied: false, refused: true, dryRun: !apply, plan: null, inputHash: null, reason: `${cannotAsk}. Nothing was written.` };
   const plan = await sense(baseDir);
 
   const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');

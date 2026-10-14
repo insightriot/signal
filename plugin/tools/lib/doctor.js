@@ -23,6 +23,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { atomicWrite } from './atomic-write.js';
+import { gitUnusableReason } from './git-env.js';
 
 /**
  * Thrown when doctor cannot read the install state — usually a parse failure
@@ -989,6 +990,21 @@ export function computeStalenessRecommendation({ installed, latest, pStatesDetec
   }
   // installed > latest (e.g., running a dev build ahead of any tag) — silent.
   return null;
+}
+
+/**
+ * Is the installed git one Signal runs its git-backed checks with (2.38 or
+ * newer)? With an older one — or none, or one whose version cannot be read —
+ * every such check reports that it could not ask, and the commands that
+ * write on git's answer refuse (M6.E16 r6.5). Reports; never throws.
+ *
+ * @returns {{ok: boolean, message: string}}
+ */
+export function checkGitVersion() {
+  const reason = gitUnusableReason();
+  return reason === null
+    ? { ok: true, message: 'git: 2.38 or newer — Signal\'s git-backed checks run.' }
+    : { ok: false, message: `git: ${reason}. Update git; until then Signal's git-backed checks report that they could not ask, and commands that need git's answer refuse.` };
 }
 
 /**
