@@ -170,9 +170,12 @@ describe('gitEnv', () => {
   it('sets safe.bareRepository=explicit, and turns replace refs and grafts off', () => {
     delete process.env.GIT_CONFIG_COUNT;
     expect(gitEnv()).toMatchObject({
-      GIT_CONFIG_COUNT: '1',
-      GIT_CONFIG_KEY_0: 'safe.bareRepository',
-      GIT_CONFIG_VALUE_0: 'explicit',
+      GIT_CONFIG_COUNT: '2',
+      // r6.3: git's advice about a grafts file stays off stderr
+      GIT_CONFIG_KEY_0: 'advice.graftFileDeprecated',
+      GIT_CONFIG_VALUE_0: 'false',
+      GIT_CONFIG_KEY_1: 'safe.bareRepository',
+      GIT_CONFIG_VALUE_1: 'explicit',
       GIT_NO_REPLACE_OBJECTS: '1',
       GIT_GRAFT_FILE: '/dev/null',
     });
@@ -181,27 +184,33 @@ describe('gitEnv', () => {
   it('adds to the settings already in the environment and overwrites none of them', () => {
     Object.assign(process.env, { GIT_CONFIG_COUNT: '2', GIT_CONFIG_KEY_0: 'user.name', GIT_CONFIG_VALUE_0: 'A', GIT_CONFIG_KEY_1: 'user.email', GIT_CONFIG_VALUE_1: 'a@b.c' });
     expect(gitEnv()).toMatchObject({
-      GIT_CONFIG_COUNT: '3',
+      GIT_CONFIG_COUNT: '4',
       GIT_CONFIG_KEY_0: 'user.name',
       GIT_CONFIG_VALUE_0: 'A',
       GIT_CONFIG_KEY_1: 'user.email',
       GIT_CONFIG_VALUE_1: 'a@b.c',
-      GIT_CONFIG_KEY_2: 'safe.bareRepository',
-      GIT_CONFIG_VALUE_2: 'explicit',
+      GIT_CONFIG_KEY_2: 'advice.graftFileDeprecated',
+      GIT_CONFIG_VALUE_2: 'false',
+      GIT_CONFIG_KEY_3: 'safe.bareRepository',
+      GIT_CONFIG_VALUE_3: 'explicit',
     });
   });
 
   it('starts at zero when the inherited count is not a count', () => {
     for (const bad of ['', 'x', '-1', '1.5']) {
       process.env.GIT_CONFIG_COUNT = bad;
-      expect(gitEnv(), JSON.stringify(bad)).toMatchObject({ GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'safe.bareRepository' });
+      expect(gitEnv(), JSON.stringify(bad)).toMatchObject({ GIT_CONFIG_COUNT: '2', GIT_CONFIG_KEY_1: 'safe.bareRepository' });
     }
   });
 
   // r6.1: with any of these inherited, git would not look at the folder it is
   // run in, or would take settings (`-c core.fsmonitor=…`) from whoever set them.
   it('does not pass on the variables that point git somewhere else', () => {
-    const redirects = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_CONFIG_PARAMETERS', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY'];
+    const redirects = [
+      'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_CONFIG_PARAMETERS', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY',
+      // r6.3: these change which objects and refs an ancestry question reads
+      'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_SHALLOW_FILE', 'GIT_NAMESPACE',
+    ];
     for (const name of redirects) process.env[name] = '/somewhere/else';
     const env = gitEnv();
     for (const name of redirects) expect(env, name).not.toHaveProperty(name);

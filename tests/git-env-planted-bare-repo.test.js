@@ -17,9 +17,9 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { setImmediate } from 'node:timers';
-import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import * as branchGuard from '../plugin/tools/lib/branch-guard.js';
@@ -257,5 +257,198 @@ describe.each([
     // and a folder that is no repository at all is not turned into a refusal of its own
     expect(repositoryWithoutDotGit(root)).toBe(false);
     expect(branchGuard.isGitRepo(root)).toBe(false);
+  });
+
+  // ── r6.3: the look asks git, and reads the answer by where it is ─────────
+
+  // Signal's `git status` in `dir`, as `runGit` makes it: does it run the planted command?
+  const statusRuns = (dir) => {
+    spawnSync('git', ['status', '--porcelain'], { cwd: dir, encoding: 'utf8', env: gitEnv(dir) });
+    return existsSync(marker);
+  };
+  // What plain git finds from `dir`, as a full path — the thing the look must agree with.
+  const gitFinds = (dir) => {
+    const r = spawnSync('git', ['rev-parse', '--git-dir'], { cwd: dir, encoding: 'utf8' });
+    if (r.status !== 0) return null;
+    const out = r.stdout.trim();
+    return realpathSync(isAbsolute(out) ? out : join(dir, out));
+  };
+  const outerOf = () => realpathSync(join(proj, '..'));
+
+  // The hole: `HEAD` as a link. Git does not follow it (it reads where the
+  // link points and accepts `refs/…`); a test that follows it sees no HEAD.
+  it('HEAD as a link to refs/…, dangling or not, is still a planted repository', () => {
+    for (const target of ['refs/heads/planted', 'refs/heads/nothing-here']) {
+      rmSync(join(proj, 'HEAD'));
+      symlinkSync(target, join(proj, 'HEAD'));
+      expect(gitFinds(proj), target).toBe(realpathSync(proj)); // git takes the folder
+      expect(repositoryWithoutDotGit(proj), target).toBe(true);
+      expect(gitEnv(proj).GIT_DIR, target).toBe('/dev/null/not-a-repository');
+      expect(statusRuns(proj), target).toBe(false);
+      const calls = [];
+      expect(branchGuard.readPullRequestEvidence(proj, { execFn: (cmd, args) => { calls.push([cmd, ...args]); return '{}'; } }).status).toBe('cannot-determine');
+      expect(calls).toEqual([]);
+    }
+  });
+
+  // What git does NOT take for a HEAD. The look agrees with git here too:
+  // the folder is then part of the real repository above, and works as one.
+  it.each([
+    ['a link to itself', (p) => symlinkSync('HEAD', p)],
+    ['a folder', (p) => mkdirSync(p)],
+    ['a link to somewhere that is no ref', (p) => symlinkSync('/etc/hosts', p)],
+    ['a file that cannot be read', (p) => { writeFileSync(p, 'ref: refs/heads/planted\n'); chmodSync(p, 0o000); }],
+  ])('HEAD as %s: git does not take the folder, and neither does the look', (label, make) => {
+    rmSync(join(proj, 'HEAD'));
+    make(join(proj, 'HEAD'));
+    // (root reads a file whatever its mode: there git does take the folder, and the look says so)
+    const planted = gitFinds(proj) === realpathSync(proj);
+    expect(repositoryWithoutDotGit(proj)).toBe(planted);
+    if (label !== 'a file that cannot be read') expect(planted).toBe(false);
+    if (!planted) {
+      expect(gitFinds(proj)).toBe(join(outerOf(), '.git'));
+      expect(branchGuard.isGitRepo(proj)).toBe(true);
+    }
+    expect(statusRuns(proj)).toBe(false);
+  });
+
+  // A `.git` that is no repository does not stop git's search: it goes on up,
+  // into the planted folder above. So does the look.
+  it.each([
+    ['an empty folder', (p) => mkdirSync(p)],
+    ['a dangling link', (p) => symlinkSync(join(p, '..', 'nowhere'), p)],
+    ['a FIFO', (p) => { if (spawnSync('mkfifo', [p]).status !== 0) mkdirSync(p); }],
+    ['a file naming the planted folder as its git directory', (p) => writeFileSync(p, `gitdir: ${realpathSync(join(p, '..', '..'))}\n`)],
+  ])('a folder inside the planted one whose `.git` is %s: git finds the planted folder, and the look says so', (_label, make) => {
+    const inner = join(proj, 'inner');
+    mkdirSync(inner);
+    make(join(inner, '.git'));
+    expect(gitFinds(inner)).toBe(realpathSync(proj));
+    expect(repositoryWithoutDotGit(inner)).toBe(true);
+    expect(statusRuns(inner)).toBe(false);
+  });
+
+  it('a `.git` that is an empty file: git refuses it outright, the look says no, and nothing planted runs', () => {
+    const inner = join(proj, 'inner');
+    mkdirSync(inner);
+    writeFileSync(join(inner, '.git'), '');
+    expect(gitFinds(inner)).toBeNull();
+    expect(repositoryWithoutDotGit(inner)).toBe(false);
+    expect(storeIsGitRepo(inner)).toBe(false); // git's own refusal
+    expect(statusRuns(inner)).toBe(false);
+  });
+
+  // Git walks the REAL path. A committed link leads into the planted folder
+  // without the written path ever passing it.
+  it('a linked folder that leads into the planted one (packages/app -> ../proj/app)', () => {
+    const outer = join(proj, '..');
+    mkdirSync(join(proj, 'app'));
+    mkdirSync(join(outer, 'packages'));
+    symlinkSync('../proj/app', join(outer, 'packages', 'app'));
+    const through = join(outer, 'packages', 'app');
+    expect(gitFinds(through)).toBe(realpathSync(proj));
+    expect(repositoryWithoutDotGit(through)).toBe(true);
+    expect(branchGuard.isGitRepo(through)).toBe(false);
+    expect(statusRuns(through)).toBe(false);
+    // the folder beside the link is the real repository's
+    expect(repositoryWithoutDotGit(join(outer, 'packages'))).toBe(false);
+    expect(branchGuard.isGitRepo(join(outer, 'packages'))).toBe(true);
+  });
+
+  // Other things a repository could carry in the planted folder: none moves
+  // the git directory git reports away from the folder itself.
+  it('a planted `commondir`, `core.worktree`, or `worktrees/` structure does not hide the planted folder', () => {
+    writeFileSync(join(proj, 'commondir'), '../elsewhere\n');
+    mkdirSync(join(proj, '..', 'elsewhere'));
+    for (const part of ['config', 'objects', 'refs']) cpSync(join(proj, part), join(proj, '..', 'elsewhere', part), { recursive: true });
+    mkdirSync(join(proj, 'worktrees', 'x'), { recursive: true });
+    writeFileSync(join(proj, 'worktrees', 'x', 'gitdir'), `${join(proj, '..', 'wt', '.git')}\n`);
+    appendFileSync(join(proj, 'config'), '[core]\n\tworktree = ../..\n');
+    expect(repositoryWithoutDotGit(proj)).toBe(true);
+    expect(statusRuns(proj)).toBe(false);
+  });
+
+  // The other half: a real repository whose git directory is not called
+  // `.git`. It lies somewhere else, reached through a `.git` entry — which no
+  // repository can carry — and must keep working, with a HEAD entry on the
+  // way or without one.
+  it('real repositories whose git directory is not named `.git` keep working: a bare repository\'s worktree, --separate-git-dir, a linked `.git`', () => {
+    const bare = join(root, 'central.git');
+    g(root, 'init', '-q', '--bare', '-b', 'main', bare);
+    g(join(root, 'seed'), 'push', '-q', bare, 'planted:main');
+    const bareWt = join(root, 'bare-wt');
+    g(bare, 'worktree', 'add', '-q', bareWt, 'main');
+    // the `.bare` layout: the bare repository in a hidden folder, named by a `.git` file
+    const dotBare = join(root, 'dot-bare');
+    mkdirSync(dotBare);
+    cpSync(bare, join(dotBare, '.bare'), { recursive: true });
+    writeFileSync(join(dotBare, '.git'), 'gitdir: ./.bare\n');
+    const dotBareWt = join(dotBare, 'main');
+    g(dotBare, 'worktree', 'add', '-q', dotBareWt, '-b', 'wt');
+    const separate = join(root, 'separate');
+    mkdirSync(separate);
+    g(separate, 'init', '-q', '-b', 'main', `--separate-git-dir=${join(root, 'separate-gitdir')}`);
+    g(separate, 'commit', '-q', '--allow-empty', '-m', 'c0');
+    const linkedDotGit = join(root, 'linked-dot-git');
+    mkdirSync(linkedDotGit);
+    cpSync(join(root, 'seed', '.git'), join(root, 'kept-gitdir'), { recursive: true });
+    symlinkSync(join(root, 'kept-gitdir'), join(linkedDotGit, '.git'));
+    for (const top of [bareWt, dotBareWt, separate, linkedDotGit]) {
+      const sub = join(top, 'src', 'deep');
+      mkdirSync(sub, { recursive: true });
+      const withHead = join(top, 'docs');
+      mkdirSync(withHead, { recursive: true });
+      writeFileSync(join(withHead, 'HEAD'), 'a file a project may well have\n');
+      for (const dir of [top, sub, withHead]) {
+        expect(repositoryWithoutDotGit(dir), dir).toBe(false);
+        expect(gitEnv(dir), dir).not.toHaveProperty('GIT_DIR');
+        expect(branchGuard.isGitRepo(dir), dir).toBe(true);
+        expect(storeIsGitRepo(dir), dir).toBe(true);
+      }
+    }
+    // Inside the bare repository itself Signal has no business: turned away.
+    expect(repositoryWithoutDotGit(bare)).toBe(true);
+  });
+
+  // The answer is remembered — and asked for again whenever the folder
+  // becomes a repository or stops being one.
+  it('git is asked once for a folder, and again when what is there changes', () => {
+    const dir = join(root, 'later');
+    mkdirSync(dir);
+    const asked = () => testSeam.asked;
+    let n = asked();
+    expect(branchGuard.isGitRepo(dir)).toBe(false);
+    expect(asked()).toBe(n + 1);
+    for (let i = 0; i < 5; i += 1) gitEnv(dir);
+    expect(asked()).toBe(n + 1); // remembered
+    g(dir, 'init', '-q', '-b', 'main');
+    n = asked();
+    expect(branchGuard.isGitRepo(dir)).toBe(true);
+    expect(repositoryWithoutDotGit(dir)).toBe(false);
+    expect(asked()).toBe(n + 1);
+    // a planted layout appears in a subfolder that was looked at before
+    const sub = join(dir, 'sub');
+    mkdirSync(sub);
+    expect(repositoryWithoutDotGit(sub)).toBe(false);
+    writeFileSync(join(sub, 'HEAD'), 'ref: refs/heads/planted\n'); // a HEAD alone is not yet a repository
+    expect(repositoryWithoutDotGit(sub)).toBe(false);
+    for (const part of ['config', 'objects', 'refs']) cpSync(join(proj, part), join(sub, part), { recursive: true });
+    expect(repositoryWithoutDotGit(sub)).toBe(true);
+    expect(branchGuard.isGitRepo(sub)).toBe(false);
+    // and goes
+    rmSync(join(sub, 'refs'), { recursive: true });
+    expect(repositoryWithoutDotGit(sub)).toBe(false);
+    expect(branchGuard.isGitRepo(sub)).toBe(true);
+    // the repository itself goes
+    rmSync(join(dir, '.git'), { recursive: true });
+    expect(branchGuard.isGitRepo(dir)).toBe(false);
+  });
+
+  it('a successful call with the shared environment prints nothing on stderr (the grafts advice is off)', () => {
+    const outer = join(proj, '..');
+    for (const args of [['status', '--porcelain'], ['log', '--oneline', '-1'], ['merge-base', '--is-ancestor', 'HEAD', 'HEAD'], ['rev-list', '--count', 'HEAD']]) {
+      const r = spawnSync('git', args, { cwd: outer, encoding: 'utf8', env: gitEnv(outer) });
+      expect([r.status, r.stderr], args.join(' ')).toEqual([0, '']);
+    }
   });
 });
