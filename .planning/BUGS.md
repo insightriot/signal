@@ -190,12 +190,14 @@
 | SIG-302 | `confirmed` | P3 | **`npm run lint` does not cover tests/; the Closed section of EPICS.md is in ID order** |
 | SIG-303 | `confirmed` | P3 | **Three timing tests fail under machine load and pass alone** |
 | SIG-304 | `confirmed` | P3 | **A slow pattern at milestones.js:229 is now reached by readMilestoneRows** |
-| SIG-305 | `confirmed` | P3 | **The edit hook misses a record written by its real path when .planning is a link** |
+| SIG-305 | `closing` | P3 | **The edit hook misses a record written by its real path when .planning is a link** |
 | SIG-306 | `confirmed` | P3 | **Three older refusals print project text through JSON.stringify, not shownName** |
 | SIG-307 | `confirmed` | P3 | **Small notes from M6.E16 REVIEW pass 3 that no round took up** |
 | SIG-308 | `confirmed` | P3 | **The v1-to-v2 migration manifest names a guessed default branch beside closes that no longer use the guess** |
 | SIG-309 | `confirmed` | P3 | **Six Low findings from the security review of M6.E16 pass 4** |
-| SIG-310 | `confirmed` | P3 | **The units migration dry run does not list the lines it replaces in a marked milestone file other than the current one** |
+| SIG-310 | `closing` | P3 | **The units migration dry run does not list the lines it replaces in a marked milestone file other than the current one** |
 | SIG-311 | `confirmed` | P3 | **Suggestions from M6.E16 REVIEW pass 4 and the narrow review that no round took up** |
+| SIG-312 | `confirmed` | P2 | **/sig:permissions proposes any git subcommand a prompt file names, some of which run a command** |
+| SIG-313 | `confirmed` | P3 | **A project unpacked from an archive with a hostile .git/config runs its commands under any git call** |
 
-*0 needs-triage · 67 confirmed · 5 closing · 122 closed (194 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 67 confirmed · 7 closing · 122 closed (196 total) · closes more than 30 days before the newest event are in `work/history/`*

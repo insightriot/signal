@@ -15,6 +15,13 @@
       "type": "triaged",
       "at": "2026-10-13T16:50:41.562Z",
       "by": "claude (M6.E16 REVIEW)"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-14T04:01:45.136Z",
+      "by": "claude (M6.E16 fix round 6)",
+      "reason": "fixed",
+      "proof": "ee69fd01ed6d1762316dd0ae91e0bdd3bffe3a83"
     }
   ]
 }

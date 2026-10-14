@@ -24,16 +24,20 @@ last_updated: 2026-10-13T17:13:59.608Z
 
 ### ▶ WHERE THE WORK IS — read this first (2026-10-13)
 
-**`M6.E16` — *"Epics and units as records"* — at SHIP as `v0.1.51`, PR #301 open (2026-10-13). Its close is requested and waits for the merge.** Brett approved the pull request, the close request, the merge on a green `test` check, and the tag. Branch
-`feat/m6.e16-epics-units-as-records`. Suite: 347 files, 7562 passed, 1 skipped; lint clean. Report:
-[`M6.E16-REVIEW.md`](M6.E16-REVIEW.md) (PASS-WITH-FIXES, last section). Retrospective:
+**`M6.E16` — *"Epics and units as records"* — at SHIP as `v0.1.51`, PR #301 open (2026-10-14). Its close is requested and waits for the merge.** Brett approved the pull request, the close request and the tag; **the merge waits for his word again**, because a whole-diff read he asked for found a Critical and a High after that approval. Six fix rounds followed (`r6` … `r6.6`), each read fresh. Branch
+`feat/m6.e16-epics-units-as-records`. Suite: 365 files, 8077 passed, 1 skipped; lint clean. Report:
+[`M6.E16-REVIEW.md`](M6.E16-REVIEW.md) (the last sections). Retrospective:
 [`M6.E16-RETROSPECTIVE.md`](M6.E16-RETROSPECTIVE.md).
 
 - **After the merge:** run `/sig:docs-sweep` (or the next SHIP) on `main`. It confirms the close of
   `M6.E16` and of `SIG-132`, `SIG-255`, `SIG-288`, `SIG-289`, `SIG-295`, and moves this Epic's narrative
   out of this file. Then update the installed plugin and restart before using `/sig:` commands.
-- **Put off on purpose, on record, to come back to:** `SIG-294`, `SIG-296` … `SIG-311` (all open, in
-  `BUGS.md`). The ones from REVIEW are `SIG-303` … `SIG-311`; the largest is `SIG-310`. They are the
+- **Open decisions put to Brett (2026-10-13):** closing a unit that is not an Epic ID (no command
+  reaches `requestUnitClose`); a hand-confirm for a project with no remote; edits inside a generated
+  table row; Signal requiring git 2.38 (`D-M6E16-32`, built).
+- **Put off on purpose, on record, to come back to:** `SIG-294`, `SIG-296` … `SIG-313` (in
+  `BUGS.md`). From REVIEW: `SIG-303` … `SIG-313`. `SIG-305` and `SIG-310` were fixed in fix round 6
+  and are *closing*; parts of `SIG-309` and `SIG-311` were fixed there too. They are the
   natural scope of a "harden unit records" Epic, as `M6.E14` was for `M6.E13`. `r5.9`, the last 28
   lines of fixes, was read first by the pull request's reviewer, not by a REVIEW pass.
 - **How REVIEW went:** four full passes failed, each in a different corner; pass 3 reached the loop
