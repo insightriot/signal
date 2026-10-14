@@ -393,6 +393,58 @@ describe.skipIf(!dataVolumeWorks)('a link to the data volume\'s spelling of a re
   });
 });
 
+// r6.5: the same check on every system. No Linux folder has a second
+// spelling without a bind mount, so the comparison by TEXT always decides
+// there and the comparison by numbers of the resolved path is never the one
+// that refuses. `testSeam.realDirSpelling` stands in for the second
+// spelling: it changes only the text `underRealFolder` compares with, as
+// the data volume does on a Mac. The link, the store and the target are real.
+describe('a link into a record folder, where the comparison by text does not decide (every system, through a seam)', () => {
+  afterEach(() => {
+    testSeam.realDirSpelling = null;
+  });
+
+  it('a Write through `alias2 -> <the store>/work/items/00` is refused by the resolved path\'s folders', async () => {
+    const kept = join(tmp, 'realplan');
+    renameSync(at('.planning'), kept);
+    symlinkSync(kept, at('.planning'));
+    const proj2 = join(tmp, 'proj2');
+    mkdirSync(proj2);
+    symlinkSync(join(kept, 'work', 'items', '00'), join(proj2, 'alias2'));
+    const target = join(proj2, 'alias2', 'KK-1.json');
+    testSeam.realDirSpelling = (p) => `/another-spelling${p}`;
+    expect(await blocked(write(target, dir))).toContain('.planning/work/items/00/KK-1.json');
+    await allowed(write(join(proj2, 'alias2', 'notes.md'), dir));
+  });
+});
+
+// r6.5: a link whose target is not there yet. `realpath` cannot resolve it,
+// so the guard judged the link's own path — and the Write then went THROUGH
+// the link and created the record.
+describe('a write through a dangling link', () => {
+  it('to a record that does not exist yet: refused, naming the record', async () => {
+    symlinkSync(at('.planning/work/items/00/NEW-1.json'), at('src/dangle.json'));
+    expect(await blocked(write(at('src/dangle.json'), dir))).toContain('.planning/work/items/00/NEW-1.json');
+  });
+
+  it('by a relative target, and through a second dangling link', async () => {
+    symlinkSync('../.planning/work/items/00/NEW-2.json', at('src/rel.json'));
+    expect(await blocked(write(at('src/rel.json'), dir))).toContain('.planning/work/items/00/NEW-2.json');
+    symlinkSync('rel.json', at('src/hop.json'));
+    expect(await blocked(write(at('src/hop.json'), dir))).toContain('.planning/work/items/00/NEW-2.json');
+  });
+
+  it('to an ordinary file that does not exist yet, and a link that loops: allowed, and quickly', async () => {
+    symlinkSync(at('src/not-yet.js'), at('src/to-not-yet.js'));
+    await allowed(write(at('src/to-not-yet.js'), dir));
+    symlinkSync('loop-b', at('src/loop-a'));
+    symlinkSync('loop-a', at('src/loop-b'));
+    const t = process.hrtime.bigint();
+    await allowed(write(at('src/loop-a'), dir));
+    expect(Number(process.hrtime.bigint() - t) / 1e6).toBeLessThan(50);
+  });
+});
+
 describe('the guard never throws, whatever the folders above the target are', () => {
   it('a target under a folder that is not there, under a file, and at the top of the disk', async () => {
     await allowed(write(at('src/not/there/yet/x.js'), dir));

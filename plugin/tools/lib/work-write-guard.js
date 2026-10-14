@@ -60,7 +60,7 @@
 // project's guarded files and folders (`volTarget`), found from the cwd — a
 // `/.vol` path has no folder of its own to look above.
 
-import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, realpathSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 import { shownName } from './printable-text.js';
@@ -183,13 +183,32 @@ function classify(abs) {
 
 // realpath of a path that may not exist yet: the nearest existing ancestor,
 // realpathed, with the rest appended.
+//
+// A link whose target is not there is followed by hand (r6.5): `realpath`
+// cannot resolve it, and a Write goes through it and CREATES the target —
+// `dangle.json -> .planning/work/items/00/NEW-1.json` made a record. A few
+// hops at most, so a link that loops ends.
+const LINK_HOPS_MAX = 8;
 function realpathLoose(abs) {
   const rest = [];
   let cur = abs;
+  let hops = 0;
   for (;;) {
     try {
       return join(realpathSync.native(cur), ...rest);
     } catch {
+      let target = null;
+      try {
+        if (lstatSync(cur).isSymbolicLink()) target = readlinkSync(cur);
+      } catch {
+        target = null;
+      }
+      if (target !== null) {
+        hops += 1;
+        if (hops > LINK_HOPS_MAX) return abs;
+        cur = resolve(dirname(cur), target);
+        continue;
+      }
       const parent = dirname(cur);
       if (parent === cur) return abs;
       rest.unshift(basename(cur));
@@ -261,6 +280,7 @@ function underRealFolder(real, root) {
     } catch {
       continue; // the folder is not there
     }
+    if (testSeam.realDirSpelling !== null) realDir = testSeam.realDirSpelling(realDir);
     if (!real.startsWith(realDir + sep)) continue;
     const rel = [dir, ...real.slice(realDir.length + 1).split(sep)].join('/');
     if (seen.has(rel) || !isTargetRel(rel)) continue;
@@ -275,8 +295,15 @@ function underRealFolder(real, root) {
 // not shown the target to be unguarded, and its caller refuses (r6.1).
 const LINK_SCAN_MAX = 20000;
 
-/** For tests only: a lower limit than `LINK_SCAN_MAX`, so no test writes 20,001 files. Nothing in Signal sets it. */
-export const testSeam = { linkScanMax: null };
+/**
+ * For tests only; nothing in Signal sets either. `linkScanMax`: a lower limit
+ * than `LINK_SCAN_MAX`, so no test writes 20,001 files. `realDirSpelling`: a
+ * function given a guarded folder's real path, returning the text
+ * `underRealFolder` compares with — so a test on any system can stand in for
+ * one where the same folder has two spellings (`/System/Volumes/Data/…` on a
+ * Mac, a bind mount) and the comparison by text does not decide.
+ */
+export const testSeam = { linkScanMax: null, realDirSpelling: null };
 
 // The guarded files every store has, asked about by name before any folder is
 // read — a folder with too many entries cannot hide them.
