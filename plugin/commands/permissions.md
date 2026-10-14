@@ -44,7 +44,7 @@ console.log(formatReport(p));
 
 The report has four parts, and each carries its own honesty:
 
-1. **What the payload prescribes** — split into prose and code counts. A rule traceable to an `execFileSync` call site is stronger evidence than one traceable to prose, and the report says which.
+1. **What the payload prescribes** — split into prose and code counts. Rules are proposed only for commands a command file tells the agent to run: a binary Signal's own code starts (an `execFileSync` call site) never passes through a Bash permission, so it is counted and never proposed, and `gh` is never proposed at all.
 2. **What is already granted** — user / project / local. A scope that is **absent** and one that is **unreadable** render differently and neither renders as "0 rules" (`B39`).
 3. **What is proposed** — flow-derived and stack-derived, labelled **separately** so you can install one half and refuse the other.
 4. **What this could not establish** — the approximation limit, on every path including the clean one.

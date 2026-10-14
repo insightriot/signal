@@ -108,8 +108,10 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   `/.vol/<device>/<inode>` address of a guarded file or folder), and
   the real path of the target is compared with the real path of `.planning` and
   the store's folders, and each folder above the target is compared with them by
-  device and inode, so a symlinked `.planning` (or a record folder that is a link)
-  is guarded by any address that reaches it.
+  device and inode (on the written path and on the resolved one), so a symlinked
+  `.planning` is guarded by any address that reaches it. A record folder that is
+  itself a link is not followed: the store refuses such a folder, so nothing under
+  it is a record.
   `NotebookEdit` is read by its `notebook_path`. Item bodies
   (`items/**/*.md`) are allowed. On `work/WORK.md` itself
   it blocks only an edit that would change or remove `schema_version: 2` or the

@@ -179,7 +179,7 @@ tools/          # GSD's CLI tools layer
 
 ## Key Constraints
 
-- Node.js 22+
+- Node.js 22+; git 2.38+ (on an older git the git-backed checks stop and say so)
 - Skills must load on-demand per phase to preserve context budget — never load all 21 at once
 - Plugin must be installable in under 5 minutes
 - Claude Code is the primary runtime; adapter layer for Cursor/Codex is secondary
