@@ -2115,6 +2115,10 @@ function closingRow(r, now) {
 /** The reasons `confirmCloses` gives that no git answer here can ever change. */
 export const BY_HAND_REASONS = Object.freeze(['no-remote', 'no-origin-remote', 'not-a-repo']);
 
+/** What `git-failed` means and what to do (r7.1) — the confirm line, the sweep and this refusal say it alike. */
+export const GIT_FAILED = 'git could not read the repository — a broken config, a `.git` pointing nowhere, a folder git does not trust — '
+  + 'fix that and run the confirm again';
+
 // What to do instead, for every other reason the automatic confirm gives.
 function notByHandWords(reason, proof) {
   switch (reason) {
@@ -2129,6 +2133,8 @@ function notByHandWords(reason, proof) {
       return `git-too-old: ${gitUnusableReason() ?? 'the git installed here could not be used'}. Update git, and the automatic confirm can run`;
     case 'no-default-branch':
       return `no-default-branch: the remote's default branch is not recorded in this clone — ${RECORD_DEFAULT_BRANCH_HINT}, and the automatic confirm can run`;
+    case 'git-failed':
+      return `git-failed: ${GIT_FAILED}`;
     default:
       return `${reason}: the automatic confirm could not confirm it, and that is not a reason git can never answer`;
   }

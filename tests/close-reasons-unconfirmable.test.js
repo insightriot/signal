@@ -294,7 +294,8 @@ describe('the closing-too-long words, reason by reason', () => {
   });
 
   it('a reason with no sentence of its own: a unit is told the reason and not to merge; an item keeps its one advice', () => {
-    for (const reason of ['shallow', 'git-failed', 'ambiguous-proof']) {
+    // `git-failed` has a sentence of its own since M6.E16 r7.1 (tests/close-by-hand.test.js).
+    for (const reason of ['shallow', 'ambiguous-proof']) {
       expect(unitClosingTooLongWords(reason, P), reason)
         .toBe(`the commit its close was requested with, ${P}, is not confirmed on the default branch (${reason}).`);
       expect(itemClosingTooLongWords(reason, P, 'SIG-9'), reason).toBe(ITEM_MERGE);

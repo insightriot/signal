@@ -35,7 +35,7 @@
 
 import { capitalised, RECORD_DEFAULT_BRANCH_HINT } from './branch-guard.js';
 import { gitUnusableReason } from './git-env.js';
-import { confirmCloses, probeCloses, storeVersion } from './work-records.js';
+import { confirmCloses, GIT_FAILED, probeCloses, storeVersion } from './work-records.js';
 import { evictEpicNarrative } from './evict.js';
 
 const LIST_MAX = 5;
@@ -110,15 +110,23 @@ export function gitTooOldPart(result) {
 }
 const GIT_TOO_OLD = () => gitUnusableReason() ?? 'the git installed here could not be used for the check';
 
+// And for `git-failed` (M6.E16 r7.1): git was there and could not read this
+// repository, which is neither "no repository" nor "not merged".
+export function gitFailedPart(result) {
+  if (!anyReason(result, 'git-failed')) return null;
+  return `git-failed: ${GIT_FAILED}`;
+}
+
 /**
  * The sentences that say why nothing could be checked, for the end of a line:
- * one for each of the five reasons above that some close has.
+ * one for each of the six reasons above that some close has.
  *
  * @param {{stillClosing?: Array<{reason: string}>, units?: {stillClosing?: Array<{reason: string}>}}} result
  * @returns {string[]}
  */
 export const uncheckedParts = (result) =>
-  [noDefaultBranchPart(result), noRemotePart(result), noOriginRemotePart(result), notARepoPart(result), gitTooOldPart(result)].filter((p) => p !== null);
+  [noDefaultBranchPart(result), noRemotePart(result), noOriginRemotePart(result), notARepoPart(result), gitTooOldPart(result), gitFailedPart(result)]
+    .filter((p) => p !== null);
 
 // Why a unit has stayed closing over 14 days, by the reason it is still
 // closing for (REVIEW r6): the commit is not on the default branch for two of
@@ -133,6 +141,7 @@ const UNIT_STALE_WHY = {
   'no-origin-remote': 'this project has no remote named `origin`',
   'not-a-repo': 'this project is not a git repository',
   'git-too-old': 'the git installed here is older than Signal checks a close with',
+  'git-failed': 'git could not read the repository',
 };
 
 /**
@@ -199,6 +208,8 @@ function closingTooLongWords(reason, proof, words) {
       return `${requested}${NOT_A_REPO}, so it stays closing.${byHandWords(words.id)}`;
     case 'git-too-old':
       return `${requested}${GIT_TOO_OLD()}, so it stays closing until git is updated.`;
+    case 'git-failed':
+      return `${requested}${GIT_FAILED}.`;
     default:
       return `${commit} is not confirmed on the default branch${words.other(reason)}`;
   }

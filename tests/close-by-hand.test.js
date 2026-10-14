@@ -360,6 +360,23 @@ describe('the confirm line and the sweep name the hand-confirm for the three rea
     }
     expect(formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-1', reason: 'no-default-branch' }], stale: [] })).not.toMatch(/sig:item confirm/);
   });
+  // r7.1: `git-failed` says what it means and what to do, everywhere it appears.
+  const GIT_FAILED = 'git could not read the repository — a broken config, a `.git` pointing nowhere, a folder git does not trust — '
+    + 'fix that and run the confirm again';
+  it('git-failed: the confirm line, the closing-too-long words and the hand-confirm refusal say what it means', async () => {
+    const line = formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-1', reason: 'git-failed' }], stale: [] });
+    expect(line).toContain(`git-failed: ${GIT_FAILED}`);
+    expect(line).not.toMatch(/sig:item confirm/);
+    for (const words of [itemClosingTooLongWords('git-failed', 'abc1234', 'SIG-1'), unitClosingTooLongWords('git-failed', 'abc1234', UNIT)]) {
+      expect(words).toContain(GIT_FAILED);
+      expect(words).not.toMatch(/Merge it|sig:item confirm/);
+    }
+    const { work, head } = await repo();
+    await writeFile(join(work, '.git/config'), `${await readFile(join(work, '.git/config'), 'utf-8')}[broken\n`);
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    await expect(records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT }))
+      .rejects.toMatchObject({ message: expect.stringContaining(`git-failed: ${GIT_FAILED}`) });
+  });
   it('no-origin-remote names renaming a remote to origin first, then the hand-confirm', () => {
     const line = formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-1', reason: 'no-origin-remote' }], stale: [] });
     expect(line.indexOf('git remote rename <name> origin')).toBeGreaterThan(-1);
