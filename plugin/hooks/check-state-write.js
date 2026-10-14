@@ -27,7 +27,7 @@ import {
   checkProposedStateWrite,
   checkStateFrontmatterShape,
 } from '../tools/lib/retrospective.js';
-import { isLink, pathCannotExist, realpathLoose, storeAbove } from '../tools/lib/store-above.js';
+import { isLink, pathCannotExist, realpathLoose, storeAbove, writtenPath } from '../tools/lib/store-above.js';
 
 // Read event JSON from stdin.
 let raw = '';
@@ -86,8 +86,11 @@ if (typeof target === 'string') {
     // link: a link into a store BELOW the cwd — a monorepo's sub-package,
     // another project — resolved here to the link itself, and the guard was
     // never loaded. And any target that is itself a link loads it.
-    const real = realpathLoose(abs);
-    if (mentionsPlanning(abs) || isLink(abs) || real === null || mentionsPlanning(real)
+    // From the path as the system will read it (`writtenPath`, r6.8): `abs`
+    // has its `..` collapsed by text, before the folder link in front of it.
+    const written = writtenPath(resolve(cwd), target);
+    const real = realpathLoose(written);
+    if (mentionsPlanning(abs) || isLink(written) || real === null || mentionsPlanning(real)
       || storeAbove(resolve(cwd)) || storeAbove(dirname(abs)) || (real !== abs && storeAbove(dirname(real)))) {
       const { checkWorkWrite } = await import('../tools/lib/work-write-guard.js');
       const guard = await checkWorkWrite({ filePath: target, cwd, tool, input });

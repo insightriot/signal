@@ -64,7 +64,7 @@ import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'n
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 import { shownName } from './printable-text.js';
-import { LINK_HOPS_MAX, pathCannotExist, realpathLoose } from './store-above.js';
+import { LINK_HOPS_MAX, pathCannotExist, realpathLoose, writtenPath } from './store-above.js';
 
 const VIEWS = new Set(['bugs.md', 'backlog.md', 'issues-inbox.md', 'open-questions.md']);
 
@@ -99,7 +99,8 @@ const UNRESOLVED_MESSAGE = (abs) =>
   + `cannot be shown not to be one of the store's files: ${IN_A_V2_STORE}. Nothing was changed. Address the file by its path.`;
 // A chain of links whose end is not there, longer than the guard follows, or a loop.
 const TOO_MANY_LINKS_MESSAGE = (abs) =>
-  `${shownName(abs)} is a link, through more than ${LINK_HOPS_MAX} links to something that is not there yet (or round in a loop), `
+  `${shownName(abs)} is a link, through more than ${LINK_HOPS_MAX} links — at least as many as the system follows (32 on macOS, 40 on Linux) — `
+  + 'to something that is not there yet (or round in a loop), '
   + `so where a write would land cannot be shown not to be one of the store's files: ${IN_A_V2_STORE}. Nothing was changed. `
   + 'Address the file by the path it is meant to have.';
 // A file with another name, or one named by number, in a store too large to compare it with.
@@ -188,9 +189,9 @@ function classify(abs) {
 
 // Where a write to a path would land — `realpathLoose`, in `store-above.js`
 // since r6.7 so the edit hook decides with the same answer (its own copy
-// never followed a dangling link). Null past `LINK_HOPS_MAX` (40, what the
-// system follows) or in a loop: the caller refuses, as for any search that
-// stopped short.
+// never followed a dangling link). Null past `LINK_HOPS_MAX` (40: at least as
+// far as the system follows, 32 on macOS and 40 on Linux) or in a loop: the
+// caller refuses, as for any search that stopped short.
 
 /**
  * Classify an absolute path by its shape alone (no store read): the
@@ -201,10 +202,12 @@ function classify(abs) {
  * @param {string} abs — absolute, normalised
  * @returns {{blocked: boolean, candidates: Array<{baseDir: string, rel: string}>}}
  */
-export function protectedTarget(abs) {
+export function protectedTarget(abs, written = abs) {
   const candidates = [];
   const seen = new Set();
-  for (const p of [abs, realpathLoose(abs) ?? abs]) {
+  // As written (normalised, for its shape) and as resolved — from the path
+  // with its `..` kept, which is how the system reads it (r6.8).
+  for (const p of [abs, realpathLoose(written) ?? abs]) {
     for (const c of classify(p)) {
       if (seen.has(c.baseDir)) continue;
       seen.add(c.baseDir);
@@ -532,22 +535,26 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
     const abs = resolve(base, filePath);
     // No file can be opened by a path this long, so there is no edit to judge.
     if (pathCannotExist(abs)) return { block: false };
-    const { candidates } = protectedTarget(abs);
+    // `abs` is normalised — `..` collapsed by text — and is used only for the
+    // path's shape. Every question to the disk is asked of `written`, the
+    // path as the system will read it, `..` after any folder link (r6.8).
+    const written = writtenPath(base, filePath);
+    const { candidates } = protectedTarget(abs, written);
     // And the routes the path does not show: the real path of a symlinked
     // folder, a second name for a guarded file, and a file named by number.
-    const resolved = realpathLoose(abs);
-    const real = resolved ?? abs;
+    const resolved = realpathLoose(written);
+    const real = resolved ?? written;
     // The stores above the cwd, above the target, and above where the write
     // would land (r6.7): a link into a sub-package's or another project's
     // store is judged against that store.
     for (const root of storeRoots(base, dirname(abs), ...(resolved === null ? [] : [dirname(resolved)]))) {
       if (resolved === null) candidates.push({ baseDir: root, tooManyLinks: abs });
       candidates.push(
-        ...underRealFolder(real, root), ...underGuardedFolder(abs, root), ...hardLinkTo(abs, root),
+        ...underRealFolder(real, root), ...underGuardedFolder(written, root), ...hardLinkTo(written, root),
         // The resolved path too: behind a link into a folder BELOW a guarded
         // one, the written path has no guarded folder above it.
-        ...(real === abs ? [] : underGuardedFolder(real, root)),
-        ...volTarget(abs, root), ...(real === abs ? [] : volTarget(real, root)),
+        ...(real === written ? [] : underGuardedFolder(real, root)),
+        ...volTarget(abs, root), ...(real === written ? [] : volTarget(real, root)),
       );
     }
     for (const { baseDir, rel, linkedFrom, numberedFrom, unresolved, undecided, tooManyLinks } of candidates) {
@@ -562,7 +569,7 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
         if (tooManyLinks) return { block: true, reason: TOO_MANY_LINKS_MESSAGE(tooManyLinks) };
         const note = linkedFrom ? LINK_NOTE(linkedFrom, rel) : numberedFrom ? NUMBERS_NOTE(numberedFrom, rel) : '';
         if (!isWorkMd(rel)) return { block: true, reason: note + BLOCK_MESSAGE(rel) };
-        if (await changesVersionOrKey(abs, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
+        if (await changesVersionOrKey(written, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
       } catch {
         // A broken or unknown WORK.md — allow.
       }

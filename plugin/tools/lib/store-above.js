@@ -4,15 +4,29 @@
 // `node:path` only, so the hook pays nothing to import it.
 
 import { existsSync, lstatSync, readlinkSync, realpathSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, sep } from 'node:path';
 
 /**
- * How many links a path is followed through by hand: as many as the system
- * follows (Linux 40; macOS stops at 32). A chain the system would follow is
- * then always followed to its end, and one longer is a write the system
- * refuses anyway (`ELOOP`).
+ * How many links a path is followed through by hand: at least as far as the
+ * system follows (32 on macOS, 40 on Linux). A chain the system would
+ * follow is then always followed to its end, and one longer is a write the
+ * system refuses anyway (`ELOOP`).
  */
 export const LINK_HOPS_MAX = 40;
+
+/**
+ * The path a tool would write, as the system will read it: `target` as it
+ * is when absolute, else after `cwd` — joined as TEXT, with no `..`
+ * collapsed (r6.8). `<root>/src/x/../../units/M.json` with `src/x` a folder
+ * link is `.planning/work/units/M.json` to the system; normalised first, it
+ * read `<root>/units/M.json`. Judge where a write lands from this; keep a
+ * normalised path only for checks of the path's shape.
+ *
+ * @param {string} cwd — absolute
+ * @param {string} target
+ * @returns {string}
+ */
+export const writtenPath = (cwd, target) => (isAbsolute(target) ? target : `${cwd.endsWith(sep) ? cwd : `${cwd}${sep}`}${target}`);
 
 /**
  * Where a write to `abs` would land (M6.E16 r6.7: the one resolver the edit
@@ -44,9 +58,17 @@ export function realpathLoose(abs) {
         hops += 1;
         if (hops > LINK_HOPS_MAX || seen.has(cur)) return null;
         seen.add(cur);
-        cur = resolve(dirname(cur), target);
+        // Joined as text, NOT normalised (r6.8): a `..` in the target comes
+        // after whatever folder link is before it, and the system follows
+        // that link first. `resolve` collapsed `x/../..` by text and judged
+        // a different folder than the one the write landed in.
+        cur = isAbsolute(target) ? target : `${dirname(cur)}${sep}${target}`;
         continue;
       }
+      // Up one folder, and keep the name. `dirname` and `basename` cut text
+      // and do not collapse `..`; `join` below does collapse a `..` in the
+      // part kept — but that part is under a folder that is not there, and
+      // the system fails a write through a missing folder too (ENOENT).
       const parent = dirname(cur);
       if (parent === cur) return abs;
       rest.unshift(basename(cur));
