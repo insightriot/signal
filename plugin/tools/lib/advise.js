@@ -46,6 +46,7 @@ import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
 import { assertRealInsidePlanning, regularFileRefusal, readRegularFile } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
 import { nextStepFor, shownBranches } from './branch-work.js';
+import { isPlainRefName, shownRef } from './printable-text.js';
 import { gatherBigPicture, formatDigest } from './advise-digest.js';
 import { validatePriorities } from './advise-priorities.js';
 import { listRecords } from './work-records.js';
@@ -507,6 +508,9 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
   if (elsewhere && (elsewhere.open.length > 0 || elsewhere.unclassified.length > 0 || unreadableBranches.length > 0)) {
     out.push('## Open on other branches');
     out.push('');
+    // One format for a branch in this whole section (r6.5): a plain name in
+    // backticks; any other as `shownRef` shows it — never the name as it is.
+    const names = (xs) => xs.map((b) => (isPlainRefName(b) ? `\`${b}\`` : shownRef(b, 'branch', { noCommandHere: true }))).join(', ');
     if (elsewhere.open.length > 0) {
       out.push(
         'Finish these before starting any priority below. Each was read from that branch\'s ' +
@@ -516,12 +520,11 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
       for (const o of elsewhere.open) {
         out.push(
           `- **${quoteSafe(o.epic)}** — at ${quoteSafe(o.phase ?? 'an unrecorded phase')} on ` +
-            `${shownBranches(o.branches)}; ${quoteSafe(nextStepFor(o))}`
+            `${names(o.branches)}; ${quoteSafe(nextStepFor(o))}`
         );
       }
       out.push('');
     }
-    const names = (xs) => xs.map((b) => `\`${quoteSafe(b)}\``).join(', ');
     if (elsewhere.unclassified.length > 0) {
       out.push(
         `${elsewhere.unclassified.length} unmerged branch(es) carry a \`STATE.md\` with no Epic id, so they ` +

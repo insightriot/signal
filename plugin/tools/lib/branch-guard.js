@@ -331,7 +331,7 @@ export function checkBranchPosture(baseDir, opts = {}) {
   return base(override ? BRANCH_GATE.OVERRIDDEN : BRANCH_GATE.ON_DEFAULT, {
     currentBranch,
     defaultBranch,
-    reason: `HEAD is the default branch (${shownRef(defaultBranch)})`,
+    reason: `HEAD is the default branch (${shownRef(defaultBranch, 'branch', { noCommandHere: true })})`,
   });
 }
 

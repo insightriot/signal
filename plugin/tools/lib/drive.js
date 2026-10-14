@@ -28,7 +28,7 @@ import { openQuestionsNaming } from './legacy-lists.js';
 import { leadingUnitId } from './leading-id.js';
 import { readState, partitionCompletedPhases, PHASES } from './state.js';
 import { checkoutStep, findWorkOnOtherBranches, nextStepFor, shownBranches } from './branch-work.js';
-import { shownRef } from './printable-text.js';
+import { isPlainRefName, shownRef } from './printable-text.js';
 import { resolveArtifactPath } from './resume.js';
 import { getUnit, unitClosure, unitRecordsOn } from './unit-records.js';
 import { isStoreOn } from './work-store.js';
@@ -590,9 +590,12 @@ export async function proposeEpicCandidates(baseDir) {
   // local open Epic and ahead of every backlog row, and each carries `branch` so
   // `resolveStartPhase` refuses to resume it here — this run never switches branches.
   const otherBranches = await findWorkOnOtherBranches(baseDir, { localEpic: state?.current_epic ?? null });
+  // Two Epics whose names are not shown can read the same ("… not shown: 19
+  // characters"): an `id` shared by two candidates then gets its branch.
+  const shared = new Set(otherBranches.open.map((o) => o.epic).filter((e, i, all) => all.indexOf(e) !== i));
   for (const o of otherBranches.open) {
     candidates.push({
-      id: o.epic,
+      id: shared.has(o.epic) ? `${o.epic} on ${shownRef(o.checkout, 'branch', { noCommandHere: true })}` : o.epic,
       title: o.epic,
       source: `${shownBranches(o.branches)} (open Epic)`,
       // What the agent is told to switch to (`drive.md`). A name that is not
@@ -920,7 +923,12 @@ export function resolveStartPhase(state, candidate) {
   // against this branch's files and write this branch's STATE.md — the wrong
   // branch. Switching branches is the person's call, so the run stops and says how.
   if (candidate?.branch) {
-    const step = candidate.nextStep ?? checkoutStep(candidate.branch);
+    // `proposeEpicCandidates` always sets `nextStep`. A candidate built
+    // without one has only `branch`, which is a SHOWN name (a plain name, or
+    // a note): a command is made from it only when it is plainly a name.
+    const step = candidate.nextStep ?? (isPlainRefName(candidate.branch)
+      ? checkoutStep(candidate.branch)
+      : 'its branch has a name that cannot be written safely in a command, so none is given — find it with `git branch -a` and check it out yourself to continue it');
     return {
       phase: candidate.phase ?? 'DISCUSS',
       why:

@@ -889,7 +889,7 @@ function dryRunReport(a) {
     ? `Project key: ${a.key} (from --key)`
     : `Project key: ${a.key} (proposed from the folder name "${a.folder}"; pass --key KEY to choose another)`);
   lines.push(a.evidence.source === 'git'
-    ? `Closes are checked against this repository's history — the default branch, ${shownRef(a.evidence.ref)} (${a.evidence.commits.length} commits, ${a.evidence.epics.size} ${a.evidence.units ? 'units closed as shipped' : 'retrospectives'}): `
+    ? `Closes are checked against this repository's history — the default branch, ${shownRef(a.evidence.ref, 'branch', { noCommandHere: true })} (${a.evidence.commits.length} commits, ${a.evidence.epics.size} ${a.evidence.units ? 'units closed as shipped' : 'retrospectives'}): `
       + 'an entry is proposed for closing only when its wording says it is finished AND a commit, pull request or Epic it cites is found there. '
       + 'Nothing closes unless you confirm the proposals. Anything else stays open, flagged, with a note saying what was found and not found.'
     : 'The migration could not read this repository\'s history, so nothing can be proposed for closing (not a git checkout, no commits, or git failed): '

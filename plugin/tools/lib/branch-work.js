@@ -40,7 +40,7 @@ import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 
 import { gitEnv, gitUnusableReason } from './git-env.js';
-import { isPlainRefName, oddRefNameShown, printable, shownRef } from './printable-text.js';
+import { isPlainRefName, oddRefNameShown, printable, shownEpicName, shownRef } from './printable-text.js';
 import { parseFrontmatter, partitionCompletedPhases, PHASES } from './state.js';
 import { isSafeUnitName } from './unit-name.js';
 import { unitClosure, unitRecordsOn } from './unit-records.js';
@@ -325,10 +325,11 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
     open.push({
       // Another branch's STATE.md is written by whoever pushed it, and these
       // two values go into messages, the advisory and a digest a model reads.
-      // An Epic is named only when it is a name a unit may have (the store's
-      // rule, `isSafeUnitName`), a phase only when it is one of Signal's.
+      // An Epic is named as it is only when it is a name a unit may have (the
+      // store's rule, `isSafeUnitName`) — else as `shownEpicName` shows an odd
+      // one — and a phase only when it is one of Signal's.
       // They were compared, above, as written.
-      epic: isSafeUnitName(epic) ? epic : `(an Epic whose name is not shown: ${epic.length} characters)`,
+      epic: shownEpicName(epic, isSafeUnitName),
       phase: phase === null || PHASES.includes(phase) ? phase : '(a phase that is not one of Signal\'s)',
       branches: found.map((r) => r.display),
       checkout,

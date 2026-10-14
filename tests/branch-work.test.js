@@ -278,8 +278,7 @@ describe('/sig:advise — the advisory says what is open elsewhere, above the pr
     const classified = { live: [], dropped: [], consulted: ['BACKLOG.md'] };
     const body = renderArtifact({ today: '2026-10-01', classified, priorities: [], corpus, projectName: 'x' });
     const section = body.slice(body.indexOf('## Open on other branches'), body.indexOf('## Citation rule'));
-    // r6.4: the branch is written as every other surface writes it (`shownBranches`), with no backticks of its own.
-    expect(section).toContain('**M1.E2** — at PLAN on feat/m1.e2; run `git checkout feat/m1.e2` to continue it');
+    expect(section).toContain('**M1.E2** — at PLAN on `feat/m1.e2`; run `git checkout feat/m1.e2` to continue it');
     expect(body.indexOf('## Open on other branches')).toBeLessThan(body.indexOf('## Citation rule'));
     const summary = formatAdviseSummary({ status: 'written', today: '2026-10-01', classified, priorities: [], corpus, path: 'p' });
     expect(summary).toMatch(/M1\.E2 is open on feat\/m1\.e2 — finish it first: run `git checkout feat\/m1\.e2`/);

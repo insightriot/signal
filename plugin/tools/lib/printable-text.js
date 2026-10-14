@@ -120,16 +120,40 @@ export function oddRefNameShown(name) {
  * length when it may not. Never put what this returns into a command: ask
  * `isPlainRefName` first, and give no command when it says no.
  *
+ * `noCommandHere`: for a sentence that would not give a command whatever the
+ * name is — the note then does not end "so none is given".
+ *
  * @param {unknown} name
  * @param {'branch'|'remote'|'tag'} [what]
+ * @param {{noCommandHere?: boolean}} [opts]
  * @returns {string}
  */
-export function shownRef(name, what = 'branch') {
+export function shownRef(name, what = 'branch', { noCommandHere = false } = {}) {
   if (isPlainRefName(name)) return name;
   const shown = oddRefNameShown(name);
   return shown === null
     ? `(a ${what} whose name is not shown: ${String(name).length} characters)`
-    : `(${what} \`${shown}\` — its name cannot be written safely in a command, so none is given)`;
+    : `(${what} \`${shown}\` — its name cannot be written safely in a command${noCommandHere ? '' : ', so none is given'})`;
+}
+
+/**
+ * An Epic's name read from ANOTHER branch's STATE.md (r6.5), in the same
+ * three forms: `plain(name)` true — the caller's rule for a name a unit may
+ * have — and it is shown as it is; otherwise shown, escaped, beside a note
+ * when it is short and holds nothing from the set `oddRefNameShown` refuses,
+ * single spaces between word characters apart (`Phase 11`: it is never put
+ * in a command); otherwise only its length.
+ *
+ * @param {string} name
+ * @param {(name: string) => boolean} plain
+ * @returns {string}
+ */
+export function shownEpicName(name, plain) {
+  if (plain(name)) return name;
+  const shown = oddRefNameShown(String(name).replace(/(?<=\w) (?=\w)/g, '_')) === null ? null : ascii(name);
+  return shown === null
+    ? `(an Epic whose name is not shown: ${String(name).length} characters)`
+    : `(Epic \`${shown}\` — not a name a unit record can have)`;
 }
 
 /**
