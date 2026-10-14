@@ -316,7 +316,6 @@ function* guardedEntries(root) {
     if (e !== null) yield e;
   }
   const max = testSeam.linkScanMax ?? LINK_SCAN_MAX;
-  const walked = new Set();
   let read = 0;
   // Taken from the end: units, items, history, then `.planning/work`, then `.planning`.
   const pending = [['.planning', false], ['.planning/work', false], ['.planning/work/history', false], ['.planning/work/items', true], ['.planning/work/units', true]];
@@ -335,22 +334,13 @@ function* guardedEntries(root) {
         return;
       }
       const rel = `${dir}/${e.name}`;
-      // A folder of records may be a link (`items/01 -> elsewhere`): it is
-      // read through too (r6.3), each folder once by its numbers, so a link
-      // back into the store ends there.
+      // A folder of records that is a LINK is not read (the store does not
+      // read one either): `items/zz -> /` would have this walk the disk.
       if (e.isDirectory() && !deep) continue;
-      const mayBeFolder = e.isDirectory() || (deep && e.isSymbolicLink());
-      if (!mayBeFolder && !isTargetRel(rel)) continue;
-      const n = numbersOf(at(rel));
-      if (n === null) continue;
-      const isFolder = mayBeFolder && n.dir;
-      if (isFolder) {
-        const key = `${n.dev}:${n.ino}`;
-        if (walked.has(key)) continue;
-        walked.add(key);
-        pending.push([rel, true]);
-      } else if (!isTargetRel(rel)) continue;
-      yield { rel, dir: isFolder, dev: n.dev, ino: n.ino };
+      if (e.isDirectory()) pending.push([rel, true]);
+      else if (!isTargetRel(rel)) continue;
+      const found = entry(rel, e.isDirectory());
+      if (found !== null) yield found;
     }
   }
 }
@@ -547,6 +537,9 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
     for (const root of storeRoots(base, dirname(abs))) {
       candidates.push(
         ...underRealFolder(real, root), ...underGuardedFolder(abs, root), ...hardLinkTo(abs, root),
+        // The resolved path too: behind a link into a folder BELOW a guarded
+        // one, the written path has no guarded folder above it.
+        ...(real === abs ? [] : underGuardedFolder(real, root)),
         ...volTarget(abs, root), ...(real === abs ? [] : volTarget(real, root)),
       );
     }

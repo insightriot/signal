@@ -339,37 +339,57 @@ describe.skipIf(!dataVolumeWorks)('a symlinked `.planning`, reached by the data 
   });
 });
 
-// The folders records are kept in may be links themselves (`items/01 ->
-// elsewhere`). A listing does not go through a link unless asked to, so a
-// record in such a folder was in no list: a second name for it, or its
-// `/.vol` path, was compared with nothing.
-describe('a record in a shard folder that is a link', () => {
-  let record;
+// r6.4 — a folder of records that is a LINK is not read. r6.3 read through
+// such links, for a case nobody had run: a hard link to a record inside one.
+// But the store does not read a linked folder (`listRecords` refuses it), so
+// nothing under one is a live record — and reading through `items/zz -> /`
+// walked the whole disk's top: the hook took over half a second and then
+// refused every file that has a second name.
+describe('a folder of records that is a link is not read', () => {
   beforeEach(() => {
-    const elsewhere = join(tmp, 'shard-elsewhere');
-    mkdirSync(elsewhere);
-    record = join(elsewhere, 'SIG-101.json');
-    writeFileSync(record, '{}\n');
-    symlinkSync(elsewhere, at('.planning/work/items/01'));
+    symlinkSync('/', at('.planning/work/items/zz'));
+    symlinkSync(at('.planning/work/items'), at('.planning/work/items/loop'));
   });
 
-  it('a hard link to it is refused, and the message names the record', async () => {
-    linkSync(record, at('src/alias.json'));
-    const reason = await blocked(edit(at('src/alias.json'), dir));
-    expect(reason).toMatch(/another name \(a hard link\) for \.planning\/work\/items\/01\/SIG-101\.json/);
-  });
-
-  it.skipIf(!volWorks)('its /.vol path is refused (macOS only)', async () => {
-    const s = statSync(record);
-    await blocked(edit(`/.vol/${s.dev}/${s.ino}`, dir));
-  });
-
-  it('a link that loops back into the store does not hang the check, and an ordinary second name is still allowed', async () => {
-    symlinkSync(at('.planning/work/items'), at('.planning/work/items/02'));
+  it('an ordinary file with a second name is allowed, quickly', async () => {
     linkSync(at('src/index.js'), at('src/second-name.js'));
     const t = process.hrtime.bigint();
     await allowed(edit(at('src/second-name.js'), dir));
-    expect(Number(process.hrtime.bigint() - t) / 1e6).toBeLessThan(500);
+    expect(Number(process.hrtime.bigint() - t) / 1e6).toBeLessThan(50);
+  });
+
+  it('a record\'s own second name is still refused', async () => {
+    linkSync(at('.planning/work/items/00/SIG-1.json'), at('src/alias.json'));
+    const reason = await blocked(edit(at('src/alias.json'), dir));
+    expect(reason).toMatch(/another name \(a hard link\) for \.planning\/work\/items\/00\/SIG-1\.json/);
+  });
+
+  it('a file under the linked folder is not taken for a record of this project', async () => {
+    const elsewhere = join(tmp, 'elsewhere');
+    mkdirSync(elsewhere);
+    writeFileSync(join(elsewhere, 'SIG-101.json'), '{}\n');
+    symlinkSync(elsewhere, at('.planning/work/items/01'));
+    linkSync(join(elsewhere, 'SIG-101.json'), at('src/other-alias.json'));
+    await allowed(edit(at('src/other-alias.json'), dir));
+  });
+});
+
+// r6.4: the folder comparison is made on the target as the system resolves it
+// too. Behind ONE link whose text is the data volume's other spelling, the
+// path as written has no guarded folder above it by its numbers' route.
+describe.skipIf(!dataVolumeWorks)('a link to the data volume\'s spelling of a record folder (macOS only — skipped elsewhere)', () => {
+  it('a Write through `alias2 -> /System/Volumes/Data/<the store>/work/items/00` is refused', async () => {
+    const kept = join(tmp, 'realplan');
+    renameSync(at('.planning'), kept);
+    symlinkSync(kept, at('.planning'));
+    const proj2 = join(tmp, 'proj2');
+    mkdirSync(proj2);
+    symlinkSync(dataVolume(join(kept, 'work', 'items', '00')), join(proj2, 'alias2'));
+    const target = join(proj2, 'alias2', 'KK-1.json');
+    expect(target).not.toContain('.planning');
+    expect(await blocked(write(target, dir))).toContain('.planning/work/items/00/KK-1.json');
+    // and what is not a record there is left alone
+    await allowed(write(join(proj2, 'alias2', 'notes.md'), dir));
   });
 });
 
