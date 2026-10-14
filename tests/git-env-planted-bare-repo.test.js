@@ -319,12 +319,15 @@ describe.each([
     ['a dangling link', (p) => symlinkSync(join(p, '..', 'nowhere'), p)],
     ['a FIFO', (p) => { if (spawnSync('mkfifo', [p]).status !== 0) mkdirSync(p); }],
     ['a file naming the planted folder as its git directory', (p) => writeFileSync(p, `gitdir: ${realpathSync(join(p, '..', '..'))}\n`)],
-  ])('a folder inside the planted one whose `.git` is %s: git finds the planted folder, and the look says so', (_label, make) => {
+  ])('a folder inside the planted one whose `.git` is %s: git finds the planted folder, and the look says so', (label, make) => {
     const inner = join(proj, 'inner');
     mkdirSync(inner);
     make(join(inner, '.git'));
-    expect(gitFinds(inner)).toBe(realpathSync(proj));
-    expect(repositoryWithoutDotGit(inner)).toBe(true);
+    // (a FIFO: git 2.39 passes over it, a newer git refuses it outright — the
+    // look agrees with whichever git is installed, and nothing planted runs)
+    const planted = gitFinds(inner) === realpathSync(proj);
+    if (label !== 'a FIFO') expect(planted).toBe(true);
+    expect(repositoryWithoutDotGit(inner)).toBe(planted);
     expect(statusRuns(inner)).toBe(false);
   });
 
