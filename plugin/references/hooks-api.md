@@ -114,8 +114,10 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   it is a record. A target that is a dangling link is read to where it points
   and judged there, up to 40 links (at least as far as the system follows: 32 on
   macOS, 40 on Linux); past that, or in a loop, it is refused in a project with
-  a v2 store. A `..` after a folder link is read after the link, as the system
-  reads it, both in a link's target and in the path the tool is given.
+  a v2 store. A `..` after a folder link in a link's target is read after the link, as the
+  system reads it. The path the tool is given is judged two ways — tidied as text
+  (what Claude Code writes) and with its `..` kept — and refused if either lands
+  on a guarded file.
   `NotebookEdit` is read by its `notebook_path`. Item bodies
   (`items/**/*.md`) are allowed. On `work/WORK.md` itself
   it blocks only an edit that would change or remove `schema_version: 2` or the
