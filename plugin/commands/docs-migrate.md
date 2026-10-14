@@ -82,7 +82,7 @@ The same command gives every Epic or unit the project names one record under `.p
   the markers has its table written from the records as well: the dry run names each such file and lists what changes between its markers, the apply stages and reports each one, and a row or a line typed between its markers refuses the apply and is never deleted. On a project not yet on the store, a marked file of another milestone refuses in the dry run, naming the file. A
   marker counts only on a line of its own. Everything between the two marker lines is replaced, so the dry run lists each line there that
   is not a table row, by line number — move it outside the markers to keep it — and a line added
-  between them after the dry run refuses the apply. **A store that already has
+  between them after the dry run refuses the apply. After that the rows between the `signal:epics` markers belong to Signal: a row a person typed there is protected — the regeneration refuses rather than delete it — but an edit inside one of Signal's own rows is put back at the next regeneration and reported as `view-stale` by `/sig:docs-sweep`. **A store that already has
   `work/units/`** gets the same run, narrowed: it proposes a record for each unit the project names
   that has **none**, by name, in the same dry run with the same one yes for legacy closes, and the
   apply adds only those — no existing unit record is touched or proposed again. When every unit has a

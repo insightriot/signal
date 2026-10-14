@@ -301,4 +301,22 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
     const text = sectionOf('docs-migrate', '- **A project already on the store with no `work/units/`:**', '\n- **What is proposed');
     expect(text).toMatch(/Epic table/);
   });
+
+  // M6.E16 r7: the rule for the generated rows, in one sentence where the table is described.
+  it('docs-migrate.md: the rows between the markers are Signal\'s; a typed row refuses, an edit inside Signal\'s row is put back and reported as view-stale', () => {
+    const text = sectionOf('docs-migrate', '- **A project already on the store with no `work/units/`:**', '\n- **What is proposed');
+    expect(text).toMatch(/rows between the `signal:epics` markers belong to Signal/);
+    expect(text).toMatch(/put back at the next regeneration and reported as `view-stale`/);
+  });
+
+  // M6.E16 r7: SHIP closes the current unit whatever its name; docs-archive no longer says only by hand.
+  it('ship.md §6.8 closes a current unit that is not an Epic ID; docs-archive.md no longer says it has no command', () => {
+    const ship = sectionOf('ship', '### 6.8', '### 6.9');
+    expect(ship).toMatch(/currentUnit\(state\)/);
+    expect(ship).toMatch(/not an Epic ID/);
+    expect(ship).toMatch(/no retrospective is required/);
+    const archive = read('docs-archive');
+    expect(archive).not.toMatch(/A unit that is not an Epic ID\s+\(`phase-12`\), and an Epic that will never ship, have no command/);
+    expect(archive).toMatch(/\/sig:ship` closes .*whatever its name/s);
+  });
 });

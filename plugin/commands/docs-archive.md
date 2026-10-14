@@ -65,9 +65,10 @@ Each writes one event to `.planning/work/units/<ID>.json` and regenerates the vi
 
 ### Opening, dropping, reopening or editing a unit by hand
 
-`/sig:discuss --epic` opens an Epic and `/sig:ship` closes one. A unit that is not an Epic ID
-(`phase-12`), and an Epic that will never ship, have no command: their unit record is written through
-the library. Do any of these only when the user asks.
+`/sig:discuss --epic` opens an Epic, and `/sig:ship` closes the current unit whatever its name — an
+Epic, or a unit that is not an Epic ID (`phase-12`) once it has a record. Any other change to a unit,
+and a unit that will never ship, has no command: its unit record is written through the library. Do
+any of these only when the user asks.
 
 - **A record for each unit that has none:** `/sig:docs-migrate --work-store`. On a project that
   already has unit records it proposes a record for every unit the project's files name that has

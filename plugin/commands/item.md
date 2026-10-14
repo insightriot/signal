@@ -1,7 +1,7 @@
 ---
 name: sig:item
-description: "Change work items in the work store — new, triage, move, close, reopen, edit, show, list. Every change to an item goes through this command as an event on its record, so an item's status is always derived from its own history. Only for projects with the store on (.planning/work/WORK.md). Not phase-gated."
-args: "<new|triage|move|close|reopen|edit|show|list> [args]"
+description: "Change work items in the work store — new, triage, move, close, reopen, edit, show, list, and confirm a close by hand where git never can. Every change to an item goes through this command as an event on its record, so an item's status is always derived from its own history. Only for projects with the store on (.planning/work/WORK.md). Not phase-gated."
+args: "<new|triage|move|close|reopen|edit|show|list|confirm> [args]"
 ---
 
 # `/sig:item` — Change Work Items
@@ -15,7 +15,7 @@ An item's prose lives beside its record, in `SIG-n.md`. **That body file is your
 `BUGS.md`, `BACKLOG.md`, `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `.planning/work/EPICS.md` and `.planning/work/history/*.md` are **views**: generated from the records after every change. Do not edit them; the hook blocks it and says to come here.
 
 Authoritative references:
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-records.js` — `storeVersion`, `listRecords`, `getRecord`, `triageNext`, `listNeedsReview`, `listThemes`, `newItem`, `triageItem`, `queueItem`, `startItem`, `requestClose`, `closeItem`, `reopenItem`, `editItem`, `checkRecords`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-records.js` — `storeVersion`, `listRecords`, `getRecord`, `triageNext`, `listNeedsReview`, `listThemes`, `newItem`, `triageItem`, `queueItem`, `startItem`, `requestClose`, `closeItem`, `reopenItem`, `editItem`, `confirmCloseByHand`, `checkRecords`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-item.js` — `renderLabel`, `WorkStoreError` (dispatch on its `code` — every code is listed under *Errors* below)
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readEffectiveProfile` (for `attention`, triage only)
 
@@ -31,7 +31,7 @@ Call `storeVersion(baseDir)`.
 
 Items are named by their **ID**, `SIG-412`. The label `SIG-412-BUG-T` (ID, type, status — `renderLabel({id, type: record.type, status})`) is for reading; you may pass either, and only the ID part is used. A closing item's label ends in `closing`.
 
-## The eight actions
+## The nine actions
 
 Every change below takes `by` (who made it) and returns the entry `{id, path, record, status, epic}`; print the new label and the record's path.
 
@@ -106,6 +106,12 @@ An argument is an item ID only when it is `<key>-n` with this store's own key �
 
 `listRecords(baseDir)` and filter its `records` by `status`, `record.type`, `record.theme`, `record.priority` or `epic`, each optional. Given an old ID instead of a filter (by the same rule as `show`), list the one item `findByLegacyId(baseDir, oldId)` returns. Print one line per item: label, title, path. With `--themes`, print each `theme` in use with its count instead. If `broken` is non-empty, say so under the list and name each by ID and path — a broken record is never silently left out.
 
+### `confirm <ID>` — confirm by hand a close git can never confirm
+
+A *closing* item or unit is confirmed by `confirmCloses` once its commit is on the remote's default branch. A project with no remote (`no-remote`), with remotes none of which is named `origin` (`no-origin-remote`), or that is not a git repository (`not-a-repo`) has no such branch, so the close stays *closing* for ever; the `Closes:` line and `/sig:docs-sweep` say so and name this action. For those three reasons only, `confirmCloseByHand(baseDir, id, {by, why})` writes the ordinary closed event the automatic confirm writes — with the person as `by`, `confirmed_by: 'person'`, the reason git could not (`git_reason`), and the person's words, if any, as `why` — and every view reads it as closed. It works on units too: an ID that is not `<key>-n` is a unit (`.planning/work/units/<ID>.json`).
+
+**Never offer or run it without the person's explicit yes for that ID.** Show them the ID, its title and the commit it is closing on, and ask; one ID, one yes, one call. There is no "confirm all", and a list is refused (`SCHEMA`). Every other reason refuses, writing nothing, with what to do instead — `not-on-default-branch`: merge it; `open-items`: close the unit's items first (`OPEN_ITEMS`); `git-too-old`: update git; `no-default-branch`: run `git fetch origin`, then `git remote set-head origin -a`; a commit already on the default branch: run `/sig:docs-sweep`, which confirms it. Commit the changed record and the views. A hand-confirmed unit's narrative stays in `STATE.md` until someone moves it: the automatic confirm moves only what it confirmed. `why` is scrubbed for secrets as in `new`.
+
 ## Checking the store
 
 `checkRecords(baseDir)` reads every record and reports each problem by ID: a record that does not parse or validate, a history that does not fold, a record outside its folder, a symbolic link, a `dup_of` that names nothing, two records with one ID, and a view that differs from a regeneration of the records. It writes nothing. On a v1 store it returns one `v1-store` finding and nothing else. `/sig:docs-sweep` runs it as its work-store check.
@@ -131,3 +137,4 @@ A message that says an item changed *but the views were not regenerated* means t
 - [ ] Every change went through a `work-records.js` function — no record moved, deleted or edited by hand.
 - [ ] Triage confirmation followed `attention`; nothing was closed `dup`/`rejected` without a person.
 - [ ] A `fixed` close asked for the commit, and was reported as *closing*, not closed.
+- [ ] A close was confirmed by hand only for an ID the person said yes to, one at a time.
