@@ -573,8 +573,14 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
         if (tooManyLinks) return { block: true, reason: TOO_MANY_LINKS_MESSAGE(tooManyLinks) };
         const note = linkedFrom ? LINK_NOTE(linkedFrom, rel) : numberedFrom ? NUMBERS_NOTE(numberedFrom, rel) : '';
         if (!isWorkMd(rel)) return { block: true, reason: note + BLOCK_MESSAGE(rel) };
-        // The file Claude Code edits: the normalised reading.
+        // The normalised reading is the file Claude Code edits — read always,
+        // as it may be a second name for WORK.md (a hard link, a /.vol path).
+        // The raw reading too when it lands on this store's WORK.md (r6.10):
+        // what a direct caller's write would hit. Refused if either loses
+        // the version or the key.
         if (await changesVersionOrKey(abs, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
+        if (written !== abs && realpathLoose(written) === realpathLoose(join(baseDir, '.planning', 'work', 'WORK.md'))
+          && await changesVersionOrKey(written, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
       } catch {
         // A broken or unknown WORK.md — allow.
       }

@@ -153,6 +153,35 @@ describe.each(Object.keys(LAYOUTS))('%s: the path Claude Code writes, `src/y/../
   });
 });
 
+// r6.10 — the WORK.md content check, for both readings. `src/x/../../WORK.md`
+// is `<src's parent>/WORK.md` normalised (not there) and the store's WORK.md
+// with its `..` kept. Only the normalised one was read, so a version-line
+// change through the raw reading was allowed.
+describe.each(Object.keys(LAYOUTS))('%s: a WORK.md version change through the raw reading', { timeout: 60_000 }, (name) => {
+  const ev = (tool, file, cwd) => {
+    const input = {
+      Write: { file_path: file, content: '---\nkey: SIG\nschema_version: 3\n---\n' },
+      Edit: { file_path: file, old_string: 'schema_version: 2', new_string: 'schema_version: 3' },
+      MultiEdit: { file_path: file, edits: [{ old_string: 'key: SIG', new_string: 'key: XYZ' }] },
+    }[tool];
+    return { tool_name: tool, cwd, tool_input: input };
+  };
+  it('Write, Edit and MultiEdit, from every cwd: refused by both; an edit that keeps version and key: allowed', async () => {
+    const l = layout(name);
+    const file = `${l.src}/x/../../WORK.md`;
+    for (const cwd of l.cwds) {
+      const got = await Promise.all(['Write', 'Edit', 'MultiEdit'].map(async (tool) => {
+        const e = ev(tool, file, cwd);
+        const [status, guard] = await Promise.all([runHook(e), checkWorkWrite({ filePath: file, cwd, tool, input: e.tool_input })]);
+        return [status, guard.block];
+      }));
+      expect(got, cwd).toEqual([REFUSED, REFUSED, REFUSED]);
+    }
+    const keep = { file_path: file, content: '---\nkey: SIG\nschema_version: 2\n---\n\nA note.\n' };
+    expect(await checkWorkWrite({ filePath: file, cwd: l.cwds[0], tool: 'Write', input: keep })).toEqual({ block: false });
+  });
+});
+
 describe('what stays allowed, and a loop', { timeout: 60_000 }, () => {
   it('an ordinary `src/a/../b.js` with no links; a dangling link with `..` to an ordinary new file: allowed', async () => {
     const l = layout('one project');

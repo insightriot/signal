@@ -21,7 +21,7 @@
 // where unit tests can exercise it directly.
 
 import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, isAbsolute, resolve } from 'node:path';
 
 import {
   checkProposedStateWrite,
@@ -76,9 +76,11 @@ const mentionsPlanning = (p) => p.normalize('NFKC').toLowerCase().toUpperCase().
 
 if (typeof target === 'string') {
   try {
-    const cwd = typeof event.cwd === 'string' ? event.cwd : process.cwd();
+    // The guard's rule for the cwd (r6.10): the event's when it is absolute,
+    // else this process's. This cwd is what the guard is handed below.
+    const cwd = typeof event.cwd === 'string' && isAbsolute(event.cwd) ? event.cwd : process.cwd();
     // Both readings of the path (`pathReadings`, `store-above.js`, r6.9),
-    // from the same cwd the guard uses: `abs`, normalised as text, is the
+    // from that one cwd, as the guard makes them: `abs`, normalised as text, is the
     // file Claude Code writes; `written`, with its `..` kept, is what a raw
     // write of the string would hit.
     const { abs, written } = pathReadings(cwd, target);

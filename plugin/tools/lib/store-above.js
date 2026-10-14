@@ -30,6 +30,12 @@ export const LINK_HOPS_MAX = 40;
  * Both are judged, and a write is refused when either is guarded: the first
  * is the write that happens, the second is the safe direction.
  *
+ * Claude Code hands PreToolUse hooks a `file_path` it has already
+ * normalised — trimmed, `~` expanded, made absolute, `..` collapsed
+ * (confirmed live with 2.1.299) — so through the hook the two readings are
+ * the same, and the `..`-kept one matters only to a direct caller of
+ * `checkWorkWrite`. It is kept for them, in the safe direction.
+ *
  * @param {string} cwd
  * @param {string} target
  * @returns {{abs: string, written: string}}
