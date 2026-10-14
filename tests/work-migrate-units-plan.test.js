@@ -142,6 +142,59 @@ describe('planUnits — the union of units, one proposal each (AC9.1)', () => {
     }
   });
 
+  // M6.E16 r6.2: doubt or denial said in punctuation or a symbol is read too.
+  // The rule looked only at letters and digits, so "shipped?" was evidence.
+  it('a status cell that doubts or denies in punctuation or a symbol: proposed open and flagged', async () => {
+    const base = await unitsStore();
+    const cells = {
+      'shipped?': '?', 'Shipped (?)': '?', 'shipped ❌': '❌', 'shipped 🚧': '🚧', '**shipped** ⚠ v0.1.7': '⚠', 'shipped!': '!',
+      'shipped =': '=', '✅ shipped 2026-07-18 ⏸': '⏸', 'shipped "v0.1.7"': '""',
+      // A check mark counts only at the start or the end of the cell.
+      'shipped ✅ v0.1.7 on 2026-07-18': '✅',
+    };
+    for (const [cell, mark] of Object.entries(cells)) {
+      put(base, MILESTONE, milestone7([`| \`M7.E6\` | ${cell} | x |`]));
+      const plan = await planUnits(base);
+      const six = byId(plan)['M7.E6'];
+      expect(six, cell).toMatchObject({ proposal: 'open', flag: 'row-unclear', evidence: [] });
+      expect(six.against[0], cell).toContain(`its milestone row says shipped and also "${mark}`);
+      expect(plan.proposedCloses.map((u) => u.id)).not.toContain('M7.E6');
+    }
+  });
+
+  // What a version, a date, a pull request number and a list need stays
+  // evidence — and a check mark before or after it all.
+  it('the punctuation of versions, dates, numbers and lists, and a check mark at either end, are not doubt', async () => {
+    const base = await unitsStore();
+    for (const cell of [
+      'shipped ✅', '☑ shipped v0.1.7', '✔ **Shipped** — `v0.1.7`, 2026-07-15 (PR #12; #13)', 'shipped: v0.1.7 / v0.1.8 [2026-07-15] & #14',
+      'shipped *v0.1.7* + #15 ~ 2026-07-15', '**✓ shipped 2026-05-24 (released in v0.1.3 on 2026-05-31)** ✅',
+      // S4: the widest things the rule still reads as facts of the ship.
+      `shipped ${'0123456789abcdef'.repeat(2)}01234567`, 'shipped via PRs #12, #13', 'shipped in PRs 12 and #13',
+    ]) {
+      put(base, MILESTONE, milestone7([`| \`M7.E6\` | ${cell} | x |`]));
+      expect(byId(await planUnits(base))['M7.E6'], cell).toMatchObject({ proposal: 'legacy-close', flag: null });
+    }
+  });
+
+  // S4: and just past those bounds the cell is about something else.
+  it('just past the bounds of a hash, a version and a number: a word the rule cannot judge', async () => {
+    const base = await unitsStore();
+    const cells = {
+      'shipped abc123': 'abc123', // six hex characters: not a hash
+      [`shipped ${'0123456789abcdef'.repeat(2)}012345678`]: '0123456789abcdef0123456789abcdef0123456…', // 41: not a hash either (shown cut to 40)
+      'shipped vNext': 'vnext', 'shipped v': 'v', 'shipped PR': 'pr', 'shipped PRs': 'prs',
+      // Digits that are no date, version or number of a pull request say PART shipped.
+      'shipped 2/3': '2/3', 'shipped 50%': '50', 'shipped 3 of 5': '3 of 5', 'shipped 2026-07': '2026-07',
+    };
+    for (const [cell, word] of Object.entries(cells)) {
+      put(base, MILESTONE, milestone7([`| \`M7.E6\` | ${cell} | x |`]));
+      const six = byId(await planUnits(base))['M7.E6'];
+      expect(six, cell).toMatchObject({ proposal: 'open', flag: 'row-unclear', evidence: [] });
+      expect(six.against[0], cell).toContain(`its milestone row says shipped and also "${word}"`);
+    }
+  });
+
   it('a status cell that says shipped, but not first: proposed open, flagged, and the cell is quoted in the dry run', async () => {
     const base = await unitsStore();
     for (const cell of NOT_LEADING) {

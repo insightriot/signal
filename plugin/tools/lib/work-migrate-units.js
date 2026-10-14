@@ -97,10 +97,29 @@ const SHIP_FACT_RES = [
   /\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b/gi,
   /\b(?:in|on|as|via|and)\b/gi,
 ];
-// The first words of a cell that are none of those, or null.
+// And the characters that are neither letters nor digits (r6.2). This is the
+// ONE place that says which: the punctuation a version, a date, a pull
+// request number and a list need —
+//     . , ; : ( ) [ ] - – — / # * _ ` ~ + &   and whitespace
+// — and a check mark (✓ ✔ ✅ ☑) at the very start or the very end of the
+// cell, with only that punctuation outside it ("✅ shipped 2026-07-18",
+// "**✓ shipped …**"). Anything else is the cell saying something the rule
+// cannot judge: a `?` doubts ("shipped?", "Shipped (?)"), a cross or a
+// construction sign denies ("shipped ❌", "shipped 🚧"), and a check mark in
+// the middle is about a part.
+const PLAIN_PUNCT = String.raw`\s.,;:()[\]\-–—/#*_${'`'}~+&`;
+const PLAIN_PUNCT_RE = new RegExp(`[${PLAIN_PUNCT}]`, 'gu');
+const CHECK_MARK = '[✓✔✅☑]';
+const LEADING_CHECK_RE = new RegExp(`^([${PLAIN_PUNCT}]*)${CHECK_MARK}`, 'u');
+const TRAILING_CHECK_RE = new RegExp(`${CHECK_MARK}([${PLAIN_PUNCT}]*)$`, 'u');
+// The first words of a cell that are none of those — or, when every word is
+// one, the first characters that are not that punctuation — or null.
 function leftOver(status) {
-  const rest = SHIP_FACT_RES.reduce((text, re) => text.replace(re, '\n'), status);
-  return rest.match(/[\p{L}\p{N}](?:[^\n]*[\p{L}\p{N}])?/u)?.[0] ?? null;
+  const cell = status.replace(LEADING_CHECK_RE, '$1').replace(TRAILING_CHECK_RE, '$1');
+  const rest = SHIP_FACT_RES.reduce((text, re) => text.replace(re, '\n'), cell);
+  const words = rest.match(/[\p{L}\p{N}](?:[^\n]*[\p{L}\p{N}])?/u)?.[0];
+  if (words !== undefined) return words;
+  return rest.replace(PLAIN_PUNCT_RE, '').match(/\S+/u)?.[0] ?? null;
 }
 // Which of them to name in the sentence, when the cell has one: a word for
 // work still to do, or for a ship that was taken back.
