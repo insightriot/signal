@@ -314,6 +314,12 @@ export function legacyFirstCells(units, { milestone }) {
  *   `line` is 1-based; `text` is the row as written; `header.generated`: its cells are the generated
  *   table's own (`Epic`, `Status`, `Summary`); `separator`: the separator row that makes the first row a header
  */
+// Is this row the generated table's header? By its cells — `Epic`, `Status`,
+// `Summary` — however it is spaced. The one comparison, for every caller
+// (r6.1: one place compared cells and another the exact text, and a header
+// written `|Epic|Status|Summary|` was the header to one and a typed row to the other).
+const isGeneratedHeader = (text) => cellsOf(text).join('|') === cellsOf(HEADER[0]).join('|');
+
 export function tableBetweenMarkers(content) {
   const at = epicMarkers(content);
   if (at.state !== 'ok') return { header: null, separator: null, rows: [] };
@@ -325,7 +331,7 @@ export function tableBetweenMarkers(content) {
   }
   const hasHeader = all.length > 1 && !isSeparatorRow(all[0].text) && isSeparatorRow(all[1].text);
   const header = hasHeader
-    ? { ...all[0], generated: cellsOf(all[0].text).join('|') === cellsOf(HEADER[0]).join('|') }
+    ? { ...all[0], generated: isGeneratedHeader(all[0].text) }
     : null;
   return { header, separator: hasHeader ? all[1] : null, rows: all.filter((row, i) => !(hasHeader && i === 0) && !isSeparatorRow(row.text)) };
 }
@@ -375,7 +381,7 @@ export function rowsNotReprinted(content, tableText, { milestone, ids, legacy = 
   // table's one header. With the generated header standing among the rows
   // under it, it is a row typed above the table (and a separator typed after
   // it), and is read as any other row.
-  const above = between.header !== null && !between.header.generated && between.rows.some((row) => row.text.trim() === HEADER[0])
+  const above = between.header !== null && !between.header.generated && between.rows.some((row) => isGeneratedHeader(row.text))
     ? { line: between.header.line, text: between.header.text } : null;
   const rows = above === null ? between.rows : [above, ...between.rows];
   const keyOf = (cell) => legacy.get(cell) ?? namedEpic(cell, milestone) ?? cell;
@@ -387,7 +393,8 @@ export function rowsNotReprinted(content, tableText, { milestone, ids, legacy = 
   const exact = new Set();
   const seen = new Set();
   for (const row of rows) {
-    const text = row.text.trim();
+    // The generated header answers for a header row however that is spaced.
+    const text = isGeneratedHeader(row.text) ? HEADER[0] : row.text.trim();
     if ((left.get(text) ?? 0) === 0) continue;
     left.set(text, left.get(text) - 1);
     exact.add(row);

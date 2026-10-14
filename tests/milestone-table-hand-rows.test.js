@@ -197,6 +197,24 @@ describe('a row typed by hand between the markers', () => {
     expect(rowsNotReprinted(own, table, { milestone: '7', ids: ['M7.E1', 'M7.E2'] })).toEqual([]);
   });
 
+  // r6.1: the generated header is known by its cells, in both places that ask.
+  // Written without its spaces (`|Epic|Status|Summary|`) it was not seen under
+  // the typed row, so the refusal named the header and let the typed row go.
+  it('the same with the generated header written without spaces: the typed row and its separator are the ones named, not the header', async () => {
+    const text = await read(FILE);
+    const before = text
+      .replace(`${BEGIN}\n`, `${BEGIN}\n| Note | a | b |\n|---|---|---|\n`)
+      .replace('| Epic | Status | Summary |', '|Epic|Status|Summary|');
+    expect(before).toContain('| Note | a | b |\n|---|---|---|\n|Epic|Status|Summary|\n|---|---|---|\n');
+    const table = renderEpicTable(units.listUnits(base).units, { milestone: '7' });
+    const found = rowsNotReprinted(before, table, { milestone: '7', ids: ['M7.E1', 'M7.E2'] });
+    expect(found.map((r) => [r.line, r.text, r.id])).toEqual([[6, '| Note | a | b |', null], [7, '|---|---|---|', null]]);
+    // A second header typed further down is still a row a person typed.
+    const twice = before.replace(END, `|Epic|Status|Summary|\n${END}`);
+    expect(rowsNotReprinted(twice, table, { milestone: '7', ids: ['M7.E1', 'M7.E2'] }).map((r) => r.text))
+      .toEqual(['| Note | a | b |', '|---|---|---|', '|Epic|Status|Summary|']);
+  });
+
   it('a heading typed between the markers is a line that is not a table row: refused, and the file is unchanged', async () => {
     const before = await typeRow('# Notes on this table');
     const err = await regenerateViews(base).catch((e) => e);
