@@ -458,7 +458,7 @@ async function assess(baseDir, opts) {
       + `${unitsPlan.otherMarked.length > 1 ? ` (and out of ${unitsPlan.otherMarked.slice(1).join(', ')})` : ''}, commit, run this again, then put `
       + 'them back: the next change to a unit fills the table. Nothing was written.');
   }
-  sensitiveHits =[...sensitiveHits, ...unitSensitiveHits(unitsPlan)];
+  sensitiveHits = [...sensitiveHits, ...unitSensitiveHits(unitsPlan)];
 
   const files = present.map((name) => {
     const f = plan.manifest.files[name] ?? { items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
@@ -620,6 +620,20 @@ function unitsDryRunReport(baseDir, a) {
   const table = tableWords(a, [...new Set([...yes, ...no])], (rel) => (yes.includes(rel) && no.includes(rel) ? '' : '; only on one of the two answers, as said above'));
   const adding = Array.isArray(a.plan.existing); // unit records are already on
   const ifConfirmed = c.proposed > 0 ? ` (${c.proposed} of them closed as legacy only if you confirm the list above; otherwise open)` : '';
+  // A table with lines typed by hand between its markers refuses the apply
+  // (`unitsWrites` is then empty): the last sentence says that, and not what
+  // an apply that cannot run would create (r6.1).
+  const refusing = (tables) => tables.filter((t) => t.typed.length > 0);
+  const [refusedYes, refusedNo] = [refusing(a.tables.confirmed), refusing(a.tables.unconfirmed)];
+  const refusal = (tables) => {
+    const rels = [...new Set(tables.map((t) => t.rel))];
+    const one = rels.length === 1;
+    return `${rels.join(' and ')} ${one ? 'holds' : 'hold'} lines typed by hand between ${one ? 'its' : 'their'} Epic-table markers`
+      + `${tables.every((t) => !t.current) ? ', named above' : ''}. Move them outside the two marker lines — or take the two marker lines out of `
+      + `the file — then run the dry run again.`;
+  };
+  const refusedOnBoth = refusedYes.length > 0 && refusedNo.length > 0;
+  const refusedOnOne = refusedOnBoth ? [] : [[refusedYes, 'confirmed'], [refusedNo, 'not confirmed']].filter(([tables]) => tables.length > 0);
   return [
     '/sig:docs-migrate --work-store — unit records, dry run (nothing written)',
     '',
@@ -634,11 +648,16 @@ function unitsDryRunReport(baseDir, a) {
     '',
     a.nothingToAdd
       ? '--apply would write nothing: there is no record to add.'
-      : adding
+      : refusedOnBoth
+        ? `--apply is refused as the files stand, and writes nothing: ${refusal([...refusedYes, ...refusedNo])}`
+        : adding
         ? `--apply adds ${count(c.made, 'unit record')} under ${UNITS_REL}/${ifConfirmed}, regenerates ${VIEW_PATHS.epics}${table}, and leaves `
           + 'them staged, not committed. No existing record, no item and no other view is changed.'
         : `--apply creates ${UNITS_REL}/ with ${count(c.made, 'unit record')}${ifConfirmed}`
           + `, regenerates ${VIEW_PATHS.epics}${table}, and leaves them staged, not committed. No item is changed, and no other view.`,
+    ...(a.nothingToAdd ? [] : refusedOnOne.map(([tables, answer]) => (
+      `If the proposed closes are ${answer}, --apply is refused instead, and writes nothing: ${refusal(tables)}`
+    ))),
     ...workMdUnitsNote(baseDir, 'is'),
   ].map(printable).join('\n');
 }

@@ -260,7 +260,9 @@ describe('another milestone\'s file carries the markers too', () => {
     put(base, M6, marked6());
     commitAll(base);
     const dry = await dryRun(base);
-    expect(dry.report).toMatch(/Note: \.planning\/MILESTONE-6\.md carries the Epic-table markers too, and it is not the current milestone's file/);
+    // r6.1: named once, by the block that lists what changes between its markers; the note that said it a second time is gone.
+    expect(dry.report).toContain('.planning/MILESTONE-6.md carries the Epic-table markers and is another milestone\'s file: --apply writes its Epic table from the unit records too');
+    expect(dry.report).not.toMatch(/carries the Epic-table markers too/);
     const out = await applyWith(base, dry, { confirmUnitCloses: true });
     expect(out.applied).toBe(true);
     const text = read(base, M6);

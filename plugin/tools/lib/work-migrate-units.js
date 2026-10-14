@@ -506,17 +506,17 @@ export async function planUnits(baseDir, opts = {}) {
 
   // A marked table in another milestone's file is written from the records
   // too, and nothing a person typed there is replaced unseen. Each such file
-  // is noted here; what changes between its markers is listed by the dry run
-  // once the list to import is known (`milestoneTableWrites`), and a run that
-  // builds the store beside the project refuses on one (`otherMarked`).
+  // is listed here (`otherMarked`): a run that builds the store beside the
+  // project refuses on one. It is DESCRIBED by the dry run, once the list to
+  // import is known (`otherTablesReportLines`) — and only when the apply
+  // writes it or refuses over it. No note is made here (r6.1): one was
+  // printed for every marked file, a second description of a file the dry
+  // run describes, and a wrong one of a file the apply leaves alone.
   const currentParts = epicIdParts(current);
   const otherMarked = [];
   for (const rel of markedFiles) {
     if (currentParts !== null && rel === `${PLANNING}/MILESTONE-${currentParts.milestone}.md`) continue;
     otherMarked.push(rel);
-    notes.push(`${rel} carries the Epic-table markers too, and it is not the current milestone's file: its Epic rows are written from the unit `
-      + 'records as well. A row there that is not one Epic\'s own, or a line that is not a table row, refuses the apply and is never deleted. '
-      + 'To leave that file exactly as it is, take the two marker lines out of it first.');
   }
 
   const closures = await resolveClosures(baseDir);
@@ -775,8 +775,13 @@ export function otherTablesReportLines(tables) {
   const rels = [...new Set([...tables.confirmed, ...tables.unconfirmed].filter((t) => !t.current).map((t) => t.rel))];
   for (const rel of rels) {
     const [yes, no] = [of(tables.confirmed, rel), of(tables.unconfirmed, rel)];
-    lines.push('', `${rel} carries the Epic-table markers and is another milestone's file: --apply writes its Epic table from the unit records too, `
-      + 'and leaves it staged with the rest. Nothing outside its two marker lines changes. Between them:');
+    // A file that refuses the apply on either answer is not said to be written.
+    const refuses = [yes, no].every((t) => t !== undefined && t.typed.length > 0);
+    lines.push('', refuses
+      ? `${rel} carries the Epic-table markers and is another milestone's file: --apply would write its Epic table from the unit records too.`
+      : `${rel} carries the Epic-table markers and is another milestone's file: --apply writes its Epic table from the unit records too, `
+        + 'and leaves it staged with the rest. Nothing outside its two marker lines changes. To leave the file exactly as it is, take the two marker '
+        + 'lines out of it first. Between them:');
     if (JSON.stringify(yes) === JSON.stringify(no)) {
       lines.push(...tableChangeLines(yes));
     } else {

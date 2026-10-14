@@ -104,6 +104,10 @@ describe('adding a record: another milestone\'s marked file is named, written, s
     commitAll(base, 'a unit that is no Epic');
     const dry = await dryRun(base);
     expect(dry.report).not.toContain('another milestone\'s file');
+    // r6.1: MILESTONE-6.md is marked and this run does not write it, so the
+    // report does not describe it — it used to print a note saying a typed
+    // row there refuses the apply, of an apply that leaves the file alone.
+    expect(dry.report).not.toContain(M6);
     const before = bytesOf(base);
     const r = await applyWith(base, dry);
     const diff = changed(before, bytesOf(base));
@@ -153,6 +157,10 @@ describe('turning unit records on: another milestone\'s marked file', () => {
     expect(dry.report).toMatch(/regenerates \.planning\/work\/EPICS\.md and the Epic table in \.planning\/MILESTONE-7\.md and the Epic table in \.planning\/MILESTONE-6\.md \(another milestone's file\), and leaves them staged/);
     expect(dry.report).toContain('No item is changed, and no other view.');
     expect(dry.report).not.toContain('that is out of date');
+    // r6.1: the file is described once — by this block, which also says how to leave it alone — and not by a note as well.
+    expect(dry.report.split(`${M6} carries the Epic-table markers`)).toHaveLength(2);
+    expect(dry.report).not.toMatch(/Note: [^\n]*carries the Epic-table markers too/);
+    expect(dry.report).toContain('Nothing outside its two marker lines changes. To leave the file exactly as it is, take the two marker lines out of it first. Between them:');
   });
 
   for (const confirmUnitCloses of [true, false]) {
@@ -207,11 +215,38 @@ describe('turning unit records on: another milestone\'s marked file', () => {
     expect(bytesOf(base)).toEqual(before);
   });
 
+  // r6.1: a marked file of a milestone none of the units belongs to is not
+  // written by the apply. The dry run printed a note for it all the same,
+  // saying a row typed there refuses the apply — of an apply that succeeds.
+  it('a marked file of a milestone with no unit, a row typed in it: the dry run says nothing of it, the apply succeeds and leaves it as it is', async () => {
+    const M5 = '.planning/MILESTONE-2.md'; // no unit of the fixture is an Epic of milestone 2
+    const five = ['# Milestone 2', '', BEGIN, '| Epic | Status | Summary |', '|---|---|---|', '| a reminder | not an Epic row | call the harbour master |', END, ''].join('\n');
+    const base = await firstTime();
+    put(base, M5, five);
+    commitAll(base, 'milestone 2 is marked, and holds no Epic');
+    const dry = await dryRun(base);
+    expect(dry.refused).toBeUndefined();
+    expect(dry.report).not.toContain(M5);
+    expect(dry.writes.confirmed).not.toContain(M5);
+    const out = await applyWith(base, dry, { confirmUnitCloses: true });
+    expect(out.applied).toBe(true);
+    expect(read(base, M5)).toBe(five);
+  }, 60_000);
+
   it('a row typed between its markers for nothing the records hold: the dry run says the apply will be refused, naming the line', async () => {
     const base = await firstTime(marked6({ extra: ['| a reminder | not an Epic row | call the harbour master |'] }));
     const dry = await dryRun(base);
     expect(dry.report).toContain(`  As the file stands the apply is refused and nothing is written: line 9 (“| a reminder | not an Epic row | call the harbour master |”)`);
     expect(dry.writes.confirmed).not.toContain(M6);
+    // r6.1: and the report does not then end by saying what the apply creates and stages.
+    expect(dry.writes).toEqual({ confirmed: [], unconfirmed: [] });
+    expect(dry.report).not.toMatch(/--apply (creates|adds) /);
+    expect(dry.report).not.toMatch(/leaves them staged/);
+    expect(dry.report).toContain(`--apply is refused as the files stand, and writes nothing: ${M6} holds lines typed by hand between its `
+      + 'Epic-table markers, named above. Move them outside the two marker lines — or take the two marker lines out of the file — then run the dry run again.');
+    // Nor does it say, of the file that refuses, that the apply "writes" its table.
+    expect(dry.report).toContain(`${M6} carries the Epic-table markers and is another milestone's file: --apply would write its Epic table from the unit records too.`);
+    expect(dry.report).not.toContain(`${M6} carries the Epic-table markers and is another milestone's file: --apply writes`);
     const before = bytesOf(base);
     const out = await applyWith(base, dry, { confirmUnitCloses: true }).catch((e) => e);
     expect(out.applied).not.toBe(true);
