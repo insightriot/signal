@@ -176,7 +176,14 @@ describe('scanPrescribedCommands — against the real payload', () => {
     // only `gh` entry is in the deterministic layer, from `tools/`.
     const gh = live.entries.filter((e) => e.binary === 'gh');
     expect(gh.map((e) => [e.layer, e.source])).toEqual([[LAYER.DETERMINISTIC, 'tools/lib/pr-review-findings.js']]);
-    expect(classify('gh')).toBe(VERDICT.PROPOSE_ALLOW);
+    // r6.4: r6.3 pinned `gh` as propose-allow here, and the proposal then
+    // offered `Bash(gh:*)`. What Signal's own code spawns needs no Bash rule;
+    // and no key this scan can produce separates `gh pr view` from
+    // `gh pr merge`. `gh` is never proposed, and its writes are named.
+    expect(classify('gh')).toBe(VERDICT.NEVER_PROPOSE);
+    for (const key of ['gh repo delete', 'gh pr merge', 'gh secret set', 'gh auth token', 'gh extension install', 'gh api graphql', 'gh pr', 'gh pr view']) {
+      expect(classify(key), key).toBe(VERDICT.NEVER_PROPOSE);
+    }
   });
 
   it('AC1.1a — returns `rm`, which is the whole reason classification exists', () => {

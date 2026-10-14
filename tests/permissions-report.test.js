@@ -425,3 +425,48 @@ describe('PR #211 review — the npm-script caveat is in the REPORT, not just a 
     rmSync(w.root, { recursive: true, force: true });
   });
 });
+
+// M6.E16 r6.4 — the proposal offered `Bash(gh:*)`. `gh` reached the scan from
+// one place: `tools/lib/pr-review-findings.js`, which runs it with
+// `execFileSync` — Signal's own code, in its own process, which needs no Bash
+// permission from anyone. A Bash rule is for what the AGENT types; what a tool
+// spawns is not that. And `Bash(gh:*)` grants `gh repo delete`, `gh pr merge`,
+// `gh secret set`, `gh api -X DELETE …`.
+describe('a Bash rule is proposed only for what a prompt file tells the agent to run (r6.4)', () => {
+  const GH_RULE = /Bash\(gh[: )]/;
+  const rules = (p) => p.flow.map((r) => r.rule ?? r);
+  const rendered = (p) => [...rules(p), ...p.stack.map((r) => r.rule ?? r), formatReport(p), renderArtifact(p)].join('\n');
+
+  it('no gh rule in the rendered proposal: an empty project, and this repository', () => {
+    const w = world({}, { planning: false });
+    for (const p of [build(w), buildProposal({ pluginRoot: PAYLOAD, baseDir: ROOT, homeDir: w.home })]) {
+      expect(p.scanStatus).toBe('ok');
+      expect(rendered(p)).not.toMatch(GH_RULE);
+      expect(p.flow.length).toBeGreaterThan(10); // the proposal is still there
+    }
+    rmSync(w.root, { recursive: true, force: true });
+  });
+
+  /** A payload of the test's own: one command file, one tool. */
+  function payload(command, tool) {
+    const w = world({ 'plugin/commands/x.md': command, 'plugin/tools/x.js': tool }, { planning: false });
+    return { w, p: buildProposal({ pluginRoot: join(w.root, 'plugin'), baseDir: w.base, homeDir: w.home }) };
+  }
+
+  it('a binary only a tool spawns produces no rule; the same binary in a command file does', () => {
+    const tool = "execFileSync('ps', ['-o', 'pid']);\nexecFileSync('git', ['merge-base', 'a', 'b']);\nspawnSync('gh', ['api', 'graphql']);\n";
+    const onlyTool = payload('Nothing to run.\n', tool);
+    expect(rules(onlyTool.p)).toEqual([]);
+    const both = payload('Run `ps -o pid` and `git merge-base a b`.\n', tool);
+    expect(rules(both.p)).toEqual(['Bash(git merge-base:*)', 'Bash(ps:*)']);
+    for (const { w } of [onlyTool, both]) rmSync(w.root, { recursive: true, force: true });
+  });
+
+  it('gh named in a command file still produces no rule — not bare, and not a prefix that reaches a write', () => {
+    // The scan's key is the binary and ONE more word: `gh pr view` and
+    // `gh pr merge` are both `gh pr`, and `Bash(gh pr:*)` grants the merge.
+    const { w, p } = payload('Run `gh pr view 12`, then `gh pr merge 12`, `gh api repos/x/y`, `gh auth token` and `gh --version`.\n', '');
+    expect(rendered(p)).not.toMatch(GH_RULE);
+    rmSync(w.root, { recursive: true, force: true });
+  });
+});

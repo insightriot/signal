@@ -182,6 +182,11 @@ export function buildProposal({ pluginRoot, baseDir, homeDir }) {
   const flowKeys = new Set();
   if (scan.status === SCAN_STATUS.OK) {
     for (const e of scan.entries) {
+      // A Bash rule is for what the AGENT is told to run. What Signal's own
+      // code starts as a child process (the deterministic layer: `tools/`,
+      // `hooks/`) runs without a rule — offering one handed the agent a binary
+      // no prompt file asks it to use (M6.E16 r6.4: `Bash(gh:*)`).
+      if (e.layer !== LAYER.PROMPT) continue;
       if (classify(e.key) !== VERDICT.PROPOSE_ALLOW) continue;
       // Ecosystem tools belong to the stack half or to nothing. A `cargo build`
       // rule in a Node repo is noise the operator has to read and reject.
