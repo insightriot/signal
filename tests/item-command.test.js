@@ -116,7 +116,9 @@ describe('/sig:item command file', () => {
   it('confirm (M6.E16 r7): only the three reasons, one ID at a time, and never without the person\'s yes for that ID', () => {
     const confirm = section('confirm');
     for (const r of ['no-remote', 'no-origin-remote', 'not-a-repo']) expect(confirm).toContain(`\`${r}\``);
-    expect(confirm).toMatch(/[Nn]ever offer or run it without the person's explicit yes for that ID/);
+    // r7.1: worded as asking first, not as an offer.
+    expect(confirm).toMatch(/Never run it without asking the person first and getting their yes for that ID/);
+    expect(confirm).toMatch(/Pass the ID/);
     expect(confirm).toMatch(/no "confirm all"/);
     expect(confirm).toMatch(/units? too/);
   });

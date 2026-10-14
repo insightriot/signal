@@ -312,9 +312,18 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
   // M6.E16 r7: SHIP closes the current unit whatever its name; docs-archive no longer says only by hand.
   it('ship.md §6.8 closes a current unit that is not an Epic ID; docs-archive.md no longer says it has no command', () => {
     const ship = sectionOf('ship', '### 6.8', '### 6.9');
-    expect(ship).toMatch(/currentUnit\(state\)/);
+    // r7.1: the decision is the helper's, not a rule read off the phase log (which §5 has trimmed).
+    expect(ship).toMatch(/unitToCloseAtShip\(baseDir, state\)/);
+    expect(ship).not.toMatch(/isEpicCloseByState/);
     expect(ship).toMatch(/not an Epic ID/);
     expect(ship).toMatch(/no retrospective is required/);
+    // r7.1: no current unit → list the units, ask, one yes; none → say so.
+    expect(ship).toMatch(/`ask`[^\n]*ask the person which one, if any, this SHIP finishes/);
+    expect(ship).toMatch(/`none`[^\n]*no unit is closed/);
+    // The heading names units.
+    expect(ship.split('\n')[0]).toMatch(/unit/);
+    // r7.1: a closed current unit that is not an Epic stays until current_epic changes.
+    expect(read('docs-archive')).toMatch(/its files stay until `current_epic` names another unit/);
     const archive = read('docs-archive');
     expect(archive).not.toMatch(/A unit that is not an Epic ID\s+\(`phase-12`\), and an Epic that will never ship, have no command/);
     expect(archive).toMatch(/\/sig:ship` closes .*whatever its name/s);

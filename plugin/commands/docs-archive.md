@@ -45,8 +45,8 @@ run says so rather than moving it with a caveat attached.
 **record** is closed — a retrospective, a verdict line or where its VERIFICATION sits does not decide
 it. A closed unit that is **held** is declined: the dry run prints it as `[held]` with the hold
 reason, and `--apply` moves nothing of it. A closed unit that is still the **current** unit
-(`current_epic` in `STATE.md`) is declined too, as `[current]`: it is closed, and its files stay until
-the next Epic opens. A unit with no record is judged from its files, as the rest of this page describes.
+(`current_epic` in `STATE.md`) is declined too, as `[current]`: it is closed, and its files stay until `current_epic` names another unit — opening an Epic (`/sig:discuss --epic`) does that; no
+command sets it to another unit that is not an Epic. A unit with no record is judged from its files, as the rest of this page describes.
 
 ## Holding a unit
 
