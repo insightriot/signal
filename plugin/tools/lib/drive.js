@@ -27,7 +27,7 @@ import { parseBacklogRows } from './backlog.js';
 import { openQuestionsNaming } from './legacy-lists.js';
 import { leadingUnitId } from './leading-id.js';
 import { readState, partitionCompletedPhases, PHASES } from './state.js';
-import { findWorkOnOtherBranches, nextStepFor } from './branch-work.js';
+import { checkoutStep, findWorkOnOtherBranches, nextStepFor, shownBranches } from './branch-work.js';
 import { resolveArtifactPath } from './resume.js';
 import { getUnit, unitClosure, unitRecordsOn } from './unit-records.js';
 import { isStoreOn } from './work-store.js';
@@ -593,12 +593,12 @@ export async function proposeEpicCandidates(baseDir) {
     candidates.push({
       id: o.epic,
       title: o.epic,
-      source: `${o.branches.join(', ')} (open Epic)`,
+      source: `${shownBranches(o.branches)} (open Epic)`,
       branch: o.checkout,
       phase: o.phase,
       nextStep: nextStepFor(o),
       line: null,
-      why: `already open at ${o.phase ?? 'an unrecorded phase'} on ${o.branches.join(', ')} — finish it before starting new work`,
+      why: `already open at ${o.phase ?? 'an unrecorded phase'} on ${shownBranches(o.branches)} — finish it before starting new work`,
     });
   }
   cannotCheck.push(...otherBranches.cannotCheck);
@@ -915,7 +915,7 @@ export function resolveStartPhase(state, candidate) {
   // against this branch's files and write this branch's STATE.md — the wrong
   // branch. Switching branches is the person's call, so the run stops and says how.
   if (candidate?.branch) {
-    const step = candidate.nextStep ?? `run \`git checkout ${candidate.branch}\` to continue it`;
+    const step = candidate.nextStep ?? checkoutStep(candidate.branch);
     return {
       phase: candidate.phase ?? 'DISCUSS',
       why:

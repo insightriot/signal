@@ -26,7 +26,7 @@ import {
 } from './planning-index.js';
 import { resolveInboxPath } from './inbox-path.js';
 import { listDrainCandidatesWithRecovery } from './drain.js';
-import { shownName } from './printable-text.js';
+import { shownName, shownRef } from './printable-text.js';
 import { listCommands } from './roster.js';
 import {
   parseFrontmatter,
@@ -529,7 +529,7 @@ export function checkClosedProofs(baseDir, opts = {}) {
     return [];
   }
   return probed.notThere.map((c) => mkFinding('close-not-on-default-branch', 'advisory', shownName(c.path),
-    `${c.id} is recorded closed with the commit ${c.proof}, and that commit is not on ${shownName(probed.branch)} in this clone — `
+    `${c.id} is recorded closed with the commit ${c.proof}, and that commit is not on ${shownRef(probed.branch)} in this clone — `
     + 'bring the remote\'s branches up to date and sweep again; if it is still reported, the work was not merged: reopen it'));
 }
 

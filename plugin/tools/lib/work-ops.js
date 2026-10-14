@@ -44,7 +44,7 @@ import { acquireLock } from './file-lock.js';
 import { gitEnv } from './git-env.js';
 import { commitsStartingWith } from './git-objects.js';
 import { assertRealInsidePlanning } from './path-confine.js';
-import { shownName } from './printable-text.js';
+import { shownRef } from './printable-text.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, setCurrentEpic, StateSchemaError, stringifyFrontmatter } from './state.js';
 import { deriveRetroPath } from './retrospective.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
@@ -653,7 +653,7 @@ export function refuseHeadThatProvesNothing(baseDir, epicId, head, execFn, words
       + `or commit ${words.advice}`);
   }
   throw new WorkStoreError('CONFLICT', `${words.what} would record HEAD (${head.slice(0, 12)}) as its proof, and that commit is `
-    + `already on the default branch (${shownName(stale.ref.replace(/^refs\/remotes\//, ''))}) while this project has uncommitted or untracked changes — `
+    + `already on the default branch (${shownRef(stale.ref.replace(/^refs\/remotes\//, ''))}) while this project has uncommitted or untracked changes — `
     + `so it says nothing about ${words.about}, and the next confirm step would ${words.wrongly}. Nothing was written. `
     + `Commit ${words.advice}`);
 }

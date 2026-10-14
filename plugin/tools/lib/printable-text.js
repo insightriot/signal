@@ -78,6 +78,35 @@ export function shownName(text, max = NAME_SHOWN_MAX) {
   return s.length <= max ? ascii(s) : `${ascii(s.slice(0, max))}... (${s.length} characters)`;
 }
 
+// A branch or remote name that is plainly a name (M6.E16 r6.3): letters,
+// digits, `.`, `_`, `/` and `-`, at most 100 of them, and no `-` first (which
+// a command would read as an option). Git allows far more — `;`, `$`, `|`,
+// a backtick, a space-like character — and a name comes from whoever pushed
+// the branch.
+const REF_NAME_RE = /^[A-Za-z0-9._/][A-Za-z0-9._/-]{0,99}$/;
+
+/**
+ * May this branch or remote name be written into a message or a command?
+ *
+ * @param {unknown} name
+ * @returns {boolean}
+ */
+export const isPlainRefName = (name) => typeof name === 'string' && REF_NAME_RE.test(name);
+
+/**
+ * A branch or remote name as a message shows it: the name when it is plainly
+ * one (`isPlainRefName`), otherwise a placeholder that says how long it is
+ * and nothing else. Never put what this returns into a command: ask
+ * `isPlainRefName` first, and give no command when it says no.
+ *
+ * @param {unknown} name
+ * @param {'branch'|'remote'} [what]
+ * @returns {string}
+ */
+export function shownRef(name, what = 'branch') {
+  return isPlainRefName(name) ? name : `(a ${what} whose name is not shown: ${String(name).length} characters)`;
+}
+
 /**
  * A record's value as a refusal echoes it (REVIEW pass 1, S-L1): its JSON,
  * through `shownName` — so a 2 MB title gives a message of a few hundred

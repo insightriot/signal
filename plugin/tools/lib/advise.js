@@ -45,7 +45,8 @@ import { isBugId } from './legacy-lists.js';
 import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
 import { assertRealInsidePlanning, regularFileRefusal, readRegularFile } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
-import { nextStepFor } from './branch-work.js';
+import { nextStepFor, shownBranches } from './branch-work.js';
+import { isPlainRefName, shownRef } from './printable-text.js';
 import { gatherBigPicture, formatDigest } from './advise-digest.js';
 import { validatePriorities } from './advise-priorities.js';
 import { listRecords } from './work-records.js';
@@ -516,7 +517,7 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
       for (const o of elsewhere.open) {
         out.push(
           `- **${quoteSafe(o.epic)}** — at ${quoteSafe(o.phase ?? 'an unrecorded phase')} on ` +
-            `${o.branches.map((b) => `\`${quoteSafe(b)}\``).join(', ')}; ${quoteSafe(nextStepFor(o))}`
+            `${o.branches.map((b) => (isPlainRefName(b) ? `\`${b}\`` : shownRef(b))).join(', ')}; ${quoteSafe(nextStepFor(o))}`
         );
       }
       out.push('');
@@ -649,7 +650,7 @@ export function formatAdviseSummary(result) {
   lines.push(`Backlog review — ${result.today}`);
   lines.push('');
   for (const o of result.corpus.sources?.otherBranches?.open ?? []) {
-    lines.push(`  ⚠ ${o.epic} is open on ${o.branches.join(', ')} — finish it first: ${nextStepFor(o)}.`);
+    lines.push(`  ⚠ ${o.epic} is open on ${shownBranches(o.branches)} — finish it first: ${nextStepFor(o)}.`);
   }
   result.priorities.forEach((p, i) =>
     lines.push(`  ${i + 1}. ${p.title}${p.dependsOn?.length ? ` (after ${p.dependsOn.join(', ')})` : ''}`)

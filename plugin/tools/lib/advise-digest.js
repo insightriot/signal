@@ -27,7 +27,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { readCorpus, readUnitSource } from './advise-corpus.js';
-import { shownName } from './printable-text.js';
+import { shownName, shownRef } from './printable-text.js';
 import { readState, partitionCompletedPhases, compareEpicIds, EPIC_ID_STRICT_RE } from './state.js';
 import { parseEpicStatusRows } from './milestones.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
@@ -299,9 +299,11 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
         cut.push(`open Epics on other branches: ${DIGEST_CAPS.openEpics} of ${other.open.length} shown`);
       }
       for (const o of other.open.slice(0, DIGEST_CAPS.openEpics)) {
+        // And named only when plainly a name (r6.3): the digest is read by a model.
+        const on = o.branches.map((b) => shownRef(b)).join(', ');
         // Clipped: another branch's STATE.md is anyone-who-can-push input (REVIEW pass 2:
         // a 100 KB `phase` produced a 100,942-char digest).
-        entries['open Epics'].push({ branch: clip(o.branches.join(', '), DIGEST_CAPS.row), text: clip(`${o.epic} — open at ${o.phase ?? 'an unrecorded phase'} on ${o.branches.join(', ')}`, DIGEST_CAPS.row) });
+        entries['open Epics'].push({ branch: clip(on, DIGEST_CAPS.row), text: clip(`${o.epic} — open at ${o.phase ?? 'an unrecorded phase'} on ${on}`, DIGEST_CAPS.row) });
       }
     }
     if (byRecords && unitSource.error) {
