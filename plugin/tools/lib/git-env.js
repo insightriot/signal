@@ -55,16 +55,20 @@ const NO_REPOSITORY = '/dev/null/not-a-repository';
  */
 export const testSeam = { withoutBareRepositorySetting: false };
 
-function baseEnv() {
-  const env = { ...process.env };
+// The environment without `safe.bareRepository`: what the look is made with.
+function cleanEnv() {
+  const env = { ...process.env, GIT_NO_REPLACE_OBJECTS: '1', GIT_GRAFT_FILE: '/dev/null' };
   for (const name of REDIRECTS) delete env[name];
-  if (testSeam.withoutBareRepositorySetting) return { ...env, GIT_NO_REPLACE_OBJECTS: '1', GIT_GRAFT_FILE: '/dev/null' };
+  return env;
+}
+
+function baseEnv() {
+  const env = cleanEnv();
+  if (testSeam.withoutBareRepositorySetting) return env;
   const inherited = Number(env.GIT_CONFIG_COUNT);
   const n = Number.isInteger(inherited) && inherited > 0 ? inherited : 0;
   return {
     ...env,
-    GIT_NO_REPLACE_OBJECTS: '1',
-    GIT_GRAFT_FILE: '/dev/null',
     GIT_CONFIG_COUNT: String(n + 1),
     [`GIT_CONFIG_KEY_${n}`]: 'safe.bareRepository',
     [`GIT_CONFIG_VALUE_${n}`]: 'explicit',
@@ -82,7 +86,7 @@ function baseEnv() {
  */
 export function gitEnv(baseDir) {
   const env = baseEnv();
-  if (baseDir !== undefined && repositoryWithoutDotGit(baseDir, env)) env.GIT_DIR = NO_REPOSITORY;
+  if (baseDir !== undefined && repositoryWithoutDotGit(baseDir)) env.GIT_DIR = NO_REPOSITORY;
   return env;
 }
 
@@ -101,30 +105,46 @@ export function gitEnv(baseDir) {
  * worktree, `.git/worktrees/<name>`; a submodule, `.git/modules/<name>`).
  * A path named `.git` cannot be committed, so a planted layout is never one.
  *
+ * The answer is the same on every git version: it is read from the path git
+ * reports (or from the walk, or from `baseDir` itself being under a `.git`),
+ * never from whether git refused — which versions do differently.
+ *
  * Nothing is remembered between calls: a folder may become a repository.
  *
  * @param {string} baseDir
- * @param {Record<string, string>} [env] — the environment git is asked with
  * @returns {boolean} false too when there is no repository at all, or git cannot be asked
  */
-export function repositoryWithoutDotGit(baseDir, env = baseEnv()) {
+export function repositoryWithoutDotGit(baseDir) {
+  // A folder that is a `.git`, or lies inside one, is decided here and git is
+  // not asked: nothing under a `.git` can be committed, so it is no planted
+  // layout. Git is then left to answer for itself from in there — current
+  // ones work, some that know `safe.bareRepository=explicit` refuse with a
+  // message of their own — and either way no planted `config` is read.
+  if (underDotGit(resolve(baseDir))) return false;
   if (!headBeforeDotGit(baseDir)) return false;
   let found;
   try {
-    // `--git-dir` (every git has it) prints `.` for the folder itself, so the
-    // answer is resolved against `baseDir`.
+    // Asked WITHOUT `safe.bareRepository` (`cleanEnv`), so that every git
+    // reports the directory it found and none refuses instead: the answer
+    // comes from that path alone, the same on every version. `--git-dir`
+    // (every git has it) prints `.` for the folder itself, `.git` at the top
+    // of a work tree and a full path below it, so the answer is resolved
+    // against `baseDir`.
     found = resolve(baseDir, String(execFileSync('git', ['rev-parse', '--git-dir'], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: PROBE_TIMEOUT_MS, env,
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: PROBE_TIMEOUT_MS, env: cleanEnv(),
     })).trim());
   } catch (err) {
-    // Git that knows `safe.bareRepository` refuses the folder, and names the
-    // setting when it does: a yes. So is a probe that did not answer at all
-    // (killed at the time limit). Anything else is git saying there is no
-    // repository, which the call itself will be told too.
-    return err?.signal != null || err?.code === 'ETIMEDOUT' || String(err?.stderr ?? '').includes('safe.bareRepository');
+    // Git says there is no repository, which the call itself will be told
+    // too. A probe that did not answer at all (killed at the time limit) is
+    // a yes.
+    return err?.signal != null || err?.code === 'ETIMEDOUT';
   }
-  return !(basename(found) === '.git' || found.includes(`${sep}.git${sep}`));
+  return !underDotGit(found);
 }
+
+// Is `abs` a `.git`, or inside one (a linked worktree, `.git/worktrees/<name>`;
+// a submodule, `.git/modules/<name>`; a `hooks` folder)?
+const underDotGit = (abs) => basename(abs) === '.git' || abs.includes(`${sep}.git${sep}`);
 
 const PROBE_TIMEOUT_MS = 5000;
 

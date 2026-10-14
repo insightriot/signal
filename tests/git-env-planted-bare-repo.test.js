@@ -228,10 +228,17 @@ describe.each([
       expect(branchGuard.isGitRepo(dir), dir).toBe(true);
       expect(storeIsGitRepo(dir), dir).toBe(true);
     }
-    // From inside a `.git` itself the directory git finds is a `.git`, so the
-    // look says no. A git that knows `safe.bareRepository=explicit` refuses to
-    // work from in there at all, and that refusal is reported as it is.
-    expect(repositoryWithoutDotGit(join(outer, '.git'))).toBe(!oldGit);
+    // From inside a real `.git` — the folder itself, its `hooks`, a linked
+    // worktree's own directory — the answer is no, on every git: nothing under
+    // a `.git` can be committed, so none of it is a planted layout. (Some gits
+    // that know `safe.bareRepository=explicit` refuse to work from in there
+    // and newer ones do not; the answer here does not come from that.)
+    const inside = [join(outer, '.git'), join(outer, '.git', 'hooks'), join(outer, '.git', 'worktrees', 'linked'), moduleDir];
+    mkdirSync(join(outer, '.git', 'hooks'), { recursive: true });
+    for (const dir of inside) {
+      expect(repositoryWithoutDotGit(dir), dir).toBe(false);
+      expect(gitEnv(dir), dir).not.toHaveProperty('GIT_DIR');
+    }
     // and a folder that is no repository at all is not turned into a refusal of its own
     expect(repositoryWithoutDotGit(root)).toBe(false);
     expect(branchGuard.isGitRepo(root)).toBe(false);
