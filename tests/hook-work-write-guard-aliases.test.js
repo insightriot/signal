@@ -185,6 +185,18 @@ describe('a look-alike letter in a guarded path', () => {
     expect(protectedTarget(join(tmp, 'not-there', rel))).toMatchObject({ blocked: true });
   });
 
+  // M6.E16 r6.2 — deliberate, and pinned so it is not "fixed" by accident: a
+  // dotless ı (U+0131) is read as `i`. No filesystem opens `unıts` as `units`,
+  // so this guards a name that is not the guarded file — it can only refuse
+  // too much, never too little. It falls out of the fold that reads `ß` as
+  // `ss` (upper case, then lower), and a fold that told the two apart would be
+  // one more thing to get wrong for a name nobody has a reason to use.
+  it('a dotless ı is read as i: `unıts` and `ıtems` are guarded, though no filesystem opens them as the folder', () => {
+    for (const rel of ['.planning/work/unıts/X.json', '.planning/work/ıtems/00/SIG-9.json', '.plannıng/BUGS.md']) {
+      expect(protectedTarget(join(tmp, 'not-there', rel)), rel).toMatchObject({ blocked: true });
+    }
+  });
+
   it.each(NOT_LOOKALIKES)('%s is a different name, and is not guarded', (_label, rel) => {
     expect(protectedTarget(join(tmp, 'not-there', rel))).toMatchObject({ blocked: false });
     expect(protectedTarget(join(dir, rel))).toMatchObject({ blocked: false });
