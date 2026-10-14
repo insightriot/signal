@@ -434,14 +434,36 @@ describe('a write through a dangling link', () => {
     expect(await blocked(write(at('src/hop.json'), dir))).toContain('.planning/work/items/00/NEW-2.json');
   });
 
-  it('to an ordinary file that does not exist yet, and a link that loops: allowed, and quickly', async () => {
+  it('to an ordinary file that does not exist yet: allowed', async () => {
     symlinkSync(at('src/not-yet.js'), at('src/to-not-yet.js'));
     await allowed(write(at('src/to-not-yet.js'), dir));
+  });
+
+  // r6.6: the guard follows a dangling chain eight links deep, and the system
+  // follows 32 (macOS) or 40 (Linux). A chain that ran past the guard's limit
+  // was allowed — and the write went on down it and created the record.
+  // Past the limit is now "could not be shown not to be a record": refused.
+  const chain = (n, end) => {
+    // src/c0 -> c1 -> … -> c(n-1) -> end: n links
+    for (let i = 0; i < n; i += 1) symlinkSync(i === n - 1 ? end : `c${i + 1}`, at(`src/c${i}`));
+    return at('src/c0');
+  };
+
+  it.each([8, 9, 10, 40])('a chain of %i dangling links to a unit record\'s path: refused', async (n) => {
+    const reason = await blocked(write(chain(n, at('.planning/work/units/M9.E1.json')), dir));
+    expect(reason).toMatch(n <= 8 ? /\.planning\/work\/units\/M9\.E1\.json/ : /more than 8 links/);
+  });
+
+  it('a link that loops: refused, and quickly — the system would not write through it either', async () => {
     symlinkSync('loop-b', at('src/loop-a'));
     symlinkSync('loop-a', at('src/loop-b'));
     const t = process.hrtime.bigint();
-    await allowed(write(at('src/loop-a'), dir));
+    expect(await blocked(write(at('src/loop-a'), dir))).toMatch(/more than 8 links/);
     expect(Number(process.hrtime.bigint() - t) / 1e6).toBeLessThan(50);
+  });
+
+  it('an ordinary file through a chain of 12 links that all exist: allowed (the system resolves it first)', async () => {
+    await allowed(write(chain(12, at('src/index.js')), dir));
   });
 });
 

@@ -97,6 +97,11 @@ const IN_A_V2_STORE = 'this project has a v2 work store (.planning/work/WORK.md 
 const UNRESOLVED_MESSAGE = (abs) =>
   `${shownName(abs)} is a /.vol path — a file named by its numbers, not by where it is — and it could not be resolved, so it `
   + `cannot be shown not to be one of the store's files: ${IN_A_V2_STORE}. Nothing was changed. Address the file by its path.`;
+// A chain of links whose end is not there, longer than the guard follows, or a loop.
+const TOO_MANY_LINKS_MESSAGE = (abs) =>
+  `${shownName(abs)} is a link, through more than ${LINK_HOPS_MAX} links to something that is not there yet (or round in a loop), `
+  + `so where a write would land cannot be shown not to be one of the store's files: ${IN_A_V2_STORE}. Nothing was changed. `
+  + 'Address the file by the path it is meant to have.';
 // A file with another name, or one named by number, in a store too large to compare it with.
 const UNDECIDED_MESSAGE = (abs) =>
   `${shownName(abs)} ${isVolPath(abs) ? 'is a /.vol path (a file named by its numbers)' : 'has more than one name (a hard link)'}, and `
@@ -205,7 +210,10 @@ function realpathLoose(abs) {
       }
       if (target !== null) {
         hops += 1;
-        if (hops > LINK_HOPS_MAX) return abs;
+        // Past the limit (or in a loop) where the write would land is not
+        // known — and the system follows more links than this (r6.6). Null:
+        // the caller refuses, as for any search that stopped short.
+        if (hops > LINK_HOPS_MAX) return null;
         cur = resolve(dirname(cur), target);
         continue;
       }
@@ -229,7 +237,7 @@ function realpathLoose(abs) {
 export function protectedTarget(abs) {
   const candidates = [];
   const seen = new Set();
-  for (const p of [abs, realpathLoose(abs)]) {
+  for (const p of [abs, realpathLoose(abs) ?? abs]) {
     for (const c of classify(p)) {
       if (seen.has(c.baseDir)) continue;
       seen.add(c.baseDir);
@@ -560,8 +568,10 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
     const { candidates } = protectedTarget(abs);
     // And the routes the path does not show: the real path of a symlinked
     // folder, a second name for a guarded file, and a file named by number.
-    const real = realpathLoose(abs);
+    const resolved = realpathLoose(abs);
+    const real = resolved ?? abs;
     for (const root of storeRoots(base, dirname(abs))) {
+      if (resolved === null) candidates.push({ baseDir: root, tooManyLinks: abs });
       candidates.push(
         ...underRealFolder(real, root), ...underGuardedFolder(abs, root), ...hardLinkTo(abs, root),
         // The resolved path too: behind a link into a folder BELOW a guarded
@@ -570,7 +580,7 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
         ...volTarget(abs, root), ...(real === abs ? [] : volTarget(real, root)),
       );
     }
-    for (const { baseDir, rel, linkedFrom, numberedFrom, unresolved, undecided } of candidates) {
+    for (const { baseDir, rel, linkedFrom, numberedFrom, unresolved, undecided, tooManyLinks } of candidates) {
       // A stat before the import: a project with `.planning` and no store —
       // every project but Signal's — never loads the store library.
       if (!existsSync(join(baseDir, '.planning', 'work', 'WORK.md'))) continue;
@@ -579,6 +589,7 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
         if (storeVersion(baseDir) !== 2) continue;
         if (unresolved) return { block: true, reason: UNRESOLVED_MESSAGE(unresolved) };
         if (undecided) return { block: true, reason: UNDECIDED_MESSAGE(undecided) };
+        if (tooManyLinks) return { block: true, reason: TOO_MANY_LINKS_MESSAGE(tooManyLinks) };
         const note = linkedFrom ? LINK_NOTE(linkedFrom, rel) : numberedFrom ? NUMBERS_NOTE(numberedFrom, rel) : '';
         if (!isWorkMd(rel)) return { block: true, reason: note + BLOCK_MESSAGE(rel) };
         if (await changesVersionOrKey(abs, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
