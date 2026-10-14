@@ -300,6 +300,18 @@ function repoState(baseDir, execFn) {
   }
 }
 
+// Did git read this repository's own config? `git init` writes
+// `core.repositoryformatversion` there, and `--local` reads only that file.
+// A failure is "no": the caller then says git failed.
+function readsOwnConfig(baseDir, execFn) {
+  try {
+    runGit(baseDir, ['config', '--local', '--get', 'core.repositoryformatversion'], execFn);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // The ref a confirmed commit must be an ancestor of, or why there is none.
 // The REMOTE ref (`refs/remotes/origin/<branch>`), not the local branch: a
 // local `main` can hold commits nobody merged. The branch is the one
@@ -315,6 +327,11 @@ export function defaultBranchRef(baseDir, execFn) {
   if (repo !== 'repo') return { reason: repo };
   const remotes = remoteNames(baseDir, { execFn });
   if (remotes === null) return { reason: 'git-failed' };
+  // A list with no `origin` is believed only when git has shown it read this
+  // repository's own config (M6.E16 r7.1): a git that finds the repository
+  // and does not trust it can answer the work-tree question and list no
+  // remotes, and that must not read as a project with no remote.
+  if (!remotes.includes('origin') && !readsOwnConfig(baseDir, execFn)) return { reason: 'git-failed' };
   if (remotes.length === 0) return { reason: 'no-remote' };
   // Remotes, none of them `origin`: not `no-default-branch`, whose way out
   // (`git remote set-head origin -a`) fails without a remote of that name.

@@ -293,17 +293,41 @@ describe('a repository git cannot read is not taken for no repository', () => {
     }
   });
 
+  it.skipIf(!DUBIOUS_HONOURED)('the same with a remote not named origin: git-failed, not no-origin-remote [skipped where this git does not honour GIT_TEST_ASSUME_DIFFERENT_OWNER]', async () => {
+    const { work, head } = await repo(['upstream']);
+    process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER = '1';
+    try {
+      await refusedAsGitFailed(work, head);
+    } finally {
+      delete process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER;
+    }
+  });
+
   // Any git, by an injected git (r7.1 CI follow-up): a git that refuses the
   // repository — at the work-tree question, or only when the remotes are
   // listed — is `git-failed`, never `no-remote` or `not-a-repo`.
-  const refusing = (failAt) => (cmd, args) => {
+  const refusing = (failAt, remotes = '') => (cmd, args) => {
     const refuse = () => {
       throw Object.assign(new Error('git failed'), { status: 128, stderr: "fatal: detected dubious ownership in repository at '/x'\n" });
     };
     if (args.includes('--is-inside-work-tree')) return failAt === 'work-tree' ? refuse() : 'true\n';
-    if (args[0] === 'remote') return failAt === 'remote' ? refuse() : '';
+    if (args[0] === 'remote') return failAt === 'remote' ? refuse() : remotes;
+    // A git that found the repository and did not read its own config (the
+    // reviewer's reading of CI's `no-remote`): the remotes vanish with it.
+    if (args[0] === 'config' && args.includes('--local')) return failAt === 'config' ? refuse() : '0\n';
     return '';
   };
+  // An empty remote list, or one with no `origin`, is believed only when git
+  // has shown it read this repository's own config (r7.1).
+  for (const [remotes, would] of [['', 'no-remote'], ['upstream\n', 'no-origin-remote']]) {
+    it(`a remote list (${would}) from a git that did not read this repository's config (injected): git-failed`, async () => {
+      const { work, head } = await repo();
+      await store(work, { items: [closingItem('SIG-1', head)] });
+      expect((await records.confirmCloses(work, { execFn: refusing('config', remotes) })).stillClosing).toEqual([{ id: 'SIG-1', reason: 'git-failed' }]);
+      // Control: the same list, with the config read, is believed.
+      expect((await records.confirmCloses(work, { execFn: refusing(null, remotes) })).stillClosing).toEqual([{ id: 'SIG-1', reason: would }]);
+    });
+  }
   for (const failAt of ['work-tree', 'remote']) {
     it(`a git that refuses the repository at the ${failAt} question (injected): git-failed, the hand-confirm refuses`, async () => {
       const { work, head } = await repo();

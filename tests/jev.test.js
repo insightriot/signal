@@ -281,6 +281,18 @@ describe('REVIEW hardening (security)', () => {
       expect(resolveJevKey(dir, { env: { TYPESAFE_API_KEY: 'mine' } })).toBe('mine');
     } finally { await rm(dir, { recursive: true, force: true }); }
   });
+
+  // M6.E16 r7.1: git says "not a git repository" for a `.git` file pointing
+  // nowhere too; with a `.git` entry there, that is git failing, not no repository.
+  it('a .git file whose gitdir points nowhere: the project .env is refused, not used', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'sig-jev-gitdir-'));
+    try {
+      await writeFile(join(dir, '.env'), 'TYPESAFE_API_KEY=authors_key\n');
+      await writeFile(join(dir, '.git'), `gitdir: ${join(dir, 'nowhere')}\n`);
+      expect(dotenvRefusal(dir, '.env')).toMatch(/git could not confirm \.env is ignored/);
+      expect(resolveJevKey(dir, { env: {} })).toBe('');
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
 });
 
 describe('the .env check asks git about the REAL file name (security, REVIEW pass 2)', () => {
