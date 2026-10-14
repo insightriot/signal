@@ -6,32 +6,30 @@
 // command its `config` names (`tests/git-env-planted-bare-repo.test.js` runs
 // that attack). It protects a call only when the call passes it, and one call
 // without it is the whole hole again. So this is a STATIC check over every
-// file under `plugin/tools` and `plugin/hooks`:
+// file under `plugin/tools` and `plugin/hooks`. The rules are written out in
+// `tests/helpers/git-call-scan.js`, which reads each file's syntax tree
+// (r6.2 — the first version matched text, and eight shapes got past it; each
+// is planted below).
 //
-//   - a call whose first argument is the literal `'git'` or `'gh'` (which
-//     runs git) — under any callee name: `execFileSync`, `spawnSync`, an
-//     injected `execFn`, a local wrapper — must have `gitEnv(<folder>)` inside
-//     its own parentheses, and where the call names its `cwd` the folder is
-//     that one (r6.1: the folder is what `gitEnv` looks at, to turn git away
-//     from a planted layout whatever the git version). Bare `gitEnv()` is for
-//     `git init` alone;
-//   - the file must import `gitEnv` from `git-env.js` (or from `work-write.js`,
-//     which re-exports it), so the name is the shared one;
-//   - git may not be run as a shell string (`exec('git status')`) or from a
-//     shell script: neither can be checked for the environment here.
+// What the scan still CANNOT see — the residue, stated:
 //
-// `PENDING` lists the files known not to pass yet, each with its exact number
-// of calls and why. It may only shrink: a file that gains a call, or one that
-// is fixed while its row stays, fails. Planted violations prove the scan bites.
-//
-// The residue, stated: a call that takes `'git'` from a variable
-// (`const bin = 'git'; execFileSync(bin, …)`) is invisible here. Nothing in the
-// tree does that today, and the wrappers that pass a command through
-// (`inRepo`, `work-migrate-v2.js`) are called with the literal, which is seen.
-// A call that takes its `cwd` from a spread (`{ ...opts, env: gitEnv(root) }`)
-// is not checked for the folder being the same one. And the `gh` calls in
-// `pr-review-findings.js` hand the environment to an `execFn` the caller
-// wrote: one that drops its third argument runs `gh` with its own.
+//   - a command that arrives as a parameter and is passed on
+//     (`inRepo`, `work-migrate-v2.js`: `execFn(cmd, args, …)`). Its callers
+//     are seen — they write `'git'` — and the wrapper sets `env` itself;
+//   - a command put together at run time (`'g' + 'it'`, a property of an
+//     object, a value read from a file);
+//   - an `execFn` the CALLER wrote (`pr-review-findings.js` hands `gh`'s
+//     environment to it as a third argument): one that drops that argument
+//     runs `gh` with its own;
+//   - what is spread into `env` AFTER `...gitEnv(<folder>)`
+//     (`{ ...gitEnv(baseDir), ...ORIGIN_FETCH_ENV }`, `state.js`): a later key
+//     could put back a variable `gitEnv` took out. The one such spread adds
+//     four prompt-and-ssh settings;
+//   - a `cwd` that comes from a spread (`{ ...opts, env: gitEnv(root) }`,
+//     `adherence-harness.js`): the folder is not compared with it;
+//   - `git-env.js` itself, which asks git one question without
+//     `safe.bareRepository` on purpose (`repositoryWithoutDotGit`);
+//   - any file outside `plugin/tools` and `plugin/hooks`.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -39,13 +37,11 @@ import { join } from 'node:path';
 
 import { gitEnv } from '../plugin/tools/lib/git-env.js';
 import * as workWrite from '../plugin/tools/lib/work-write.js';
+import { countGitCalls, unprotectedGitCalls } from './helpers/git-call-scan.js';
 
 const ROOT = process.cwd();
 const DIRS = ['plugin/tools', 'plugin/hooks'];
 const ENV_MODULE = 'plugin/tools/lib/git-env.js';
-
-// Files whose git calls do not carry the environment yet. `calls` is exact.
-const PENDING = [];
 
 function filesUnder(rel) {
   const out = [];
@@ -57,143 +53,110 @@ function filesUnder(rel) {
   }
   return out;
 }
+const scanned = () => DIRS.flatMap(filesUnder).filter((f) => /\.(?:js|cjs|mjs|sh)$/.test(f) && f !== ENV_MODULE);
+const read = (file) => readFileSync(join(ROOT, file), 'utf-8');
 
-// Comment lines blanked (line numbers kept), so a call quoted in one is not
-// counted — the same rule as `codeLines` in `tests/work-record-writers.test.js`.
-// A comment after code on the same line is left in: a call quoted there is
-// reported, which errs on the side of looking.
-const stripComments = (text) => text.split('\n').map((l) => (/^\s*(\/\/|\*|\/\*)/.test(l) ? '' : l)).join('\n');
-
-// `gh` too (r6.1): it runs git to learn which repository it is in.
-const GIT_CALL = /[\w$.]+\(\s*(['"`])(?:git|gh)\1\s*[,)]/g;
-const GIT_SHELL_STRING = /\b(?:exec|execSync|spawn|spawnSync|execFile|execFileSync|execFn)\(\s*(['"`])(?:git|gh)\s/g;
-// `gitEnv(<folder>)`: the folder the call runs in, which is what makes it
-// look at that folder (r6.1). Bare `gitEnv()` looks at nothing, and is for
-// `git init` alone — it runs where there is no repository yet.
-const ENV_WITH_FOLDER = /\bgitEnv\(\s*([\w$.]+)\s*\)/;
-const ENV_BARE = /\bgitEnv\(\s*\)/;
-const INIT_CALL = /^\(\s*(['"`])git\1\s*,\s*\[\s*(['"`])init\2/;
-const CWD = /\bcwd:\s*([\w$.]+)/;
-const ENV_IMPORT = /import\s*\{[^}]*\bgitEnv\b[^}]*\}\s*from\s*'\.\/(?:git-env|work-write)\.js'/;
-
-// The text of the call that opens at `text[open]` (a `(`), to its matching `)`.
-function callText(text, open) {
-  let depth = 0;
-  for (let i = open; i < text.length; i += 1) {
-    if (text[i] === '(') depth += 1;
-    else if (text[i] === ')') {
-      depth -= 1;
-      if (depth === 0) return text.slice(open, i + 1);
-    }
-  }
-  return text.slice(open);
-}
-
-const lineOf = (text, index) => text.slice(0, index).split('\n').length;
-
-/**
- * The git calls in `source` that do not carry the shared environment.
- *
- * @param {string} source — a file's text
- * @param {{shell?: boolean}} [opts] — `shell`: a shell script, where any git command counts
- * @returns {Array<{line: number, why: string}>}
- */
-function unprotectedGitCalls(source, { shell = false } = {}) {
-  if (shell) {
-    return source.split('\n')
-      .map((l, i) => ({ line: i + 1, text: l.replace(/(^|\s)#.*$/, '') }))
-      .filter((l) => /(^|[\s;&|(`])git\s+[a-z-]/.test(l.text))
-      .map((l) => ({ line: l.line, why: 'a shell script runs git, where the environment cannot be checked' }));
-  }
-  const text = stripComments(source);
-  const out = [];
-  for (const m of text.matchAll(GIT_SHELL_STRING)) {
-    out.push({ line: lineOf(text, m.index), why: 'git is run as a shell string' });
-  }
-  const calls = [...text.matchAll(GIT_CALL)];
-  for (const m of calls) {
-    const call = callText(text, m.index + m[0].indexOf('('));
-    const line = lineOf(text, m.index);
-    const folder = ENV_WITH_FOLDER.exec(call)?.[1];
-    const cwd = CWD.exec(call)?.[1];
-    if (folder === undefined && ENV_BARE.test(call)) {
-      if (!INIT_CALL.test(call)) out.push({ line, why: '`gitEnv()` is given no folder, and the call is not `git init`' });
-    } else if (folder === undefined) {
-      out.push({ line, why: 'the call does not pass `gitEnv()`' });
-    } else if (cwd !== undefined && cwd !== folder) {
-      out.push({ line, why: `\`gitEnv(${folder})\` looks at another folder than the call runs in (\`cwd: ${cwd}\`)` });
-    }
-  }
-  if (calls.length > 0 && !ENV_IMPORT.test(text)) {
-    out.push({ line: 1, why: '`gitEnv` is not imported from git-env.js (or work-write.js)' });
-  }
-  return out;
-}
-
-const scan = () => DIRS.flatMap(filesUnder)
-  .filter((f) => /\.(?:js|cjs|mjs|sh)$/.test(f) && f !== ENV_MODULE)
-  .map((file) => ({ file, found: unprotectedGitCalls(readFileSync(join(ROOT, file), 'utf-8'), { shell: file.endsWith('.sh') }) }))
-  .filter((f) => f.found.length > 0);
+const IMP = "import { execFileSync, spawnSync } from 'node:child_process';\nimport { gitEnv } from './git-env.js';\n";
+const whys = (code, opts) => unprotectedGitCalls(code, opts).map((v) => v.why);
 
 describe('every git call carries the shared environment', () => {
-  it('no file under plugin/tools or plugin/hooks runs git without `gitEnv()`', () => {
-    const pending = new Set(PENDING.map((p) => p.file));
-    const violations = scan().filter((f) => !pending.has(f.file))
-      .flatMap((f) => f.found.map((v) => `${f.file}:${v.line} — ${v.why}`));
+  it('no file under plugin/tools or plugin/hooks runs git without `gitEnv(<folder>)`', () => {
+    const violations = scanned()
+      .flatMap((file) => unprotectedGitCalls(read(file), { shell: file.endsWith('.sh') }).map((v) => `${file}:${v.line} — ${v.why}`));
     expect(violations).toEqual([]);
   });
 
-  it('a pending file has exactly the calls it was listed with — fewer means its row goes, more is a new hole', () => {
-    const found = new Map(scan().map((f) => [f.file, f.found.filter((v) => v.why.startsWith('the call')).length]));
-    for (const p of PENDING) {
-      expect(p.reason, p.file).toEqual(expect.stringMatching(/\S/));
-      expect({ file: p.file, calls: found.get(p.file) ?? 0 }).toEqual({ file: p.file, calls: p.calls });
-    }
-  });
-
   it('the scan finds git calls at all — it is not passing over an empty set', () => {
-    const withCalls = DIRS.flatMap(filesUnder).filter((f) => f.endsWith('.js'))
-      .filter((f) => [...stripComments(readFileSync(join(ROOT, f), 'utf-8')).matchAll(GIT_CALL)].length > 0);
-    for (const known of ['branch-guard.js', 'work-store.js', 'work-write.js', 'state.js', 'jev.js', 'migrate-memory.js']) {
-      expect(withCalls, known).toContain(`plugin/tools/lib/${known}`);
+    const calls = new Map(scanned().filter((f) => f.endsWith('.js')).map((f) => [f, countGitCalls(read(f))]));
+    for (const known of ['branch-guard.js', 'work-store.js', 'git-objects.js', 'state.js', 'jev.js', 'migrate-memory.js', 'pr-review-findings.js']) {
+      expect(calls.get(`plugin/tools/lib/${known}`), known).toBeGreaterThan(0);
     }
+    // As many as there were when this was written; a new call is fine, far fewer is a scan gone blind.
+    expect([...calls.values()].reduce((a, b) => a + b, 0)).toBeGreaterThanOrEqual(45);
   });
 
-  it('planted violations are found', () => {
-    const imp = "import { gitEnv } from './git-env.js';\n";
-    // a direct call, an injected one over several lines, a wrapper, spawnSync
+  it('a call without the environment is found, under any callee and however it is laid out', () => {
     for (const planted of [
       "execFileSync('git', ['status'], { cwd: baseDir });",
       "const out = execFn(\n  'git',\n  ['log'],\n  { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }\n);",
       "const git = (args) => String(execFn('git', args, { cwd: baseDir })).trim();",
       'spawnSync("git", ["check-ignore", "-q", "--", name], { cwd: baseDir });',
       "run('git', args);",
-    ]) expect(unprotectedGitCalls(imp + planted), planted).toMatchObject([{ why: 'the call does not pass `gitEnv()`' }]);
+      "execFn('gh', ['pr', 'view'], { cwd: baseDir, env: { ...process.env } });",
+      "run('gh', args);",
+      "execFileSync(`git`, ['status'], { cwd: baseDir });",
+    ]) expect(whys(IMP + planted), planted).toEqual([expect.stringContaining('does not pass `gitEnv()`')]);
     // `gitEnv()` in the NEXT call does not cover this one
-    expect(unprotectedGitCalls(`${imp}a('git', x, { cwd });\nb('git', y, { cwd, env: gitEnv(cwd) });`)).toHaveLength(1);
-    // a local function of the same name is not the shared one
-    expect(unprotectedGitCalls("const gitEnv = () => process.env;\nexecFileSync('git', ['status'], { env: gitEnv(dir) });"))
-      .toMatchObject([{ why: expect.stringContaining('not imported') }]);
-    // r6.1: no folder — nothing is looked at; another folder than the call's own; and `gh`
-    expect(unprotectedGitCalls(`${imp}execFn('git', ['status'], { cwd: baseDir, env: gitEnv() });`))
-      .toMatchObject([{ why: expect.stringContaining('given no folder') }]);
-    expect(unprotectedGitCalls(`${imp}execFn('git', ['status'], { cwd: repo, env: gitEnv(baseDir) });`))
-      .toMatchObject([{ why: expect.stringContaining('another folder') }]);
-    expect(unprotectedGitCalls(`${imp}execFn('gh', ['pr', 'view'], { cwd: baseDir, env: { ...process.env } });`))
-      .toMatchObject([{ why: 'the call does not pass `gitEnv()`' }]);
-    expect(unprotectedGitCalls(`${imp}run('gh', args);`)).toHaveLength(1);
-    expect(unprotectedGitCalls("execSync('git status --porcelain', { cwd });")).toMatchObject([{ why: 'git is run as a shell string' }]);
-    expect(unprotectedGitCalls('#!/bin/sh\nbranch=$(git branch --show-current)\n', { shell: true })).toHaveLength(1);
+    expect(whys(`${IMP}a('git', x, { cwd });\nb('git', y, { cwd, env: gitEnv(cwd) });`)).toHaveLength(1);
+  });
+
+  // r6.2: each of these passed the first, text-matching version of this scan.
+  it.each([
+    ['(b) the name only in a comment', "execFileSync('git', ['status'], { cwd: baseDir, env: process.env /* gitEnv(baseDir) */ });", 'neither `gitEnv(<folder>)`'],
+    ['(b) the name only in a string', "execFileSync('git', ['status'], { cwd: baseDir, env: { NOTE: 'gitEnv(baseDir)' } });", 'neither `gitEnv(<folder>)`'],
+    ['(b) the name in a trailing comment', "execFileSync('git', ['status'], { cwd: baseDir }); // env: gitEnv(baseDir)", 'no `env` key'],
+    ['(c) a second `env:` after the first', "execFileSync('git', ['status'], { env: gitEnv(baseDir), cwd: baseDir, env: process.env });", 'more than one `env` key'],
+    ['(c) a spread after `env`', "execFileSync('git', ['status'], { cwd: baseDir, env: gitEnv(baseDir), ...o });", 'spread after `env`'],
+    ['(c) the environment only on one side of a choice', "execFileSync('git', ['status'], { cwd: baseDir, env: safe ? gitEnv(baseDir) : process.env });", 'neither `gitEnv(<folder>)`'],
+    ['(c) `gitEnv` spread, but not first', "execFileSync('git', ['status'], { cwd: baseDir, env: { ...process.env, ...gitEnv(baseDir) } });", 'neither `gitEnv(<folder>)`'],
+    ['(d) a path to git', "execFileSync('/usr/bin/git', ['status'], { cwd: baseDir });", 'does not pass `gitEnv()`'],
+    ['(d) git.exe', "execFileSync('C:\\\\Program Files\\\\Git\\\\bin\\\\git.exe', ['status'], { cwd: baseDir });", 'does not pass `gitEnv()`'],
+    ['(d) a path to gh', "execFn('/opt/homebrew/bin/gh', ['pr', 'view'], { cwd });", 'does not pass `gitEnv()`'],
+    ['(f) a shell string through a wrapper', "run('git status --porcelain', { cwd });", 'shell string'],
+    ['(f) a shell string in a template', 'sh(`git log --oneline`);', 'shell string'],
+    ['(g) the arguments in a spread', "execFileSync(...['git', ['status'], { cwd: baseDir }]);", 'spread'],
+    ['(g) the options in a spread', "execFileSync('git', ...rest);", 'not one object written in the call'],
+    ['(g) the options in a variable', "execFileSync('git', ['status'], opts);", 'not one object written in the call'],
+    ['(k) a misspelt key', "execFileSync('git', ['status'], { cwd: baseDir, envv: gitEnv(baseDir) });", 'no `env` key'],
+    ['(k) a computed key', "execFileSync('git', ['status'], { cwd: baseDir, [env]: gitEnv(baseDir) });", 'no `env` key'],
+    ['(a) git held in a constant', "const GIT = 'git';\nexecFileSync(GIT, ['status'], { cwd: baseDir });", 'held in `GIT`'],
+    ['(a) git assigned to a variable', "let bin;\nbin = '/usr/bin/git';\nspawnSync(bin, ['status']);", 'held in `bin`'],
+    ['(a) gh held in a constant, with the environment', "const GH = 'gh';\nexecFn(GH, args, { cwd, env: gitEnv(cwd) });", 'held in `GH`'],
+    ['no folder: nothing is looked at', "execFn('git', ['status'], { cwd: baseDir, env: gitEnv() });", 'given no folder'],
+    ['another folder than the call runs in', "execFn('git', ['status'], { cwd: repo, env: gitEnv(baseDir) });", 'another folder'],
+    ['another folder, `cwd` in shorthand', "execFn('gh', args, { cwd, env: gitEnv(baseDir) });", 'another folder'],
+  ])('planted: %s', (_label, planted, why) => {
+    expect(whys(IMP + planted), planted).toEqual([expect.stringContaining(why)]);
+  });
+
+  it('planted: (h) a shell is not reachable at all — `exec`, `execSync`, another name, another way in, `shell: true`', () => {
+    const noShell = (code) => whys(code).filter((w) => /child_process|shell/.test(w));
+    expect(noShell("import { execSync } from 'node:child_process';\nexecSync('ls');")).toHaveLength(1);
+    expect(noShell("import { exec } from 'child_process';")).toHaveLength(1);
+    expect(noShell("import { execFileSync as run } from 'node:child_process';")).toHaveLength(1);
+    expect(noShell("import * as cp from 'node:child_process';")).toHaveLength(1);
+    expect(noShell("import cp from 'node:child_process';")).toHaveLength(1);
+    expect(noShell("const { execSync } = await import('node:child_process');")).toHaveLength(1);
+    expect(noShell("import { createRequire } from 'node:module';\nconst cp = createRequire(import.meta.url)('child_process');")).toHaveLength(1);
+    expect(noShell("import { spawn } from 'node:child_process';\nspawn('ls', [], { shell: true });")).toHaveLength(1);
+    expect(noShell("import { spawnSync } from 'node:child_process';\nspawnSync(cmd, { shell });")).toHaveLength(1);
+    expect(noShell("import { spawnSync } from 'node:child_process';\nspawnSync('ls', [], { shell: false });")).toEqual([]);
+  });
+
+  it('planted: a `gitEnv` that is not the shared one, and a shell script that runs git', () => {
+    expect(whys("const gitEnv = () => process.env;\nexecFileSync('git', ['status'], { env: gitEnv(dir) });")).toEqual([expect.stringContaining('not imported')]);
+    expect(whys("import { gitEnv } from './my-env.js';\nexecFileSync('git', ['status'], { env: gitEnv(dir) });")).toEqual([expect.stringContaining('not imported')]);
+    expect(whys("import { env as gitEnv } from './git-env.js';\nexecFileSync('git', ['status'], { env: gitEnv(dir) });")).toEqual([expect.stringContaining('not imported')]);
+    expect(whys('#!/bin/sh\nbranch=$(git branch --show-current)\n', { shell: true })).toHaveLength(1);
+    expect(whys('#!/bin/sh\ngh pr view\n', { shell: true })).toHaveLength(1);
   });
 
   it('and what is not a violation is not reported', () => {
-    const imp = "import { gitEnv } from './git-env.js';\n";
-    expect(unprotectedGitCalls(`${imp}execFn('git', ['status'], { cwd: baseDir, env: gitEnv(baseDir) });`)).toEqual([]);
-    expect(unprotectedGitCalls(`${imp}execFn(\n  'git',\n  ['fetch'],\n  { cwd, env: { ...gitEnv(cwd), GIT_TERMINAL_PROMPT: '0' } }\n);`)).toEqual([]);
-    expect(unprotectedGitCalls(`${imp}execFileSync('git', ['init', '-q'], { ...opts, env: gitEnv() });`)).toEqual([]);
-    expect(unprotectedGitCalls(`${imp}execFn('gh', args, { cwd, env: gitEnv(cwd) });`)).toEqual([]);
-    expect(unprotectedGitCalls("// execFileSync('git', ['status'])\nconst source = 'git';\nexecFn('npm', args);")).toEqual([]);
-    expect(unprotectedGitCalls('#!/bin/sh\n# git log is not run here\necho "no repository"\n', { shell: true })).toEqual([]);
+    for (const fine of [
+      "execFn('git', ['status'], { cwd: baseDir, env: gitEnv(baseDir) });",
+      "execFn(\n  'git',\n  ['fetch'],\n  { cwd, env: { ...gitEnv(cwd), GIT_TERMINAL_PROMPT: '0' } }\n);",
+      "execFileSync('git', ['init', '-q'], { ...opts, env: gitEnv() });",
+      "execFileSync('git', ['add', '-A'], { ...opts, env: gitEnv(root) });",
+      "execFn('gh', args, { cwd, env: gitEnv(cwd) });",
+      "execFn('gh', args, { cwd: baseDir, 'env': { ...gitEnv(baseDir), GH_PROMPT_DISABLED: '1' } });",
+      // the word is not the command: a value, a comparison, a list of names, another program
+      "let source = 'git';\nconst plan = { mode: 'git', source };\nif (probe.mode === 'git') report(plan);",
+      "const KNOWN = ['git', 'npm', 'gh'];\nexecFn('npm', args);",
+      "// execFileSync('git', ['status'])\nconst note = 'run git status yourself';",
+    ]) expect(whys(IMP + fine), fine).toEqual([]);
+    // a hook file's import of the shared module, by its own path
+    expect(whys("import { spawnSync } from 'node:child_process';\nimport { gitEnv } from '../tools/lib/git-env.js';\nspawnSync('git', ['status'], { cwd, env: gitEnv(cwd) });")).toEqual([]);
+    expect(whys('#!/bin/sh\n# git log is not run here\necho "no repository"\n', { shell: true })).toEqual([]);
   });
 });
 
