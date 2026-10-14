@@ -203,6 +203,14 @@ describe('allowed: the three reasons no git answer can change', () => {
     closed.events[2] = { ...closed.events[2], confirmed_by: 'person', git_reason: 'no-remote' };
     await put(work, records.recordPath('SIG-1'), serializeRecord(closed));
     expect(checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message))).toHaveLength(1);
+    // r7.2: typing `not-a-repo` instead does not soften it. Git has the commit
+    // and the default branch lacks it, so it is "not merged", not "not in this history".
+    closed.events[2] = { ...closed.events[2], git_reason: 'not-a-repo' };
+    await put(work, records.recordPath('SIG-1'), serializeRecord(closed));
+    const found = checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message));
+    expect(found).toHaveLength(1);
+    expect(found[0].message).not.toMatch(/not in this history/);
+    expect(found[0].message).toMatch(/when the project was not a git repository; it now has origin\/main, and the commit is not on it .*the work was not merged: reopen it/);
   });
 });
 

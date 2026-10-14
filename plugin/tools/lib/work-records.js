@@ -1790,7 +1790,8 @@ const PROOF_NOT_THERE = new Set(['not-on-default-branch', 'unknown-commit']);
  *
  * @param {string} baseDir
  * @param {{execFn?: Function}} [opts]
- * @returns {{branch: string|null, notThere: Array<{id: string, path: string, proof: string, byHand?: string|null}>}}
+ * @returns {{branch: string|null, notThere: Array<{id: string, path: string, proof: string, failure: string, byHand?: string|null}>}}
+ *   `failure`: `not-on-default-branch` or `unknown-commit` — which of the two git gave
  *   `byHand`: present when the close was confirmed by hand — the reason recorded then (`git_reason`)
  *   `branch`: the ref asked about, as `origin/<default>`, or null when there is none
  * @throws {WorkStoreError} as `listRecords`, and for a `units/` folder that cannot be trusted
@@ -1818,7 +1819,11 @@ export function probeClosedProofs(baseDir, opts = {}) {
   const isShallow = shallowProbe(baseDir, execFn);
   return {
     branch: target.ref.slice('refs/remotes/'.length),
-    notThere: asked.filter((c) => PROOF_NOT_THERE.has(ancestryFailure(baseDir, c.proof, target.ref, execFn, isShallow))),
+    // `failure` is kept (r7.2): "not in this history" and "not merged" are
+    // different findings, and the words depend on which git gave.
+    notThere: asked
+      .map((c) => ({ ...c, failure: ancestryFailure(baseDir, c.proof, target.ref, execFn, isShallow) }))
+      .filter((c) => PROOF_NOT_THERE.has(c.failure)),
   };
 }
 

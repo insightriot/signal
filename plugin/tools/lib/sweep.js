@@ -538,11 +538,14 @@ export function checkClosedProofs(baseDir, opts = {}) {
   }
   const branch = shownRef(probed.branch, 'branch', { noCommandHere: true });
   // A close confirmed by hand (M6.E16 r7.1) is worded for what was recorded then.
-  const when = { 'no-remote': 'had no remote', 'no-origin-remote': 'had no remote named `origin`' };
+  const when = { 'no-remote': 'had no remote', 'no-origin-remote': 'had no remote named `origin`', 'not-a-repo': 'was not a git repository' };
   const UNMERGED = 'bring the remote\'s branches up to date and sweep again; if it is still reported, the work was not merged: reopen it';
   return probed.notThere.map((c) => mkFinding('close-not-on-default-branch', 'advisory', shownName(c.path),
-    c.byHand === 'not-a-repo'
-      // The commit was typed in before there was a repository: nothing to merge (r7.1).
+    c.byHand === 'not-a-repo' && c.failure === 'unknown-commit'
+      // The commit was typed in before there was a repository, and git has no
+      // commit of that name: nothing to merge (r7.1). Only then — a commit git
+      // does have and the default branch lacks is "not merged", whatever the
+      // record says was recorded (r7.2).
       ? `${c.id} was confirmed closed by hand before this project was a git repository; its commit (${c.proof}) is not in this history — `
         + 'nothing here can show it was merged; reopen it only if the work it names was not done'
       : (c.byHand === undefined
