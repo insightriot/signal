@@ -1,0 +1,13 @@
+{
+  "id": "SIG-321",
+  "type": "NEW",
+  "title": "The closed-proof audit drops ambiguous-proof, proof-names-a-ref, shallow and git-failed without a word",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-14T22:42:49.634Z",
+      "by": "Claude (M6.E16 SHIP)"
+    }
+  ]
+}

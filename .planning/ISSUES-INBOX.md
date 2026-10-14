@@ -83,3 +83,33 @@ Triage (read, not run): `nextActionForPhase` (`plugin/tools/lib/status.js` ~48) 
 Likely fix: at SHIP, when the current unit is *closing* (or no close is recorded yet), say what is owed — the merge, then the confirm — instead of 'done'. Filed on Brett's okay to fix after the v0.1.51 merge.
 
 ---
+
+## ancestryFailure reads a merge-base error as unknown-commit after rev-parse found the commit
+
+**Status:** untriaged (N) · SIG-320
+
+`plugin/tools/lib/work-write.js:395`: `ancestryFailure` returns `unknown-commit` when `git merge-base --is-ancestor` exits 128, even after `rev-parse` has found the commit (a missing object in a partial clone, an unreadable target ref). Since r7.2 a `not-a-repo` hand-confirm then gets the soft "not in this history" wording though the commit is in the history. Not reproduced; needs a damaged repo. Fix: return a different reason from that branch once `rev-parse` succeeded.
+
+Found by the fresh read of M6.E16 r7.2 (`c05063cc`, 2026-10-14); filed, not fixed, before the v0.1.51 merge on Brett's okay.
+
+---
+
+## The closed-proof audit drops ambiguous-proof, proof-names-a-ref, shallow and git-failed without a word
+
+**Status:** untriaged (N) · SIG-321
+
+`plugin/tools/lib/work-records.js` ~1826 (`probeClosedProofs`) keeps only `not-on-default-branch` and `unknown-commit`; every other `ancestryFailure` result is dropped, and `checkClosedProofs` (`sweep.js`) says nothing. A recorded close whose proof is a short hex matching more than one commit is never reported. The code comment admits it; the user is not told. Older than r7.2. Related: SIG-317 (git-failed).
+
+Found by the fresh read of M6.E16 r7.2 (`c05063cc`, 2026-10-14); filed, not fixed, before the v0.1.51 merge on Brett's okay.
+
+---
+
+## checkClosedProofs repeats a hand-confirm's typed git_reason as fact
+
+**Status:** untriaged (N) · SIG-322
+
+`plugin/tools/lib/sweep.js` ~541: "confirmed closed by hand when the project was not a git repository" (and the `no-remote` form) states the recorded `git_reason` as fact, in exactly the case where git's answer casts doubt on it. Copy fix: "recorded as confirmed by hand when …".
+
+Found by the fresh read of M6.E16 r7.2 (`c05063cc`, 2026-10-14); filed, not fixed, before the v0.1.51 merge on Brett's okay.
+
+---
