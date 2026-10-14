@@ -349,6 +349,22 @@ describe('migrateWorkStoreV2 — apply (temp git repos only)', () => {
     expect(storeVersion(work)).toBe(1);
   });
 
+  // r6.6: the dry run too — it reads the items' first dates from git, and
+  // without them failed "the conversion did not verify … no created date known".
+  it('a git older than 2.38: the dry run says the version and stops', async () => {
+    const { work } = v1Clone();
+    testSeam.gitVersion = 'git version 2.34.1';
+    let err;
+    try {
+      err = await migrateWorkStoreV2(work, { outDir: join(root, 'out'), now: NOW }).catch((e) => e);
+    } finally {
+      testSeam.gitVersion = undefined;
+    }
+    expect(err).toMatchObject({ code: 'CONFIG' });
+    expect(err.message).toBe('the dry run could not ask git about this project: Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1. Nothing was written.');
+    expect(existsSync(join(root, 'out'))).toBe(false);
+  });
+
   it('refuses outside a git repository', async () => {
     const base = v1Project(join(root, 'p'));
     await expect(migrateWorkStoreV2(base, { apply: true, outDir: join(root, 'out'), now: NOW })).rejects.toThrow(/git/);

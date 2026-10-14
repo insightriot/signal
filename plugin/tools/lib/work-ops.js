@@ -401,6 +401,16 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     // Epic folders on a v2 store, so a gate behind the folder lookup never ran
     // (REVIEW I3). Every record whose Epic is this one (`closeEpicCheck` throws
     // OPEN_ITEMS or SCHEMA itself).
+    //
+    // Before it, whether git can be asked at all (r6.5, r6.6): "could not
+    // ask" is not "no repository" — read as one, the files were moved as
+    // plain renames — and the check of the items asks git where each closing
+    // item's commit is, so it would say OPEN_ITEMS of an item that is done.
+    const cannotAsk = gitCannotAsk(baseDir);
+    if (cannotAsk !== null) {
+      throw new WorkStoreError('CONFIG', `${epicId}: git could not be asked which of the Epic's files it tracks, so they were not moved: `
+        + `${cannotAsk}. Nothing was moved.`);
+    }
     closeEpicCheck(baseDir, epicId, { execFn });
 
     let st = null;
@@ -467,13 +477,6 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     // README at the new location. Any failure in here is undone in reverse:
     // rewritten files get their old text back, a README this call created is
     // removed, every file moves back, and the folders this created go.
-    // "Git could not be asked" is not "no repository" (r6.5): read as one,
-    // tracked files were moved as plain renames.
-    const cannotAsk = gitCannotAsk(baseDir);
-    if (cannotAsk !== null) {
-      throw new WorkStoreError('CONFIG', `${epicId}: git could not be asked which of the Epic's files it tracks, so they were not moved: `
-        + `${cannotAsk}. Nothing was moved.`);
-    }
     const git = isGitRepo(baseDir, execFn);
     const moved = [];
     const written = []; // {abs, text} — text null when this call created the file

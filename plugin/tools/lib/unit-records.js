@@ -50,7 +50,7 @@ import {
   UNIT_SUMMARY_MAX, UNIT_TITLE_MAX, foldUnit,
 } from './unit-record.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
-import { assertWritable, listRecords, refuseUncheckedShortProof } from './work-records.js';
+import { assertWritable, listRecords, refuseUncheckedProof } from './work-records.js';
 // A cycle, by design: work-views.js renders these records (`listUnits`).
 // Neither module uses the other's bindings while it is being evaluated.
 import { assertViewsWritable, regenerateToMemory, regenerateViews, viewsNotRegenerated } from './work-views.js';
@@ -698,10 +698,11 @@ function assertProof(id, proof, what) {
 }
 
 // A short hash that more than one commit starts with names none of them
-// (best effort: with no repository the request is accepted).
+// (best effort: with no repository the request is accepted). With a git that
+// could not be asked, any proof is refused (`refuseUncheckedProof`).
 function assertOneCommit(baseDir, id, proof, opts) {
+  refuseUncheckedProof(baseDir, id, proof);
   if (proof.length >= 40) return;
-  refuseUncheckedShortProof(baseDir, id, proof);
   const n = commitsStartingWith(baseDir, proof, opts.execFn ?? execFileSync);
   if (n > 1) {
     throw new WorkStoreError('SCHEMA', `${id}: the proof ${proof} is the start of ${n} commits or tags, so it names none of them — `

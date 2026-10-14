@@ -571,9 +571,12 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
   if (version === null) throw new WorkStoreError('CONFIG', 'this project has no work store (.planning/work/WORK.md): nothing to migrate.');
   if (version === 2) throw new WorkStoreError('CONFIG', '.planning/work/WORK.md already reads schema_version: 2 — this store is already v2.');
 
+  // The dry run too (r6.6): it reads each item's first date from git.
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) {
+    throw new WorkStoreError('CONFIG', `${apply ? '--apply' : 'the dry run'} could not ask git about this project: ${cannotAsk}. Nothing was written.`);
+  }
   if (apply) {
-    const cannotAsk = gitCannotAsk(baseDir);
-    if (cannotAsk !== null) throw new WorkStoreError('CONFIG', `--apply could not ask git about this project: ${cannotAsk}. Nothing was written.`);
     if (!isGitRepo(baseDir, execFn)) throw new WorkStoreError('CONFIG', '--apply needs a git repository (the cutover is one reviewable commit, and confirmCloses asks git).');
     const dirty = String(execFn('git', ['status', '--porcelain'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) })).trim();
     if (dirty !== '') {

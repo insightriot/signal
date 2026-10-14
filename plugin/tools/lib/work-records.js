@@ -1134,18 +1134,19 @@ function assertProof(id, proof) {
 // repository it cannot say, and the request is accepted; `ancestryFailure`
 // checks again at confirm time.
 //
-// When git could not be ASKED (r6.5) a short proof is refused: recorded
-// unchecked, it may name two commits or none.
-export function refuseUncheckedShortProof(baseDir, id, proof) {
+// When git could not be ASKED the request is refused: a short proof (r6.5)
+// may name two commits or none, and a full hash (r6.6) may name no commit
+// here at all — a close recorded on either rests on an answer nobody got.
+export function refuseUncheckedProof(baseDir, id, proof) {
   const cannotAsk = gitCannotAsk(baseDir);
   if (cannotAsk === null) return;
-  throw new WorkStoreError('CONFIG', `${id}: the proof ${proof} is a short hash, and whether it names one commit could not be checked: `
+  throw new WorkStoreError('CONFIG', `${id}: whether the proof ${proof} names one commit in this repository could not be checked: `
     + `${cannotAsk}. Nothing was written.`);
 }
 
 function assertUnambiguousProof(baseDir, id, proof, opts = {}) {
+  refuseUncheckedProof(baseDir, id, proof);
   if (proof.length >= 40) return;
-  refuseUncheckedShortProof(baseDir, id, proof);
   const n = commitsStartingWith(baseDir, proof, opts.execFn ?? execFileSync);
   if (n > 1) {
     throw new WorkStoreError('SCHEMA', `${id}: the proof ${proof} is the start of ${n} commits or tags, so it names none of them — `
@@ -1612,6 +1613,11 @@ function assertFullCommit(baseDir, what, proof, execFn) {
   if (typeof proof !== 'string' || !FULL_COMMIT_RE.test(proof)) {
     throw new WorkStoreError('SCHEMA', `${what}: a close is asked again only with a full commit hash — 40 or 64 lowercase hex characters `
       + `(got ${echoed(typeof proof === 'string' ? proof.slice(0, 80) : proof)}). Use \`git rev-parse <commit>\`. Nothing was written.`);
+  }
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) {
+    throw new WorkStoreError('CONFIG', `${what}: whether ${proof} is a commit in this repository could not be checked: ${cannotAsk}. `
+      + 'Nothing was written.');
   }
   let full = null;
   try {

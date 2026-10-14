@@ -113,6 +113,35 @@ describe('closeEpic on a v2 store', () => {
     expect(await closeEpic(root, EPIC, { by, at: AT })).toMatchObject({ status: 'closed' });
   });
 
+  // r6.6: with an item closing on a commit that IS in HEAD, the check of the
+  // Epic's items ran first and said OPEN_ITEMS ("close each …") — git could
+  // not be asked where the commit is. The version is what is said.
+  it('a git older than 2.38, an item closing on a commit in HEAD: the version, not OPEN_ITEMS', async () => {
+    const run = (...args) => {
+      const r = spawnSync('git', ['-c', 'commit.gpgsign=false', '-c', 'user.email=t@t.co', '-c', 'user.name=T', ...args], { cwd: root, encoding: 'utf8' });
+      if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
+      return r.stdout.trim();
+    };
+    run('init', '-q', '-b', 'feat');
+    await put('fix.txt', 'fixed\n');
+    run('add', 'fix.txt');
+    run('commit', '-q', '-m', 'the fix');
+    const sha = run('rev-parse', 'HEAD');
+    await store([{ id: 'SIG-3', type: 'BUG', title: 'fixed on the branch', events: [ev.created, ev.triaged, ev.started, { ...ev.closing, proof: sha }] }]);
+    const before = snapshotTree(root);
+    testSeam.gitVersion = 'git version 2.34.1';
+    let err;
+    try {
+      err = await closeEpic(root, EPIC, { by, at: AT }).catch((e) => e);
+    } finally {
+      testSeam.gitVersion = undefined;
+    }
+    expect(err).toMatchObject({ code: 'CONFIG' });
+    expect(err.message).toContain('Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1');
+    expect(err.message).not.toMatch(/close each|OPEN_ITEMS/);
+    expect(snapshotTree(root)).toEqual(before);
+  });
+
   it('a record of the Epic still open: OPEN_ITEMS naming it, nothing moved', async () => {
     await store([{ id: 'SIG-3', type: 'FEAT', title: 'still queued', events: [ev.created, ev.triaged, ev.queued] }]);
     const before = snapshotTree(root);

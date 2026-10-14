@@ -198,15 +198,31 @@ describe('writes that need git\'s answer refuse when it could not be asked', { t
     expect(err.message).toBe(`cannot allocate an ID: the IDs on other branches could not be read (${OLD}). Nothing was written.`);
   });
 
-  it('a close requested with a short proof — item and unit — is refused; the full hash is still recorded', async () => {
+  // r6.6: a full hash too — the request is recorded to be confirmed against
+  // git, and whether it is a commit here at all could not be asked.
+  it('a close requested — item and unit, short proof or full hash — is refused with the version; nothing is written', async () => {
     const head = await repoWithStore();
     old();
     const before = snapshotTree(work);
-    expect((await refusal(() => records.requestClose(work, 'SIG-1', { proof: head.slice(0, 10), by, at: AT }))).code).toBe('CONFIG');
-    expect((await refusal(() => requestUnitClose(work, EPIC, { proof: head.slice(0, 10), by, at: AT }))).code).toBe('CONFIG');
+    for (const proof of [head.slice(0, 10), head]) {
+      expect((await refusal(() => records.requestClose(work, 'SIG-1', { proof, by, at: AT }))).code).toBe('CONFIG');
+      expect((await refusal(() => requestUnitClose(work, EPIC, { proof, by, at: AT }))).code).toBe('CONFIG');
+    }
     expect(snapshotTree(work)).toEqual(before);
+    testSeam.gitVersion = undefined;
     await records.requestClose(work, 'SIG-1', { proof: head, by, at: AT });
     expect(records.getRecord(work, 'SIG-1').status).toBe('closing');
+  });
+
+  it('a close asked again — item and Epic — is refused with the version, not "not a commit in this repository"', async () => {
+    const head = await repoWithStore();
+    await records.requestClose(work, 'SIG-1', { proof: head, by, at: AT });
+    await requestUnitClose(work, EPIC, { proof: head, by, at: AT });
+    old();
+    const before = snapshotTree(work);
+    await refusal(() => records.rerequestCloses(work, [{ id: 'SIG-1', proof: head, by, at: AT }]));
+    await refusal(() => records.rerequestEpicClose(work, EPIC, { proof: head, by, at: AT }));
+    expect(snapshotTree(work)).toEqual(before);
   });
 
   it('closeEpic and dischargeBacklogRows with an explicit commit: the reason is the version, not "does not name a commit"', async () => {
