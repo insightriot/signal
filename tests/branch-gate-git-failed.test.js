@@ -69,6 +69,37 @@ describe('checkBranchPosture when git fails', () => {
     expect(r.reason).toBe(GIT_FAILED);
   });
 
+  // r7.1: an empty remote list is "no git remote" only when git read this
+  // repository's own config — a git that finds a repository it does not
+  // trust can list no remotes and exit 0.
+  it('control: a real repository with no remote is NOT_APPLICABLE, "no git remote"', () => {
+    g(root, 'init', '-q', '-b', 'main');
+    g(root, 'commit', '-q', '--allow-empty', '-m', 'c0');
+    const r = gate(root);
+    expect(r.status).toBe(BRANCH_GATE.NOT_APPLICABLE);
+    expect(r.reason).toMatch(/^no git remote/);
+  });
+
+  it('an empty remote list from a git that did not read the repository\'s config (injected, any git): CANNOT_DETERMINE, worded GIT_FAILED', () => {
+    g(root, 'init', '-q', '-b', 'main');
+    const execFn = (cmd, args) => {
+      if (args[0] === 'remote') return '';
+      if (args[0] === 'config' && args.includes('--local')) {
+        throw Object.assign(new Error('git failed'), { status: 128, stderr: 'fatal: --local can only be used inside a git repository\n' });
+      }
+      return 'true\n';
+    };
+    const r = gate(root, { execFn });
+    expect(r.status).toBe(BRANCH_GATE.CANNOT_DETERMINE);
+    expect(r.reason).toBe(GIT_FAILED);
+  });
+
+  it.skipIf(!DUBIOUS_HONOURED)('a repository git does not trust, asked at its own top (real git): not NOT_APPLICABLE [skipped where this git does not honour GIT_TEST_ASSUME_DIFFERENT_OWNER]', () => {
+    g(root, 'init', '-q', '-b', 'main');
+    process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER = '1';
+    expect(gate(root).status).toBe(BRANCH_GATE.CANNOT_DETERMINE);
+  });
+
   it.skipIf(!DUBIOUS_HONOURED)('a repository git does not trust, asked from a folder inside it (real git): CANNOT_DETERMINE [skipped where this git does not honour GIT_TEST_ASSUME_DIFFERENT_OWNER]', () => {
     g(root, 'init', '-q', '-b', 'main');
     const sub = join(root, 'sub');

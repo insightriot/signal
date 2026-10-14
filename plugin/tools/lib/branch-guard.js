@@ -101,6 +101,26 @@ function git(baseDir, args, execFn) {
   ).trim();
 }
 
+/**
+ * Did git read this repository's own config (M6.E16 r7.1)? `git init` writes
+ * `core.repositoryformatversion` there, and `--local` reads only that file. A
+ * git that finds a repository it does not trust can answer the work-tree
+ * question and list no remotes, exit 0; an empty remote list is believed only
+ * with this. Used here and by `defaultBranchRef` (`work-write.js`).
+ *
+ * @param {string} baseDir
+ * @param {Function} [execFn]
+ * @returns {boolean} false on any failure
+ */
+export function readsOwnConfig(baseDir, execFn = execFileSync) {
+  try {
+    git(baseDir, ['config', '--local', '--get', 'core.repositoryformatversion'], execFn);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Why git found no work tree here, read from what git says (in English:
 // `LC_ALL=C`), on the one call: 'bare' — it refused a folder laid out like a
 // bare repository; 'none' — git's own "not a git repository" with no `.git`
@@ -316,6 +336,8 @@ export function checkBranchPosture(baseDir, opts = {}) {
     });
   }
   if (remotes.length === 0) {
+    // Believed only when git read this repository's config (r7.1).
+    if (!readsOwnConfig(baseDir, execFn)) return base(BRANCH_GATE.CANNOT_DETERMINE, { reason: GIT_FAILED });
     return base(BRANCH_GATE.NOT_APPLICABLE, {
       reason: 'no git remote — there is no pull request to open',
     });

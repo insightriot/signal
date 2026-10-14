@@ -17,7 +17,7 @@ import { closeSync, fstatSync, lstatSync, openSync, readFileSync } from 'node:fs
 import { join } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { remoteNames, resolveDefaultBranch } from './branch-guard.js';
+import { readsOwnConfig, remoteNames, resolveDefaultBranch } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
 import { dotGitAtOrAbove, gitEnv, gitUnusableReason } from './git-env.js';
 import { commitsStartingWith, runGit } from './git-objects.js';
@@ -297,18 +297,6 @@ function repoState(baseDir, execFn) {
       dotGit = true; // the folders above could not be read: the safe side
     }
     return dotGit ? 'git-failed' : 'not-a-repo';
-  }
-}
-
-// Did git read this repository's own config? `git init` writes
-// `core.repositoryformatversion` there, and `--local` reads only that file.
-// A failure is "no": the caller then says git failed.
-function readsOwnConfig(baseDir, execFn) {
-  try {
-    runGit(baseDir, ['config', '--local', '--get', 'core.repositoryformatversion'], execFn);
-    return true;
-  } catch {
-    return false;
   }
 }
 
