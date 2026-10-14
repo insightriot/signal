@@ -103,10 +103,15 @@ const SHIP_FACT_RES = [
 //     . , ; : ( ) [ ] - – — / # * _ ` ~ + &   and whitespace
 // — and a check mark (✓ ✔ ✅ ☑) at the very start or the very end of the
 // cell, with only that punctuation outside it ("✅ shipped 2026-07-18",
-// "**✓ shipped …**"). Anything else is the cell saying something the rule
-// cannot judge: a `?` doubts ("shipped?", "Shipped (?)"), a cross or a
-// construction sign denies ("shipped ❌", "shipped 🚧"), and a check mark in
-// the middle is about a part.
+// "**✓ shipped 2026-05-24 (v0.1.3)**"). Anything else is the cell saying
+// something the rule cannot judge: a `?` doubts ("shipped?", "Shipped (?)"),
+// a cross or a construction sign denies ("shipped ❌", "shipped 🚧"), and a
+// check mark in the middle is about a part.
+// Left out on purpose: `…` (a cell that trails off has not said it is done);
+// quotation marks (what is quoted is somebody's word for it); and `%`.
+// "shipped 100%" is plainly finished and "shipped 50%" plainly is not, but
+// the rule does not read numbers: both are digits it has no name for, so both
+// are unclear, and a person answers for the 100.
 const PLAIN_PUNCT = String.raw`\s.,;:()[\]\-–—/#*_${'`'}~+&`;
 const PLAIN_PUNCT_RE = new RegExp(`[${PLAIN_PUNCT}]`, 'gu');
 const CHECK_MARK = '[✓✔✅☑]';
@@ -763,13 +768,41 @@ export function milestoneTableWrites(baseDir, currentRel, units, opts = {}) {
 // How many replaced or added rows of one table the dry run prints; the rest are counted.
 const TABLE_ROWS_SHOWN = 20;
 
+// The lines a person typed between one file's markers, as a message names them.
+function typedNamed(t) {
+  const named = t.typed.slice(0, REMOVED_SHOWN).map((l) => `line ${l.line} (${quoted(l.text)})`).join('; ');
+  return `${named}${t.typed.length > REMOVED_SHOWN ? `, and ${t.typed.length - REMOVED_SHOWN} more` : ''}`;
+}
+
+/**
+ * Why the apply is refused, in one sentence, for the tables (of
+ * `milestoneTableWrites`) that hold lines typed by hand. Each file once; two
+ * joined by "and", more as a list. Another milestone's file has its lines
+ * listed by `otherTablesReportLines`, so they are "named above"; the current
+ * milestone's file has no such list, so its lines are named here (r6.3).
+ *
+ * @param {Array<{rel: string, current: boolean, typed: Array<{line: number, text: string}>}>} tables
+ * @returns {string}
+ */
+export function refusedTablesSentence(tables) {
+  const byRel = new Map(tables.map((t) => [t.rel, t]));
+  const rels = [...byRel.keys()];
+  const files = rels.length < 3 ? rels.join(' and ') : `${rels.slice(0, -1).join(', ')} and ${rels.at(-1)}`;
+  const one = rels.length === 1;
+  const here = [...byRel.values()].filter((t) => t.current);
+  const elsewhere = rels.length - here.length;
+  const named = here.length === 0 ? ', named above'
+    : one ? `: ${typedNamed(here[0])}`
+      : ` — ${here.map((t) => `in ${t.rel}: ${typedNamed(t)}`).join('; ')}; the other${elsewhere === 1 ? ' is' : 's are'} named above`;
+  return printable(`${files} ${one ? 'holds' : 'hold'} lines typed by hand between ${one ? 'its' : 'their'} Epic-table markers${named}. `
+    + 'Move them outside the two marker lines — or take the two marker lines out of the file — then run the dry run again.');
+}
+
 // What changes between one file's markers, as indented lines.
 function tableChangeLines(t) {
   if (t === undefined) return [];
   if (t.typed.length > 0) {
-    const named = t.typed.slice(0, REMOVED_SHOWN).map((l) => `line ${l.line} (${quoted(l.text)})`).join('; ');
-    const more = t.typed.length > REMOVED_SHOWN ? `, and ${t.typed.length - REMOVED_SHOWN} more` : '';
-    return [`  As the file stands the apply is refused and nothing is written: ${named}${more} between its markers was typed by hand, and the table `
+    return [`  As the file stands the apply is refused and nothing is written: ${typedNamed(t)} between its markers was typed by hand, and the table `
       + 'would not print it again. Move it outside the two marker lines — or take the two marker lines out of the file — then run the dry run again.'];
   }
   const rows = [

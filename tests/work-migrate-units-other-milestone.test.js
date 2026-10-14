@@ -22,6 +22,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 
 import { runWorkStoreMigrate } from '../plugin/tools/lib/work-migrate-lists.js';
+import { refusedTablesSentence } from '../plugin/tools/lib/work-migrate-units.js';
 import { getUnit } from '../plugin/tools/lib/unit-records.js';
 import { checkRecords } from '../plugin/tools/lib/work-records.js';
 import {
@@ -340,6 +341,30 @@ describe('the dry run\'s `writes` are what the apply writes — three cases noth
     expect(read(base, M45)).toContain('| `M4.5.E2` | **in flight** |');
     expect(r.report).toContain(`regenerated ${EPICS} and the Epic table in ${M45} (another milestone's file).`);
   }, 60_000);
+
+  // r6.3 (F): the sentence that says why the apply is refused. A file whose
+  // lines the dry run lists above is said to be "named above"; the CURRENT
+  // milestone's file has no such list, so its lines are named in the sentence.
+  // (Through the command the current file never gets here today: turning unit
+  // records on replaces its table, and with unit records on a typed line there
+  // stops the run before the plan — which is why this is asked of the function.)
+  it('the refusal sentence: other files are "named above", the current file\'s lines are named in it, and three files are a list', () => {
+    const typed = [{ line: 9, text: '| a reminder | x | y |' }, { line: 10, text: 'A note.' }];
+    const other = (rel) => ({ rel, current: false, typed });
+    expect(refusedTablesSentence([other(M6)])).toBe(`${M6} holds lines typed by hand between its Epic-table markers, named above. `
+      + 'Move them outside the two marker lines — or take the two marker lines out of the file — then run the dry run again.');
+    expect(refusedTablesSentence([other(M6), other('.planning/MILESTONE-5.md')]))
+      .toMatch(/^\.planning\/MILESTONE-6\.md and \.planning\/MILESTONE-5\.md hold lines typed by hand between their Epic-table markers, named above\. /);
+    expect(refusedTablesSentence([other(M6), other('.planning/MILESTONE-5.md'), other('.planning/MILESTONE-4.5.md'), other(M6)]))
+      .toMatch(/^\.planning\/MILESTONE-6\.md, \.planning\/MILESTONE-5\.md and \.planning\/MILESTONE-4\.5\.md hold lines /);
+    const current = { rel: MILESTONE, current: true, typed };
+    expect(refusedTablesSentence([current])).toBe(`${MILESTONE} holds lines typed by hand between its Epic-table markers: `
+      + 'line 9 (“| a reminder | x | y |”); line 10 (“A note.”). '
+      + 'Move them outside the two marker lines — or take the two marker lines out of the file — then run the dry run again.');
+    expect(refusedTablesSentence([current, other(M6)])).toContain(
+      `${MILESTONE} and ${M6} hold lines typed by hand between their Epic-table markers — in ${MILESTONE}: line 9 (“| a reminder | x | y |”); line 10 (“A note.”); the other is named above. Move them`,
+    );
+  });
 
   // S1: the paragraph about "another milestone's file" is about another
   // milestone's file. The current one's table changes too and gets none.

@@ -186,6 +186,9 @@ describe('planUnits — the union of units, one proposal each (AC9.1)', () => {
       'shipped vNext': 'vnext', 'shipped v': 'v', 'shipped PR': 'pr', 'shipped PRs': 'prs',
       // Digits that are no date, version or number of a pull request say PART shipped.
       'shipped 2/3': '2/3', 'shipped 50%': '50', 'shipped 3 of 5': '3 of 5', 'shipped 2026-07': '2026-07',
+      // r6.3, decided on purpose: the rule does not read numbers, so 100% is as unclear as 50%;
+      // and a cell that trails off has not said it is done.
+      'shipped 100%': '100', 'shipped …': '…', 'shipped v0.1.7…': '…',
     };
     for (const [cell, word] of Object.entries(cells)) {
       put(base, MILESTONE, milestone7([`| \`M7.E6\` | ${cell} | x |`]));

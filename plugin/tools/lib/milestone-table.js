@@ -301,6 +301,12 @@ export function legacyFirstCells(units, { milestone }) {
   return out;
 }
 
+// Is this row the generated table's header? By its cells — `Epic`, `Status`,
+// `Summary` — however it is spaced. The one comparison, for every caller
+// (r6.1: one place compared cells and another the exact text, and a header
+// written `|Epic|Status|Summary|` was the header to one and a typed row to the other).
+const isGeneratedHeader = (text) => cellsOf(text).join('|') === cellsOf(HEADER[0]).join('|');
+
 /**
  * The table between the two marker lines, as a person wrote it: its header (a
  * first row that a separator row follows), and every other row that is not a
@@ -314,12 +320,6 @@ export function legacyFirstCells(units, { milestone }) {
  *   `line` is 1-based; `text` is the row as written; `header.generated`: its cells are the generated
  *   table's own (`Epic`, `Status`, `Summary`); `separator`: the separator row that makes the first row a header
  */
-// Is this row the generated table's header? By its cells — `Epic`, `Status`,
-// `Summary` — however it is spaced. The one comparison, for every caller
-// (r6.1: one place compared cells and another the exact text, and a header
-// written `|Epic|Status|Summary|` was the header to one and a typed row to the other).
-const isGeneratedHeader = (text) => cellsOf(text).join('|') === cellsOf(HEADER[0]).join('|');
-
 export function tableBetweenMarkers(content) {
   const at = epicMarkers(content);
   if (at.state !== 'ok') return { header: null, separator: null, rows: [] };

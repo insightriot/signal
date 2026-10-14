@@ -121,7 +121,8 @@ import { lockFailure, WorkStoreError } from './work-errors.js';
 import { GENERATED_FILES } from './work-generate.js';
 import { rewriteRelativeLinks } from './work-links.js';
 import {
-  milestoneTableWrites, otherTablesReportLines, planForUnitsWithoutRecord, planUnits, unitImportList, unitImportTexts, unitsReportLines,
+  milestoneTableWrites, otherTablesReportLines, planForUnitsWithoutRecord, planUnits, refusedTablesSentence, unitImportList, unitImportTexts,
+  unitsReportLines,
 } from './work-migrate-units.js';
 import {
   backlogTag,
@@ -625,13 +626,7 @@ function unitsDryRunReport(baseDir, a) {
   // an apply that cannot run would create (r6.1).
   const refusing = (tables) => tables.filter((t) => t.typed.length > 0);
   const [refusedYes, refusedNo] = [refusing(a.tables.confirmed), refusing(a.tables.unconfirmed)];
-  const refusal = (tables) => {
-    const rels = [...new Set(tables.map((t) => t.rel))];
-    const one = rels.length === 1;
-    return `${rels.join(' and ')} ${one ? 'holds' : 'hold'} lines typed by hand between ${one ? 'its' : 'their'} Epic-table markers`
-      + `${tables.every((t) => !t.current) ? ', named above' : ''}. Move them outside the two marker lines — or take the two marker lines out of `
-      + `the file — then run the dry run again.`;
-  };
+  const refusal = refusedTablesSentence;
   const refusedOnBoth = refusedYes.length > 0 && refusedNo.length > 0;
   const refusedOnOne = refusedOnBoth ? [] : [[refusedYes, 'confirmed'], [refusedNo, 'not confirmed']].filter(([tables]) => tables.length > 0);
   return [

@@ -382,7 +382,9 @@ function hardLinkTo(abs, root) {
 
 /**
  * Is `abs` under `/.vol`? By its first folder, read as the guard reads every
- * name (`foldName`): the top folder of a Mac's disk does not tell case apart.
+ * name (`foldName`). macOS itself opens only the lower-case spelling
+ * (`/.VOL/…` is "no such file"), so reading the others as `/.vol` too can
+ * only refuse a path that opens nothing.
  *
  * @param {string} abs — absolute
  * @returns {boolean}
