@@ -61,10 +61,10 @@
 // `/.vol` path has no folder of its own to look above.
 
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
-import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, sep } from 'node:path';
 
 import { shownName } from './printable-text.js';
-import { LINK_HOPS_MAX, pathCannotExist, realpathLoose, writtenPath } from './store-above.js';
+import { LINK_HOPS_MAX, pathCannotExist, pathReadings, realpathLoose } from './store-above.js';
 
 const VIEWS = new Set(['bugs.md', 'backlog.md', 'issues-inbox.md', 'open-questions.md']);
 
@@ -205,9 +205,10 @@ function classify(abs) {
 export function protectedTarget(abs, written = abs) {
   const candidates = [];
   const seen = new Set();
-  // As written (normalised, for its shape) and as resolved — from the path
-  // with its `..` kept, which is how the system reads it (r6.8).
-  for (const p of [abs, realpathLoose(written) ?? abs]) {
+  // As written (normalised) and as each reading resolves (r6.9): `abs` is
+  // the file Claude Code writes, `written` — `..` kept — what a raw write of
+  // the string would hit (`pathReadings`, `store-above.js`).
+  for (const p of new Set([abs, realpathLoose(abs) ?? abs, realpathLoose(written) ?? abs])) {
     for (const c of classify(p)) {
       if (seen.has(c.baseDir)) continue;
       seen.add(c.baseDir);
@@ -532,30 +533,33 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
   try {
     if (typeof filePath !== 'string' || filePath === '') return { block: false };
     const base = typeof cwd === 'string' && isAbsolute(cwd) ? cwd : process.cwd();
-    const abs = resolve(base, filePath);
+    // Both readings (r6.9; the hook makes the same two from the same cwd):
+    // `abs`, normalised as text, is the file Claude Code writes; `written`,
+    // its `..` kept, is what a raw write of the string would hit. Refused
+    // when either is guarded.
+    const { abs, written } = pathReadings(base, filePath);
     // No file can be opened by a path this long, so there is no edit to judge.
     if (pathCannotExist(abs)) return { block: false };
-    // `abs` is normalised — `..` collapsed by text — and is used only for the
-    // path's shape. Every question to the disk is asked of `written`, the
-    // path as the system will read it, `..` after any folder link (r6.8).
-    const written = writtenPath(base, filePath);
     const { candidates } = protectedTarget(abs, written);
     // And the routes the path does not show: the real path of a symlinked
-    // folder, a second name for a guarded file, and a file named by number.
-    const resolved = realpathLoose(written);
-    const real = resolved ?? written;
-    // The stores above the cwd, above the target, and above where the write
-    // would land (r6.7): a link into a sub-package's or another project's
-    // store is judged against that store.
-    for (const root of storeRoots(base, dirname(abs), ...(resolved === null ? [] : [dirname(resolved)]))) {
-      if (resolved === null) candidates.push({ baseDir: root, tooManyLinks: abs });
-      candidates.push(
-        ...underRealFolder(real, root), ...underGuardedFolder(written, root), ...hardLinkTo(written, root),
-        // The resolved path too: behind a link into a folder BELOW a guarded
-        // one, the written path has no guarded folder above it.
-        ...(real === written ? [] : underGuardedFolder(real, root)),
-        ...volTarget(abs, root), ...(real === written ? [] : volTarget(real, root)),
-      );
+    // folder, a second name for a guarded file, and a file named by number —
+    // asked of each reading.
+    for (const p of abs === written ? [abs] : [abs, written]) {
+      const resolved = realpathLoose(p);
+      const real = resolved ?? p;
+      // The stores above the cwd, above the target, and above where the write
+      // would land (r6.7): a link into a sub-package's or another project's
+      // store is judged against that store.
+      for (const root of storeRoots(base, dirname(p), ...(resolved === null ? [] : [dirname(resolved)]))) {
+        if (resolved === null) candidates.push({ baseDir: root, tooManyLinks: abs });
+        candidates.push(
+          ...underRealFolder(real, root), ...underGuardedFolder(p, root), ...hardLinkTo(p, root),
+          // The resolved path too: behind a link into a folder BELOW a guarded
+          // one, the written path has no guarded folder above it.
+          ...(real === p ? [] : underGuardedFolder(real, root)),
+          ...volTarget(p, root), ...(real === p ? [] : volTarget(real, root)),
+        );
+      }
     }
     for (const { baseDir, rel, linkedFrom, numberedFrom, unresolved, undecided, tooManyLinks } of candidates) {
       // A stat before the import: a project with `.planning` and no store —
@@ -569,7 +573,8 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
         if (tooManyLinks) return { block: true, reason: TOO_MANY_LINKS_MESSAGE(tooManyLinks) };
         const note = linkedFrom ? LINK_NOTE(linkedFrom, rel) : numberedFrom ? NUMBERS_NOTE(numberedFrom, rel) : '';
         if (!isWorkMd(rel)) return { block: true, reason: note + BLOCK_MESSAGE(rel) };
-        if (await changesVersionOrKey(written, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
+        // The file Claude Code edits: the normalised reading.
+        if (await changesVersionOrKey(abs, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
       } catch {
         // A broken or unknown WORK.md — allow.
       }

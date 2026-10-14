@@ -4,7 +4,7 @@
 // `node:path` only, so the hook pays nothing to import it.
 
 import { existsSync, lstatSync, readlinkSync, realpathSync } from 'node:fs';
-import { basename, dirname, isAbsolute, join, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 /**
  * How many links a path is followed through by hand: at least as far as the
@@ -15,18 +15,30 @@ import { basename, dirname, isAbsolute, join, sep } from 'node:path';
 export const LINK_HOPS_MAX = 40;
 
 /**
- * The path a tool would write, as the system will read it: `target` as it
- * is when absolute, else after `cwd` — joined as TEXT, with no `..`
- * collapsed (r6.8). `<root>/src/x/../../units/M.json` with `src/x` a folder
- * link is `.planning/work/units/M.json` to the system; normalised first, it
- * read `<root>/units/M.json`. Judge where a write lands from this; keep a
- * normalised path only for checks of the path's shape.
+ * The two readings of the path a tool is given (r6.9), from the same cwd for
+ * the hook and the guard:
  *
- * @param {string} cwd — absolute
+ *   - `abs` — normalised as TEXT (`resolve(cwd, target)`). This is the file
+ *     Claude Code writes: it normalises `file_path` before writing (checked
+ *     against Claude Code 2.1.299), so `src/y/../lnk/M.json` is written to
+ *     `src/lnk/M.json` whatever `src/y` is.
+ *   - `written` — joined as text with no `..` collapsed: what a raw write of
+ *     the same string would hit, the system following `src/y` before the
+ *     `..`. r6.8 judged only this one, on the premise that it is where
+ *     Claude Code writes; it is not, and `y/../lnk` was allowed.
+ *
+ * Both are judged, and a write is refused when either is guarded: the first
+ * is the write that happens, the second is the safe direction.
+ *
+ * @param {string} cwd
  * @param {string} target
- * @returns {string}
+ * @returns {{abs: string, written: string}}
  */
-export const writtenPath = (cwd, target) => (isAbsolute(target) ? target : `${cwd.endsWith(sep) ? cwd : `${cwd}${sep}`}${target}`);
+export function pathReadings(cwd, target) {
+  const base = resolve(cwd);
+  const written = isAbsolute(target) ? target : `${base.endsWith(sep) ? base : `${base}${sep}`}${target}`;
+  return { abs: resolve(base, target), written };
+}
 
 /**
  * Where a write to `abs` would land (M6.E16 r6.7: the one resolver the edit
@@ -67,8 +79,9 @@ export function realpathLoose(abs) {
       }
       // Up one folder, and keep the name. `dirname` and `basename` cut text
       // and do not collapse `..`; `join` below does collapse a `..` in the
-      // part kept — but that part is under a folder that is not there, and
-      // the system fails a write through a missing folder too (ENOENT).
+      // part kept, which is under a folder that is not there. That is the
+      // reading Claude Code writes by (it normalises `file_path` as text,
+      // r6.9); a raw write through a missing folder fails (ENOENT).
       const parent = dirname(cur);
       if (parent === cur) return abs;
       rest.unshift(basename(cur));

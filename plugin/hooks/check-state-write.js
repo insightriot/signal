@@ -27,7 +27,7 @@ import {
   checkProposedStateWrite,
   checkStateFrontmatterShape,
 } from '../tools/lib/retrospective.js';
-import { isLink, pathCannotExist, realpathLoose, storeAbove, writtenPath } from '../tools/lib/store-above.js';
+import { isLink, pathCannotExist, pathReadings, realpathLoose, storeAbove } from '../tools/lib/store-above.js';
 
 // Read event JSON from stdin.
 let raw = '';
@@ -77,21 +77,24 @@ const mentionsPlanning = (p) => p.normalize('NFKC').toLowerCase().toUpperCase().
 if (typeof target === 'string') {
   try {
     const cwd = typeof event.cwd === 'string' ? event.cwd : process.cwd();
-    const abs = resolve(cwd, target);
+    // Both readings of the path (`pathReadings`, `store-above.js`, r6.9),
+    // from the same cwd the guard uses: `abs`, normalised as text, is the
+    // file Claude Code writes; `written`, with its `..` kept, is what a raw
+    // write of the string would hit.
+    const { abs, written } = pathReadings(cwd, target);
     // A path longer than any file can be opened by names no edit (r6.1): let
     // it through before a single folder of it is looked at.
     if (pathCannotExist(abs)) process.exit(0);
-    // Where the write would land is judged with the guard's own resolver
-    // (`realpathLoose`, `store-above.js`, r6.7), which follows a dangling
-    // link: a link into a store BELOW the cwd — a monorepo's sub-package,
-    // another project — resolved here to the link itself, and the guard was
-    // never loaded. And any target that is itself a link loads it.
-    // From the path as the system will read it (`writtenPath`, r6.8): `abs`
-    // has its `..` collapsed by text, before the folder link in front of it.
-    const written = writtenPath(resolve(cwd), target);
-    const real = realpathLoose(written);
-    if (mentionsPlanning(abs) || isLink(written) || real === null || mentionsPlanning(real)
-      || storeAbove(resolve(cwd)) || storeAbove(dirname(abs)) || (real !== abs && storeAbove(dirname(real)))) {
+    // Where each reading would land is judged with the guard's own resolver
+    // (`realpathLoose`, r6.7), which follows a dangling link: a link into a
+    // store BELOW the cwd — a monorepo's sub-package, another project — was
+    // judged by the link itself, and the guard was never loaded. And any
+    // target that is itself a link loads it.
+    const loads = (p) => {
+      const real = realpathLoose(p);
+      return isLink(p) || real === null || mentionsPlanning(real) || (real !== abs && storeAbove(dirname(real)));
+    };
+    if (mentionsPlanning(abs) || storeAbove(resolve(cwd)) || storeAbove(dirname(abs)) || loads(abs) || (written !== abs && loads(written))) {
       const { checkWorkWrite } = await import('../tools/lib/work-write-guard.js');
       const guard = await checkWorkWrite({ filePath: target, cwd, tool, input });
       if (guard.block) {

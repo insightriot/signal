@@ -89,13 +89,67 @@ describe.each(Object.keys(LAYOUTS))('%s: `..` after a folder link', { timeout: 6
     expect(existsSync(join(l.store, rel))).toBe(false);
   });
 
-  it.each([['a new unit', 'units/M9.E7.json'], ['a new item', 'items/00/SIG-77.json']])('%s, as the path written `src/x/../../…`: refused, every tool, every cwd', async (_label, rel) => {
+  // r6.9: Claude Code normalises `file_path` as text before it writes, so it
+  // writes this one to `<root>/units/…` — not a record. The un-normalised
+  // reading (what a raw write through the same string would hit) is kept
+  // too, so this stays refused: a false refusal, in the safe direction.
+  it.each([['a new unit', 'units/M9.E7.json'], ['a new item', 'items/00/SIG-77.json']])('%s, as the path written `src/x/../../…` (the raw reading; a false refusal under Claude Code\'s): refused, every tool, every cwd', async (_label, rel) => {
     const l = layout(name);
     const written = `${l.src}/x/../../${rel}`;
     for (const cwd of l.cwds) expect(await allTools(written, cwd), cwd).toEqual(TOOLS.map(() => REFUSED));
     // and written relative to the cwd too
     const fromCwd = `${l.src.slice(l.cwds[0].length + 1)}/x/../../${rel}`;
     expect(await allTools(fromCwd, l.cwds[0])).toEqual(TOOLS.map(() => REFUSED));
+  });
+});
+
+// r6.9 — the reading Claude Code writes. It normalises `file_path` as TEXT
+// (`normalize` for an absolute path, `resolve(cwd, p)` for a relative one):
+// `src/y/../lnk/M9.E7.json` is written to `src/lnk/M9.E7.json`, whatever
+// `src/y` is. With `src/lnk` a link into the store, that is a record. r6.8
+// judged only the un-normalised path (`y` followed first, then `..`), which
+// lands somewhere else, and allowed it. Both readings are judged now.
+describe.each(Object.keys(LAYOUTS))('%s: the path Claude Code writes, `src/y/../<link>/…`', { timeout: 60_000 }, (name) => {
+  function links() {
+    const l = layout(name);
+    const work = l.store;
+    mkdirSync(join(root, 'elsewhere', 'sub'), { recursive: true });
+    symlinkSync(join(root, 'elsewhere', 'sub'), join(l.src, 'y'));
+    symlinkSync(join(work, 'units'), join(l.src, 'lnk'));
+    symlinkSync(join(work, 'items', '00'), join(l.src, 'it'));
+    symlinkSync(work, join(l.src, 'wk'));
+    symlinkSync(dirname(work), join(l.src, 'pl'));
+    mkdirSync(join(work, 'history'));
+    writeFileSync(join(work, 'units', 'M7.E1.json'), '{}\n');
+    writeFileSync(join(work, 'EPICS.md'), 'epics\n');
+    writeFileSync(join(dirname(work), 'BUGS.md'), '# Bugs\n');
+    return l;
+  }
+  const TARGETS = [
+    ['a new unit', 'lnk/M9.E7.json', TOOLS], ['an existing unit', 'lnk/M7.E1.json', TOOLS], ['a new item', 'it/SIG-77.json', TOOLS],
+    ['a history file', 'wk/history/x.md', TOOLS], ['EPICS.md', 'wk/EPICS.md', TOOLS], ['BUGS.md', 'pl/BUGS.md', TOOLS],
+    // NotebookEdit carries no text the guard can compute, so a WORK.md edit by it is let through, as everywhere else
+    ['WORK.md, its version line', 'wk/WORK.md', ['Write', 'Edit', 'MultiEdit']],
+  ];
+
+  it('every target, every tool, absolute, from the first cwd: refused by both', async () => {
+    const l = links();
+    for (const [label, rel, tools] of TARGETS) {
+      const file = `${l.src}/y/../${rel}`;
+      const got = await Promise.all(tools.map((tool) => judged(tool, file, l.cwds[0])));
+      expect(got, label).toEqual(tools.map(() => REFUSED));
+    }
+  });
+
+  it('every target by Write, absolute from every cwd and relative to the first: refused by both', async () => {
+    const l = links();
+    for (const [label, rel] of TARGETS) {
+      const got = await Promise.all([
+        ...l.cwds.map((cwd) => judged('Write', `${l.src}/y/../${rel}`, cwd)),
+        judged('Write', `${l.src.slice(l.cwds[0].length + 1)}/y/../${rel}`, l.cwds[0]),
+      ]);
+      expect(got, label).toEqual(got.map(() => REFUSED));
+    }
   });
 });
 
