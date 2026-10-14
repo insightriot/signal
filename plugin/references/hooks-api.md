@@ -107,7 +107,9 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   (so is one the guard could not finish checking in a very large store, and a macOS
   `/.vol/<device>/<inode>` address of a guarded file or folder), and
   the real path of the target is compared with the real path of `.planning` and
-  the store's folders, so a symlinked `.planning` is guarded by either address.
+  the store's folders, and each folder above the target is compared with them by
+  device and inode, so a symlinked `.planning` (or a record folder that is a link)
+  is guarded by any address that reaches it.
   `NotebookEdit` is read by its `notebook_path`. Item bodies
   (`items/**/*.md`) are allowed. On `work/WORK.md` itself
   it blocks only an edit that would change or remove `schema_version: 2` or the
