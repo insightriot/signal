@@ -538,13 +538,18 @@ export function checkClosedProofs(baseDir, opts = {}) {
   }
   const branch = shownRef(probed.branch, 'branch', { noCommandHere: true });
   // A close confirmed by hand (M6.E16 r7.1) is worded for what was recorded then.
-  const when = { 'no-remote': 'had no remote', 'no-origin-remote': 'had no remote named `origin`', 'not-a-repo': 'was not a git repository' };
+  const when = { 'no-remote': 'had no remote', 'no-origin-remote': 'had no remote named `origin`' };
+  const UNMERGED = 'bring the remote\'s branches up to date and sweep again; if it is still reported, the work was not merged: reopen it';
   return probed.notThere.map((c) => mkFinding('close-not-on-default-branch', 'advisory', shownName(c.path),
-    (c.byHand === undefined
-      ? `${c.id} is recorded closed with the commit ${c.proof}, and that commit is not on ${branch} in this clone — `
-      : `${c.id} was confirmed closed by hand when the project ${when[c.byHand] ?? 'could not be checked by git'}; it now has ${branch}, `
-        + `and the commit is not on it (${c.proof}) — `)
-    + 'bring the remote\'s branches up to date and sweep again; if it is still reported, the work was not merged: reopen it'));
+    c.byHand === 'not-a-repo'
+      // The commit was typed in before there was a repository: nothing to merge (r7.1).
+      ? `${c.id} was confirmed closed by hand before this project was a git repository; its commit (${c.proof}) is not in this history — `
+        + 'nothing here can show it was merged; reopen it only if the work it names was not done'
+      : (c.byHand === undefined
+        ? `${c.id} is recorded closed with the commit ${c.proof}, and that commit is not on ${branch} in this clone — `
+        : `${c.id} was confirmed closed by hand when the project ${when[c.byHand] ?? 'could not be checked by git'}; it now has ${branch}, `
+          + `and the commit is not on it (${c.proof}) — `)
+        + UNMERGED));
 }
 
 /**

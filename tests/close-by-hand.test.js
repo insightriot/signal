@@ -173,6 +173,20 @@ describe('allowed: the three reasons no git answer can change', () => {
     expect(found[0].message).toMatch(/confirmed closed by hand when the project had no remote; it now has origin\/main, and the commit is not on it/);
   });
 
+  it('confirmed by hand as not-a-repo, then the folder becomes a repository with origin: worded for that, and not "the work was not merged"', async () => {
+    const work = join(root, 'work');
+    await mkdir(work, { recursive: true });
+    await store(work, { items: [closingItem('SIG-1', 'abc1234')] });
+    await records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT });
+    g(work, 'init', '-q', '-b', 'main');
+    g(work, 'commit', '-q', '--allow-empty', '-m', 'first');
+    await addOriginWithoutTheCommit(work);
+    const found = checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message));
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/SIG-1 was confirmed closed by hand before this project was a git repository; its commit \(abc1234\) is not in this history/);
+    expect(found[0].message).not.toMatch(/was not merged/);
+  });
+
   it('a forged hand-confirm (the two fields typed onto a close on a project with origin) does not switch the audit off', async () => {
     const { work, head } = await repo();
     await addOriginWithoutTheCommit(work);
