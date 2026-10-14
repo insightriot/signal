@@ -74,7 +74,10 @@
         "proof": { "$ref": "#/$defs/commit" },
         "pr": { "$ref": "#/$defs/short_text" },
         "release": { "$ref": "#/$defs/short_text" },
-        "words": { "$ref": "#/$defs/long_text" }
+        "words": { "$ref": "#/$defs/long_text" },
+        "confirmed_by": { "const": "person" },
+        "git_reason": { "enum": ["no-remote", "no-origin-remote", "not-a-repo"] },
+        "why": { "$ref": "#/$defs/long_text" }
       }
     },
     "reopened": {

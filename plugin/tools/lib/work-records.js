@@ -27,7 +27,8 @@ import { readFileSync, readdirSync, realpathSync, existsSync, lstatSync, mkdirSy
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { gitCannotAsk } from './git-env.js';
+import { RECORD_DEFAULT_BRANCH_HINT } from './branch-guard.js';
+import { gitCannotAsk, gitUnusableReason } from './git-env.js';
 import { echoed, shownName } from './printable-text.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { ITEM_KIND, RECORD_SCHEMA, parseRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
@@ -1796,13 +1797,17 @@ const PROOF_NOT_THERE = new Set(['not-on-default-branch', 'unknown-commit']);
 export function probeClosedProofs(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   const closes = [];
+  // A close a person confirmed by hand (`confirmed_by`) never said its commit
+  // was on a default branch — there was none to ask — so it is not asked about.
   for (const r of listRecords(baseDir, opts).records) {
     if (r.status !== 'C') continue;
     const e = r.record.events.findLast((x) => x.type === 'closed');
-    if (e?.reason === 'fixed') closes.push({ id: r.id, path: recordPath(r.id), proof: e.proof });
+    if (e?.reason === 'fixed' && e.confirmed_by === undefined) closes.push({ id: r.id, path: recordPath(r.id), proof: e.proof });
   }
   for (const u of unitRecordsOn(baseDir) ? listUnits(baseDir).units : []) {
-    if (u.status === 'closed' && u.close?.reason === 'shipped') closes.push({ id: u.id, path: u.path, proof: u.close.proof });
+    if (u.status === 'closed' && u.close?.reason === 'shipped' && u.close.confirmed_by === undefined) {
+      closes.push({ id: u.id, path: u.path, proof: u.close.proof });
+    }
   }
   const asked = closes.filter((c) => typeof c.proof === 'string' && COMMIT_RE.test(c.proof));
   if (asked.length === 0) return { branch: null, notThere: [] };
@@ -2096,6 +2101,149 @@ function closingRow(r, now) {
     days: known ? Math.floor((now.getTime() - t) / DAY_MS) : null,
     stale: known && now.getTime() - t > STALE_CLOSING_MS,
   };
+}
+
+// ── Confirming a close by hand (M6.E16 r7) ──────────────────────────────────
+//
+// A project with no remote, with no remote named `origin`, or that is not a
+// git repository has no default branch, so `confirmCloses` can never confirm
+// its closes: they stay *closing* for ever. For those three reasons only, a
+// person may confirm one close by hand, with their own yes for that ID.
+
+/** The reasons `confirmCloses` gives that no git answer here can ever change. */
+export const BY_HAND_REASONS = Object.freeze(['no-remote', 'no-origin-remote', 'not-a-repo']);
+
+// What to do instead, for every other reason the automatic confirm gives.
+function notByHandWords(reason, proof) {
+  switch (reason) {
+    case null:
+      return `its commit ${proof} is on the default branch, so git can confirm it: run /sig:docs-sweep or /sig:ship, which confirm it`;
+    case 'not-on-default-branch':
+    case 'unknown-commit':
+      return `${reason}: its commit ${proof} is not on the default branch. Merge it, and the next /sig:docs-sweep or /sig:ship confirms the close`;
+    case 'open-items':
+      return 'open-items: close the items first';
+    case 'git-too-old':
+      return `git-too-old: ${gitUnusableReason() ?? 'the git installed here could not be used'}. Update git, and the automatic confirm can run`;
+    case 'no-default-branch':
+      return `no-default-branch: the remote's default branch is not recorded in this clone — ${RECORD_DEFAULT_BRANCH_HINT}, and the automatic confirm can run`;
+    default:
+      return `${reason}: the automatic confirm could not confirm it, and that is not a reason git can never answer`;
+  }
+}
+
+// The automatic confirm's reason for this one close now, read the way
+// `confirmCloses` reads it (`classifyClosing`, `classifyClosingUnits`) so the
+// two cannot disagree — or the refusal. → {reason, proof, request}.
+function byHandReason(baseDir, kind, id, execFn) {
+  const onDefaultBranch = ancestrySplit(baseDir, execFn);
+  const items = classifyClosing(baseDir, execFn, { onDefaultBranch });
+  let entry;
+  let split = items;
+  if (kind === 'item') {
+    entry = items.records.find((r) => r.id === id);
+    if (entry === undefined) throw new WorkStoreError('NOT_FOUND', `${id}: no such item — nothing was written.`);
+  } else {
+    entry = listUnits(baseDir).units.find((u) => u.id === id);
+    if (entry === undefined) {
+      throw new WorkStoreError('NOT_FOUND', `${id}: no such item or unit (no ${UNITS_REL}/${id}.json) — nothing was written.`);
+    }
+    split = classifyClosingUnits(unitLib, baseDir, onDefaultBranch, { items: itemsNotClosed(items.records, items.ok) });
+  }
+  if (entry.status !== 'closing') {
+    throw new WorkStoreError('CONFLICT', `${id} is not closing (it is ${entry.status === 'C' ? 'closed' : entry.status}) — nothing was written. `
+      + 'A close is confirmed by hand only while a close request waits on it.');
+  }
+  const request = latestRequest(entry.record);
+  const ok = split.ok.some((c) => c.id === id);
+  const reason = ok ? null : split.still.get(id).reason;
+  // A unit is not closed around open work, whatever git can say (AC4.3).
+  const open = kind === 'unit' ? itemsNotClosed(items.records, items.ok)(id) : [];
+  if (open.length > 0) {
+    const err = new WorkStoreError('OPEN_ITEMS', `${id} has ${open.length} item${open.length === 1 ? '' : 's'} that ${open.length === 1 ? 'is' : 'are'} not closed `
+      + `(${open.join(', ')}) — nothing was written. Close each, or move it out of the unit (/sig:item), then confirm the unit.`);
+    err.reason = OPEN_ITEMS_REASON;
+    throw err;
+  }
+  if (!BY_HAND_REASONS.includes(reason)) {
+    const err = new WorkStoreError('CONFLICT', `${id} cannot be confirmed by hand — ${notByHandWords(reason, request?.proof)}. Nothing was written. `
+      + 'A close is confirmed by hand only when the project has no remote, no remote named `origin`, or is not a git repository.');
+    err.reason = reason;
+    throw err;
+  }
+  return { reason, proof: request.proof };
+}
+
+/**
+ * Confirm ONE close by hand, for a person who has said yes to it (M6.E16 r7).
+ *
+ * Allowed only while the item or unit `id` is *closing* and the reason
+ * `confirmCloses` gives for it now is one no git answer here can change:
+ * `no-remote`, `no-origin-remote` or `not-a-repo` (`BY_HAND_REASONS`). Checked
+ * before the store's lock and again under it. Every other reason refuses,
+ * nothing written, saying what to do — merge it (`not-on-default-branch`),
+ * update git (`git-too-old`), record the default branch (`no-default-branch`),
+ * or let git confirm it (its commit is on the default branch); `err.reason`
+ * carries the reason. A unit with an item that is not closed refuses
+ * (OPEN_ITEMS) whatever the reason.
+ *
+ * The record gets the ordinary `closed` event the automatic confirm writes —
+ * an item's `fixed`, a unit's `shipped`, the request's proof (and a unit's
+ * `pr` and `release`) copied — with `by` the person, plus
+ * `confirmed_by: 'person'`, `git_reason` (the reason git could not confirm
+ * it) and, when given, `why`. Every view reads it as closed.
+ *
+ * One ID, never a list: each close is confirmed on its own, with the person's
+ * yes for that ID. `id` is an item when it is this store's own `<key>-n` (a
+ * unit ID can never have that shape, `assertUnitId`); anything else is a unit.
+ *
+ * @param {string} baseDir
+ * @param {string} id
+ * @param {{by: string, at?: string, why?: string}} confirm — `by`: the person
+ * @param {{execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean, regenerate?: Function}} [opts]
+ * @returns {Promise<{kind: 'item'|'unit', id: string, path: string, proof: string, confirmed_by: 'person',
+ *   git_reason: string}|{aborted: string, sensitiveHits: object[]}>} — the second when `why` holds sensitive data
+ * @throws {WorkStoreError} SCHEMA (not one ID, no `by`), NOT_FOUND, CONFLICT, OPEN_ITEMS, CONFIG, LOCKED, IO
+ */
+export async function confirmCloseByHand(baseDir, id, confirm = {}, opts = {}) {
+  if (typeof id !== 'string') {
+    throw new WorkStoreError('SCHEMA', 'confirmCloseByHand takes one ID: each close is confirmed by hand on its own, with the person\'s yes '
+      + 'for that ID — nothing was written.');
+  }
+  const { by, at = nowIso(), why } = confirm;
+  if (typeof by !== 'string' || by.trim() === '') {
+    throw new WorkStoreError('SCHEMA', `${id}: a close confirmed by hand records who confirmed it — pass \`by\`. Nothing was written.`);
+  }
+  const execFn = opts.execFn ?? execFileSync;
+  const { key } = assertWritable(baseDir);
+  const kind = ITEM_ID_RE.test(id) && id.startsWith(`${key}-`) ? 'item' : 'unit';
+  if (kind === 'unit' && (await unitRecords(baseDir)) === null) {
+    throw new WorkStoreError('NOT_FOUND', `${id}: no such item (an item ID here is ${key}-n), and this project has no unit records — `
+      + 'nothing was written.');
+  }
+  const pending = sensitivePending([why], opts);
+  if (pending) return pending;
+  byHandReason(baseDir, kind, id, execFn);
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
+    // Decided again under the lock: the record, its request and git's answer.
+    const { reason, proof } = byHandReason(handle.baseDir, kind, id, execFn);
+    let planned;
+    if (kind === 'item') {
+      const { entry, text } = readForWrite(handle, id);
+      const next = withEvent(entry, pruneUndefined({
+        type: 'closed', at, by, reason: 'fixed', proof, confirmed_by: 'person', git_reason: reason, why,
+      }));
+      planned = [{ next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) }];
+    } else {
+      const openItems = itemsNotClosed(listRecords(handle.baseDir).records, []);
+      ({ planned } = unitLib.planUnitConfirms(handle, [{ id, proof }], { at, by, openItems, byHand: { git_reason: reason, why } }));
+      if (planned.length === 0) throw new WorkStoreError('CONFLICT', `${id} changed while it was being confirmed — nothing was written. Re-run.`);
+    }
+    await writePlanned(handle, planned, opts);
+    await regenerateAfter(handle, `${id} was confirmed closed by hand`, opts);
+    const path = kind === 'item' ? recordPath(id) : `${UNITS_REL}/${id}.json`;
+    return { kind, id, path, proof, confirmed_by: 'person', git_reason: reason };
+  });
 }
 
 /**

@@ -16,7 +16,7 @@
 import { readFileSync } from 'node:fs';
 
 import { echoed } from './printable-text.js';
-import { makeRecordKind } from './work-record.js';
+import { byHandRules, makeRecordKind } from './work-record.js';
 
 function deepFreeze(value) {
   if (value && typeof value === 'object') {
@@ -88,6 +88,7 @@ function unitEventRules(event, path, errors) {
     if (event.reason === 'dropped' && event.words === undefined) {
       errors.push(`${path}.words is required when reason is dropped`);
     }
+    byHandRules(event, path, errors, 'shipped');
   }
   if (isMapping(event.changes) && Object.keys(event.changes).length === 0) {
     errors.push(`${path}.changes must name at least one field`);
@@ -101,14 +102,14 @@ const EVENT_HEAD = ['type', 'at', 'by'];
 const EVENT_FIELDS = {
   opened: [],
   close_requested: ['proof', 'pr', 'release'],
-  closed: ['reason', 'proof', 'pr', 'release', 'words'],
+  closed: ['reason', 'proof', 'pr', 'release', 'words', 'confirmed_by', 'git_reason', 'why'],
   reopened: ['reason'],
   held: ['reason'],
   released: [],
   edited: ['changes'],
 };
 const CHANGE_ORDER = ['from', 'to'];
-const CLOSE_KEYS = ['reason', 'at', 'by', 'proof', 'pr', 'release', 'words'];
+const CLOSE_KEYS = ['reason', 'at', 'by', 'proof', 'pr', 'release', 'words', 'confirmed_by', 'git_reason', 'why'];
 
 // What a `closed` event says, as the fold returns it: the keys it carries, no others.
 function closeOf(event) {
@@ -262,7 +263,8 @@ export const UNIT_KIND = makeRecordKind({
  *
  * @param {object} record — a record that passes `UNIT_KIND.validateRecord`
  * @returns {{status: 'open'|'closing'|'closed', held: boolean, hold_reason: string|null,
- *   close: null|{reason: 'shipped'|'dropped'|'legacy', at: string, by: string, proof?: string, pr?: string, release?: string, words?: string},
+ *   close: null|{reason: 'shipped'|'dropped'|'legacy', at: string, by: string, proof?: string, pr?: string, release?: string, words?: string,
+ *     confirmed_by?: 'person', git_reason?: string, why?: string},
  *   closing_proof: string|null}}
  *   `close` when closed; `closing_proof` (the requested commit) when closing;
  *   `hold_reason` when held

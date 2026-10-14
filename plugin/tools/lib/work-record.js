@@ -238,6 +238,27 @@ export const EVENT_TYPES = Object.freeze([
   'edited',
 ]);
 
+/**
+ * A close a person confirmed by hand (M6.E16 r7, `confirmCloseByHand`,
+ * `work-records.js`) carries `confirmed_by: 'person'` and `git_reason`, the
+ * reason git could not confirm it — both or neither, on the close that
+ * confirms a request (`confirms`: `fixed` for an item, `shipped` for a unit)
+ * — and may carry the person's `why`, only beside them. Shared by both kinds.
+ *
+ * @param {object} event — a `closed` event
+ * @param {string} path
+ * @param {string[]} errors
+ * @param {string} confirms
+ */
+export function byHandRules(event, path, errors, confirms) {
+  const hand = event.confirmed_by !== undefined;
+  if (hand !== (event.git_reason !== undefined)) {
+    errors.push(`${path}.confirmed_by and ${path}.git_reason are recorded together, or not at all`);
+  }
+  if (hand && event.reason !== confirms) errors.push(`${path}.confirmed_by is only allowed when reason is ${confirms}`);
+  if (event.why !== undefined && !hand) errors.push(`${path}.why is only allowed on a close confirmed by hand`);
+}
+
 // The item's per-event rules that the schema subset cannot express.
 function itemEventRules(event, path, errors) {
   if (event.type === 'closed') {
@@ -250,6 +271,7 @@ function itemEventRules(event, path, errors) {
     } else if (event.reason !== 'dup' && event.dup_of !== undefined) {
       errors.push(`${path}.dup_of is only allowed when reason is dup`);
     }
+    byHandRules(event, path, errors, 'fixed');
   }
   if (isMapping(event.changes) && Object.keys(event.changes).length === 0) {
     errors.push(`${path}.changes must name at least one field`);
@@ -279,7 +301,7 @@ const EVENT_FIELDS = {
   queued: ['epic'],
   started: ['epic'],
   close_requested: ['reason', 'proof'],
-  closed: ['reason', 'proof', 'dup_of', 'legacy'],
+  closed: ['reason', 'proof', 'dup_of', 'legacy', 'confirmed_by', 'git_reason', 'why'],
   reopened: ['reason'],
   edited: ['changes'],
 };

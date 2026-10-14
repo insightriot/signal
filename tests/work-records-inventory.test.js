@@ -185,6 +185,10 @@ const WRITERS = {
       },
     }),
   },
+  // M6.E16 r7: the store is not a git repository (`not-a-repo`), one of the three reasons a
+  // close may be confirmed by hand. SIG-5 gains one `closed`. Real-git scenarios are in
+  // tests/close-by-hand.test.js.
+  confirmCloseByHand: { run: (base) => records.confirmCloseByHand(base, 'SIG-5', { by }) },
 };
 
 const EXEMPT = {
@@ -414,10 +418,10 @@ export async function promote(b, id) { await triage(b, id); return queue(b, id);
     const real = lockNesting(SOURCE).lockTaking; // the writers t2.2 added
     // findByLegacyId (M6.E15 S5), closeEpicCheck, probeClosedProofs, listClosing and probeCloses (through classifyClosing,
     // which confirmCloses shares) read through listRecords, so the injected take reaches them too;
-    // so do the t7.3-prep triage readers (through triageRows).
+    // so do the t7.3-prep triage readers (through triageRows), and byHandReason (M6.E16 r7, through classifyClosing).
     expect(lockTaking.filter((n) => !real.includes(n))).toEqual(
-      ['listRecords', 'getRecord', 'findByLegacyId', 'closeEpicCheck', 'probeClosedProofs', 'classifyClosing', 'probeCloses', 'listClosing',
-        'triageRows', 'triageNext', 'listNeedsReview', 'listThemes'],
+      ['listRecords', 'getRecord', 'findByLegacyId', 'closeEpicCheck', 'probeClosedProofs', 'classifyClosing', 'probeCloses', 'byHandReason',
+        'listClosing', 'triageRows', 'triageNext', 'listNeedsReview', 'listThemes'],
     );
     // confirmCloses takes the lock AND reads through listRecords, so a take
     // injected into listRecords makes it a second entry point: caught too.
@@ -426,8 +430,12 @@ export async function promote(b, id) { await triage(b, id); return queue(b, id);
       // newItems reads through listRecords under its lock for `dedupeBy` (M6.E14 S3, SIG-277).
       expect.stringMatching(/^newItems .*listRecords/),
       expect.stringMatching(/^confirmCloses .*listRecords/),
+      // confirmCloseByHand (M6.E16 r7) reads through listRecords under its lock, as confirmCloses does.
+      expect.stringMatching(/^confirmCloseByHand .*listRecords/),
       // ...and the internal classifyClosing (t4.6) now reaches the injected take: caught as internal.
       expect.stringMatching(/^classifyClosing: an internal function that takes the lock/),
+      // ...and byHandReason (r7), which reads through classifyClosing.
+      expect.stringMatching(/^byHandReason: an internal function that takes the lock/),
       // ...and the internal triageRows (t7.3 prep), the same way.
       expect.stringMatching(/^triageRows: an internal function that takes the lock/),
     ]);

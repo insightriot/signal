@@ -72,8 +72,13 @@ export function noDefaultBranchPart(result) {
 // It names no command: `git remote set-head` fails without a remote.
 export function noRemotePart(result) {
   if (!anyReason(result, 'no-remote')) return null;
-  return `no-remote: ${NO_REMOTE}, so these closes stay closing until it has one`;
+  return `no-remote: ${NO_REMOTE}, so these closes stay closing until it has one${BY_HAND_LINE}`;
 }
+// The way out for the three reasons no git answer can change (M6.E16 r7,
+// `confirmCloseByHand`, `work-records.js`): a person confirms each close by
+// hand. Named in the line, never run from it.
+const BY_HAND_LINE = ' — or a person confirms each by hand, one ID at a time and only with their yes for it: /sig:item confirm <ID>';
+const byHandWords = (id) => ` Or a person may confirm it by hand, only with their yes for it: /sig:item confirm ${id}.`;
 const AGAINST_A_REMOTE = 'Signal confirms a close only against a remote\'s default branch';
 const NO_REMOTE = `this project has no remote. ${AGAINST_A_REMOTE}`;
 
@@ -82,7 +87,7 @@ const NO_REMOTE = `this project has no remote. ${AGAINST_A_REMOTE}`;
 // either: `git remote set-head origin -a` fails without a remote of that name.
 export function noOriginRemotePart(result) {
   if (!anyReason(result, 'no-origin-remote')) return null;
-  return `no-origin-remote: ${NO_ORIGIN_REMOTE}, so these closes stay closing until a remote named \`origin\` exists`;
+  return `no-origin-remote: ${NO_ORIGIN_REMOTE}, so these closes stay closing until a remote named \`origin\` exists${BY_HAND_LINE}`;
 }
 const NO_ORIGIN_REMOTE = 'Signal reads the default branch of the remote named `origin`, and this project\'s remotes are named otherwise';
 
@@ -90,7 +95,7 @@ const NO_ORIGIN_REMOTE = 'Signal reads the default branch of the remote named `o
 // one to be on.
 export function notARepoPart(result) {
   if (!anyReason(result, 'not-a-repo')) return null;
-  return `not-a-repo: ${NOT_A_REPO}, so these closes stay closing`;
+  return `not-a-repo: ${NOT_A_REPO}, so these closes stay closing${BY_HAND_LINE}`;
 }
 const NOT_A_REPO = `this project is not a git repository. ${AGAINST_A_REMOTE}`;
 
@@ -137,9 +142,10 @@ const UNIT_STALE_WHY = {
  *
  * @param {string|undefined} reason — the unit's `stillClosing` reason
  * @param {string} proof — the commit its close was requested with
+ * @param {string} [id] — the unit's ID, for the hand-confirm command (M6.E16 r7)
  * @returns {string}
  */
-export function unitClosingTooLongWords(reason, proof) {
+export function unitClosingTooLongWords(reason, proof, id = '<ID>') {
   if (reason === 'open-items') {
     return `the commit its close was requested with, ${proof}, is on the default branch, and the unit has an item that is not closed. `
       + 'Close that item, or move it out of the Epic (`/sig:item`); the close is confirmed once none is open.';
@@ -148,6 +154,7 @@ export function unitClosingTooLongWords(reason, proof) {
     commit: `the commit its close was requested with, ${proof},`,
     merge: 'Merge it; or, if the work moved on to other commits, re-run /sig:ship, which requests the close again with the new one.',
     other: (why) => ` (${why}).`,
+    id,
   });
 }
 
@@ -164,12 +171,13 @@ export function unitClosingTooLongWords(reason, proof) {
  */
 export function itemClosingTooLongWords(reason, proof, id) {
   const merge = `Merge it, or reopen the item (\`/sig:item reopen ${id} "<reason>"\`) if the fix did not land.`;
-  return closingTooLongWords(reason, proof, { commit: `its fix commit ${proof}`, merge, other: () => `. ${merge}` });
+  return closingTooLongWords(reason, proof, { commit: `its fix commit ${proof}`, merge, other: () => `. ${merge}`, id });
 }
 
 // The sentences the two share. `words.commit` names the commit, `words.merge`
 // is the advice where a merge would help, and `words.other(reason)` ends the
-// sentence for a reason that has none of its own.
+// sentence for a reason that has none of its own. `words.id` is named in the
+// hand-confirm command, for the three reasons that have one.
 function closingTooLongWords(reason, proof, words) {
   const { commit } = words;
   const requested = `its close was requested with the commit ${proof}; `;
@@ -182,11 +190,11 @@ function closingTooLongWords(reason, proof, words) {
       return `${commit} could not be checked: the remote's default branch is not recorded in this clone. `
         + `${capitalised(RECORD_DEFAULT_BRANCH_HINT)}, then sweep again.`;
     case 'no-remote':
-      return `${requested}${NO_REMOTE}, so it stays closing until the project has one.`;
+      return `${requested}${NO_REMOTE}, so it stays closing until the project has one.${byHandWords(words.id)}`;
     case 'no-origin-remote':
-      return `${requested}${NO_ORIGIN_REMOTE}. It stays closing until a remote named \`origin\` exists.`;
+      return `${requested}${NO_ORIGIN_REMOTE}. It stays closing until a remote named \`origin\` exists.${byHandWords(words.id)}`;
     case 'not-a-repo':
-      return `${requested}${NOT_A_REPO}, so it stays closing.`;
+      return `${requested}${NOT_A_REPO}, so it stays closing.${byHandWords(words.id)}`;
     case 'git-too-old':
       return `${requested}${GIT_TOO_OLD()}, so it stays closing until git is updated.`;
     default:

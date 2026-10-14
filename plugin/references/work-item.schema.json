@@ -116,7 +116,10 @@
         "reason": { "enum": ["fixed", "stale", "wontdo", "dup", "rejected"] },
         "proof": { "$ref": "#/$defs/text" },
         "dup_of": { "$ref": "#/$defs/item_id" },
-        "legacy": { "const": true }
+        "legacy": { "const": true },
+        "confirmed_by": { "const": "person" },
+        "git_reason": { "enum": ["no-remote", "no-origin-remote", "not-a-repo"] },
+        "why": { "$ref": "#/$defs/text" }
       }
     },
     "reopened": {

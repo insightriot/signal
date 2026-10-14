@@ -1274,9 +1274,14 @@ export function planUnitCloseRequest(handle, id, request = {}) {
  * items that are not closed, and a unit with any is not planned. The item
  * store is the caller's to read; this library reads unit records only.
  *
+ * A close a person confirms by hand (M6.E16 r7, `confirmCloseByHand`,
+ * `work-records.js`, its other caller) is built here too: `byHand` adds
+ * `confirmed_by: 'person'`, `git_reason` and the person's `why` to the same
+ * event. That caller has checked that git can never confirm it.
+ *
  * @param {{baseDir: string, key: string}} handle — the caller's lock
  * @param {Array<{id: string, proof: string}>} candidates
- * @param {{at: string, by: string, openItems: (id: string) => string[]}} confirm
+ * @param {{at: string, by: string, openItems: (id: string) => string[], byHand?: {git_reason: string, why?: string}}} confirm
  * @returns {{planned: Array<{next: object, text: string, oldText: string, abs: string}>, changed: string[],
  *   openItems: Array<{id: string, items: string[]}>}}
  *   `planned`: one per unit to write (`text` its new bytes, `oldText` its bytes now);
@@ -1284,7 +1289,7 @@ export function planUnitCloseRequest(handle, id, request = {}) {
  *   items of theirs are not closed. One that is no longer closing is in none.
  * @throws {WorkStoreError} SCHEMA (a broken record, or no `openItems`), NOT_FOUND
  */
-export function planUnitConfirms(handle, candidates, { at, by, openItems }) {
+export function planUnitConfirms(handle, candidates, { at, by, openItems, byHand }) {
   if (typeof openItems !== 'function') {
     throw new WorkStoreError('SCHEMA', 'planUnitConfirms needs openItems — a unit is confirmed closed only when its items are. Nothing was written.');
   }
@@ -1306,6 +1311,7 @@ export function planUnitConfirms(handle, candidates, { at, by, openItems }) {
     const request = latestRequest(entry.record);
     const event = pruneUndefined({
       type: 'closed', at, by, reason: 'shipped', proof: c.proof, pr: request?.pr, release: request?.release,
+      ...(byHand === undefined ? {} : { confirmed_by: 'person', git_reason: byHand.git_reason, why: clean(byHand.why, CLOSE_WORDS_MAX) }),
     });
     const next = withEvent(entry, event);
     planned.push({ next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) });

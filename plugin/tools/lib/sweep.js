@@ -598,7 +598,7 @@ export function checkClosingTooLong(baseDir, opts = {}) {
       'closing-too-long',
       'advisory',
       u.path,
-      `${u.id} has been closing for ${u.days} days — ${unitClosingTooLongWords(reasonOf.get(u.id), u.proof)}`
+      `${u.id} has been closing for ${u.days} days — ${unitClosingTooLongWords(reasonOf.get(u.id), u.proof, u.id)}`
     ));
   return [...items, ...units];
 }
