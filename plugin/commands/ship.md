@@ -271,10 +271,17 @@ Call `closeEpic(baseDir, state.current_epic, {by, pr, release})` from `tools/lib
 
 **A unit that is not an Epic** — with unit records only. §0.5 skips such a unit, so this step asks the code: after §5, read STATE again (`readState`) and call `unitToCloseAtShip(baseDir, state)` from `tools/lib/work-ops.js`. Act on its `kind`:
 
-- `epic` → the Epic rule above; `no-unit-records` and `not-at-ship` → nothing here.
-- `unit` — the current unit (`currentUnit(state)`, `tools/lib/work-units.js`, the raw `current_epic`) is not an Epic ID (`phase-11`). On a linear project every SHIP ends the run, so this SHIP closes it — the phase log is not read: §5 has already moved it to STATE-HISTORY.md. With `hasRecord`, make the same call, `closeEpic(baseDir, id, {by, pr, release})`; a re-run SHIP on a *closing* unit asks again with the new commit (`re-requested`). Without a record, say so and run `/sig:docs-migrate --work-store`, then re-run.
+- `epic` → the Epic rule above, which defers to §0.5's `isEpicClose` (the Epic-close SHIP): a per-slice SHIP of an Epic closes nothing here. `no-unit-records` and `not-at-ship` → nothing here.
+- `unit` — the current unit (`currentUnit(state)`, `tools/lib/work-units.js`, the raw `current_epic`) is not an Epic ID (`phase-11`). On a linear project every SHIP ends the run, so this SHIP closes it — the phase log is not read: §5 has already moved it to STATE-HISTORY.md. Act on `status`:
+  - `open` (`hasRecord`) → make the same call, `closeEpic(baseDir, id, {by, pr, release})`.
+  - `closing` → its close was already requested with `proof`; the code cannot tell a review-fix re-run from the next slice under the same `current_epic`, so ask the person whether this SHIP is a re-run of the same work. On yes, make the same call: it asks again with the new commit (`re-requested`). On no, close nothing, and say the unit stays closing on its first commit and this SHIP closes no unit.
+  - `closed` → say plainly that this SHIP closes no unit because `current_epic` names a closed one; a person moves `current_epic` to the next unit by hand (no command sets a unit that is not an Epic, `D-M6E16-13`).
+  - no record (`hasRecord: false`) → say so and run `/sig:docs-migrate --work-store`, then re-run.
+- `not-a-unit-id` — `current_epic` in STATE.md is not a name a unit can have: say so, showing it only as `shown` (escaped), and close nothing.
+- `broken-record` — the current unit's record does not read: close nothing; `/sig:docs-sweep` names it, and it is restored with git (`git checkout -- <path>`), never hand-edited.
 - `ask` — `current_epic` is null and these unit records are not closed (`units`, each with its status). Show the list and ask the person which one, if any, this SHIP finishes — one yes; choose nothing for them. With their answer make the same call for that ID; with none, close nothing and say so.
 - `none` — `current_epic` is null and every unit record is closed: say plainly that no unit is closed by this SHIP.
+- `broken` on any of these — unit records that do not read, by path: name each; `/sig:docs-sweep` reports them, and each is restored with git.
 
 The same rules and outcomes apply as for an Epic, but two: no retrospective is required — Signal names one for an Epic only — and the result says so (`retro: null`, with a note saying why — print it); and a unit with no record is refused (`NOT_FOUND`).
 

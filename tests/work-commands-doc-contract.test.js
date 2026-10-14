@@ -320,6 +320,15 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
     // r7.1: no current unit → list the units, ask, one yes; none → say so.
     expect(ship).toMatch(/`ask`[^\n]*ask the person which one, if any, this SHIP finishes/);
     expect(ship).toMatch(/`none`[^\n]*no unit is closed/);
+    // r7.1: `closing` → ask whether this SHIP re-runs the same work; `closed` → closes no unit, current_epic moved by hand.
+    expect(ship).toMatch(/`closing`[^\n]*ask the person whether this SHIP is a re-run of the same work/);
+    expect(ship).toMatch(/`closing`[^\n]*stays closing on its first commit and this SHIP closes no unit/);
+    expect(ship).toMatch(/`closed`[^\n]*this SHIP closes no unit because `current_epic` names a closed one[^\n]*by hand/);
+    // r7.1: the other kinds, and `epic` deferring to §0.5.
+    expect(ship).toMatch(/`not-a-unit-id`[^\n]*`shown`/);
+    expect(ship).toMatch(/`broken-record`[^\n]*\/sig:docs-sweep/);
+    expect(ship).toMatch(/`broken`[^\n]*\/sig:docs-sweep/);
+    expect(ship).toMatch(/`epic`[^\n]*§0\.5's `isEpicClose`/);
     // The heading names units.
     expect(ship.split('\n')[0]).toMatch(/unit/);
     // r7.1: a closed current unit that is not an Epic stays until current_epic changes.
