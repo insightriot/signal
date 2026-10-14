@@ -320,7 +320,9 @@ async function assess(baseDir, opts) {
     if (gone.length > 0 || tags.length > 0) {
       const found = [
         ...(gone.length > 0 ? [`${gone.join(', ')} ${gone.length === 1 ? 'is' : 'are'} no longer in .planning/`] : []),
-        ...(tags.length > 0 ? [`this repository has ${tags.length === 1 ? 'the tag' : 'the tags'} ${tags.join(', ')}`] : []),
+        // A tag is named by whoever pushed it: each through `shownRef`, and five at most.
+        ...(tags.length > 0 ? [`this repository has ${tags.length === 1 ? 'the tag' : 'the tags'} `
+          + `${tags.slice(0, TAGS_SHOWN).map((t) => shownRef(t, 'tag')).join(', ')}${tags.length > TAGS_SHOWN ? `, and ${tags.length - TAGS_SHOWN} more` : ''}`] : []),
       ].join(', and ');
       return refuse(`${copies.map(archiveRel).join(', ')} ${copies.length === 1 ? 'is' : 'are'} in the archive with no ${MANIFEST_REL}, and ${found} — `
         + 'the shape this tool leaves when an apply stops part-way. Nothing was written. To put the project back in git: find the '
@@ -815,6 +817,9 @@ async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits
     unitClosesConfirmed: confirmed ? c.proposed : 0, written: paths, warnings: probe.warnings, report,
   };
 }
+
+// How many of them a refusal names; the rest are counted.
+const TAGS_SHOWN = 5;
 
 // The `pre-work-store-*` tags this tool's apply makes, from a fixed-argument
 // `git tag -l`; none outside git.

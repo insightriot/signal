@@ -28,6 +28,7 @@ import { openQuestionsNaming } from './legacy-lists.js';
 import { leadingUnitId } from './leading-id.js';
 import { readState, partitionCompletedPhases, PHASES } from './state.js';
 import { checkoutStep, findWorkOnOtherBranches, nextStepFor, shownBranches } from './branch-work.js';
+import { shownRef } from './printable-text.js';
 import { resolveArtifactPath } from './resume.js';
 import { getUnit, unitClosure, unitRecordsOn } from './unit-records.js';
 import { isStoreOn } from './work-store.js';
@@ -594,7 +595,11 @@ export async function proposeEpicCandidates(baseDir) {
       id: o.epic,
       title: o.epic,
       source: `${shownBranches(o.branches)} (open Epic)`,
-      branch: o.checkout,
+      // What the agent is told to switch to (`drive.md`). A name that is not
+      // plainly one is not handed over as it is: the exact name stays in
+      // `findWorkOnOtherBranches`' own result (`checkout`), which no
+      // instruction tells the agent to paste.
+      branch: shownRef(o.checkout),
       phase: o.phase,
       nextStep: nextStepFor(o),
       line: null,

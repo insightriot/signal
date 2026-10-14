@@ -46,7 +46,6 @@ import { EVIDENCE_MARKER, verifyCitations } from './citations.js';
 import { assertRealInsidePlanning, regularFileRefusal, readRegularFile } from './path-confine.js';
 import { readCorpus, ADVISOR_SOURCES } from './advise-corpus.js';
 import { nextStepFor, shownBranches } from './branch-work.js';
-import { isPlainRefName, shownRef } from './printable-text.js';
 import { gatherBigPicture, formatDigest } from './advise-digest.js';
 import { validatePriorities } from './advise-priorities.js';
 import { listRecords } from './work-records.js';
@@ -517,7 +516,7 @@ export function renderArtifact({ today, classified, priorities, corpus, digest =
       for (const o of elsewhere.open) {
         out.push(
           `- **${quoteSafe(o.epic)}** — at ${quoteSafe(o.phase ?? 'an unrecorded phase')} on ` +
-            `${o.branches.map((b) => (isPlainRefName(b) ? `\`${b}\`` : shownRef(b))).join(', ')}; ${quoteSafe(nextStepFor(o))}`
+            `${shownBranches(o.branches)}; ${quoteSafe(nextStepFor(o))}`
         );
       }
       out.push('');

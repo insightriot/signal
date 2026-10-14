@@ -40,8 +40,9 @@ import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 
 import { gitEnv, gitUnusableReason } from './git-env.js';
-import { isPlainRefName, shownName, shownRef } from './printable-text.js';
-import { parseFrontmatter, partitionCompletedPhases } from './state.js';
+import { isPlainRefName, oddRefNameShown, printable, shownRef } from './printable-text.js';
+import { parseFrontmatter, partitionCompletedPhases, PHASES } from './state.js';
+import { isSafeUnitName } from './unit-name.js';
 import { unitClosure, unitRecordsOn } from './unit-records.js';
 
 const GIT_TIMEOUT_MS = 5000;
@@ -322,8 +323,13 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
       }
     }
     open.push({
-      epic,
-      phase,
+      // Another branch's STATE.md is written by whoever pushed it, and these
+      // two values go into messages, the advisory and a digest a model reads.
+      // An Epic is named only when it is a name a unit may have (the store's
+      // rule, `isSafeUnitName`), a phase only when it is one of Signal's.
+      // They were compared, above, as written.
+      epic: isSafeUnitName(epic) ? epic : `(an Epic whose name is not shown: ${epic.length} characters)`,
+      phase: phase === null || PHASES.includes(phase) ? phase : '(a phase that is not one of Signal\'s)',
       branches: found.map((r) => r.display),
       checkout,
       sameBranch,
@@ -365,10 +371,11 @@ export const shownBranches = (branches) => branches.map((b) => shownRef(b)).join
  * @returns {string}
  */
 export function checkoutStep(branch) {
-  return isPlainRefName(branch)
-    ? `run \`git checkout ${branch}\` to continue it`
-    : `its branch has a name that cannot be written safely in a command (${String(branch).length} characters), so none is given — `
-      + 'find it with `git branch -a` and check it out yourself to continue it';
+  if (isPlainRefName(branch)) return `run \`git checkout ${branch}\` to continue it`;
+  const shown = oddRefNameShown(branch);
+  return `its branch${shown === null ? '' : `, \`${shown}\`,`} has a name that cannot be written safely in a command`
+    + `${shown === null ? ` (${String(branch).length} characters)` : ''}, so none is given — `
+    + 'find it with `git branch -a` and check it out yourself to continue it';
 }
 
 /** What a person does to continue an Epic found elsewhere — one sentence, shared by every caller. */
@@ -379,7 +386,9 @@ export function nextStepFor(o) {
       ? `${where} — its remote or branch has a name that cannot be written safely in a command, so none is given; pull it yourself to continue it`
       : `${where} — run \`${o.pull ?? 'git pull'}\` to continue it`;
   }
-  if (o.worktree) return `${shownRef(o.checkout)} is checked out in another worktree (${shownName(o.worktree)}) — continue it there`;
+  // The path is this machine's own (`git worktree list`): shown as it is
+  // written, less what a terminal acts on — `/Users/josé/…` stays readable.
+  if (o.worktree) return `${shownRef(o.checkout)} is checked out in another worktree (${printable(o.worktree)}) — continue it there`;
   return checkoutStep(o.checkout);
 }
 

@@ -93,18 +93,43 @@ const REF_NAME_RE = /^[A-Za-z0-9._/][A-Za-z0-9._/-]{0,99}$/;
  */
 export const isPlainRefName = (name) => typeof name === 'string' && REF_NAME_RE.test(name);
 
+// A name that is not plainly one may still be SHOWN — `fix/#123`,
+// `feature/c++`, `user@fix` — when it is short and holds nothing a shell, a
+// terminal or a reader of markdown acts on: no space or space-like character,
+// no control or invisible character, and none of `` ` $ ; | & < > ( ) ' " \ ``.
+const REF_SHOWN_MAX = 60;
+const REF_NOT_SHOWN_RE = /[\s`$;|&<>()'"\\\p{C}\p{Z}]/u;
+
 /**
- * A branch or remote name as a message shows it: the name when it is plainly
- * one (`isPlainRefName`), otherwise a placeholder that says how long it is
- * and nothing else. Never put what this returns into a command: ask
+ * A name that is not plainly a name (`isPlainRefName`), as it may be shown:
+ * through `ascii`, so `café` reads `café`. Null when it may not be shown
+ * at all — over 60 characters, empty, or holding one of the characters above.
+ *
+ * @param {unknown} name
+ * @returns {string|null}
+ */
+export function oddRefNameShown(name) {
+  const s = String(name);
+  return s.length === 0 || s.length > REF_SHOWN_MAX || REF_NOT_SHOWN_RE.test(s) ? null : ascii(s);
+}
+
+/**
+ * A branch, remote or tag name as a message shows it: the name when it is
+ * plainly one (`isPlainRefName`); otherwise a note in brackets — with the
+ * name, escaped, when it may be shown (`oddRefNameShown`), and with only its
+ * length when it may not. Never put what this returns into a command: ask
  * `isPlainRefName` first, and give no command when it says no.
  *
  * @param {unknown} name
- * @param {'branch'|'remote'} [what]
+ * @param {'branch'|'remote'|'tag'} [what]
  * @returns {string}
  */
 export function shownRef(name, what = 'branch') {
-  return isPlainRefName(name) ? name : `(a ${what} whose name is not shown: ${String(name).length} characters)`;
+  if (isPlainRefName(name)) return name;
+  const shown = oddRefNameShown(name);
+  return shown === null
+    ? `(a ${what} whose name is not shown: ${String(name).length} characters)`
+    : `(${what} \`${shown}\` — its name cannot be written safely in a command, so none is given)`;
 }
 
 /**

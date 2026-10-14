@@ -258,8 +258,8 @@ describe('turning unit records on: another milestone\'s marked file', () => {
     expect(dry.writes).toEqual({ confirmed: [], unconfirmed: [] });
     expect(dry.report).not.toMatch(/--apply (creates|adds) /);
     expect(dry.report).not.toMatch(/leaves them staged/);
-    expect(dry.report).toContain(`--apply is refused as the files stand, and writes nothing: ${M6} holds lines typed by hand between its `
-      + 'Epic-table markers, named above. Move them outside the two marker lines — or take the two marker lines out of the file — then run the dry run again.');
+    expect(dry.report).toContain(`--apply is refused as the files stand, and writes nothing: ${M6} holds a line typed by hand between its `
+      + 'Epic-table markers, named above. Move it outside the two marker lines — or take the two marker lines out of the file — then run the dry run again.');
     // Nor does it say, of the file that refuses, that the apply "writes" its table.
     expect(dry.report).toContain(`${M6} carries the Epic-table markers and is another milestone's file: --apply would write its Epic table from the unit records too.`);
     expect(dry.report).not.toContain(`${M6} carries the Epic-table markers and is another milestone's file: --apply writes`);
@@ -364,6 +364,13 @@ describe('the dry run\'s `writes` are what the apply writes — three cases noth
     expect(refusedTablesSentence([current, other(M6)])).toContain(
       `${MILESTONE} and ${M6} hold lines typed by hand between their Epic-table markers — in ${MILESTONE}: line 9 (“| a reminder | x | y |”); line 10 (“A note.”); the other is named above. Move them`,
     );
+    // r6.4: one line in all is "a line", moved as "it".
+    const single = [{ line: 9, text: 'A note.' }];
+    expect(refusedTablesSentence([{ rel: M6, current: false, typed: single }])).toBe(`${M6} holds a line typed by hand between its Epic-table markers, named above. `
+      + 'Move it outside the two marker lines — or take the two marker lines out of the file — then run the dry run again.');
+    expect(refusedTablesSentence([{ rel: MILESTONE, current: true, typed: single }])).toContain('holds a line typed by hand between its Epic-table markers: line 9 (“A note.”). Move it outside');
+    // one line in each of two files is two lines
+    expect(refusedTablesSentence([{ rel: M6, current: false, typed: single }, { rel: MILESTONE, current: false, typed: single }])).toContain('hold lines typed by hand between their Epic-table markers, named above. Move them');
   });
 
   // S1: the paragraph about "another milestone's file" is about another

@@ -794,8 +794,9 @@ export function refusedTablesSentence(tables) {
   const named = here.length === 0 ? ', named above'
     : one ? `: ${typedNamed(here[0])}`
       : ` — ${here.map((t) => `in ${t.rel}: ${typedNamed(t)}`).join('; ')}; the other${elsewhere === 1 ? ' is' : 's are'} named above`;
-  return printable(`${files} ${one ? 'holds' : 'hold'} lines typed by hand between ${one ? 'its' : 'their'} Epic-table markers${named}. `
-    + 'Move them outside the two marker lines — or take the two marker lines out of the file — then run the dry run again.');
+  const oneLine = [...byRel.values()].reduce((n, t) => n + t.typed.length, 0) === 1;
+  return printable(`${files} ${one ? 'holds' : 'hold'} ${oneLine ? 'a line' : 'lines'} typed by hand between ${one ? 'its' : 'their'} Epic-table markers${named}. `
+    + `Move ${oneLine ? 'it' : 'them'} outside the two marker lines — or take the two marker lines out of the file — then run the dry run again.`);
 }
 
 // What changes between one file's markers, as indented lines.
