@@ -41,7 +41,7 @@ import { applyKeyedReplacements, computeLinkEdits } from './archive-tree.js';
 import { atomicWrite } from './atomic-write.js';
 import { capitalised, RECORD_DEFAULT_BRANCH_HINT } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
-import { gitEnv } from './git-env.js';
+import { gitEnv, gitUnusableReason } from './git-env.js';
 import { commitsStartingWith } from './git-objects.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { shownRef } from './printable-text.js';
@@ -690,8 +690,9 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit, rer
 
   let proof = commit ?? headCommit(baseDir, execFn);
   if (proof === null) {
-    throw new WorkStoreError('CONFIG', `${epicId}: the close records the Epic's commit as its proof, and this is not a git `
-      + 'repository with a commit. Nothing was written.');
+    const unusable = gitUnusableReason();
+    throw new WorkStoreError('CONFIG', `${epicId}: the close records the Epic's commit as its proof, and `
+      + `${unusable === null ? 'this is not a git repository with a commit' : `no commit could be read: ${unusable}`}. Nothing was written.`);
   }
   if (typeof proof !== 'string' || !COMMIT_SHAPE_RE.test(proof)) {
     throw new WorkStoreError('SCHEMA', `${epicId}: the close's proof is a commit hash — lowercase hex, 7 to 64 characters `

@@ -22,7 +22,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { gitEnv, repositoryWithoutDotGit } from './git-env.js';
+import { gitEnv, gitUnusableReason } from './git-env.js';
 
 export const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 
@@ -115,12 +115,14 @@ function dotenvName(baseDir) {
  * `name` is ignored (exit 0 — tracked files never are), or this is no git repo.
  */
 export function dotenvRefusal(baseDir, name) {
+  // With a git Signal does not run its checks on (older than 2.38), nothing
+  // can say the file is ignored: "no git repo" would then be `gitEnv`'s
+  // doing, not git's finding, and a committed key must not pass on it.
+  const unusable = gitUnusableReason();
+  if (unusable !== null) return `git could not confirm ${name} is ignored (${unusable})`;
   const r = spawnSync('git', ['check-ignore', '-q', '--', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'pipe'], timeout: 2000, encoding: 'utf8', env: gitEnv(baseDir) });
   if (r.status === 0) return null;
-  // "No git repo" is git's own finding only. When `gitEnv` turned git away
-  // from a folder that merely looks like a repository, the project may sit
-  // in a real one that tracks this file.
-  if (r.status === 128 && /not a git repository/i.test(r.stderr ?? '') && !repositoryWithoutDotGit(baseDir)) return null;
+  if (r.status === 128 && /not a git repository/i.test(r.stderr ?? '')) return null;
   if (r.status === 1) return `${name} is not git-ignored (a committed key is the repository author's, not yours)`;
   return `git could not confirm ${name} is ignored`;
 }

@@ -27,7 +27,7 @@ import { join, dirname, resolve, relative, sep } from 'node:path';
 // archive-tree.js and work-generate.js — deterministic plan/moves order.
 import { PLANNING_DIR, withStateLock, EPIC_ID_STRICT_RE, compareEpicIds } from './state.js';
 import { atomicWrite } from './atomic-write.js';
-import { gitEnv } from './git-env.js';
+import { gitEnv, gitUnusableReason } from './git-env.js';
 import {
   extractEpicSection,
   verifyCardCoverage,
@@ -1156,7 +1156,7 @@ export function probeGitState(baseDir, opts = {}) {
       mode: 'fs-backup',
       proceed: true,
       dirty: false,
-      warnings: ['Not a git repository — using a filesystem snapshot for reversibility.'],
+      warnings: [`${gitUnusableReason() ?? 'Not a git repository'} — using a filesystem snapshot for reversibility.`],
     };
   }
 

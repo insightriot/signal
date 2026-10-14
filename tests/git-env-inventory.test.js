@@ -27,15 +27,16 @@
 //     four prompt-and-ssh settings;
 //   - a `cwd` that comes from a spread (`{ ...opts, env: gitEnv(root) }`,
 //     `adherence-harness.js`): the folder is not compared with it;
-//   - `git-env.js` itself, which asks git one question without
-//     `safe.bareRepository` on purpose (`repositoryWithoutDotGit`);
+//   - `git-env.js` itself, whose one git call is `git --version`, run from
+//     the top of the disk with an environment of its own (held by a test
+//     below);
 //   - any file outside `plugin/tools` and `plugin/hooks`.
 
 import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { gitEnv } from '../plugin/tools/lib/git-env.js';
+import { gitEnv, gitUnusableReason, testSeam } from '../plugin/tools/lib/git-env.js';
 import * as workWrite from '../plugin/tools/lib/work-write.js';
 import { countGitCalls, unprotectedGitCalls } from './helpers/git-call-scan.js';
 
@@ -215,6 +216,71 @@ describe('gitEnv', () => {
     const env = gitEnv();
     for (const name of redirects) expect(env, name).not.toHaveProperty(name);
     expect(process.env.GIT_DIR).toBe('/somewhere/else'); // the process's own environment is not touched
+  });
+
+  // r6.4: the one gate. `safe.bareRepository` is what keeps a planted layout
+  // from being used, and git older than 2.38 does not know it — so with such
+  // a git, or one whose version cannot be read, no git-backed check is run.
+  describe('the version gate', () => {
+    afterEach(() => {
+      testSeam.gitVersion = undefined;
+    });
+    const NEED = 'Signal needs git 2.38 or newer for its git-backed checks';
+
+    it.each([
+      ['git version 2.38.0'], ['git version 2.38'], ['git version 2.39.3 (Apple Git-146)'], ['git version 2.54.0'],
+      ['git version 2.42.0.windows.1'], ['git version 3.0.0'], ['git version 10.1.2'], ['git version 2.54.0\n'],
+    ])('%j: used', (line) => {
+      testSeam.gitVersion = line;
+      expect(gitUnusableReason()).toBeNull();
+      expect(gitEnv('/somewhere')).toMatchObject({ GIT_NO_REPLACE_OBJECTS: '1' });
+    });
+
+    it.each([
+      ['git version 2.37.9', `${NEED}; this is git 2.37.9`],
+      ['git version 2.34.1', `${NEED}; this is git 2.34.1`],
+      ['git version 1.9', `${NEED}; this is git 1.9`],
+      ['git version 1.9.5 (Apple Git-50.3)', `${NEED}; this is git 1.9.5`],
+      ['git version 0.99', `${NEED}; this is git 0.99`],
+    ])('%j: too old, and the reason names the version', (line, reason) => {
+      testSeam.gitVersion = line;
+      expect(gitUnusableReason()).toBe(reason);
+    });
+
+    it.each([
+      [''], ['garbage'], ['git version'], ['git version two.thirty-eight'], ['git version 2'], ['git version 2.x'], ['version 2.54.0'],
+      ['hub version 2.54.0'], ['git version -2.54'], ['git version 99999.1'], ['git version 2.54x'], [' git version 2.54.0x'.trim().replace('2.54.0x', '2x54')],
+      ['2.54.0'], ['GIT VERSION 2.54.0'],
+    ])('%j: not a version Signal can read — not used', (line) => {
+      testSeam.gitVersion = line;
+      expect(gitUnusableReason()).toBe(`${NEED}; the version of the git installed here could not be read`);
+    });
+
+    it('git missing: not used, and said so', () => {
+      testSeam.gitVersion = null;
+      expect(gitUnusableReason()).toBe(`${NEED}; git could not be run here`);
+    });
+
+    it('when git is not used, asking for the environment throws what a failed git call would — so no process is started', () => {
+      testSeam.gitVersion = 'git version 2.34.1';
+      let err;
+      try {
+        gitEnv('/somewhere');
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toMatchObject({ name: 'GitUnusableError', status: 128, message: `${NEED}; this is git 2.34.1` });
+      expect(err.stderr).toMatch(/not a git repository/);
+      // and for `git init`, which passes no folder
+      expect(() => gitEnv()).toThrow(NEED);
+    });
+
+    it('the installed git is asked once, from the top of the disk and with an environment of its own — and is one Signal uses', () => {
+      expect(gitUnusableReason()).toBeNull();
+      const src = readFileSync(join(ROOT, ENV_MODULE), 'utf-8');
+      expect(src).toMatch(/execFileSync\('git', \['--version'\], \{\s*cwd: '\/',/);
+      expect(src).toMatch(/env: \{ PATH: process\.env\.PATH \?\? '', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '\/dev\/null' \}/);
+    });
   });
 
   it('keeps the rest of the environment, and is the one work-write.js re-exports', () => {

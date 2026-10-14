@@ -30,7 +30,7 @@ import { createHash } from 'node:crypto';
 
 import { atomicWrite } from './atomic-write.js';
 import { insertAboveFooter, rewriteFooter, buildBugsEntry, insertAtEnd, scrubSensitive } from './add.js';
-import { gitEnv } from './git-env.js';
+import { gitEnv, gitUnusableReason } from './git-env.js';
 import { DONE_WORD_RE, declaresBugDischarge, isBugId, parseBacklogRows } from './legacy-lists.js';
 import { shownName } from './printable-text.js';
 import { EPIC_ID_STRICT_RE } from './state.js';
@@ -679,8 +679,9 @@ async function dischargeInRecords(baseDir, { rows, by, at, today, base, renameFn
   let proof = commit ?? headCommit(baseDir);
   if (proof === null) {
     // Not "pass `commit`": one passed here could not name a commit either.
+    const unusable = gitUnusableReason();
     throw new WorkStoreError('CONFIG', 'the discharge on a v2 work store records the Epic\'s commit as each row\'s proof, '
-      + 'and there is none: this is not a git repository with a commit. Nothing was written.');
+      + `and ${unusable === null ? 'there is none: this is not a git repository with a commit' : `none could be read: ${unusable}`}. Nothing was written.`);
   }
   // A `commit` that was passed is checked, not trusted (M6.E16 r6), as
   // `closeEpic`'s is: one that names no commit here could never be confirmed,

@@ -39,7 +39,7 @@
 import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 
-import { gitEnv } from './git-env.js';
+import { gitEnv, gitUnusableReason } from './git-env.js';
 import { isPlainRefName, shownName, shownRef } from './printable-text.js';
 import { parseFrontmatter, partitionCompletedPhases } from './state.js';
 import { unitClosure, unitRecordsOn } from './unit-records.js';
@@ -148,6 +148,9 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
     return done(true);
   };
 
+  // With a git Signal runs no check on (older than 2.38) the branches were not
+  // read: a cannot-check, with the reason — not the empty answer below.
+  if (git === defaultGit && gitUnusableReason() !== null) return fail(gitUnusableReason());
   // Not a repository, or a repository with no commits yet: there are no other
   // branches to be blind to, so this is a complete (empty) answer, not a cannot-check.
   try {

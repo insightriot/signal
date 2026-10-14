@@ -26,22 +26,37 @@
 
 import { execFileSync } from 'node:child_process';
 
-import { gitEnv, repositoryWithoutDotGit } from './git-env.js';
+import { gitEnv, gitUnusableReason } from './git-env.js';
+import { printable } from './printable-text.js';
 
 /** Bounded, so an auth prompt or a dead network cannot wedge a ship run. */
 const GH_TIMEOUT_MS = 30000;
 // What GitHub allows in an owner or a repository name. Anything else is not
 // passed to `gh`: `@file` would be read as a file by `-F`, `--flag` as an option.
-const GITHUB_NAME_RE = /^[A-Za-z0-9._-]+$/;
+// At most 100 characters, and not `.` or `..`, which are folders, not names.
+const GITHUB_NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
+const plainGithubName = (name) => typeof name === 'string' && GITHUB_NAME_RE.test(name) && !name.startsWith('-') && name !== '.' && name !== '..';
+
+// Why a `gh` call failed, for a `reason`: the first line `gh` wrote to
+// stderr when there is one — "not logged in", "could not resolve host" and
+// "rate limit" then read differently — else the first line of the error.
+// (Node's own message for a failed command is the whole command line.)
+const WHY_MAX = 200;
+function whyFailed(err) {
+  const lines = String(err?.stderr ?? '').split('\n').map((l) => printable(l).trim()).filter(Boolean);
+  const first = lines[0] ?? printable(String(err?.message ?? err).split('\n')[0]);
+  return first.length > WHY_MAX ? `${first.slice(0, WHY_MAX - 1)}…` : first;
+}
 
 // Why `gh` is not run for this call at all, or null (M6.E16 r6.3).
-function ghRefusal({ owner, repo, cwd }) {
-  if (typeof owner !== 'string' || !GITHUB_NAME_RE.test(owner) || owner.startsWith('-')) return 'the owner is not a plain GitHub owner name — nothing was asked';
-  if (typeof repo !== 'string' || !GITHUB_NAME_RE.test(repo) || repo.startsWith('-')) return 'the repository is not a plain GitHub repository name — nothing was asked';
-  // `gh` runs git to learn where it is. A folder that only looks like a
-  // repository names none to ask about — its `config` could name anyone's.
-  if (repositoryWithoutDotGit(cwd)) return 'this folder is not a git repository — nothing was asked';
-  return null;
+function ghRefusal({ owner, repo }) {
+  if (!plainGithubName(owner)) return 'the owner is not a plain GitHub owner name — nothing was asked';
+  if (!plainGithubName(repo)) return 'the repository is not a plain GitHub repository name — nothing was asked';
+  // `gh` runs git to learn where it is, with the environment `gitEnv` gives
+  // it: its git then refuses a folder that only looks like a repository. On a
+  // git too old for that, `gh` is not run.
+  const unusable = gitUnusableReason();
+  return unusable === null ? null : `${unusable} — nothing was asked`;
 }
 
 // How `gh` is run: by the caller's `execFn` when one is given — handed the
@@ -53,7 +68,8 @@ function ghRunner(execFn, cwd) {
   return (args) => String(execFileSync('gh', args, {
     cwd,
     encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
+    // stderr is kept: it is where `gh` says why it failed (`whyFailed`).
+    stdio: ['ignore', 'pipe', 'pipe'],
     timeout: GH_TIMEOUT_MS,
     killSignal: 'SIGKILL',
     maxBuffer: 64 * 1024 * 1024,
@@ -110,7 +126,7 @@ export function readPrReviewFindings({ owner, repo, pr, execFn, cwd = process.cw
   if (!owner || !repo || !Number.isInteger(pr)) {
     return { ...empty, reason: 'no pull request identified for this branch' };
   }
-  const refusal = ghRefusal({ owner, repo, cwd });
+  const refusal = ghRefusal({ owner, repo });
   if (refusal !== null) return { ...empty, reason: refusal };
   const run = ghRunner(execFn, cwd);
 
@@ -128,7 +144,7 @@ export function readPrReviewFindings({ owner, repo, pr, execFn, cwd = process.cw
   } catch (err) {
     return {
       ...empty,
-      reason: `could not reach GitHub (${String(err?.message ?? err).split('\n')[0]}) — the reviewer's findings were NOT checked`,
+      reason: `could not reach GitHub (${whyFailed(err)}) — the reviewer's findings were NOT checked`,
     };
   }
 
@@ -269,7 +285,7 @@ export function readReviewerEffort({ owner, repo, pr, execFn, cwd = process.cwd(
   if (!owner || !repo || !Number.isInteger(pr)) {
     return { ...empty, reason: 'no pull request identified for this branch' };
   }
-  const refusal = ghRefusal({ owner, repo, cwd });
+  const refusal = ghRefusal({ owner, repo });
   if (refusal !== null) return { ...empty, reason: refusal };
   const R = `${owner}/${repo}`;
   const run = ghRunner(execFn, cwd);
@@ -278,7 +294,7 @@ export function readReviewerEffort({ owner, repo, pr, execFn, cwd = process.cwd(
   try {
     pull = JSON.parse(run(['pr', 'view', String(pr), '-R', R, '--json', 'additions,deletions,headRefOid']));
   } catch (err) {
-    return { ...empty, reason: `could not read the PR (${String(err?.message ?? err).split('\n')[0]})` };
+    return { ...empty, reason: `could not read the PR (${whyFailed(err)})` };
   }
   const changedLines = (Number(pull?.additions) || 0) + (Number(pull?.deletions) || 0);
   if (!pull?.headRefOid) return { ...empty, changedLines, reason: 'the PR has no head commit in the response' };
@@ -290,7 +306,7 @@ export function readReviewerEffort({ owner, repo, pr, execFn, cwd = process.cwd(
       '--commit', pull.headRefOid, '--json', 'databaseId,status,conclusion', '--limit', '1',
     ]));
   } catch (err) {
-    return { ...empty, changedLines, reason: `could not list reviewer runs (${String(err?.message ?? err).split('\n')[0]})` };
+    return { ...empty, changedLines, reason: `could not list reviewer runs (${whyFailed(err)})` };
   }
   const latest = Array.isArray(runs) ? runs[0] : null;
   if (!latest) return { ...empty, changedLines, reason: 'no reviewer run found for the PR head commit' };
@@ -303,7 +319,7 @@ export function readReviewerEffort({ owner, repo, pr, execFn, cwd = process.cwd(
   try {
     log = run(['run', 'view', String(latest.databaseId), '-R', R, '--log']);
   } catch (err) {
-    return { ...empty, changedLines, reason: `could not read the reviewer log (${String(err?.message ?? err).split('\n')[0]})` };
+    return { ...empty, changedLines, reason: `could not read the reviewer log (${whyFailed(err)})` };
   }
   const turns = lastNumber(log, /"num_turns":\s*(\d+)/g);
   const costUsd = lastNumber(log, /"total_cost_usd":\s*([\d.]+)/g);

@@ -34,6 +34,7 @@
 // sweep or a release must not stop because a close could not be checked.
 
 import { capitalised, RECORD_DEFAULT_BRANCH_HINT } from './branch-guard.js';
+import { gitUnusableReason } from './git-env.js';
 import { confirmCloses, probeCloses, storeVersion } from './work-records.js';
 import { evictEpicNarrative } from './evict.js';
 
@@ -93,15 +94,24 @@ export function notARepoPart(result) {
 }
 const NOT_A_REPO = `this project is not a git repository. ${AGAINST_A_REMOTE}`;
 
+// And for `git-too-old` (r6.4): Signal runs no git-backed check with a git
+// older than 2.38, so nothing was asked — said with the version, not as "no
+// repository".
+export function gitTooOldPart(result) {
+  if (!anyReason(result, 'git-too-old')) return null;
+  return `git-too-old: ${GIT_TOO_OLD()}, so these closes stay closing until git is updated`;
+}
+const GIT_TOO_OLD = () => gitUnusableReason() ?? 'the git installed here could not be used for the check';
+
 /**
  * The sentences that say why nothing could be checked, for the end of a line:
- * one for each of the four reasons above that some close has.
+ * one for each of the five reasons above that some close has.
  *
  * @param {{stillClosing?: Array<{reason: string}>, units?: {stillClosing?: Array<{reason: string}>}}} result
  * @returns {string[]}
  */
 export const uncheckedParts = (result) =>
-  [noDefaultBranchPart(result), noRemotePart(result), noOriginRemotePart(result), notARepoPart(result)].filter((p) => p !== null);
+  [noDefaultBranchPart(result), noRemotePart(result), noOriginRemotePart(result), notARepoPart(result), gitTooOldPart(result)].filter((p) => p !== null);
 
 // Why a unit has stayed closing over 14 days, by the reason it is still
 // closing for (REVIEW r6): the commit is not on the default branch for two of
@@ -115,6 +125,7 @@ const UNIT_STALE_WHY = {
   'no-remote': 'this project has no remote',
   'no-origin-remote': 'this project has no remote named `origin`',
   'not-a-repo': 'this project is not a git repository',
+  'git-too-old': 'the git installed here is older than Signal checks a close with',
 };
 
 /**
@@ -176,6 +187,8 @@ function closingTooLongWords(reason, proof, words) {
       return `${requested}${NO_ORIGIN_REMOTE}. It stays closing until a remote named \`origin\` exists.`;
     case 'not-a-repo':
       return `${requested}${NOT_A_REPO}, so it stays closing.`;
+    case 'git-too-old':
+      return `${requested}${GIT_TOO_OLD()}, so it stays closing until git is updated.`;
     default:
       return `${commit} is not confirmed on the default branch${words.other(reason)}`;
   }

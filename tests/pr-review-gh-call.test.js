@@ -14,12 +14,12 @@
 // `gh` here is a script on a PATH of the test's own: nothing leaves the machine.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { readPrReviewFindings, readReviewerEffort } from '../plugin/tools/lib/pr-review-findings.js';
+import { testSeam } from '../plugin/tools/lib/git-env.js';
 
 const NODES = JSON.stringify({ data: { repository: { pullRequest: { reviewThreads: { nodes: [] } } } } });
 const args = { owner: 'insightriot', repo: 'signal', pr: 197 };
@@ -100,27 +100,67 @@ describe('who runs gh, and with what', { timeout: 60_000 }, () => {
     expect(readFileSync(log, 'utf-8')).toContain('pr view 197 -R insightriot/signal');
   });
 
-  it('in a folder that only looks like a repository, gh is not run — by the module or by an execFn', () => {
-    // An outer repository, and a planted layout in a folder of it.
-    const g = (cwd, ...a) => spawnSync('git', ['-c', 'commit.gpgsign=false', '-c', 'user.email=t@t.co', '-c', 'user.name=T', ...a], { cwd, encoding: 'utf8' });
-    const outer = join(root, 'outer');
-    const planted = join(outer, 'proj');
-    mkdirSync(planted, { recursive: true });
-    g(outer, 'init', '-q', '-b', 'main');
-    const seed = join(root, 'seed');
-    mkdirSync(seed);
-    g(seed, 'init', '-q', '-b', 'planted');
-    g(seed, 'commit', '-q', '--allow-empty', '-m', 'p');
-    for (const part of ['HEAD', 'config', 'objects', 'refs']) cpSync(join(seed, '.git', part), join(planted, part), { recursive: true });
+  // r6.4: a planted folder is git's to refuse (`gh` runs with `gitEnv`; see
+  // `tests/git-env-planted-bare-repo.test.js`, which checks that no `gh` call
+  // names the planted remote). What this module decides for itself is the
+  // gate: with a git older than 2.38, `gh` is not run at all.
+  it('with a git older than 2.38, gh is not run — by the module or by an execFn — and the reason says so', () => {
     const log = fakeGh();
+    testSeam.gitVersion = 'git version 2.34.1';
     let calls = 0;
-    for (const read of [readPrReviewFindings, readReviewerEffort]) {
-      expect(read({ ...args, cwd: planted })).toMatchObject({ status: 'cannot-check', reason: expect.stringMatching(/not a git repository/) });
-      expect(read({ ...args, cwd: planted, execFn: () => { calls += 1; return NODES; } })).toMatchObject({ status: 'cannot-check' });
+    try {
+      for (const read of [readPrReviewFindings, readReviewerEffort]) {
+        const reason = 'Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1 — nothing was asked';
+        expect(read({ ...args, cwd: root })).toMatchObject({ status: 'cannot-check', reason });
+        expect(read({ ...args, cwd: root, execFn: () => { calls += 1; return NODES; } })).toMatchObject({ status: 'cannot-check', reason });
+      }
+    } finally {
+      testSeam.gitVersion = undefined;
     }
     expect(existsSync(log)).toBe(false);
     expect(calls).toBe(0);
-    // the real repository beside it is asked as usual
-    expect(readPrReviewFindings({ ...args, cwd: outer }).status).toBe('clean');
+  });
+});
+
+// r6.4: the module's own runner threw away what `gh` wrote to stderr, so every
+// failure read "could not reach GitHub (Command failed: gh api graphql -f
+// query=query($owner…" — the command line, and nothing about why.
+describe('why gh failed', { timeout: 60_000 }, () => {
+  function failingGh(stderr, status = 1) {
+    const bin = join(root, 'bin');
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(join(bin, 'gh'), `#!/bin/sh\nprintf '%s\\n' ${JSON.stringify(stderr)} >&2\nexit ${status}\n`);
+    chmodSync(join(bin, 'gh'), 0o755);
+    process.env.PATH = `${bin}:${savedPath}`;
+  }
+
+  it.each([
+    ['not logged in', 'To get started with GitHub CLI, please run:  gh auth login'],
+    ['no network', 'error connecting to api.github.com'],
+    ['rate limit', 'gh: API rate limit exceeded for user ID 1. (HTTP 403)'],
+  ])('%s: the reason carries what gh said, and not the command line', (_label, said) => {
+    failingGh(said);
+    const findings = readPrReviewFindings({ ...args, cwd: root });
+    expect(findings).toMatchObject({ status: 'cannot-check', reason: `could not reach GitHub (${said}) — the reviewer's findings were NOT checked` });
+    expect(findings.reason).not.toContain('query=');
+    expect(readReviewerEffort({ ...args, cwd: root })).toMatchObject({ status: 'cannot-check', reason: `could not read the PR (${said})` });
+  });
+
+  it('only the first line, printable and capped; an execFn\'s plain error still reads by its message', () => {
+    failingGh(`${'x'.repeat(500)}\nsecond line`);
+    const { reason } = readPrReviewFindings({ ...args, cwd: root });
+    expect(reason).not.toContain('second line');
+    expect(reason.length).toBeLessThan(300);
+    const viaExecFn = readPrReviewFindings({ ...args, execFn: () => { throw new Error('gh: command not found\nmore'); } });
+    expect(viaExecFn.reason).toBe('could not reach GitHub (gh: command not found) — the reviewer\'s findings were NOT checked');
+  });
+
+  it.each([['a'.repeat(101)], ['.'], ['..']])('an owner or repo that is %j is not a plain name', (name) => {
+    let calls = 0;
+    const execFn = () => { calls += 1; return NODES; };
+    expect(readPrReviewFindings({ ...args, owner: name, execFn }).status).toBe('cannot-check');
+    expect(readPrReviewFindings({ ...args, repo: name, execFn }).status).toBe('cannot-check');
+    expect(calls).toBe(0);
+    expect(readPrReviewFindings({ ...args, owner: 'a'.repeat(100), repo: '.github', execFn }).status).toBe('clean');
   });
 });

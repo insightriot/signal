@@ -53,7 +53,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { gitEnv, repositoryWithoutDotGit } from './git-env.js';
+import { gitEnv, gitUnusableReason } from './git-env.js';
 import { isPlainRefName, shownRef } from './printable-text.js';
 
 /**
@@ -260,6 +260,12 @@ export function checkBranchPosture(baseDir, opts = {}) {
     });
   }
 
+  // With a git Signal runs no check on (older than 2.38) the question was
+  // not asked: that is "could not check", with the reason — not "there is no
+  // repository here", which every git call would then seem to say.
+  const unusable = gitUnusableReason();
+  if (unusable !== null) return base(BRANCH_GATE.CANNOT_DETERMINE, { reason: unusable });
+
   if (!isGitRepo(baseDir, { execFn })) {
     return base(BRANCH_GATE.NOT_APPLICABLE, { reason: 'not a git repository' });
   }
@@ -383,11 +389,10 @@ export function readPullRequestEvidence(baseDir, opts = {}) {
       })
     ).trim();
 
-  // A folder that only looks like a repository names no repository to ask
-  // about — its `config` could name anyone's — so `gh` is not run at all.
-  if (repositoryWithoutDotGit(baseDir)) {
-    return { status: 'cannot-determine', url: null, state: null, reason: 'not a git repository' };
-  }
+  // `gh`'s own git gets the environment above, so it refuses a folder that
+  // only looks like a repository. On a git too old for that, `gh` is not run.
+  const unusable = gitUnusableReason();
+  if (unusable !== null) return { status: 'cannot-determine', url: null, state: null, reason: unusable };
 
   try {
     run(['auth', 'status']);

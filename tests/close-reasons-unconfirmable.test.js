@@ -27,6 +27,8 @@ import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
 import { itemClosingTooLongWords, reportCloses, runConfirmCloses, unitClosingTooLongWords } from '../plugin/tools/lib/close-confirm.js';
 import { checkClosingTooLong, confirmClosesInSweep } from '../plugin/tools/lib/sweep.js';
 import { BRANCH_GATE, checkBranchPosture } from '../plugin/tools/lib/branch-guard.js';
+import { findWorkOnOtherBranches } from '../plugin/tools/lib/branch-work.js';
+import { testSeam } from '../plugin/tools/lib/git-env.js';
 
 const OLD = '2026-09-01T10:00:00.000Z';
 const NOW = '2026-10-10T12:00:00.000Z';
@@ -341,5 +343,66 @@ describe('remotes, none named origin: the branch gate names them all', { timeout
     const posture = checkBranchPosture(work, { tier: 'FULL' });
     expect(posture.status).toBe(BRANCH_GATE.CANNOT_DETERMINE);
     expect(posture.reason).toBe('no remote is named `origin` (this repository has: fork, upstream) — the default branch is read from the remote named `origin`');
+  });
+});
+
+// M6.E16 r6.4 — with a git older than 2.38 Signal runs no git-backed check.
+// Every git call then fails as "not a git repository"; the places that tell a
+// person something say the version, not that there is no repository.
+describe('a git Signal does not use: the reason is the version, in a real repository with a default branch', { timeout: 60_000 }, () => {
+  const OLD = 'Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1';
+  afterEach(() => {
+    testSeam.gitVersion = undefined;
+  });
+
+  it('a closing unit and item: `git-too-old`, said once in the confirm line, the report line and the sweep; nothing is confirmed', async () => {
+    const head = repo('origin');
+    g(work, 'remote', 'set-head', 'origin', 'main');
+    await store(head, [closingItem(head)]);
+    testSeam.gitVersion = 'git version 2.34.1';
+    const out = await runConfirmCloses(work, { now: NOW });
+    expect(out.confirmed).toEqual([]);
+    expect(out.stillClosing).toEqual([{ id: 'SIG-1', reason: 'git-too-old' }]);
+    expect(out.units).toEqual({ confirmed: [], stillClosing: [{ id: EPIC, reason: 'git-too-old' }], stale: [EPIC] });
+    const unchecked = (await confirmClosesInSweep(work, { now: NOW })).filter((f) => /^closes not checked/.test(f.message));
+    expect(unchecked).toHaveLength(1);
+    const PART = `git-too-old: ${OLD}, so these closes stay closing until git is updated`;
+    for (const line of [out.line, reportCloses(work, { now: NOW }).line, unchecked[0].message]) {
+      expect(line.endsWith(PART)).toBe(true);
+      expect(line).not.toContain('not a git repository');
+      expect(line).not.toContain('set-head');
+    }
+    const tooLong = checkClosingTooLong(work, { now: NOW }).map((f) => f.message);
+    expect(tooLong).toHaveLength(2);
+    for (const m of tooLong) {
+      expect(m.endsWith(`${OLD}, so it stays closing until git is updated.`)).toBe(true);
+      expect(m).not.toMatch(/Merge it|not a git repository/);
+    }
+  });
+
+  it('the control: the same project with the installed git confirms both', async () => {
+    const head = repo('origin');
+    g(work, 'remote', 'set-head', 'origin', 'main');
+    await store(head, [closingItem(head)]);
+    const out = await runConfirmCloses(work, { now: NOW });
+    expect(out.confirmed).toEqual(['SIG-1']);
+    expect(out.units.confirmed).toEqual([EPIC]);
+  });
+
+  it('the branch gate from a subfolder: could not check, with the version — not "not a git repository"', async () => {
+    repo('origin');
+    await mkdir(join(work, 'packages', 'app'), { recursive: true });
+    testSeam.gitVersion = 'git version 2.34.1';
+    expect(checkBranchPosture(join(work, 'packages', 'app'), { tier: 'FULL' })).toMatchObject({ status: BRANCH_GATE.CANNOT_DETERMINE, reason: OLD });
+    expect(checkBranchPosture(work, { tier: 'FULL' })).toMatchObject({ status: BRANCH_GATE.CANNOT_DETERMINE, reason: OLD });
+    // a tier that never ends at a pull request is still simply not applicable
+    expect(checkBranchPosture(work, { tier: 'SKETCH' }).status).toBe(BRANCH_GATE.NOT_APPLICABLE);
+  });
+
+  it('work on other branches: could not be checked, with the version — not "nothing found"', async () => {
+    repo('origin');
+    testSeam.gitVersion = 'git version 2.34.1';
+    const r = await findWorkOnOtherBranches(work, { localEpic: null });
+    expect(r).toMatchObject({ failed: true, open: [], cannotCheck: [{ reason: OLD }] });
   });
 });

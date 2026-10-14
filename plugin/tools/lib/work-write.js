@@ -19,7 +19,7 @@ import { join } from 'node:path';
 import { atomicWrite } from './atomic-write.js';
 import { remoteNames, resolveDefaultBranch } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
-import { gitEnv } from './git-env.js';
+import { gitEnv, gitUnusableReason } from './git-env.js';
 import { commitsStartingWith, runGit } from './git-objects.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { scrubSensitive } from './scrub.js';
@@ -282,6 +282,9 @@ export function shallowProbe(baseDir, execFn) {
 // records it. The ref is built here from a fixed prefix, so it cannot begin
 // with `-`.
 export function defaultBranchRef(baseDir, execFn) {
+  // A git Signal runs no check on (older than 2.38): nothing was asked, which
+  // is not the same as "this is no repository".
+  if (gitUnusableReason() !== null) return { reason: 'git-too-old' };
   if (!isGitRepo(baseDir, execFn)) return { reason: 'not-a-repo' };
   const remotes = remoteNames(baseDir, { execFn });
   if (remotes === null) return { reason: 'git-failed' };

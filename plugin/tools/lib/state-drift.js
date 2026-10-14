@@ -34,7 +34,7 @@ import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 
-import { gitEnv } from './git-env.js';
+import { gitEnv, gitUnusableReason } from './git-env.js';
 import { readState, PHASES, EPIC_ID_STRICT_RE } from './state.js';
 import { readProfileIssues } from './profile.js';
 import { deriveUnits, WORKED_SUFFIXES } from './work-units.js';
@@ -687,6 +687,10 @@ export const checkBaselineCommitOffHistory = defineCheck({
     if (!existsSync(join(baseDir, '.git'))) {
       return { status: APPLICABILITY.NA, reason: 'not a git repository' };
     }
+    // Not asked at all with a git Signal runs no check on: every git call
+    // would fail, and that would read as "the commit is not in this repository".
+    const unusable = gitUnusableReason();
+    if (unusable !== null) return { status: APPLICABILITY.NA, reason: unusable };
     return APPLICABILITY.EVAL;
   },
   run: ({ baseDir, state }) => {
