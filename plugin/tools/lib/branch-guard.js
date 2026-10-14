@@ -101,6 +101,17 @@ function git(baseDir, args, execFn) {
   ).trim();
 }
 
+// Did git refuse a folder here because it is laid out like a bare repository?
+// Read from what git says (in English: `LC_ALL=C`), on the one call.
+function gitRefusedBareLayout(baseDir, execFn) {
+  try {
+    execFn('git', ['rev-parse', '--is-inside-work-tree'], { cwd: baseDir, stdio: ['ignore', 'pipe', 'pipe'], env: { ...gitEnv(baseDir), LC_ALL: 'C' } });
+    return false;
+  } catch (err) {
+    return /cannot use bare repository/.test(String(err?.stderr ?? ''));
+  }
+}
+
 /**
  * Is `baseDir` inside a git work tree? A `.git` file (not directory) is a
  * worktree pointer and counts.
@@ -271,6 +282,14 @@ export function checkBranchPosture(baseDir, opts = {}) {
   if (unusable !== null) return base(BRANCH_GATE.CANNOT_DETERMINE, { reason: unusable });
 
   if (!isGitRepo(baseDir, { execFn })) {
+    // Git also fails here when it STOPS at a folder laid out like a bare
+    // repository and refuses it (`safe.bareRepository=explicit`) — with the
+    // project's real repository further up. That is "could not ask" (r6.5).
+    if (gitRefusedBareLayout(baseDir, execFn)) {
+      return base(BRANCH_GATE.CANNOT_DETERMINE, {
+        reason: 'a folder at or above this one is laid out like a bare git repository, and git will not use it — so git could not be asked about this project',
+      });
+    }
     return base(BRANCH_GATE.NOT_APPLICABLE, { reason: 'not a git repository' });
   }
 

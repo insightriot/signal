@@ -270,6 +270,24 @@ describe('on the installed git: nothing planted runs, whatever the layout', { ti
     nothingPlanted(proj);
   });
 
+  // r6.5: a planted layout BETWEEN a project and its real `.git`. Git stops
+  // at it and refuses, so every call fails — which is not "no repository":
+  // the branch gate says it could not tell, and why.
+  it('a planted layout between a project and its real repository: the branch gate could not tell, and says a folder is laid out like a bare repository', () => {
+    const mid = plant(join(outer, 'mid'));
+    const proj = join(mid, 'proj');
+    mkdirSync(proj);
+    g(outer, 'remote', 'add', 'origin', 'https://example.invalid/real.git');
+    const reason = 'a folder at or above this one is laid out like a bare git repository, and git will not use it — so git could not be asked about this project';
+    for (const dir of [proj, mid]) {
+      const got = nothingPlanted(dir);
+      expect(got.posture, dir).toMatchObject({ status: branchGuard.BRANCH_GATE.CANNOT_DETERMINE, reason });
+      rmSync(ghLog, { force: true });
+    }
+    // a folder that is in no repository at all is still simply not applicable
+    expect(branchGuard.checkBranchPosture(root, { tier: 'FULL' })).toMatchObject({ status: branchGuard.BRANCH_GATE.NOT_APPLICABLE, reason: 'not a git repository' });
+  });
+
   it('inherited GIT_DIR, GIT_COMMON_DIR and GIT_CONFIG_PARAMETERS pointing at the planted folder do not bring it back', () => {
     const proj = plant(join(outer, 'proj'));
     const set = { GIT_DIR: proj, GIT_COMMON_DIR: proj, GIT_CONFIG_PARAMETERS: `'core.fsmonitor=touch '\\''${marker}'\\'' #'` };
