@@ -879,8 +879,8 @@ function evidenceSourceLine(evidence) {
       + 'remotes are named otherwise, so there is no recorded default branch to check against.'];
   }
   return [`The history read is ${what}${local ? ',' : ' —'} which is not the remote's recorded default branch (origin/HEAD is not set): `
-    + `${local ? 'a local branch' : 'it'} can hold commits nobody merged. ${capitalised(RECORD_DEFAULT_BRANCH_HINT)}; `
-    + 'run it, then this again, to check against that.'];
+    + `${local ? 'a local branch' : 'it'} can hold commits nobody merged. ${capitalised(RECORD_DEFAULT_BRANCH_HINT)}, `
+    + 'then run this again to check against that.'];
 }
 
 function dryRunReport(a) {

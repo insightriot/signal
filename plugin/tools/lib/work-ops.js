@@ -649,7 +649,7 @@ export function refuseHeadThatProvesNothing(baseDir, epicId, head, execFn, words
   if (stale.ref === null) {
     throw new WorkStoreError('CONFLICT', `${words.what} would record HEAD (${head.slice(0, 12)}) as its proof, and Signal cannot tell whether `
       + 'that commit is already on the default branch: the remote\'s default branch is not recorded in this clone, and this project has '
-      + `uncommitted or untracked changes. Nothing was written. ${capitalised(RECORD_DEFAULT_BRANCH_HINT)} — run it, then re-run; `
+      + `uncommitted or untracked changes. Nothing was written. ${capitalised(RECORD_DEFAULT_BRANCH_HINT)}, then re-run; `
       + `or commit ${words.advice}`);
   }
   throw new WorkStoreError('CONFLICT', `${words.what} would record HEAD (${head.slice(0, 12)}) as its proof, and that commit is `

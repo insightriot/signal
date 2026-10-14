@@ -116,7 +116,7 @@ describe('unit records off: deliberate differences from v0.1.50 (the parity test
     await put('src/the-work.js', '// not committed\n');
     const err = await refused(() => discharge(), 'CONFLICT');
     expect(err.message).toMatch(/cannot tell whether that commit is already on the default branch/);
-    expect(err.message).toContain('`git remote set-head origin -a` records its default branch');
+    expect(err.message).toContain('Run `git fetch origin`, then `git remote set-head origin -a`, to record the remote\'s default branch');
     expect(err.message).toMatch(/or commit the work, then discharge\.$/);
   });
 

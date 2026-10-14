@@ -387,8 +387,8 @@ describe('no store, or a v1 store: (a) what this Epic adds to the migrations tha
   it('the first-time dry run says which history it read when origin/HEAD is unset; v0.1.50\'s read the same one and did not say (r6)', () => {
     // The fixture's repositories have a remote and no origin/HEAD: local `main` is read, as on v0.1.50.
     const NOTE = 'The history read is the local branch main, which is not the remote\'s recorded default branch (origin/HEAD is not set): '
-      + 'a local branch can hold commits nobody merged. Once `origin` has a branch in this clone (push or fetch one), '
-      + '`git remote set-head origin -a` records its default branch; run it, then this again, to check against that.';
+      + 'a local branch can hold commits nobody merged. Run `git fetch origin`, then `git remote set-head origin -a`, '
+      + 'to record the remote\'s default branch, then run this again to check against that.';
     for (const name of NO_STORE) {
       const was = V0150[`firstTime.${name}.dryRun`].report;
       const is = now[`firstTime.${name}.dryRun`].report;

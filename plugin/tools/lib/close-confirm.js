@@ -63,7 +63,7 @@ const anyReason = (result, reason) =>
 // whole line, items and units together, or null when no close has that reason.
 export function noDefaultBranchPart(result) {
   if (!anyReason(result, 'no-default-branch')) return null;
-  return `no-default-branch: the remote's default branch is not recorded in this clone — ${RECORD_DEFAULT_BRANCH_HINT}; run it and re-run`;
+  return `no-default-branch: the remote's default branch is not recorded in this clone — ${RECORD_DEFAULT_BRANCH_HINT}, and re-run`;
 }
 
 // The same for `no-remote` (REVIEW r6): a project with no remote has no
@@ -169,7 +169,7 @@ function closingTooLongWords(reason, proof, words) {
       return `${commit} is not confirmed on the default branch. ${words.merge}`;
     case 'no-default-branch':
       return `${commit} could not be checked: the remote's default branch is not recorded in this clone. `
-        + `${capitalised(RECORD_DEFAULT_BRANCH_HINT)}. Run it, then sweep again.`;
+        + `${capitalised(RECORD_DEFAULT_BRANCH_HINT)}, then sweep again.`;
     case 'no-remote':
       return `${requested}${NO_REMOTE}, so it stays closing until the project has one.`;
     case 'no-origin-remote':
