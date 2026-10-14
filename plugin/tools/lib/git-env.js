@@ -155,7 +155,8 @@ function look(baseDir) {
   const was = remembered.get(real);
   if (was?.print === print) return was.answer;
   const answer = ask(baseDir, real);
-  remembered.set(real, { print, answer });
+  // "Git did not answer" is not remembered: the next call asks again.
+  if (answer !== 'timeout') remembered.set(real, { print, answer });
   return answer;
 }
 
