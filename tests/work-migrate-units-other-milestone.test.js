@@ -24,7 +24,9 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { runWorkStoreMigrate } from '../plugin/tools/lib/work-migrate-lists.js';
 import { getUnit } from '../plugin/tools/lib/unit-records.js';
 import { checkRecords } from '../plugin/tools/lib/work-records.js';
-import { bytesOf, cleanupUnitsStores, commitAll, EPICS, git, MILESTONE, put, read, UNITS, unitsStore } from './helpers/units-store-fixture.js';
+import {
+  bytesOf, cleanupUnitsStores, commitAll, EPICS, git, MILESTONE, milestone7, put, read, ROWS, UNITS, unitsStore,
+} from './helpers/units-store-fixture.js';
 
 afterEach(cleanupUnitsStores);
 
@@ -271,4 +273,82 @@ describe('a project not yet on the store: another milestone\'s marked file refus
     commitAll(base, 'markers out');
     expect((await dryRun(base, { key: 'LEAF' })).refused).toBeUndefined();
   });
+});
+
+// M6.E16 r6.2 — three things the dry run's `writes` got right with nothing
+// holding them: each would have gone wrong silently.
+describe('the dry run\'s `writes` are what the apply writes — three cases nothing held', () => {
+  // Turning unit records on REPLACES the current milestone's table, lines a
+  // person typed there included (the dry run lists them as removed). They do
+  // not refuse the apply, so the file is among the writes.
+  it('the current milestone\'s marked table holding a line the apply removes: listed, and written', async () => {
+    const base = await unitsStore({ repo: true, markers: true });
+    put(base, MILESTONE, milestone7([...Object.values(ROWS), '| a reminder | not an Epic row | call the harbour master |'], { markers: true }));
+    commitAll(base, 'a row typed in the current milestone\'s table');
+    const dry = await dryRun(base);
+    expect(dry.report).toMatch(/1 line between the markers is kept nowhere and is removed by the apply/);
+    expect(dry.writes.confirmed).toContain(MILESTONE);
+    expect(dry.writes.unconfirmed).toContain(MILESTONE);
+    const before = bytesOf(base);
+    const r = await applyWith(base, dry, { confirmUnitCloses: true });
+    expect(r.applied).toBe(true);
+    expect(changed(before, bytesOf(base))).toEqual(dry.writes.confirmed);
+    expect(read(base, MILESTONE)).not.toContain('a reminder');
+  }, 60_000);
+
+  it('nothing to add: `writes` is empty for both answers, and the apply writes nothing', async () => {
+    const base = await withUnits();
+    const dry = await dryRun(base);
+    expect(dry.nothingToAdd).toBe(true);
+    expect(dry.writes).toEqual({ confirmed: [], unconfirmed: [] });
+    expect(dry.report).toContain('--apply would write nothing: there is no record to add.');
+    const before = bytesOf(base);
+    await applyWith(base, dry).catch((e) => e);
+    expect(changed(before, bytesOf(base))).toEqual([]);
+  }, 60_000);
+
+  // A milestone numbered 4.5 has a file `MILESTONE-4.5.md` like any other.
+  it('a decimal milestone\'s marked file: listed, written, staged and reported', async () => {
+    const M45 = '.planning/MILESTONE-4.5.md';
+    const base = await withUnits();
+    put(base, M45, ['# Milestone 4.5', '', BEGIN, '| Epic | Status | Summary |', '|---|---|---|', END, '', 'After.', ''].join('\n'));
+    put(base, '.planning/M4.5.E2-PLAN.md', '# M4.5.E2 plan\n');
+    commitAll(base, 'a marked file for milestone 4.5, and an Epic of it');
+    const dry = await dryRun(base);
+    const want = sorted([`${UNITS}/M4.5.E2.json`, EPICS, M45]);
+    expect(dry.writes).toEqual({ confirmed: want, unconfirmed: want });
+    expect(dry.report).toContain(`${M45} carries the Epic-table markers and is another milestone's file: --apply writes its Epic table from the unit records too`);
+    const before = bytesOf(base);
+    const r = await applyWith(base, dry);
+    expect(r.applied).toBe(true);
+    expect(changed(before, bytesOf(base))).toEqual(want);
+    expect(staged(base)).toEqual(want);
+    expect(notStaged(base)).toEqual([]);
+    expect(read(base, M45)).toContain('| `M4.5.E2` | **in flight** |');
+    expect(r.report).toContain(`regenerated ${EPICS} and the Epic table in ${M45} (another milestone's file).`);
+  }, 60_000);
+
+  // S1: the paragraph about "another milestone's file" is about another
+  // milestone's file. The current one's table changes too and gets none.
+  it('the current milestone\'s file is never introduced as another milestone\'s', async () => {
+    const base = await withUnits();
+    put(base, '.planning/M7.E12-PLAN.md', '# M7.E12 plan\n');
+    commitAll(base, 'one more Epic of the current milestone');
+    const dry = await dryRun(base);
+    expect(dry.writes.unconfirmed).toContain(MILESTONE);
+    expect(dry.report).not.toContain('is another milestone\'s file');
+    expect(dry.report).not.toContain('(another milestone\'s file');
+    expect(dry.report).toMatch(/regenerates \.planning\/work\/EPICS\.md and the Epic table in \.planning\/MILESTONE-7\.md, and leaves them staged/);
+  }, 60_000);
+
+  // Nit: when both answers to the proposed closes change the same thing, the
+  // block lists it once, with no "If the proposed closes are …" lines.
+  it('another milestone\'s file that changes the same way on either answer is listed once, not per answer', async () => {
+    const base = await withUnits();
+    nameAnEpicOfMilestone6(base);
+    const dry = await dryRun(base);
+    const block = dry.report.slice(dry.report.indexOf(`${M6} carries the Epic-table markers`));
+    expect(block.split('\n').slice(1, 3)).toEqual(['  added: “| `M6.E2` | **in flight** | |”', '']);
+    expect(dry.report).not.toContain('If the proposed closes are');
+  }, 60_000);
 });
