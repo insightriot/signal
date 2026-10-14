@@ -2144,11 +2144,11 @@ function byHandReason(baseDir, kind, id, execFn) {
   let split = items;
   if (kind === 'item') {
     entry = items.records.find((r) => r.id === id);
-    if (entry === undefined) throw new WorkStoreError('NOT_FOUND', `${id}: no such item — nothing was written.`);
+    if (entry === undefined) throw new WorkStoreError('NOT_FOUND', `${echoed(id)}: no such item — nothing was written.`);
   } else {
     entry = listUnits(baseDir).units.find((u) => u.id === id);
     if (entry === undefined) {
-      throw new WorkStoreError('NOT_FOUND', `${id}: no such item or unit (no ${UNITS_REL}/${id}.json) — nothing was written.`);
+      throw new WorkStoreError('NOT_FOUND', `${echoed(id)}: no such item or unit (no record of that name in ${UNITS_REL}/) — nothing was written.`);
     }
     split = classifyClosingUnits(unitLib, baseDir, onDefaultBranch, { items: itemsNotClosed(items.records, items.ok) });
   }
@@ -2163,8 +2163,7 @@ function byHandReason(baseDir, kind, id, execFn) {
   const open = kind === 'unit' ? itemsNotClosed(items.records, items.ok)(id) : [];
   if (open.length > 0) {
     const err = new WorkStoreError('OPEN_ITEMS', `${id} has ${open.length} item${open.length === 1 ? '' : 's'} that ${open.length === 1 ? 'is' : 'are'} not closed `
-      + `(${open.join(', ')}) — nothing was written. Close each, or move it out of the unit (/sig:item), then confirm the unit; `
-      + 'an item that is closing here can be confirmed by hand the same way, with its own yes (/sig:item confirm <ID>).');
+      + `(${open.join(', ')}) — nothing was written. Close each, or move it out of the unit (/sig:item), then confirm the unit.`);
     err.reason = OPEN_ITEMS_REASON;
     throw err;
   }
@@ -2174,7 +2173,7 @@ function byHandReason(baseDir, kind, id, execFn) {
     err.reason = reason;
     throw err;
   }
-  return { reason, proof: request.proof };
+  return { reason, proof: request.proof, requestAt: request.at };
 }
 
 /**
@@ -2196,6 +2195,11 @@ function byHandReason(baseDir, kind, id, execFn) {
  * `confirmed_by: 'person'`, `git_reason` (the reason git could not confirm
  * it) and, when given, `why`. Every view reads it as closed.
  *
+ * `by` and `why` are stored as the unit writers store text (r7.1): one line,
+ * no control or invisible characters, `by` cut at 200 characters and `why` at
+ * 2000. A `why` that is not words (empty, blank, not text), and an `at` before
+ * the close request, are refused (SCHEMA) before anything is read.
+ *
  * One ID, never a list: each close is confirmed on its own, with the person's
  * yes for that ID. `id` is an item when it is this store's own `<key>-n` (a
  * unit ID can never have that shape, `assertUnitId`); anything else is a unit.
@@ -2213,23 +2217,42 @@ export async function confirmCloseByHand(baseDir, id, confirm = {}, opts = {}) {
     throw new WorkStoreError('SCHEMA', 'confirmCloseByHand takes one ID: each close is confirmed by hand on its own, with the person\'s yes '
       + 'for that ID — nothing was written.');
   }
-  const { by, at = nowIso(), why } = confirm;
-  if (typeof by !== 'string' || by.trim() === '') {
-    throw new WorkStoreError('SCHEMA', `${id}: a close confirmed by hand records who confirmed it — pass \`by\`. Nothing was written.`);
+  const { at = nowIso() } = confirm;
+  if (typeof confirm.by !== 'string' || confirm.by.trim() === '') {
+    throw new WorkStoreError('SCHEMA', `${echoed(id)}: a close confirmed by hand records who confirmed it — pass \`by\`. Nothing was written.`);
+  }
+  if (confirm.why !== undefined && (typeof confirm.why !== 'string' || confirm.why.trim() === '')) {
+    throw new WorkStoreError('SCHEMA', `${echoed(id)}: \`why\` is the person's words — leave it out, or say something. Nothing was written.`);
+  }
+  // Stored as a unit writer stores them (M6.E16 r7.1): one line, no control or
+  // invisible characters, cut at their limits; and scanned as stored.
+  const by = unitLib.storedBy(confirm.by);
+  const why = unitLib.storedWords(confirm.why);
+  if (why !== undefined && why.trim() === '') {
+    throw new WorkStoreError('SCHEMA', `${echoed(id)}: \`why\` is the person's words, and these are none once control characters are taken out. `
+      + 'Nothing was written.');
   }
   const execFn = opts.execFn ?? execFileSync;
   const { key } = assertWritable(baseDir);
   const kind = ITEM_ID_RE.test(id) && id.startsWith(`${key}-`) ? 'item' : 'unit';
   if (kind === 'unit' && (await unitRecords(baseDir)) === null) {
-    throw new WorkStoreError('NOT_FOUND', `${id}: no such item (an item ID here is ${key}-n), and this project has no unit records — `
+    throw new WorkStoreError('NOT_FOUND', `${echoed(id)}: no such item (an item ID here is ${key}-n), and this project has no unit records — `
       + 'nothing was written.');
   }
   const pending = sensitivePending([why], opts);
   if (pending) return pending;
-  byHandReason(baseDir, kind, id, execFn);
+  // A confirm cannot come before the request it confirms (r7.1).
+  const notBefore = ({ requestAt }) => {
+    if (Date.parse(at) < Date.parse(requestAt)) {
+      throw new WorkStoreError('SCHEMA', `${id}: \`at\` (${echoed(at)}) is before the close was requested (${requestAt}). Nothing was written.`);
+    }
+  };
+  notBefore(byHandReason(baseDir, kind, id, execFn));
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     // Decided again under the lock: the record, its request and git's answer.
-    const { reason, proof } = byHandReason(handle.baseDir, kind, id, execFn);
+    const decided = byHandReason(handle.baseDir, kind, id, execFn);
+    notBefore(decided);
+    const { reason, proof } = decided;
     let planned;
     if (kind === 'item') {
       const { entry, text } = readForWrite(handle, id);

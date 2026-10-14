@@ -78,6 +78,9 @@ const READERS = {
   caseTwins: () => units.caseTwins(['a', 'A']),
   // Pure: a `pr` or `release` as a writer stores it (r1.6, C-S1).
   storedRef: () => units.storedRef('#301'),
+  // M6.E16 r7.1: the same cleaning, for confirmCloseByHand's item `why` and `by`.
+  storedWords: () => units.storedWords('words'),
+  storedBy: () => units.storedBy('a person'),
   caseTwinFindings: () => units.caseTwinFindings(['M7.E1', 'm7.e1']),
   importUnitsTexts: () => units.importUnitsTexts([{ id: 'M7.E1', title: 'Lantern', opened: { at: AT, by } }]),
   // Pure: the units an import would add, as `listUnits` returns one — for the migration's dry run (r6).

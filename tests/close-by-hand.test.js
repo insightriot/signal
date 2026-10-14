@@ -174,6 +174,50 @@ describe('allowed: the three reasons no git answer can change', () => {
   });
 });
 
+// r7.1: an item's `why` and `by` are stored as the unit writers store them —
+// one line, no control or invisible characters, cut at their limits — and a
+// `why` that is not words, or an `at` before the request, is refused first.
+describe('what a person types is cleaned and bounded, for an item as for a unit', () => {
+  it('a 50,023-character `why` with ESC, a newline and U+202E, and a 5,000-character `by`: stored cut and printable', async () => {
+    const { work, head } = await repo();
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    const why = `a\u001b[31m\nb‮c${'x'.repeat(50_017)}`;
+    await records.confirmCloseByHand(work, 'SIG-1', { by: 'p'.repeat(5000), at: AT, why });
+    const e = lastEvent(records.getRecord(work, 'SIG-1').record);
+    expect(e.why.length).toBeLessThanOrEqual(2000);
+    expect(e.why).not.toMatch(/[\u0000-\u001f\u007f‮]/);
+    expect(e.why.startsWith('a[31m b')).toBe(true);
+    expect(e.by.length).toBeLessThanOrEqual(200);
+  });
+
+  it('the item schema gives `why` the bounded, no-control text a unit\'s has', () => {
+    const rec = (why) => ({
+      id: 'SIG-1', type: 'BUG', title: 't',
+      events: [
+        { type: 'created', at: AT, by },
+        { type: 'close_requested', at: AT, by, reason: 'fixed', proof: 'abc1234' },
+        { type: 'closed', at: AT, by, reason: 'fixed', proof: 'abc1234', confirmed_by: 'person', git_reason: 'no-remote', why },
+      ],
+    });
+    expect(ITEM_KIND.validateRecord(rec('fine words'))).toEqual([]);
+    expect(ITEM_KIND.validateRecord(rec('bad\u001bword'))).not.toEqual([]);
+    expect(ITEM_KIND.validateRecord(rec('y'.repeat(2001)))).not.toEqual([]);
+  });
+
+  it('a `why` that is empty, blank or a number, and an `at` before the close request: SCHEMA, plainly, nothing written', async () => {
+    const { work, head } = await repo();
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    const before = snapshotTree(work);
+    for (const why of ['', '   ', 42]) {
+      await expect(records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT, why }))
+        .rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/`why` is the person's words/) });
+    }
+    await expect(records.confirmCloseByHand(work, 'SIG-1', { by: person, at: '2026-10-01T10:00:00.000Z' }))
+      .rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/before the close was requested/) });
+    expect(snapshotTree(work)).toEqual(before);
+  });
+});
+
 // r7.1: "git failed" is not "not a git repository". Only git saying so, with
 // no `.git` entry at or above the folder, reads as `not-a-repo`.
 describe('a repository git cannot read is not taken for no repository', () => {

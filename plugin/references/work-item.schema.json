@@ -119,7 +119,7 @@
         "legacy": { "const": true },
         "confirmed_by": { "const": "person" },
         "git_reason": { "enum": ["no-remote", "no-origin-remote", "not-a-repo"] },
-        "why": { "$ref": "#/$defs/text" }
+        "why": { "type": "string", "pattern": "^(?=.*\\S)[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{1,2000}$" }
       }
     },
     "reopened": {

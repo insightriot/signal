@@ -619,6 +619,14 @@ const cleanCells = (cells) => (Array.isArray(cells) ? cutCells(cells).map((c) =>
  * @returns {unknown}
  */
 export const storedRef = (value) => clean(value, UNIT_REF_MAX);
+/**
+ * A close's words, and who made an event, as a writer here stores them — for
+ * `confirmCloseByHand` (`work-records.js`, M6.E16 r7.1), which stores an
+ * item's `why` and `by` by the unit writers' rule. Anything that is not text
+ * comes back as it is.
+ */
+export const storedWords = (value) => clean(value, CLOSE_WORDS_MAX);
+export const storedBy = (value) => clean(value, UNIT_BY_MAX);
 // An event's `by` as every writer here stores it: cleaned and cut like any other text.
 const who = (by) => clean(by, UNIT_BY_MAX);
 // The limit of each field an `edited` event may change, and that a record may open with.
