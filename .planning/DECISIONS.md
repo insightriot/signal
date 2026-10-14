@@ -4160,7 +4160,7 @@ from the default branch's history (`git log HEAD`), as native closes require, no
 proposal is now visible before it is acted on, which is the property three passes could not get from
 wording rules alone. Loop 3 runs past the ceiling by Brett's choice.
 
-## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-36)
+## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-40)
 
 Picked by Brett as priority 1 of [`BACKLOG-REVIEW-2026-10-10.md`](BACKLOG-REVIEW-2026-10-10.md). Stage 1
 of the "after Epic 1" list in
@@ -4521,3 +4521,22 @@ and not proposed; `gh` is never proposed, nor `git bisect`, `git clone`, `git co
 `package.json` script name becomes a rule only when it is plainly a name. Found because `r6.3` made
 Signal call `gh` directly and the scan then offered `Bash(gh:*)`. The bare-`git` fall-through is
 unchanged and filed.
+
+### D-M6E16-37 — A unit that is not an Epic ID is closed at SHIP like an Epic, in this release (Brett, 2026-10-14)
+Asked at the end of fix round 6, with the alternative of filing it: "Build it now". No command reached
+the close for a unit named another way (`phase-11`), so after `/sig:docs-migrate --work-store` most
+projects outside this one could never record a unit finished. SHIP closes the current unit under the
+same rules as an Epic: a close request with proof, confirmed when the commit is on the default branch.
+
+### D-M6E16-38 — A close git can never confirm is confirmed by hand, one yes per close (Brett, 2026-10-14)
+"Add a hand-confirm". Only while the close waits for a reason no merge can change (no remote, no
+remote named `origin`, not a git repository); recorded as confirmed by a person, not by git. Every
+other reason refuses and names what would confirm it.
+
+### D-M6E16-39 — Signal needs git 2.38 or newer (Brett, 2026-10-14)
+"Keep 2.38+": confirms `D-M6E16-32`, which was built before he was asked and stated as one revert.
+
+### D-M6E16-40 — Rows between the Epic-table markers are Signal's (Brett, 2026-10-14)
+"Keep the rule". A typed row is protected and refused; an edit inside one of Signal's own rows is put
+back at the next regeneration and reported as `view-stale`. Remembering what was printed (a
+fingerprint in the marker) was offered and not taken: it changes the marker on every project.

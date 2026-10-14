@@ -32,9 +32,9 @@ last_updated: 2026-10-13T17:13:59.608Z
 - **After the merge:** run `/sig:docs-sweep` (or the next SHIP) on `main`. It confirms the close of
   `M6.E16` and of `SIG-132`, `SIG-255`, `SIG-288`, `SIG-289`, `SIG-295`, and moves this Epic's narrative
   out of this file. Then update the installed plugin and restart before using `/sig:` commands.
-- **Open decisions put to Brett (2026-10-13):** closing a unit that is not an Epic ID (no command
-  reaches `requestUnitClose`); a hand-confirm for a project with no remote; edits inside a generated
-  table row; Signal requiring git 2.38 (`D-M6E16-32`, built).
+- **Brett's four answers (2026-10-14):** build the non-Epic unit close and the hand-confirm now,
+  before the merge (`D-M6E16-37`, `-38`, round `r7`); keep git 2.38+ (`-39`); keep the table-row rule
+  (`-40`). The merge waits for `r7`, its fresh read, and his word.
 - **Put off on purpose, on record, to come back to:** `SIG-294`, `SIG-296` … `SIG-313` (in
   `BUGS.md`). From REVIEW: `SIG-303` … `SIG-313`. `SIG-305` and `SIG-310` were fixed in fix round 6
   and are *closing*; parts of `SIG-309` and `SIG-311` were fixed there too. They are the
