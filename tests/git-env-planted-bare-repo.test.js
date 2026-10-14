@@ -15,7 +15,8 @@
 // this file runs the entry points against the planted layout. Real git, in
 // temp repositories.
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { setImmediate } from 'node:timers';
 import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
@@ -35,6 +36,7 @@ function g(cwd, ...args) {
   return r.stdout.trim();
 }
 
+let template;
 let root;
 let proj;
 let marker;
@@ -45,15 +47,18 @@ let plantedHead;
 // a commit, a branch called `planted` and a remote), a `config` whose
 // `core.fsmonitor` touches `marker`, and an `info/exclude` that calls `.env`
 // ignored.
-beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'sig-planted-bare-'));
-  marker = join(root, 'marker');
-  const outer = join(root, 'outer');
-  proj = join(outer, 'proj');
-  mkdirSync(proj, { recursive: true });
+//
+// The repositories are built ONCE, with git, and copied for each test (r6.1):
+// built for each of the thirty-odd tests here, the file ran a few hundred git
+// processes back to back and held the test worker for over a minute.
+beforeAll(() => {
+  template = mkdtempSync(join(tmpdir(), 'sig-planted-bare-template-'));
+  const outer = join(template, 'outer');
+  const planted = join(outer, 'proj');
+  mkdirSync(planted, { recursive: true });
   g(outer, 'init', '-q', '-b', 'main');
 
-  const seed = join(root, 'seed');
+  const seed = join(template, 'seed');
   mkdirSync(seed);
   g(seed, 'init', '-q', '-b', 'planted');
   writeFileSync(join(seed, 'a.txt'), 'a\n');
@@ -61,15 +66,29 @@ beforeEach(() => {
   g(seed, 'commit', '-q', '-m', 'planted');
   g(seed, 'remote', 'add', 'origin', 'https://example.invalid/planted.git');
   plantedHead = g(seed, 'rev-parse', 'HEAD');
-  for (const part of ['HEAD', 'config', 'objects', 'refs']) cpSync(join(seed, '.git', part), join(proj, part), { recursive: true });
-  // The trailing `#` drops the arguments git appends to the command.
-  appendFileSync(join(proj, 'config'), `[core]\n\tbare = false\n\tworktree = .\n\tfsmonitor = "touch '${marker}' #"\n`);
-  mkdirSync(join(proj, 'info'));
-  writeFileSync(join(proj, 'info', 'exclude'), '.env\n');
-  writeFileSync(join(proj, '.env'), 'TYPESAFE_API_KEY=planted\n');
+  for (const part of ['HEAD', 'config', 'objects', 'refs']) cpSync(join(seed, '.git', part), join(planted, part), { recursive: true });
+  mkdirSync(join(planted, 'info'));
+  writeFileSync(join(planted, 'info', 'exclude'), '.env\n');
+  writeFileSync(join(planted, '.env'), 'TYPESAFE_API_KEY=planted\n');
 
   g(outer, 'add', '-A');
   g(outer, 'commit', '-q', '-m', 'a project with a planted repository layout');
+});
+afterAll(() => {
+  rmSync(template, { recursive: true, force: true });
+});
+
+// Async, with a turn of the event loop given up first: every test here is
+// synchronous, and a worker that never yields cannot hear from the test runner.
+beforeEach(async () => {
+  await new Promise((done) => { setImmediate(done); });
+  root = mkdtempSync(join(tmpdir(), 'sig-planted-bare-'));
+  cpSync(template, root, { recursive: true });
+  marker = join(root, 'marker');
+  proj = join(root, 'outer', 'proj');
+  // The planted command names this test's marker. The trailing `#` drops the
+  // arguments git appends to it.
+  appendFileSync(join(proj, 'config'), `[core]\n\tbare = false\n\tworktree = .\n\tfsmonitor = "touch '${marker}' #"\n`);
 });
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });
