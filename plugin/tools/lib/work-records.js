@@ -1790,24 +1790,26 @@ const PROOF_NOT_THERE = new Set(['not-on-default-branch', 'unknown-commit']);
  *
  * @param {string} baseDir
  * @param {{execFn?: Function}} [opts]
- * @returns {{branch: string|null, notThere: Array<{id: string, path: string, proof: string}>}}
+ * @returns {{branch: string|null, notThere: Array<{id: string, path: string, proof: string, byHand?: string|null}>}}
+ *   `byHand`: present when the close was confirmed by hand — the reason recorded then (`git_reason`)
  *   `branch`: the ref asked about, as `origin/<default>`, or null when there is none
  * @throws {WorkStoreError} as `listRecords`, and for a `units/` folder that cannot be trusted
  */
 export function probeClosedProofs(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   const closes = [];
-  // A close a person confirmed by hand (`confirmed_by`) never said its commit
-  // was on a default branch — there was none to ask — so it is not asked about.
+  // A close a person confirmed by hand is asked about too (M6.E16 r7.1): the
+  // two fields are text in a record and prove nothing, and where there really
+  // is no remote no ref is found below, so nothing is said. `byHand` carries
+  // the reason it was confirmed by hand, for the words.
+  const byHand = (e) => (e.confirmed_by === undefined ? {} : { byHand: e.git_reason ?? null });
   for (const r of listRecords(baseDir, opts).records) {
     if (r.status !== 'C') continue;
     const e = r.record.events.findLast((x) => x.type === 'closed');
-    if (e?.reason === 'fixed' && e.confirmed_by === undefined) closes.push({ id: r.id, path: recordPath(r.id), proof: e.proof });
+    if (e?.reason === 'fixed') closes.push({ id: r.id, path: recordPath(r.id), proof: e.proof, ...byHand(e) });
   }
   for (const u of unitRecordsOn(baseDir) ? listUnits(baseDir).units : []) {
-    if (u.status === 'closed' && u.close?.reason === 'shipped' && u.close.confirmed_by === undefined) {
-      closes.push({ id: u.id, path: u.path, proof: u.close.proof });
-    }
+    if (u.status === 'closed' && u.close?.reason === 'shipped') closes.push({ id: u.id, path: u.path, proof: u.close.proof, ...byHand(u.close) });
   }
   const asked = closes.filter((c) => typeof c.proof === 'string' && COMMIT_RE.test(c.proof));
   if (asked.length === 0) return { branch: null, notThere: [] };

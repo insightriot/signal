@@ -536,8 +536,14 @@ export function checkClosedProofs(baseDir, opts = {}) {
     // a broken store or folder: `checkWorkStore` reports it
     return [];
   }
+  const branch = shownRef(probed.branch, 'branch', { noCommandHere: true });
+  // A close confirmed by hand (M6.E16 r7.1) is worded for what was recorded then.
+  const when = { 'no-remote': 'had no remote', 'no-origin-remote': 'had no remote named `origin`', 'not-a-repo': 'was not a git repository' };
   return probed.notThere.map((c) => mkFinding('close-not-on-default-branch', 'advisory', shownName(c.path),
-    `${c.id} is recorded closed with the commit ${c.proof}, and that commit is not on ${shownRef(probed.branch, 'branch', { noCommandHere: true })} in this clone — `
+    (c.byHand === undefined
+      ? `${c.id} is recorded closed with the commit ${c.proof}, and that commit is not on ${branch} in this clone — `
+      : `${c.id} was confirmed closed by hand when the project ${when[c.byHand] ?? 'could not be checked by git'}; it now has ${branch}, `
+        + `and the commit is not on it (${c.proof}) — `)
     + 'bring the remote\'s branches up to date and sweep again; if it is still reported, the work was not merged: reopen it'));
 }
 

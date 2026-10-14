@@ -19,12 +19,12 @@ import { join } from 'node:path';
 import { atomicWrite } from './atomic-write.js';
 import { remoteNames, resolveDefaultBranch } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
-import { gitEnv, gitUnusableReason } from './git-env.js';
+import { dotGitAtOrAbove, gitEnv, gitUnusableReason } from './git-env.js';
 import { commitsStartingWith, runGit } from './git-objects.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { scrubSensitive } from './scrub.js';
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
-import { isGitRepo, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
+import { WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
 
 // ── The lock, and the views after a write ───────────────────────────────────
 
@@ -274,6 +274,32 @@ export function shallowProbe(baseDir, execFn) {
   };
 }
 
+// Is `baseDir` in a git work tree (M6.E16 r7.1)? 'repo'; 'not-a-repo' only
+// when git itself says "not a git repository" AND there is no `.git` entry at
+// or above the folder; 'git-failed' for every other failure — a broken
+// config, a `.git` file pointing nowhere, git refusing a folder it does not
+// trust (`safe.directory`). `isGitRepo` reads every failure as no repository,
+// which made "git could not read it" look like a reason no git answer can
+// change. Run with `LC_ALL=C`, so the words matched are git's English ones.
+function repoState(baseDir, execFn) {
+  try {
+    const out = String(execFn('git', ['rev-parse', '--is-inside-work-tree'], {
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...gitEnv(baseDir), LC_ALL: 'C' },
+    })).trim();
+    return out === 'true' ? 'repo' : 'git-failed';
+  } catch (err) {
+    const said = String(err?.stderr ?? '');
+    if (!/not a git repository/i.test(said)) return 'git-failed';
+    let dotGit;
+    try {
+      dotGit = dotGitAtOrAbove(baseDir);
+    } catch {
+      dotGit = true; // the folders above could not be read: the safe side
+    }
+    return dotGit ? 'git-failed' : 'not-a-repo';
+  }
+}
+
 // The ref a confirmed commit must be an ancestor of, or why there is none.
 // The REMOTE ref (`refs/remotes/origin/<branch>`), not the local branch: a
 // local `main` can hold commits nobody merged. The branch is the one
@@ -285,7 +311,8 @@ export function defaultBranchRef(baseDir, execFn) {
   // A git Signal runs no check on (older than 2.38): nothing was asked, which
   // is not the same as "this is no repository".
   if (gitUnusableReason() !== null) return { reason: 'git-too-old' };
-  if (!isGitRepo(baseDir, execFn)) return { reason: 'not-a-repo' };
+  const repo = repoState(baseDir, execFn);
+  if (repo !== 'repo') return { reason: repo };
   const remotes = remoteNames(baseDir, { execFn });
   if (remotes === null) return { reason: 'git-failed' };
   if (remotes.length === 0) return { reason: 'no-remote' };

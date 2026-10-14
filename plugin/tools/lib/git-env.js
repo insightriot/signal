@@ -119,7 +119,9 @@ export function gitUnusableReason() {
 // Is there an entry named `.git` in `baseDir` or a folder above it? Only ever
 // used to choose between refusing and treating the folder as no repository
 // when git cannot be run at all — never to decide what git may read.
-function dotGitAtOrAbove(baseDir) {
+// Exported for `defaultBranchRef` (`work-write.js`, M6.E16 r7.1), which asks
+// the same question before it reads a failed git call as "no repository".
+export function dotGitAtOrAbove(baseDir) {
   for (let dir = resolve(String(baseDir)); ; dir = dirname(dir)) {
     if (lstatSync(join(dir, '.git'), { throwIfNoEntry: false }) !== undefined) return true;
     if (dirname(dir) === dir) return false;

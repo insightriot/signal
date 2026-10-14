@@ -128,11 +128,10 @@ describe('allowed: the three reasons no git answer can change', () => {
     expect(records.getRecord(work, 'SIG-2').status).toBe('C');
   });
 
-  it('a hand-confirmed close is not reported later as a close whose commit is not on the default branch', async () => {
-    const { work, head } = await repo();
-    await store(work, { items: [closingItem('SIG-1', head)] });
-    await records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT });
-    // A remote is added later, and its default branch does not hold the commit.
+  // r7.1: the closed-proof audit asks about a hand-confirmed close too. r7
+  // skipped it, and a record carrying the two fields by hand switched the
+  // audit off for that close.
+  async function addOriginWithoutTheCommit(work) {
     const remote = join(root, 'origin.git');
     const seed = join(root, 'seed');
     await mkdir(seed, { recursive: true });
@@ -144,7 +143,79 @@ describe('allowed: the three reasons no git answer can change', () => {
     g(work, 'remote', 'add', 'origin', remote);
     g(work, 'fetch', '-q', 'origin');
     g(work, 'remote', 'set-head', 'origin', 'main');
-    expect(checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message))).toEqual([]);
+  }
+
+  it('a close confirmed by hand when there was no remote is reported once the project has origin and the commit is not on it — worded as such', async () => {
+    const { work, head } = await repo();
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    await records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT });
+    await addOriginWithoutTheCommit(work);
+    const found = checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message));
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/confirmed closed by hand when the project had no remote; it now has origin\/main, and the commit is not on it/);
+  });
+
+  it('a forged hand-confirm (the two fields typed onto a close on a project with origin) does not switch the audit off', async () => {
+    const { work, head } = await repo();
+    await addOriginWithoutTheCommit(work);
+    const closed = {
+      id: 'SIG-1', type: 'BUG', title: 't',
+      events: [
+        { type: 'created', at: AT, by },
+        { type: 'close_requested', at: AT, by, reason: 'fixed', proof: head },
+        { type: 'closed', at: AT, by, reason: 'fixed', proof: head },
+      ],
+    };
+    await store(work, { items: [closed] });
+    expect(checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message))).toHaveLength(1);
+    closed.events[2] = { ...closed.events[2], confirmed_by: 'person', git_reason: 'no-remote' };
+    await put(work, records.recordPath('SIG-1'), serializeRecord(closed));
+    expect(checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message))).toHaveLength(1);
+  });
+});
+
+// r7.1: "git failed" is not "not a git repository". Only git saying so, with
+// no `.git` entry at or above the folder, reads as `not-a-repo`.
+describe('a repository git cannot read is not taken for no repository', () => {
+  async function refusedAsGitFailed(work, head) {
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    expect((await records.confirmCloses(work)).stillClosing).toEqual([{ id: 'SIG-1', reason: 'git-failed' }]);
+    await expect(records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT }))
+      .rejects.toMatchObject({ code: 'CONFLICT', reason: 'git-failed' });
+    expect(records.getRecord(work, 'SIG-1').status).toBe('closing');
+  }
+
+  it('a broken line in .git/config: git-failed, the hand-confirm refuses', async () => {
+    const { work, head } = await repo();
+    await writeFile(join(work, '.git/config'), `${await readFile(join(work, '.git/config'), 'utf-8')}[broken\n`);
+    await refusedAsGitFailed(work, head);
+  });
+
+  it('a .git file whose gitdir points nowhere: git-failed', async () => {
+    const work = join(root, 'linked');
+    await mkdir(work, { recursive: true });
+    await writeFile(join(work, '.git'), `gitdir: ${join(root, 'nowhere')}\n`);
+    await refusedAsGitFailed(work, 'abc1234');
+  });
+
+  it('git refusing a repository it does not trust (dubious ownership): git-failed', async () => {
+    const { work, head } = await repo();
+    process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER = '1';
+    try {
+      await refusedAsGitFailed(work, head);
+    } finally {
+      delete process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER;
+    }
+  });
+
+  it('controls: a folder with no repository is not-a-repo (allowed); no git installed is git-too-old (refused)', async () => {
+    const work = join(root, 'plain');
+    await mkdir(work, { recursive: true });
+    await store(work, { items: [closingItem('SIG-1', 'abc1234'), closingItem('SIG-2', 'abc1234')] });
+    testSeam.gitVersion = null;
+    await expect(records.confirmCloseByHand(work, 'SIG-2', { by: person, at: AT })).rejects.toMatchObject({ reason: 'git-too-old' });
+    testSeam.gitVersion = undefined;
+    expect((await records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT })).git_reason).toBe('not-a-repo');
   });
 });
 
