@@ -13,6 +13,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -41,6 +42,22 @@ function g(cwd, ...args) {
   if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
   return r.stdout.trim();
 }
+
+// Does this git refuse a repository when told the folder has another owner?
+// Asked once, in a throwaway repository: the dubious-ownership case below runs
+// only where it does (git's test knob is not honoured by every build).
+const DUBIOUS_HONOURED = (() => {
+  const dir = mkdtempSync(join(tmpdir(), 'sig-dubious-probe-'));
+  try {
+    spawnSync('git', ['init', '-q'], { cwd: dir, env: GIT_ENV });
+    const r = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
+      cwd: dir, encoding: 'utf8', env: { ...GIT_ENV, GIT_TEST_ASSUME_DIFFERENT_OWNER: '1', LC_ALL: 'C' },
+    });
+    return r.status !== 0 && /dubious ownership/.test(r.stderr);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+})();
 
 let root;
 beforeEach(async () => {
@@ -262,7 +279,11 @@ describe('a repository git cannot read is not taken for no repository', () => {
     await refusedAsGitFailed(work, 'abc1234');
   });
 
-  it('git refusing a repository it does not trust (dubious ownership): git-failed', async () => {
+  // Real git: only where this git honours its test knob for "the folder has
+  // another owner" (CI's git did not, and the case then passed nothing — a
+  // trusted repository with no remote is rightly `no-remote`). Skipped with
+  // that reason elsewhere; the injected cases below run everywhere.
+  it.skipIf(!DUBIOUS_HONOURED)('git refusing a repository it does not trust (dubious ownership): git-failed [skipped where this git does not honour GIT_TEST_ASSUME_DIFFERENT_OWNER]', async () => {
     const { work, head } = await repo();
     process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER = '1';
     try {
@@ -271,6 +292,29 @@ describe('a repository git cannot read is not taken for no repository', () => {
       delete process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER;
     }
   });
+
+  // Any git, by an injected git (r7.1 CI follow-up): a git that refuses the
+  // repository — at the work-tree question, or only when the remotes are
+  // listed — is `git-failed`, never `no-remote` or `not-a-repo`.
+  const refusing = (failAt) => (cmd, args) => {
+    const refuse = () => {
+      throw Object.assign(new Error('git failed'), { status: 128, stderr: "fatal: detected dubious ownership in repository at '/x'\n" });
+    };
+    if (args.includes('--is-inside-work-tree')) return failAt === 'work-tree' ? refuse() : 'true\n';
+    if (args[0] === 'remote') return failAt === 'remote' ? refuse() : '';
+    return '';
+  };
+  for (const failAt of ['work-tree', 'remote']) {
+    it(`a git that refuses the repository at the ${failAt} question (injected): git-failed, the hand-confirm refuses`, async () => {
+      const { work, head } = await repo();
+      await store(work, { items: [closingItem('SIG-1', head)] });
+      const execFn = refusing(failAt);
+      expect((await records.confirmCloses(work, { execFn })).stillClosing).toEqual([{ id: 'SIG-1', reason: 'git-failed' }]);
+      await expect(records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT }, { execFn }))
+        .rejects.toMatchObject({ code: 'CONFLICT', reason: 'git-failed' });
+      expect(records.getRecord(work, 'SIG-1').status).toBe('closing');
+    });
+  }
 
   it('controls: a folder with no repository is not-a-repo (allowed); no git installed is git-too-old (refused)', async () => {
     const work = join(root, 'plain');
