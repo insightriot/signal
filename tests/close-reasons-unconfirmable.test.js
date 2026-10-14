@@ -24,7 +24,7 @@ import { spawnSync } from 'node:child_process';
 import * as records from '../plugin/tools/lib/work-records.js';
 import { serializeRecord } from '../plugin/tools/lib/work-record.js';
 import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
-import { reportCloses, runConfirmCloses } from '../plugin/tools/lib/close-confirm.js';
+import { itemClosingTooLongWords, reportCloses, runConfirmCloses, unitClosingTooLongWords } from '../plugin/tools/lib/close-confirm.js';
 import { checkClosingTooLong, confirmClosesInSweep } from '../plugin/tools/lib/sweep.js';
 import { BRANCH_GATE, checkBranchPosture } from '../plugin/tools/lib/branch-guard.js';
 
@@ -267,5 +267,79 @@ describe('closing-too-long for an item: the advice follows the reason', { timeou
     await store(head, [closingItem(head)]);
     const after = (m) => m.slice(m.indexOf(' — ') + 3);
     expect(after(staleItem())).toBe(after(staleUnit()));
+  });
+});
+
+// M6.E16 r6.2 — the words themselves, for the reasons no test above reaches:
+// a commit this clone does not hold, no reason known at all, and a reason
+// with no sentence of its own.
+describe('the closing-too-long words, reason by reason', () => {
+  const P = 'c'.repeat(40);
+  const UNIT_MERGE = `the commit its close was requested with, ${P}, is not confirmed on the default branch. `
+    + 'Merge it; or, if the work moved on to other commits, re-run /sig:ship, which requests the close again with the new one.';
+  const ITEM_MERGE = `its fix commit ${P} is not confirmed on the default branch. Merge it, or reopen the item (\`/sig:item reopen SIG-9 "<reason>"\`) if the fix did not land.`;
+
+  it('a unit: not on the default branch, a commit this clone does not hold, and no reason known all say "merge it"', () => {
+    for (const reason of ['not-on-default-branch', 'unknown-commit', undefined]) expect(unitClosingTooLongWords(reason, P), String(reason)).toBe(UNIT_MERGE);
+  });
+
+  it('an item: the same three say "merge it, or reopen the item"', () => {
+    for (const reason of ['not-on-default-branch', 'unknown-commit', undefined]) expect(itemClosingTooLongWords(reason, P, 'SIG-9'), String(reason)).toBe(ITEM_MERGE);
+  });
+
+  it('a reason with no sentence of its own: a unit is told the reason and not to merge; an item keeps its one advice', () => {
+    for (const reason of ['shallow', 'git-failed', 'ambiguous-proof']) {
+      expect(unitClosingTooLongWords(reason, P), reason)
+        .toBe(`the commit its close was requested with, ${P}, is not confirmed on the default branch (${reason}).`);
+      expect(itemClosingTooLongWords(reason, P, 'SIG-9'), reason).toBe(ITEM_MERGE);
+    }
+  });
+
+  it('a unit with open items is told to close them, an item never is (it has none)', () => {
+    expect(unitClosingTooLongWords('open-items', P)).toMatch(/is on the default branch, and the unit has an item that is not closed/);
+    expect(itemClosingTooLongWords('open-items', P, 'SIG-9')).toBe(ITEM_MERGE);
+  });
+});
+
+// S11: the sweep stays quiet. With nothing closing too long there is no reason
+// to ask git for, and git is not run at all.
+describe('closing-too-long asks git only when something is stale', { timeout: 60_000 }, () => {
+  it('a unit and an item closing since yesterday: no finding, and git is never asked', async () => {
+    const head = repo('origin');
+    const recent = '2026-10-09T10:00:00.000Z';
+    await put('.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n');
+    await put(`${UNITS}/.keep`, '');
+    await put(`${UNITS}/${EPIC}.json`, UNIT_KIND.serializeRecord({ id: EPIC, events: [opened, { type: 'close_requested', at: recent, by, proof: head }] }));
+    await put(records.recordPath('SIG-1'), serializeRecord({ id: 'SIG-1', type: 'BUG', title: 't', events: [{ type: 'created', at: OLD, by }, { type: 'close_requested', at: recent, by, reason: 'fixed', proof: head }] }));
+    const asked = [];
+    const execFn = (cmd, args) => {
+      asked.push([cmd, ...args]);
+      throw new Error('git was asked');
+    };
+    expect(checkClosingTooLong(work, { now: NOW, execFn })).toEqual([]);
+    expect(asked).toEqual([]);
+  });
+
+  it('the control: with the same two stale, git is asked', async () => {
+    const head = repo('origin');
+    await store(head, [closingItem(head)]);
+    const asked = [];
+    const execFn = (cmd, args) => {
+      asked.push([cmd, ...args]);
+      throw new Error('git was asked');
+    };
+    expect(checkClosingTooLong(work, { now: NOW, execFn })).toHaveLength(2);
+    expect(asked.length).toBeGreaterThan(0);
+  });
+});
+
+// Nit: more than one remote, none of them origin — each is named.
+describe('remotes, none named origin: the branch gate names them all', { timeout: 60_000 }, () => {
+  it('two remotes: both in the reason', () => {
+    repo('upstream');
+    g(work, 'remote', 'add', 'fork', join(root, 'remote.git'));
+    const posture = checkBranchPosture(work, { tier: 'FULL' });
+    expect(posture.status).toBe(BRANCH_GATE.CANNOT_DETERMINE);
+    expect(posture.reason).toBe('no remote is named `origin` (this repository has: fork, upstream) — the default branch is read from the remote named `origin`');
   });
 });

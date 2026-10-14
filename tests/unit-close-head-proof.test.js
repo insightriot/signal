@@ -94,6 +94,12 @@ async function refused(base, run) {
   // The way out is to commit the work; `commit` is not offered as a way around the refusal (M6.E16 r6).
   expect(err.message).toMatch(/Commit the Epic's work, then close/);
   expect(err.message).not.toMatch(/pass `commit`/);
+  // The Epic close's OWN words (r6.2): the backlog discharge asks through the
+  // same function with words of its own ("the discharge", "these rows"), and
+  // the two must not be swapped.
+  expect(err.message.startsWith(`${EPIC}: the close would record HEAD (`)).toBe(true);
+  expect(err.message).toContain('so it says nothing about this Epic, and the next confirm step would call the Epic closed. Nothing was written. Commit the Epic\'s work, then close.');
+  expect(err.message).not.toMatch(/discharge|these rows/);
   expect(snapshotTree(base)).toEqual(before);
   return err;
 }
@@ -187,6 +193,8 @@ describe('closeEpic — what stays allowed', () => {
     const err = await closeEpic(base, EPIC, { by, at: AT }).catch((e) => e);
     expect(err).toMatchObject({ name: 'WorkStoreError', code: 'CONFLICT' });
     expect(err.message).toContain('git remote set-head origin -a');
+    expect(err.message.startsWith(`${EPIC}: the close would record HEAD (`)).toBe(true);
+    expect(err.message.endsWith('or commit the Epic\'s work, then close.')).toBe(true);
     expect(snapshotTree(base)).toEqual(before);
   });
 

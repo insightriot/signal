@@ -215,6 +215,20 @@ describe('a row typed by hand between the markers', () => {
       .toEqual(['| Note | a | b |', '|---|---|---|', '|Epic|Status|Summary|']);
   });
 
+  // r6.2: the row typed above the generated header may be a recorded Epic's
+  // own. It is still a second row for that Epic — the table prints one — and
+  // the separator typed after it goes with it: both would be deleted.
+  it('a recorded Epic\'s row and a separator typed above the generated header: both named, the row as a repeat', async () => {
+    const text = await read(FILE);
+    const before = text.replace(`${BEGIN}\n`, `${BEGIN}\n| \`M7.E1\` | typed by hand | keep me |\n|:--|:--|:--|\n`);
+    const table = renderEpicTable(units.listUnits(base).units, { milestone: '7' });
+    const found = rowsNotReprinted(before, table, { milestone: '7', ids: ['M7.E1', 'M7.E2'] });
+    expect(found.map((r) => [r.line, r.text, r.id, r.repeated])).toEqual([
+      [6, '| `M7.E1` | typed by hand | keep me |', 'M7.E1', true],
+      [7, '|:--|:--|:--|', null, undefined],
+    ]);
+  });
+
   it('a heading typed between the markers is a line that is not a table row: refused, and the file is unchanged', async () => {
     const before = await typeRow('# Notes on this table');
     const err = await regenerateViews(base).catch((e) => e);

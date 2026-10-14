@@ -322,6 +322,22 @@ describe('NotebookEdit reaches the guard', () => {
     );
   });
 
+  // Nit (r6.2): nor is it read for the STATE.md checks, which judge Edit and
+  // Write only. The same edit as an Edit is refused, which is the control.
+  it('a NotebookEdit carrying a `file_path` of STATE.md is not judged as an edit of STATE.md', async () => {
+    const state = join(dir, '.planning', 'STATE.md');
+    writeFileSync(state, '---\nschema_version: 1\nphase: EXECUTE\ncurrent_epic: null\ncompleted_phases:\n  - DISCUSS (2026-07-13)\nblockers: []\n---\nbody\n');
+    // Prose in `completed_phases`: the shape the STATE.md check refuses.
+    const input = {
+      file_path: state,
+      old_string: '  - DISCUSS (2026-07-13)\n',
+      new_string: '  - "**Active: a long multi-line narrative that keeps\n    rambling across physical lines and never belongs here"\n',
+    };
+    await hookAllowed({ tool_name: 'NotebookEdit', cwd: dir, tool_input: input });
+    const [asEdit] = await runHooks([{ tool_name: 'Edit', cwd: dir, tool_input: input }]);
+    expect(asEdit.status).toBe(2);
+  });
+
   it('a project with no v2 store is never blocked', async () => {
     const off = join(tmp, 'off');
     plantPlanning(join(off, '.planning'), 'v1');
@@ -499,6 +515,61 @@ describe('a folder inside `.planning` that is a symlink, edited by the real path
     await allowed(write(join(tmp, 'units-elsewhere-2', 'notes.md'), dir));
     await hookBlocked(write(join(units, 'notes.md'), dir));
     await hookAllowed(write(join(tmp, 'units-elsewhere-2', 'notes.md'), dir));
+  });
+
+  // M6.E16 r6.2. The cases above name the kept-elsewhere folder by its real
+  // path, so the path as written IS the real path, and the guard's resolving
+  // of the target was not what caught them. Here the folder is reached through
+  // a SECOND symlink: only the resolved target is under the project's folder.
+  it('a kept-elsewhere folder reached through a second symlink: the resolved target is what is compared', async () => {
+    plantPlanning(join(dir, '.planning'));
+    const elsewhere = join(tmp, 'kept-elsewhere');
+    mkdirSync(join(elsewhere, 'units'), { recursive: true });
+    writeFileSync(join(elsewhere, 'units', 'M7.E2.json'), '{}\n');
+    rmSync(join(dir, '.planning', 'work', 'units'), { recursive: true });
+    symlinkSync(join(elsewhere, 'units'), join(dir, '.planning', 'work', 'units'));
+    symlinkSync(elsewhere, join(tmp, 'another-way-in'));
+    const viaSecond = join(tmp, 'another-way-in', 'units');
+    expect(viaSecond).not.toContain('.planning');
+    await blocked(edit(join(viaSecond, 'M7.E2.json'), dir));
+    await blocked(write(join(viaSecond, 'new.json'), dir));
+    await hookBlocked(edit(join(viaSecond, 'M7.E2.json'), dir));
+    // A sibling folder reached the same way is not the project's.
+    mkdirSync(join(elsewhere, 'notes'));
+    await allowed(write(join(tmp, 'another-way-in', 'notes', 'a.md'), dir));
+  });
+
+  // And the two other folders records and generated files live in.
+  it.each([
+    ['items', join('00', 'SIG-1.json'), join('00', 'SIG-1.md')],
+    ['history', '2026-10.md', 'notes.txt'],
+  ])('`.planning/work/%s` kept elsewhere', async (folder, guarded, free) => {
+    plantPlanning(join(dir, '.planning'));
+    const elsewhere = join(tmp, `${folder}-elsewhere`);
+    mkdirSync(join(elsewhere, '00'), { recursive: true });
+    writeFileSync(join(elsewhere, guarded), '{}\n');
+    rmSync(join(dir, '.planning', 'work', folder), { recursive: true });
+    symlinkSync(elsewhere, join(dir, '.planning', 'work', folder));
+    await blocked(edit(join(elsewhere, guarded), dir));
+    await hookBlocked(edit(join(elsewhere, guarded), dir));
+    // What is not a record or a generated file there stays editable.
+    await allowed(write(join(elsewhere, free), dir));
+  });
+});
+
+// Nit (r6.2): a project inside a project, each with a store. An edit made in
+// the inner one is checked against BOTH: a second name for the outer
+// project's record is still that record.
+describe('a store inside a store: every project above the edit is asked', () => {
+  it('a hard link in the inner project to the outer project\'s record is refused', async () => {
+    plantPlanning(join(dir, '.planning'));
+    const inner = join(dir, 'packages', 'inner');
+    plantPlanning(join(inner, '.planning'));
+    mkdirSync(join(inner, 'src'), { recursive: true });
+    const alias = join(inner, 'src', 'alias.json');
+    linkSync(join(dir, '.planning', 'work', 'units', 'M7.E1.json'), alias);
+    const reason = await blocked(edit(alias, inner));
+    expect(reason).toMatch(/another name \(a hard link\) for \.planning\/work\/units\/M7\.E1\.json/);
   });
 });
 

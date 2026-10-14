@@ -18,7 +18,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { setImmediate } from 'node:timers';
 import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -29,6 +29,7 @@ import { probeGitState } from '../plugin/tools/lib/migrate-memory.js';
 import { dotenvRefusal } from '../plugin/tools/lib/jev.js';
 import { buildEvidenceIndex } from '../plugin/tools/lib/work-migrate-lists.js';
 import { gitEnv, repositoryWithoutDotGit, testSeam } from '../plugin/tools/lib/git-env.js';
+import { runGit } from '../plugin/tools/lib/git-objects.js';
 
 function g(cwd, ...args) {
   const r = spawnSync('git', ['-c', 'commit.gpgsign=false', '-c', 'user.email=t@t.co', '-c', 'user.name=T', ...args], { cwd, encoding: 'utf8' });
@@ -171,10 +172,24 @@ describe.each([
     });
   }
 
-  it('headProvesNothing (`git status`) does not run the planted command', () => {
+  // This one stops BEFORE its `git status`: the folder reads as no repository
+  // (`defaultBranchRef`), so the answer is null and status is never run.
+  it('headProvesNothing takes the folder for no repository, and does not get as far as `git status`', () => {
     const out = headProvesNothing(proj, plantedHead);
     expect(existsSync(marker)).toBe(false);
     expect(out).toBeNull();
+  });
+
+  // r6.2: so `git status` itself, through the function every store read runs
+  // git with (`runGit`, `git-objects.js`) and through the store's own copy.
+  // Without the environment in either, the planted command runs.
+  it('`git status` through runGit, and through the migration\'s own status call, does not run the planted command', () => {
+    expect(() => runGit(proj, ['status', '--porcelain', '--untracked-files=all', '--', '.'], execFileSync)).toThrow();
+    expect(existsSync(marker)).toBe(false);
+    expect(() => runGit(proj, ['rev-parse', '--is-inside-work-tree'], execFileSync)).toThrow();
+    // work-store.js keeps a `runGit` of its own, reached through `isGitRepo`.
+    expect(storeIsGitRepo(proj)).toBe(false);
+    expect(existsSync(marker)).toBe(false);
   });
 
   it('probeGitState (`git status`) does not run the planted command, and takes the folder for no repository', () => {

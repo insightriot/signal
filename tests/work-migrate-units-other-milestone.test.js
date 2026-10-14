@@ -217,6 +217,19 @@ describe('turning unit records on: another milestone\'s marked file', () => {
     expect(bytesOf(base)).toEqual(before);
   });
 
+  // r6.2 (S7): a PLAIN line — not a table row — typed between the other
+  // file's markers would be deleted too, and refuses the apply the same way.
+  it('a plain line typed between its markers: the dry run names it and says the apply is refused; nothing is written', async () => {
+    const base = await firstTime(marked6({ extra: ['', 'A note typed under the table.'] }));
+    const dry = await dryRun(base);
+    expect(dry.report).toContain('  As the file stands the apply is refused and nothing is written: line 10 (“A note typed under the table.”)');
+    expect(dry.writes).toEqual({ confirmed: [], unconfirmed: [] });
+    const before = bytesOf(base);
+    const out = await applyWith(base, dry, { confirmUnitCloses: true }).catch((e) => e);
+    expect(out.applied).not.toBe(true);
+    expect(bytesOf(base)).toEqual(before);
+  }, 60_000);
+
   // r6.1: a marked file of a milestone none of the units belongs to is not
   // written by the apply. The dry run printed a note for it all the same,
   // saying a row typed there refuses the apply — of an apply that succeeds.
