@@ -467,6 +467,13 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     // README at the new location. Any failure in here is undone in reverse:
     // rewritten files get their old text back, a README this call created is
     // removed, every file moves back, and the folders this created go.
+    // "Git could not be asked" is not "no repository" (r6.5): read as one,
+    // tracked files were moved as plain renames.
+    const cannotAsk = gitCannotAsk(baseDir);
+    if (cannotAsk !== null) {
+      throw new WorkStoreError('CONFIG', `${epicId}: git could not be asked which of the Epic's files it tracks, so they were not moved: `
+        + `${cannotAsk}. Nothing was moved.`);
+    }
     const git = isGitRepo(baseDir, execFn);
     const moved = [];
     const written = []; // {abs, text} — text null when this call created the file

@@ -21,6 +21,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 
 import { closeEpic } from '../plugin/tools/lib/work-ops.js';
+import { testSeam } from '../plugin/tools/lib/git-env.js';
 import * as records from '../plugin/tools/lib/work-records.js';
 import { serializeRecord } from '../plugin/tools/lib/work-record.js';
 import { regenerateViews } from '../plugin/tools/lib/work-views.js';
@@ -86,6 +87,30 @@ describe('closeEpic on a v2 store', () => {
     expect(await readFile(join(root, '.planning/work/EPICS.md'), 'utf-8')).toMatch(new RegExp(`${EPIC.replace('.', '\\.')}.*closed`));
     expect(records.checkRecords(root)).toEqual([]);
     expect(records.isEpicArchived(root, EPIC)).toBe(true);
+  });
+
+  // r6.5: in a real repository, with a git Signal does not use, the files
+  // were moved as plain renames — the "no repository" branch — instead of
+  // with `git mv`. "Could not ask" refuses.
+  it('a git older than 2.38, in a repository: refused with the version, nothing moved', async () => {
+    await store([{ id: 'SIG-3', type: 'BUG', title: 'dropped from the Epic', events: [ev.created, ev.triaged, ev.queued, ev.wontdo] }]);
+    for (const args of [['init', '-q', '-b', 'feat'], ['add', '-A'], ['-c', 'user.email=t@t.co', '-c', 'user.name=T', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'c0']]) {
+      expect(spawnSync('git', args, { cwd: root, encoding: 'utf8' }).status).toBe(0);
+    }
+    const before = snapshotTree(root);
+    testSeam.gitVersion = 'git version 2.34.1';
+    let err;
+    try {
+      err = await closeEpic(root, EPIC, { by, at: AT }).catch((e) => e);
+    } finally {
+      testSeam.gitVersion = undefined;
+    }
+    expect(err).toMatchObject({ code: 'CONFIG' });
+    expect(err.message).toBe(`${EPIC}: git could not be asked which of the Epic's files it tracks, so they were not moved: `
+      + 'Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1. Nothing was moved.');
+    expect(snapshotTree(root)).toEqual(before);
+    // the control: the installed git moves it
+    expect(await closeEpic(root, EPIC, { by, at: AT })).toMatchObject({ status: 'closed' });
   });
 
   it('a record of the Epic still open: OPEN_ITEMS naming it, nothing moved', async () => {
