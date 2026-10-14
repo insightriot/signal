@@ -34,20 +34,18 @@ last_updated: 2026-10-13T17:13:59.608Z
   out of this file. Then update the installed plugin and restart before using `/sig:` commands.
 - **Brett's four answers (2026-10-14):** build the non-Epic unit close and the hand-confirm now,
   before the merge (`D-M6E16-37`, `-38`); keep git 2.38+ (`-39`); keep the table-row rule (`-40`).
-- **RESUME HERE (2026-10-14, branch head `8fb7caf8`, CI green, 371 files / 8166 tests):** `r7` built
-  both features; two fresh reads found a Critical (the non-Epic close never fired on a linear project)
-  and a merge-blocker (a forged hand-confirm silenced the closed-proof audit), fixed in `r7.1` with
-  more: `git-failed` vs `no-remote` (an empty remote list believed only when git read the repo's own
-  config, `readsOwnConfig`), the branch gate no longer switching off on a git failure, several slices
-  under one `current_epic` (SHIP asks before re-requesting), a hostile `current_epic` refused. **Owed,
-  in order:** (1) one fresh read of `r7.1` (`git diff e5c3df30..8fb7caf8 -- plugin tests`), by a
-  reader who did not write it; (2) record `r7`/`r7.1` in `M6.E16-REVIEW.md`, `M6.E16-PROGRESS.md`
-  and the CHANGELOG `0.1.51` hardening section (the two features, `git-failed`, the branch gate);
-  (3) ask Brett for his word on the merge — **never merge without it**; `gh pr merge 301 --repo
-  insightriot/signal --merge`; (4) after the merge: tag `v0.1.51` and `gh release create`, run
-  `/sig:docs-sweep` on `main` to confirm `M6.E16`, `SIG-132`, `-255`, `-288`, `-289`, `-295`,
-  `-305`, `-310`; tell Brett to update the plugin and restart.
-- **Put off on purpose, on record, to come back to:** `SIG-294`, `SIG-296` … `SIG-313` (in
+- **RESUME HERE (2026-10-14, after `r7.2` `c05063cc`; 371 files / 8165 passed, 1 skipped):** `r7`
+  built both features; `r7.1` fixed what two fresh reads found (a Critical: the non-Epic close never
+  fired on a linear project; a merge-blocker: a forged hand-confirm silenced the closed-proof audit;
+  `git-failed`; `readsOwnConfig`; the branch gate). A fresh read of `r7.1` found nothing Critical and
+  1 Important (a typed `not-a-repo` softened "not merged"), fixed in `r7.2`; its 5 Minors are
+  `SIG-314` … `SIG-318`. `r7`–`r7.2` are recorded in `M6.E16-REVIEW.md` (verdict PASS),
+  `M6.E16-PROGRESS.md` and the CHANGELOG. **Owed, in order:** (1) ask Brett for his word on the
+  merge — **never merge without it**; `gh pr merge 301 --repo insightriot/signal --merge`; (2) after
+  the merge: tag `v0.1.51` and `gh release create`, run `/sig:docs-sweep` on `main` to confirm
+  `M6.E16`, `SIG-132`, `-255`, `-288`, `-289`, `-295`, `-305`, `-310`; tell Brett to update the
+  plugin and restart.
+- **Put off on purpose, on record, to come back to:** `SIG-294`, `SIG-296` … `SIG-318` (in
   `BUGS.md`). From REVIEW: `SIG-303` … `SIG-313`. `SIG-305` and `SIG-310` were fixed in fix round 6
   and are *closing*; parts of `SIG-309` and `SIG-311` were fixed there too. They are the
   natural scope of a "harden unit records" Epic, as `M6.E14` was for `M6.E13`. `r5.9`, the last 28

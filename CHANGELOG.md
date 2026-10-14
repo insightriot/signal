@@ -63,6 +63,20 @@ records now.
   migration proposes such a unit open and names the items, closing a unit as dropped or legacy is
   refused until its items are closed or moved out, and `/sig:docs-sweep` reports a closed unit that
   still holds one (`closed-unit-open-items`).
+- **SHIP closes a unit whose ID is not an Epic ID** (`phase-11`), under the same rules as an Epic:
+  a close request with proof, confirmed when its commit is on the default branch. This includes a
+  linear project, which has no `current_epic`; there SHIP asks which unit, when it cannot tell. When
+  the unit is already *closing*, SHIP names the commit the close is waiting on and asks before
+  requesting it again. It says plainly when a unit is already closed and there is nothing to close.
+  A `current_epic` holding characters no unit name has is refused. Code decides which unit SHIP closes
+  (`unitToCloseAtShip`), not the prose in `/sig:ship`.
+- **A close that git can never confirm can be confirmed by a person, one ID at a time.** This is
+  allowed only while the close is waiting for a reason no merge can change: there is no remote, no
+  remote named `origin`, or the project is not a git repository. Every other reason is refused, and
+  the refusal names what would confirm the close. The record, `EPICS.md` and the milestone table say
+  the close was *confirmed by hand*. A record that was hand-confirmed is still checked by
+  `/sig:docs-sweep` against the default branch once there is one. Typing the hand-confirm fields
+  into a record does not switch that check off, and does not soften what it says.
 
 #### Changed
 - **`work/EPICS.md` and the Epic table in the current milestone file are generated from the
@@ -206,6 +220,13 @@ records now.
   dangling link, and `NotebookEdit`.
 - **A branch or remote name with characters a shell acts on is never put in a suggested command**,
   and is shown only when it is safe to read.
+- **A git that fails is not taken for "no repository" or "no remote".** A new reason, `git-failed`,
+  covers git refusing the folder (unsafe ownership, say) or a repository it cannot read. It is
+  reported in the confirm line, in the sweep and in the hand-confirm refusal, together with what to
+  do. A close cannot be confirmed by hand on `git-failed`. Signal now reads "not a git repository"
+  only when git says so and there is no `.git` at or above the folder. It reads an empty remote list
+  as "no remote" only when git has read the repository's own config. The branch gate no longer
+  switches itself off when git fails.
 - **`/sig:permissions` proposes rules only for commands the prompt files tell the agent to run.** It
   no longer proposes `gh`, `git bisect`, `git clone` or `git config`, and a `package.json` script
   name becomes a rule only when it is plainly a name.

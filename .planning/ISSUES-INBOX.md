@@ -21,3 +21,53 @@
 | Option C concerns block (calibration granularity) | Users hand-edit dials against tier defaults, or want a rigor level their tier doesn't offer | ✅ **FIRED on the first half — measured, not inferred.** Checked 2026-08-01 (M5.E16 PLAN drain). Three Epic-scoped profiles exist, **all `created_by: hand`, all overriding tier defaults**: `M5.E7-PROFILE.md`, `M5.E17-PROFILE.md`, `M5.E16-PROFILE.md`. The last states the motive outright — *"`nyquist_enforcement` goes to `strict` — a level above M5.E17's `basic`. This is deliberate and it is the one dial that matters here."* That is the condition's first clause verbatim. **But the remedy Option C proposed is not what is needed**, so this is decided rather than promoted: hand-editing dials is not a workaround here, it is the **supported mechanism** (Epic-scoped PROFILE, M4.5.E11 FR3), and it works. **What the practice actually exposed is that nothing validated the hand-edits** — `B59`, found the same day at this Epic's own PLAN preamble: `M5.E16-PROFILE.md` carried two out-of-enum values and the Epic that declared FEATURE ran DISCUSS at FULL. **That gap is now closed twice over** — `tests/own-profiles-parse.test.js` for Signal's own repo, and **M5.E16 check (g)** for every invoking project. **Row closed as decided.** A concerns block remains a v2 idea with no live pull; re-open only if someone wants a rigor level the four tiers genuinely cannot express, which is the second clause and has **never** been observed. |
 
 ---
+
+## unitToCloseAtShip accepts a current_epic that can never be a unit record
+
+**Status:** untriaged (N) · SIG-314
+
+`unitToCloseAtShip` (`plugin/tools/lib/work-ops.js:1100`) refuses `current_epic` only by character set (`isSafeUnitName`), not by `assertUnitId`'s full rules. `current_epic: SHIP` (a phase name) or `SIG-12` (an item-ID shape) returns `{kind:'unit', hasRecord:false}`, and ship.md §6.8 then says to run `/sig:docs-migrate --work-store` and re-run — which can never produce such a record, so the advice loops. A case twin (`Phase-11` vs `phase-11.json`) gets the same "no record" answer.
+
+Found by the fresh read of M6.E16 r7.1 (2026-10-14); filed, not fixed, before the v0.1.51 merge.
+
+---
+
+## GIT_FAILED says "run the confirm again" where the branch gate uses it
+
+**Status:** untriaged (N) · SIG-315
+
+`GIT_FAILED`'s text ends "fix that and run the confirm again", but `checkBranchPosture` reuses it as the branch-gate reason (`plugin/tools/lib/branch-guard.js:328,340`), where no confirm is involved. Wrong words in that context.
+
+Found by the fresh read of M6.E16 r7.1 (2026-10-14); filed, not fixed, before the v0.1.51 merge.
+
+---
+
+## git-env.js: GIT_FAILED JSDoc splits dotGitAtOrAbove from its comment
+
+**Status:** untriaged (N) · SIG-316
+
+In `plugin/tools/lib/git-env.js:119-131` the `GIT_FAILED` JSDoc was inserted between `dotGitAtOrAbove`'s comment and the function, so the "Is there an entry named `.git`…" comment sits above the constant. That comment's "only ever used … when git cannot be run at all" was already stale: `whyNoWorkTree`, `repoState` and `jev.js` use it.
+
+Found by the fresh read of M6.E16 r7.1 (2026-10-14); filed, not fixed, before the v0.1.51 merge.
+
+---
+
+## The closed-proof audit is silent when git fails
+
+**Status:** untriaged (N) · SIG-317
+
+`probeClosedProofs` returns an empty `notThere` on `git-failed` (`plugin/tools/lib/work-records.js` ~1817) and `checkClosedProofs` (`sweep.js`) speaks only for `gitCannotAsk`, so a git failure reads as "every recorded close is on the default branch". Older than r7.1, but r7.1 moved some former `no-remote` cases into `git-failed`. A hostile repository cannot easily cause it (config and `.git` are not committed). Low impact.
+
+Found by the fresh read of M6.E16 r7.1 (2026-10-14); filed, not fixed, before the v0.1.51 merge.
+
+---
+
+## readsOwnConfig depends on core.repositoryformatversion being present
+
+**Status:** untriaged (N) · SIG-318
+
+The branch gate believes an empty remote list only after `git config --local` reads the repository's own config, keyed on `core.repositoryformatversion`. A repository written by a tool that omits that key would read as `git-failed` forever. Fails closed. Hypothesis about rare tools — not checked against any.
+
+Found by the fresh read of M6.E16 r7.1 (2026-10-14); filed, not fixed, before the v0.1.51 merge.
+
+---
