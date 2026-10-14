@@ -28,7 +28,7 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
 import { RECORD_DEFAULT_BRANCH_HINT } from './branch-guard.js';
-import { gitCannotAsk, gitUnusableReason } from './git-env.js';
+import { GIT_FAILED, gitCannotAsk, gitUnusableReason } from './git-env.js';
 import { echoed, shownName } from './printable-text.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { ITEM_KIND, RECORD_SCHEMA, parseRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
@@ -2115,9 +2115,10 @@ function closingRow(r, now) {
 /** The reasons `confirmCloses` gives that no git answer here can ever change. */
 export const BY_HAND_REASONS = Object.freeze(['no-remote', 'no-origin-remote', 'not-a-repo']);
 
-/** What `git-failed` means and what to do (r7.1) — the confirm line, the sweep and this refusal say it alike. */
-export const GIT_FAILED = 'git could not read the repository — a broken config, a `.git` pointing nowhere, a folder git does not trust — '
-  + 'fix that and run the confirm again';
+// What `git-failed` means and what to do (r7.1) — the confirm line, the sweep,
+// this refusal and the branch gate say it alike. Kept in `git-env.js`, which
+// imports none of them; re-exported here for `close-confirm.js`.
+export { GIT_FAILED };
 
 // What to do instead, for every other reason the automatic confirm gives.
 function notByHandWords(reason, proof) {

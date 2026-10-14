@@ -119,6 +119,15 @@ export function gitUnusableReason() {
 // Is there an entry named `.git` in `baseDir` or a folder above it? Only ever
 // used to choose between refusing and treating the folder as no repository
 // when git cannot be run at all — never to decide what git may read.
+/**
+ * What `git-failed` means, and what to do (M6.E16 r7.1): git was there and
+ * could not read this repository — not "no repository", not "not merged".
+ * One sentence for the confirm line, the sweep, the hand-confirm refusal and
+ * the branch gate.
+ */
+export const GIT_FAILED = 'git could not read the repository — a broken config, a `.git` pointing nowhere, a folder git does not trust — '
+  + 'fix that and run the confirm again';
+
 // Exported for `defaultBranchRef` (`work-write.js`, M6.E16 r7.1), which asks
 // the same question before it reads a failed git call as "no repository".
 export function dotGitAtOrAbove(baseDir) {

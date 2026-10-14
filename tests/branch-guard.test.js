@@ -234,7 +234,9 @@ describe('checkBranchPosture', () => {
       throw new Error('git exploded');
     };
     const r = checkBranchPosture(dir, { tier: 'FULL', execFn: boom });
-    expect(r.status).toBe(BRANCH_GATE.NOT_APPLICABLE);
+    // Since M6.E16 r7.1 a git that fails is "could not say", not "no
+    // repository": the gate stays on (tests/branch-gate-git-failed.test.js).
+    expect(r.status).toBe(BRANCH_GATE.CANNOT_DETERMINE);
     expect(() => checkBranchPosture(dir, { tier: 'FULL', execFn: boom })).not.toThrow();
   });
 

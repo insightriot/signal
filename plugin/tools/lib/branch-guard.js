@@ -53,7 +53,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { gitEnv, gitUnusableReason } from './git-env.js';
+import { dotGitAtOrAbove, GIT_FAILED, gitEnv, gitUnusableReason } from './git-env.js';
 import { isPlainRefName, shownRef } from './printable-text.js';
 
 /**
@@ -101,14 +101,27 @@ function git(baseDir, args, execFn) {
   ).trim();
 }
 
-// Did git refuse a folder here because it is laid out like a bare repository?
-// Read from what git says (in English: `LC_ALL=C`), on the one call.
-function gitRefusedBareLayout(baseDir, execFn) {
+// Why git found no work tree here, read from what git says (in English:
+// `LC_ALL=C`), on the one call: 'bare' — it refused a folder laid out like a
+// bare repository; 'none' — git's own "not a git repository" with no `.git`
+// entry at or above the folder (M6.E16 r7.1, `repoState`'s rule in
+// `work-write.js`); 'failed' — anything else (a folder git does not trust, a
+// `.git` pointing nowhere, a broken config).
+function whyNoWorkTree(baseDir, execFn) {
   try {
     execFn('git', ['rev-parse', '--is-inside-work-tree'], { cwd: baseDir, stdio: ['ignore', 'pipe', 'pipe'], env: { ...gitEnv(baseDir), LC_ALL: 'C' } });
-    return false;
+    return 'failed';
   } catch (err) {
-    return /cannot use bare repository/.test(String(err?.stderr ?? ''));
+    const said = String(err?.stderr ?? '');
+    if (/cannot use bare repository/.test(said)) return 'bare';
+    if (!/not a git repository/i.test(said)) return 'failed';
+    let dotGit;
+    try {
+      dotGit = dotGitAtOrAbove(baseDir);
+    } catch {
+      dotGit = true; // the folders above could not be read: the safe side
+    }
+    return dotGit ? 'failed' : 'none';
   }
 }
 
@@ -285,11 +298,14 @@ export function checkBranchPosture(baseDir, opts = {}) {
     // Git also fails here when it STOPS at a folder laid out like a bare
     // repository and refuses it (`safe.bareRepository=explicit`) — with the
     // project's real repository further up. That is "could not ask" (r6.5).
-    if (gitRefusedBareLayout(baseDir, execFn)) {
+    const why = whyNoWorkTree(baseDir, execFn);
+    if (why === 'bare') {
       return base(BRANCH_GATE.CANNOT_DETERMINE, {
         reason: 'a folder at or above this one is laid out like a bare git repository, and git will not use it — so git could not be asked about this project',
       });
     }
+    // Git failing is not "no repository" (r7.1): the gate stays on, unable to say.
+    if (why === 'failed') return base(BRANCH_GATE.CANNOT_DETERMINE, { reason: GIT_FAILED });
     return base(BRANCH_GATE.NOT_APPLICABLE, { reason: 'not a git repository' });
   }
 
