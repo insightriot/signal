@@ -449,16 +449,18 @@ describe('a write through a dangling link', () => {
     return at('src/c0');
   };
 
-  it.each([8, 9, 10, 40])('a chain of %i dangling links to a unit record\'s path: refused', async (n) => {
+  // r6.7: followed as far as the system follows (40), so up to 40 the guard
+  // judges the record path itself; past it, the system refuses the write too.
+  it.each([8, 9, 10, 40, 41])('a chain of %i dangling links to a unit record\'s path: refused', async (n) => {
     const reason = await blocked(write(chain(n, at('.planning/work/units/M9.E1.json')), dir));
-    expect(reason).toMatch(n <= 8 ? /\.planning\/work\/units\/M9\.E1\.json/ : /more than 8 links/);
+    expect(reason).toMatch(n <= 40 ? /\.planning\/work\/units\/M9\.E1\.json/ : /more than 40 links/);
   });
 
   it('a link that loops: refused, and quickly — the system would not write through it either', async () => {
     symlinkSync('loop-b', at('src/loop-a'));
     symlinkSync('loop-a', at('src/loop-b'));
     const t = process.hrtime.bigint();
-    expect(await blocked(write(at('src/loop-a'), dir))).toMatch(/more than 8 links/);
+    expect(await blocked(write(at('src/loop-a'), dir))).toMatch(/more than 40 links/);
     expect(Number(process.hrtime.bigint() - t) / 1e6).toBeLessThan(50);
   });
 

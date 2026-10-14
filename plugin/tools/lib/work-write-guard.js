@@ -60,11 +60,11 @@
 // project's guarded files and folders (`volTarget`), found from the cwd — a
 // `/.vol` path has no folder of its own to look above.
 
-import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 import { shownName } from './printable-text.js';
-import { pathCannotExist } from './store-above.js';
+import { LINK_HOPS_MAX, pathCannotExist, realpathLoose } from './store-above.js';
 
 const VIEWS = new Set(['bugs.md', 'backlog.md', 'issues-inbox.md', 'open-questions.md']);
 
@@ -186,44 +186,11 @@ function classify(abs) {
   return out;
 }
 
-// realpath of a path that may not exist yet: the nearest existing ancestor,
-// realpathed, with the rest appended.
-//
-// A link whose target is not there is followed by hand (r6.5): `realpath`
-// cannot resolve it, and a Write goes through it and CREATES the target —
-// `dangle.json -> .planning/work/items/00/NEW-1.json` made a record. A few
-// hops at most, so a link that loops ends.
-const LINK_HOPS_MAX = 8;
-function realpathLoose(abs) {
-  const rest = [];
-  let cur = abs;
-  let hops = 0;
-  for (;;) {
-    try {
-      return join(realpathSync.native(cur), ...rest);
-    } catch {
-      let target = null;
-      try {
-        if (lstatSync(cur).isSymbolicLink()) target = readlinkSync(cur);
-      } catch {
-        target = null;
-      }
-      if (target !== null) {
-        hops += 1;
-        // Past the limit (or in a loop) where the write would land is not
-        // known — and the system follows more links than this (r6.6). Null:
-        // the caller refuses, as for any search that stopped short.
-        if (hops > LINK_HOPS_MAX) return null;
-        cur = resolve(dirname(cur), target);
-        continue;
-      }
-      const parent = dirname(cur);
-      if (parent === cur) return abs;
-      rest.unshift(basename(cur));
-      cur = parent;
-    }
-  }
-}
+// Where a write to a path would land — `realpathLoose`, in `store-above.js`
+// since r6.7 so the edit hook decides with the same answer (its own copy
+// never followed a dangling link). Null past `LINK_HOPS_MAX` (40, what the
+// system follows) or in a loop: the caller refuses, as for any search that
+// stopped short.
 
 /**
  * Classify an absolute path by its shape alone (no store read): the
@@ -570,7 +537,10 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
     // folder, a second name for a guarded file, and a file named by number.
     const resolved = realpathLoose(abs);
     const real = resolved ?? abs;
-    for (const root of storeRoots(base, dirname(abs))) {
+    // The stores above the cwd, above the target, and above where the write
+    // would land (r6.7): a link into a sub-package's or another project's
+    // store is judged against that store.
+    for (const root of storeRoots(base, dirname(abs), ...(resolved === null ? [] : [dirname(resolved)]))) {
       if (resolved === null) candidates.push({ baseDir: root, tooManyLinks: abs });
       candidates.push(
         ...underRealFolder(real, root), ...underGuardedFolder(abs, root), ...hardLinkTo(abs, root),

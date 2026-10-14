@@ -20,14 +20,14 @@
 // us anything testable — the core logic is in tools/lib/retrospective.js
 // where unit tests can exercise it directly.
 
-import { readFileSync, realpathSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 
 import {
   checkProposedStateWrite,
   checkStateFrontmatterShape,
 } from '../tools/lib/retrospective.js';
-import { pathCannotExist, storeAbove } from '../tools/lib/store-above.js';
+import { isLink, pathCannotExist, realpathLoose, storeAbove } from '../tools/lib/store-above.js';
 
 // Read event JSON from stdin.
 let raw = '';
@@ -55,23 +55,6 @@ if (tool !== 'Edit' && tool !== 'Write' && tool !== 'MultiEdit' && tool !== 'Not
 // The path the tool would write: NotebookEdit names it `notebook_path`.
 const target = tool === 'NotebookEdit' ? input.notebook_path : input.file_path;
 
-// The real path of `abs`, or of its nearest existing ancestor with the rest
-// appended (the file may not exist yet). `abs` itself when nothing resolves.
-function realpathLoose(abs) {
-  const rest = [];
-  let cur = abs;
-  for (;;) {
-    try {
-      return join(realpathSync.native(cur), ...rest);
-    } catch {
-      const parent = dirname(cur);
-      if (parent === cur) return abs;
-      rest.unshift(basename(cur));
-      cur = parent;
-    }
-  }
-}
-
 // M6.E13/t5.1 — a v2 work store's records, views, history and WORK.md are
 // written by code, not by hand. The guard is loaded only when the resolved
 // path — or its real path, so an alias such as `notes -> .planning/work/items`
@@ -98,7 +81,14 @@ if (typeof target === 'string') {
     // A path longer than any file can be opened by names no edit (r6.1): let
     // it through before a single folder of it is looked at.
     if (pathCannotExist(abs)) process.exit(0);
-    if (mentionsPlanning(abs) || mentionsPlanning(realpathLoose(abs)) || storeAbove(resolve(cwd)) || storeAbove(dirname(abs))) {
+    // Where the write would land is judged with the guard's own resolver
+    // (`realpathLoose`, `store-above.js`, r6.7), which follows a dangling
+    // link: a link into a store BELOW the cwd — a monorepo's sub-package,
+    // another project — resolved here to the link itself, and the guard was
+    // never loaded. And any target that is itself a link loads it.
+    const real = realpathLoose(abs);
+    if (mentionsPlanning(abs) || isLink(abs) || real === null || mentionsPlanning(real)
+      || storeAbove(resolve(cwd)) || storeAbove(dirname(abs)) || (real !== abs && storeAbove(dirname(real)))) {
       const { checkWorkWrite } = await import('../tools/lib/work-write-guard.js');
       const guard = await checkWorkWrite({ filePath: target, cwd, tool, input });
       if (guard.block) {
