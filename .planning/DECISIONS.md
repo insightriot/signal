@@ -4160,7 +4160,7 @@ from the default branch's history (`git log HEAD`), as native closes require, no
 proposal is now visible before it is acted on, which is the property three passes could not get from
 wording rules alone. Loop 3 runs past the ceiling by Brett's choice.
 
-## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-31)
+## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-36)
 
 Picked by Brett as priority 1 of [`BACKLOG-REVIEW-2026-10-10.md`](BACKLOG-REVIEW-2026-10-10.md). Stage 1
 of the "after Epic 1" list in
@@ -4483,3 +4483,41 @@ to be confirmed"}`. **Why `done` and not `cannot-evaluate` or a new field:** `di
 uses it (they read `unitClosure` and `resolveClosures`, where *closing* stays open, AC6.2). So one
 status halts DISCUSS and bends nothing else. `--epic <name>` still opens another unit, as for any
 `done`.
+
+### D-M6E16-32 — Signal needs git 2.38 or newer; no home-built check for a planted repository (Claude, 2026-10-13 — put to Brett as a scope call, built so it is one revert)
+A project folder that holds committed `HEAD`, `config`, `objects/`, `refs/` is a bare repository to
+git, and its `config` can run a command. Git's own answer is `safe.bareRepository=explicit` (2.38+),
+which every git and `gh` call now carries (`gitEnv`, `git-env.js`). For older git a check of our own
+was built in `r6.1` and rebuilt in `r6.3`; readers and CI broke it seven times in three rounds (a
+version-dependent answer, a `HEAD` symlink, a lexical walk, legitimate layouts turned away, a
+trailing-space folder name, a remembered answer going stale, a timeout read as "no repository").
+It was removed in `r6.4`. **Instead:** `git --version` is read once per process, and below 2.38 no
+git or `gh` process is started; the checks say "Signal needs git 2.38 or newer …". **Do not re-add a
+look of our own**: every read found git's setting holding where ours did not.
+
+### D-M6E16-33 — A git Signal cannot use means "could not ask", never "not a repository" (Claude, 2026-10-13)
+Follows `-32`. Under the gate a "no repository" branch that writes, or that quietly weakens a check,
+refuses with the version sentence: the lists and v2 migrations, new item IDs (`nextIdV2`), a short
+proof, an explicit `commit`, the Epic folder archive. With no git installed at all, a folder with no
+`.git` entry at or above it is a non-repository as before (`gitCannotAsk`).
+
+### D-M6E16-34 — The migration keeps `D-M6E15-25`'s evidence fallback and says which history it read (Claude, 2026-10-13)
+The whole-diff read asked for no fallback when `origin/HEAD` is unset. That broke 43 tests, the
+`v0.1.50` comparison among them, and reversed a decision Brett made in `M6.E15`. Kept: `origin/HEAD`
+→ local `main` → `master` → `HEAD`, each read as an exact ref so a tag cannot stand in, and the dry
+run names the history read when it is not the recorded default branch. The evidence only ever
+supports a proposal a person answers. The strict variant is on branch
+`worktree-agent-a03c9cf552d12fb2f-f3-default-branch`.
+
+### D-M6E16-35 — The backlog discharge and an explicit `commit` are checked on every project (Claude, 2026-10-13)
+`dischargeBacklogRows` and `closeEpic` verify a passed `commit` (`explicitCommit`: it must name one
+commit here; the full hash is stored) and the discharge refuses a HEAD that proves nothing, as the
+Epic close does. This changes projects without unit records too (AC6.4 kind e): the alternative was
+a false "done" recorded with a made-up hash.
+
+### D-M6E16-36 — `/sig:permissions` proposes rules only for what the prompt files tell the agent to run (Claude, 2026-10-13)
+A binary only Signal's own Node code starts never passes through a Bash permission, so it is counted
+and not proposed; `gh` is never proposed, nor `git bisect`, `git clone`, `git config`; a
+`package.json` script name becomes a rule only when it is plainly a name. Found because `r6.3` made
+Signal call `gh` directly and the scan then offered `Bash(gh:*)`. The bare-`git` fall-through is
+unchanged and filed.

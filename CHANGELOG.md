@@ -29,7 +29,8 @@ records now.
   that is refused when HEAD is already on the default branch and the project has uncommitted
   changes, because such a commit says nothing about the Epic. It is refused too when the project
   has uncommitted changes and the remote's default branch is not recorded in the clone, because
-  then nothing can say where HEAD is; the message names `git remote set-head origin -a`.
+  then nothing can say where HEAD is; the message names `git fetch origin`, then
+  `git remote set-head origin -a`.
 - **A finished Epic's narrative leaves `STATE.md` when its close is confirmed** (`SIG-295`). The step
   that confirms the close — `/sig:docs-sweep`, or a later SHIP — moves the narrative to its archive
   file and says so beside the confirmation: moved, nothing to move, or kept and why (held, or a
@@ -178,6 +179,36 @@ records now.
   project, with or without unit records.
 - **Adding unit records to an existing store** prints the one line to add to `WORK.md`'s folder list.
   The file itself is yours and is not rewritten.
+
+#### Hardening from the last whole-diff review
+- **Signal needs git 2.38 or newer.** Every git and `gh` call Signal makes now tells git not to use
+  a bare-repository layout it finds in the project folder (`safe.bareRepository=explicit`), so files
+  named `HEAD`, `config`, `objects`, `refs` committed into a project cannot run a command. Git
+  older than 2.38 does not know that setting: there Signal starts no git process, its git-backed
+  checks say "Signal needs git 2.38 or newer …", and the commands that write on git's answer
+  (closes, new item IDs, the migrations) refuse. `/sig:doctor` reports the git version.
+- **A commit you pass is checked.** `/sig:ship`'s Epic close and backlog discharge refuse a `commit`
+  that names no commit here, or that more than one commit starts with, and record its full hash.
+  The discharge refuses, as the Epic close does, when HEAD would prove nothing about the work. The
+  refusals no longer offer `commit` as the way around uncommitted work. This holds on every project.
+- **A still-closing item or Epic is told its real reason**: an item not closed, the commit not on
+  the default branch, no recorded default branch (run `git fetch origin`, then
+  `git remote set-head origin -a`), no remote, no remote named `origin`, not a git repository, or a
+  git too old. A merge is advised only when a merge would help.
+- **The generated Epic table refuses two more typed shapes it used to delete**: a row whose first
+  cell is `Epic` or `---`, and a row with a separator typed above the table's header.
+- **The units migration's dry run names every file the run writes**, other milestones' marked files
+  included, and the run stages and reports each (`SIG-310`). A status cell that leads with *shipped*
+  counts as evidence only when nothing follows but a version, a date, a PR or issue number, a
+  hash, *released* or *merged*: `shipped — S2 remaining` and `shipped?` are flagged, not proposed.
+- **The edit guard closes more ways to a record**: look-alike letters (`unitſ`), a hard link, the
+  real path of a symlinked `.planning`, a macOS `/.vol` or `/System/Volumes/Data` address, a
+  dangling link, and `NotebookEdit`.
+- **A branch or remote name with characters a shell acts on is never put in a suggested command**,
+  and is shown only when it is safe to read.
+- **`/sig:permissions` proposes rules only for commands the prompt files tell the agent to run.** It
+  no longer proposes `gh`, `git bisect`, `git clone` or `git config`, and a `package.json` script
+  name becomes a rule only when it is plainly a name.
 
 #### Known limits
 - With unit records, a finished Epic's narrative leaves `STATE.md` when its close is confirmed — at
