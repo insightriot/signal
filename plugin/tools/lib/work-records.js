@@ -2161,7 +2161,8 @@ function byHandReason(baseDir, kind, id, execFn) {
   const open = kind === 'unit' ? itemsNotClosed(items.records, items.ok)(id) : [];
   if (open.length > 0) {
     const err = new WorkStoreError('OPEN_ITEMS', `${id} has ${open.length} item${open.length === 1 ? '' : 's'} that ${open.length === 1 ? 'is' : 'are'} not closed `
-      + `(${open.join(', ')}) — nothing was written. Close each, or move it out of the unit (/sig:item), then confirm the unit.`);
+      + `(${open.join(', ')}) — nothing was written. Close each, or move it out of the unit (/sig:item), then confirm the unit; `
+      + 'an item that is closing here can be confirmed by hand the same way, with its own yes (/sig:item confirm <ID>).');
     err.reason = OPEN_ITEMS_REASON;
     throw err;
   }
