@@ -167,6 +167,8 @@ sessions it will break *before* the `[y/N]`. Pass `libPath` only to override whe
 back for that re-check; the default is this module's own resolved path, which is the copy actually
 running (`B52`).
 
+Call `checkGitVersion()` (`tools/lib/doctor.js`) and print its `message` when `ok` is false: Signal's git-backed checks need git 2.38 or newer, and on an older one they report that they could not ask and the commands that write on git's answer refuse. It reports and never aborts the run.
+
 Call `checkCacheCasingClash({homeDir: os.homedir()})` before any script generation — aborts with `DoctorDetectionError → exit 2` if the marketplace cache contains case-mismatched siblings (`signal/` + `Signal/`).
 
 - **No flags** → exit code per § 5.

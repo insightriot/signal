@@ -72,7 +72,7 @@ Then call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js` (after `markFresh
 ⚠ origin is {aheadCount} commit(s) ahead — git pull to sync{ (includes .planning/) if touchedPlanning}.
 ```
 
-`isStaleVsOrigin` is **fail-open** (offline / no-remote / auth-hang / timeout → `{stale:false}`, never throws) with a bounded hardened fetch; if it returns `{stale:false}`, skip the line silently. The fetch writes `.git/`, not `.planning/`.
+`isStaleVsOrigin` is **fail-open** (offline / no-remote / auth-hang / timeout → `{stale:false}`, never throws) with a bounded hardened fetch; if it returns `{stale:false}`, skip the line silently — unless the result carries `cannotCheck` (git older than 2.38): then print that sentence. The fetch writes `.git/`, not `.planning/`.
 
 Then (v0.1.6, FR2; tier-aware M5.E1.S2, FR2d) call `readStateSizeBannerForTier(baseDir)` from `tools/lib/status.js`. If it returns a string, append it as a final advisory line — a checkpoint is exactly when a growing STATE.md is worth flagging (`/sig:checkpoint` is the refresh surface). If `null`, skip silently. Read-only + fail-open whole-file `statSync`; the threshold is resolved from the project tier (SKETCH 75 KB < FEATURE/SPIKE 150 KB < FULL 300 KB, flat 150 KB fallback when no PROFILE).
 

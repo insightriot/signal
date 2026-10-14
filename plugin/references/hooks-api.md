@@ -111,7 +111,8 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   device and inode (on the written path and on the resolved one), so a symlinked
   `.planning` is guarded by any address that reaches it. A record folder that is
   itself a link is not followed: the store refuses such a folder, so nothing under
-  it is a record.
+  it is a record. A target that is a dangling link is read to where it points
+  (eight hops at most) and judged there.
   `NotebookEdit` is read by its `notebook_path`. Item bodies
   (`items/**/*.md`) are allowed. On `work/WORK.md` itself
   it blocks only an edit that would change or remove `schema_version: 2` or the

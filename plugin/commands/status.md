@@ -108,7 +108,7 @@ Also before 2.1, call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js`. If i
    {else:} Run git pull to sync, or continue (this was a read-only check).
 ```
 
-If `{stale: false}`, skip silently. Like the version check this is **advisory only** and MUST NOT break `/sig:status`: `isStaleVsOrigin` is **fail-open** (offline / no-remote / auth-hang / timeout / diverged → `{stale:false}`, never throws), and its `git fetch` is bounded (2s timeout + SIGKILL, `GIT_TERMINAL_PROMPT=0`, neutralized askpass, SSH BatchMode) — that timeout is what protects the ≤30-line, low-latency `/sig:status` contract. **Read-only note (AD7):** the fetch writes `.git/` (FETCH_HEAD, remote refs), **not** `.planning/`, so `/sig:status`'s "no `.planning/*` mtime changed" gate literally still holds.
+If `{stale: false}`, skip silently — unless the result carries `cannotCheck` (git older than 2.38): then print that one sentence as the line. Like the version check this is **advisory only** and MUST NOT break `/sig:status`: `isStaleVsOrigin` is **fail-open** (offline / no-remote / auth-hang / timeout / diverged → `{stale:false}`, never throws), and its `git fetch` is bounded (2s timeout + SIGKILL, `GIT_TERMINAL_PROMPT=0`, neutralized askpass, SSH BatchMode) — that timeout is what protects the ≤30-line, low-latency `/sig:status` contract. **Read-only note (AD7):** the fetch writes `.git/` (FETCH_HEAD, remote refs), **not** `.planning/`, so `/sig:status`'s "no `.planning/*` mtime changed" gate literally still holds.
 
 #### 2.0c Schema-drift check (prepended, topmost)
 

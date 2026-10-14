@@ -111,7 +111,7 @@ user's behalf — that is the silent selection `LOOP-GOAL-DIRECTION.md` measured
 branch's answer, so `proposeEpicCandidates` also reads `STATE.md` from every branch not already
 merged into this one, and an Epic open there (that STATE.md is not a version this branch's history already
 holds, records no SHIP, and has no retrospective or SHIP artifact here — or, when it has a unit record here, that record is not closed) is proposed right after the local
-open Epic, carrying `branch` (the name as it may be shown: for a name that is not plainly a name, a note, not something to paste) and `nextStep`. Branches whose
+open Epic, carrying `branch` (the name as it may be shown: for a name that is not plainly a name, a note, not something to paste) and `nextStep`; when two such candidates would share an `id`, each ends " on `<branch>`". Branches whose
 STATE.md names no Epic come back in `unclassifiedBranches` — name them on one line, so an empty
 list cannot read as "checked every branch". Remote branches are as fresh as the last `git fetch`.
 
