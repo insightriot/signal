@@ -112,8 +112,10 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   `.planning` is guarded by any address that reaches it. A record folder that is
   itself a link is not followed: the store refuses such a folder, so nothing under
   it is a record. A target that is a dangling link is read to where it points
-  and judged there, up to 40 links (as far as the OS follows); past that, or in
-  a loop, it is refused in a project with a v2 store.
+  and judged there, up to 40 links (at least as far as the system follows: 32 on
+  macOS, 40 on Linux); past that, or in a loop, it is refused in a project with
+  a v2 store. A `..` after a folder link is read after the link, as the system
+  reads it, both in a link's target and in the path the tool is given.
   `NotebookEdit` is read by its `notebook_path`. Item bodies
   (`items/**/*.md`) are allowed. On `work/WORK.md` itself
   it blocks only an edit that would change or remove `schema_version: 2` or the
