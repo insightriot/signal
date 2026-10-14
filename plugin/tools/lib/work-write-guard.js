@@ -288,7 +288,7 @@ const KNOWN_FILES = [
 const numbersOf = (path) => {
   try {
     const s = statSync(path, { bigint: true });
-    return { dev: s.dev, ino: s.ino, nlink: s.nlink, file: s.isFile() };
+    return { dev: s.dev, ino: s.ino, nlink: s.nlink, file: s.isFile(), dir: s.isDirectory() };
   } catch {
     return null;
   }
@@ -316,6 +316,7 @@ function* guardedEntries(root) {
     if (e !== null) yield e;
   }
   const max = testSeam.linkScanMax ?? LINK_SCAN_MAX;
+  const walked = new Set();
   let read = 0;
   // Taken from the end: units, items, history, then `.planning/work`, then `.planning`.
   const pending = [['.planning', false], ['.planning/work', false], ['.planning/work/history', false], ['.planning/work/items', true], ['.planning/work/units', true]];
@@ -334,11 +335,22 @@ function* guardedEntries(root) {
         return;
       }
       const rel = `${dir}/${e.name}`;
+      // A folder of records may be a link (`items/01 -> elsewhere`): it is
+      // read through too (r6.3), each folder once by its numbers, so a link
+      // back into the store ends there.
       if (e.isDirectory() && !deep) continue;
-      if (e.isDirectory()) pending.push([rel, true]);
-      else if (!isTargetRel(rel)) continue;
-      const found = entry(rel, e.isDirectory());
-      if (found !== null) yield found;
+      const mayBeFolder = e.isDirectory() || (deep && e.isSymbolicLink());
+      if (!mayBeFolder && !isTargetRel(rel)) continue;
+      const n = numbersOf(at(rel));
+      if (n === null) continue;
+      const isFolder = mayBeFolder && n.dir;
+      if (isFolder) {
+        const key = `${n.dev}:${n.ino}`;
+        if (walked.has(key)) continue;
+        walked.add(key);
+        pending.push([rel, true]);
+      } else if (!isTargetRel(rel)) continue;
+      yield { rel, dir: isFolder, dev: n.dev, ino: n.ino };
     }
   }
 }
@@ -407,6 +419,51 @@ export function volCandidate(target, above, entries) {
     }
   }
   return null;
+}
+
+/**
+ * The decision by a FOLDER's numbers, from numbers alone (no disk read): the
+ * guarded path a target has when a folder above it IS one of the project's
+ * guarded folders, whatever the two paths look like as text (r6.3).
+ *
+ * @param {Array<{dev: bigint|null, ino: bigint|null, rest: string[]}>} above — each folder above the
+ *   target, nearest first: its numbers (null when it does not resolve) and the path from it to the target
+ * @param {Array<{rel: string, dev: bigint, ino: bigint}>} dirs — the project's guarded folders
+ * @returns {{rel: string}|null}
+ */
+export function folderCandidate(above, dirs) {
+  for (const a of above) {
+    for (const d of dirs) {
+      if (!sameNumbers(d, a)) continue;
+      const rel = [d.rel, ...a.rest].join('/');
+      if (isTargetRel(rel)) return { rel };
+    }
+  }
+  return null;
+}
+
+// A target under one of the project's guarded folders, found by comparing the
+// numbers of each folder above it with theirs. A symlinked `.planning` was
+// compared by the text of its real path (`underRealFolder`), which a second
+// spelling of the same path gets past: `/System/Volumes/Data/…` on a Mac, a
+// bind mount anywhere. Asked of every target; a few `stat`s.
+function underGuardedFolder(abs, root) {
+  const dirs = [];
+  for (const rel of GUARDED_DIRS) {
+    const n = numbersOf(join(root, ...rel.split('/')));
+    if (n !== null) dirs.push({ rel, dev: n.dev, ino: n.ino });
+  }
+  if (dirs.length === 0) return [];
+  const above = [];
+  const rest = [basename(abs)];
+  for (let cur = dirname(abs); ; cur = dirname(cur)) {
+    const n = numbersOf(cur);
+    above.push({ dev: n?.dev ?? null, ino: n?.ino ?? null, rest: [...rest] });
+    if (dirname(cur) === cur) break;
+    rest.unshift(basename(cur));
+  }
+  const found = folderCandidate(above, dirs);
+  return found === null ? [] : [{ baseDir: root, rel: found.rel }];
 }
 
 function volTarget(abs, root) {
@@ -486,7 +543,10 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
     // folder, a second name for a guarded file, and a file named by number.
     const real = realpathLoose(abs);
     for (const root of storeRoots(base, dirname(abs))) {
-      candidates.push(...underRealFolder(real, root), ...hardLinkTo(abs, root), ...volTarget(abs, root), ...(real === abs ? [] : volTarget(real, root)));
+      candidates.push(
+        ...underRealFolder(real, root), ...underGuardedFolder(abs, root), ...hardLinkTo(abs, root),
+        ...volTarget(abs, root), ...(real === abs ? [] : volTarget(real, root)),
+      );
     }
     for (const { baseDir, rel, linkedFrom, numberedFrom, unresolved, undecided } of candidates) {
       // A stat before the import: a project with `.planning` and no store —

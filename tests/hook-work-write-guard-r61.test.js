@@ -25,12 +25,12 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { spawn } from 'node:child_process';
-import { linkSync, mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { linkSync, mkdirSync, mkdtempSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-import { checkWorkWrite, isVolPath, testSeam, volCandidate } from '../plugin/tools/lib/work-write-guard.js';
+import { checkWorkWrite, folderCandidate, isVolPath, testSeam, volCandidate } from '../plugin/tools/lib/work-write-guard.js';
 import { PATH_BYTES_MAX, pathCannotExist, storeAbove } from '../plugin/tools/lib/store-above.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -263,5 +263,120 @@ describe('a path longer than a file can be opened by', () => {
 
   it('a guarded path of ordinary length is still refused', async () => {
     await blocked(write(at('.planning/work/units/M7.E9.json'), dir));
+  });
+});
+
+// ── r6.3: a guarded folder is known by its numbers, whatever the path says ──
+//
+// The guard compared a symlinked `.planning` with the target by the TEXT of
+// their real paths. macOS has a second spelling for every path on the data
+// volume — `/System/Volumes/Data/…` — that `realpath` leaves as it is, so the
+// text never matched and the edit went through. Each folder above the target
+// is now compared with the project's guarded folders by device and file
+// number: one mechanism for that spelling, for a bind mount, for any other.
+
+describe('the decision by a folder\'s numbers (every system)', () => {
+  const n = (ino) => ({ dev: 1n, ino: BigInt(ino) });
+  const dirs = [
+    { rel: '.planning', ...n(20) }, { rel: '.planning/work', ...n(21) },
+    { rel: '.planning/work/items', ...n(22) }, { rel: '.planning/work/units', ...n(23) }, { rel: '.planning/work/history', ...n(24) },
+  ];
+  it('a folder above the target with a guarded folder\'s numbers → the path the target has under it', () => {
+    expect(folderCandidate([{ ...n(99), rest: ['SIG-1.json'] }, { ...n(22), rest: ['00', 'SIG-1.json'] }], dirs)).toEqual({ rel: '.planning/work/items/00/SIG-1.json' });
+    expect(folderCandidate([{ ...n(23), rest: ['M7.E9.json'] }], dirs)).toEqual({ rel: '.planning/work/units/M7.E9.json' });
+    expect(folderCandidate([{ ...n(20), rest: ['BUGS.md'] }], dirs)).toEqual({ rel: '.planning/BUGS.md' });
+  });
+  it('what is not guarded under such a folder, another device, or no such folder → nothing', () => {
+    expect(folderCandidate([{ ...n(99), rest: ['SIG-1.md'] }, { ...n(22), rest: ['00', 'SIG-1.md'] }], dirs)).toBeNull();
+    expect(folderCandidate([{ ...n(20), rest: ['DECISIONS.md'] }], dirs)).toBeNull();
+    expect(folderCandidate([{ dev: 2n, ino: 23n, rest: ['M7.E9.json'] }], dirs)).toBeNull();
+    expect(folderCandidate([{ dev: null, ino: null, rest: ['x.json'] }, { ...n(5), rest: ['a', 'x.json'] }], dirs)).toBeNull();
+  });
+});
+
+// The same folder under its other spelling on a Mac's data volume.
+const dataVolume = (p) => `/System/Volumes/Data${p}`;
+const dataVolumeWorks = (() => {
+  try {
+    const s = statSync(tmpdir());
+    const t = statSync(dataVolume(realpathSync(tmpdir())));
+    return s.ino === t.ino && s.dev === t.dev && realpathSync(dataVolume(realpathSync(tmpdir()))).startsWith('/System/Volumes/Data');
+  } catch {
+    return false;
+  }
+})();
+
+describe.skipIf(!dataVolumeWorks)('a symlinked `.planning`, reached by the data volume\'s other spelling (macOS only — skipped elsewhere)', () => {
+  // The store is kept beside the project, and `.planning` is a link to it.
+  let kept;
+  beforeEach(() => {
+    kept = join(tmp, 'store-real');
+    renameSync(at('.planning'), kept);
+    symlinkSync(kept, at('.planning'));
+  });
+
+  it('a record, a view and a new unit file by that spelling: refused', async () => {
+    for (const rel of ['work/items/00/SIG-1.json', 'work/units/M7.E1.json', 'BUGS.md', 'work/EPICS.md']) {
+      const p = dataVolume(join(kept, rel));
+      expect(p).not.toContain('.planning');
+      expect(statSync(p).ino).toBe(statSync(join(kept, rel)).ino);
+      expect(await blocked(edit(p, dir)), rel).toContain(`.planning/${rel}`);
+    }
+    await blocked(write(dataVolume(join(kept, 'work/units/M7.E9.json')), dir));
+  });
+
+  it('what is not guarded there stays editable: a body file, a document, a file outside the store', async () => {
+    await allowed(edit(dataVolume(join(kept, 'work/items/00/SIG-1.md')), dir));
+    await allowed(edit(dataVolume(join(kept, 'DECISIONS.md')), dir));
+    await allowed(edit(dataVolume(at('src/index.js')), dir));
+  });
+
+  it('the hook refuses it too (exit 2)', async () => {
+    const p = dataVolume(join(kept, 'work/units/M7.E1.json'));
+    const { status, stderr } = await runHook({ tool_name: 'Edit', cwd: dir, tool_input: { file_path: p, old_string: 'a', new_string: 'b' } });
+    expect(status).toBe(2);
+    expect(stderr).toMatch(/v2 work store/);
+  });
+});
+
+// The folders records are kept in may be links themselves (`items/01 ->
+// elsewhere`). A listing does not go through a link unless asked to, so a
+// record in such a folder was in no list: a second name for it, or its
+// `/.vol` path, was compared with nothing.
+describe('a record in a shard folder that is a link', () => {
+  let record;
+  beforeEach(() => {
+    const elsewhere = join(tmp, 'shard-elsewhere');
+    mkdirSync(elsewhere);
+    record = join(elsewhere, 'SIG-101.json');
+    writeFileSync(record, '{}\n');
+    symlinkSync(elsewhere, at('.planning/work/items/01'));
+  });
+
+  it('a hard link to it is refused, and the message names the record', async () => {
+    linkSync(record, at('src/alias.json'));
+    const reason = await blocked(edit(at('src/alias.json'), dir));
+    expect(reason).toMatch(/another name \(a hard link\) for \.planning\/work\/items\/01\/SIG-101\.json/);
+  });
+
+  it.skipIf(!volWorks)('its /.vol path is refused (macOS only)', async () => {
+    const s = statSync(record);
+    await blocked(edit(`/.vol/${s.dev}/${s.ino}`, dir));
+  });
+
+  it('a link that loops back into the store does not hang the check, and an ordinary second name is still allowed', async () => {
+    symlinkSync(at('.planning/work/items'), at('.planning/work/items/02'));
+    linkSync(at('src/index.js'), at('src/second-name.js'));
+    const t = process.hrtime.bigint();
+    await allowed(edit(at('src/second-name.js'), dir));
+    expect(Number(process.hrtime.bigint() - t) / 1e6).toBeLessThan(500);
+  });
+});
+
+describe('the guard never throws, whatever the folders above the target are', () => {
+  it('a target under a folder that is not there, under a file, and at the top of the disk', async () => {
+    await allowed(write(at('src/not/there/yet/x.js'), dir));
+    await allowed(write(at('src/index.js/x.js'), dir));
+    await allowed(write('/x.js', dir));
   });
 });
