@@ -24,7 +24,42 @@
 // this repository files bugs about. What it does guarantee is that a merge
 // cannot be *unaware*.
 
-import { gitEnv } from './git-env.js';
+import { execFileSync } from 'node:child_process';
+
+import { gitEnv, repositoryWithoutDotGit } from './git-env.js';
+
+/** Bounded, so an auth prompt or a dead network cannot wedge a ship run. */
+const GH_TIMEOUT_MS = 30000;
+// What GitHub allows in an owner or a repository name. Anything else is not
+// passed to `gh`: `@file` would be read as a file by `-F`, `--flag` as an option.
+const GITHUB_NAME_RE = /^[A-Za-z0-9._-]+$/;
+
+// Why `gh` is not run for this call at all, or null (M6.E16 r6.3).
+function ghRefusal({ owner, repo, cwd }) {
+  if (typeof owner !== 'string' || !GITHUB_NAME_RE.test(owner) || owner.startsWith('-')) return 'the owner is not a plain GitHub owner name — nothing was asked';
+  if (typeof repo !== 'string' || !GITHUB_NAME_RE.test(repo) || repo.startsWith('-')) return 'the repository is not a plain GitHub repository name — nothing was asked';
+  // `gh` runs git to learn where it is. A folder that only looks like a
+  // repository names none to ask about — its `config` could name anyone's.
+  if (repositoryWithoutDotGit(cwd)) return 'this folder is not a git repository — nothing was asked';
+  return null;
+}
+
+// How `gh` is run: by the caller's `execFn` when one is given — handed the
+// folder and git's environment (`gitEnv`: `gh` runs git) as its third
+// argument — and otherwise here, with the same two. Safe with no `execFn`,
+// which is how `/sig:ship` is told to call this (r6.3).
+function ghRunner(execFn, cwd) {
+  if (typeof execFn === 'function') return (args) => String(execFn('gh', args, { cwd, env: gitEnv(cwd) }));
+  return (args) => String(execFileSync('gh', args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+    timeout: GH_TIMEOUT_MS,
+    killSignal: 'SIGKILL',
+    maxBuffer: 64 * 1024 * 1024,
+    env: { ...gitEnv(cwd), GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1' },
+  }));
+}
 
 /** A thread is "needs a person" when it is unresolved and still applies. */
 const NEEDS_A_PERSON = (t) => !t.resolved && !t.outdated;
@@ -50,9 +85,12 @@ const GRAPHQL = `query($owner:String!,$repo:String!,$pr:Int!){
  *   owner: string, repo: string, pr: number,
  *   execFn?: (cmd: string, args: string[], options?: {cwd: string, env: object}) => string,
  *   cwd?: string,
- * }} opts — `execFn` is handed the folder and the environment `gh` should run
- *   with (git's own, `gitEnv`: `gh` runs git) as its third argument; pass them
- *   on to the process it starts. `cwd` defaults to the current folder.
+ * }} opts — `execFn` is optional: without one, `gh` is run here, with git's
+ *   own environment (`gitEnv`: `gh` runs git). One that is given is handed the
+ *   folder and that environment as its third argument, to pass on to the
+ *   process it starts. `cwd` defaults to the current folder. An `owner` or
+ *   `repo` that is not a plain GitHub name, or a folder that only looks like a
+ *   repository, is `cannot-check` and `gh` is not run.
  * @returns {{
  *   status: 'clean'|'findings'|'cannot-check',
  *   open: Array<{path: string, line: number|null, author: string, excerpt: string}>,
@@ -72,19 +110,21 @@ export function readPrReviewFindings({ owner, repo, pr, execFn, cwd = process.cw
   if (!owner || !repo || !Number.isInteger(pr)) {
     return { ...empty, reason: 'no pull request identified for this branch' };
   }
-  if (typeof execFn !== 'function') {
-    return { ...empty, reason: 'no exec function supplied' };
-  }
+  const refusal = ghRefusal({ owner, repo, cwd });
+  if (refusal !== null) return { ...empty, reason: refusal };
+  const run = ghRunner(execFn, cwd);
 
   let raw;
   try {
-    raw = execFn('gh', [
+    // `-f` for text: `-F` reads a FILE when the value starts with `@`. The
+    // number keeps `-F`, which is what sends it as a number.
+    raw = run([
       'api', 'graphql',
       '-f', `query=${GRAPHQL}`,
-      '-F', `owner=${owner}`,
-      '-F', `repo=${repo}`,
+      '-f', `owner=${owner}`,
+      '-f', `repo=${repo}`,
       '-F', `pr=${pr}`,
-    ], { cwd, env: gitEnv(cwd) });
+    ]);
   } catch (err) {
     return {
       ...empty,
@@ -229,11 +269,10 @@ export function readReviewerEffort({ owner, repo, pr, execFn, cwd = process.cwd(
   if (!owner || !repo || !Number.isInteger(pr)) {
     return { ...empty, reason: 'no pull request identified for this branch' };
   }
-  if (typeof execFn !== 'function') {
-    return { ...empty, reason: 'no exec function supplied' };
-  }
+  const refusal = ghRefusal({ owner, repo, cwd });
+  if (refusal !== null) return { ...empty, reason: refusal };
   const R = `${owner}/${repo}`;
-  const run = (args) => String(execFn('gh', args, { cwd, env: gitEnv(cwd) }));
+  const run = ghRunner(execFn, cwd);
 
   let pull;
   try {
