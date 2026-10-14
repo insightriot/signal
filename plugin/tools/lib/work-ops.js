@@ -44,7 +44,8 @@ import { acquireLock } from './file-lock.js';
 import { gitCannotAsk, gitEnv, gitUnusableReason } from './git-env.js';
 import { commitsStartingWith } from './git-objects.js';
 import { assertRealInsidePlanning } from './path-confine.js';
-import { shownRef } from './printable-text.js';
+import { echoed, shownRef } from './printable-text.js';
+import { isSafeUnitName } from './unit-name.js';
 import { EPIC_ID_STRICT_RE, parseFrontmatter, setCurrentEpic, StateSchemaError, stringifyFrontmatter } from './state.js';
 import { deriveRetroPath } from './retrospective.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
@@ -1064,13 +1065,24 @@ export async function openEpic(baseDir, epicId, open = {}) {
  *   SHIP closes the unit: call `closeEpic` with `id` when `hasRecord`. No
  *   phase log is read — `completePhase(SHIP)` has already moved it to
  *   STATE-HISTORY.md, which is why r7's `isEpicCloseByState` never fired.
- *   `status` is the record's (`open`, `closing`, `closed`) or null: a re-run
- *   SHIP on a *closing* unit asks again with the new commit (`re-requested`).
+ *   `status` is the record's (`open`, `closing`, `closed`) or null. A
+ *   *closing* unit carries `proof`, the commit it is closing on: the code
+ *   cannot tell a review-fix re-run from the next slice under the same
+ *   `current_epic`, so §6.8 asks the person before asking again. A *closed*
+ *   one means this SHIP closes no unit.
+ * - `{kind: 'not-a-unit-id', shown}` — `current_epic` is not a name a unit
+ *   can have (`isSafeUnitName`): never returned as an ID, only `shown`
+ *   escaped (`echoed`).
+ * - `{kind: 'broken-record', id, broken}` — the current unit's record does
+ *   not read.
  * - `{kind: 'ask', units: [{id, status}]}` — no current unit
  *   (`current_epic` null): every unit record that is not closed, by ID. The
  *   person says which one, if any, this SHIP finishes; nothing is chosen
  *   for them.
  * - `{kind: 'none'}` — no current unit and no unit that is not closed.
+ *
+ * `unit`, `ask` and `none` carry `broken` — the paths of unit records that do
+ * not read — when there are any (r7.1), so none is passed over in silence.
  *
  * @param {string} baseDir
  * @param {object|null} state — `readState(baseDir)`
@@ -1083,11 +1095,23 @@ export function unitToCloseAtShip(baseDir, state) {
   const id = currentUnit(state);
   if (id !== null && EPIC_ID_STRICT_RE.test(id)) return { kind: 'epic', id };
   if (state?.phase !== 'SHIP') return { kind: 'not-at-ship', phase: state?.phase ?? null };
+  // STATE is not trusted (r7.1): a value no unit can be named is never
+  // handed back to be used as an ID — only shown, escaped.
+  if (id !== null && !isSafeUnitName(id)) return { kind: 'not-a-unit-id', shown: echoed(id) };
+  const listed = listUnits(baseDir);
+  const broken = listed.broken.map((b) => b.path);
+  const withBroken = (out) => (broken.length === 0 ? out : { ...out, broken });
   if (id !== null) {
-    if (unitClosure(baseDir, id) === 'no-record') return { kind: 'unit', id, hasRecord: false, status: null };
-    return { kind: 'unit', id, hasRecord: true, status: getUnit(baseDir, id).status };
+    const unit = listed.units.find((u) => u.id === id);
+    if (unit !== undefined) {
+      // `closing` carries the commit it is closing on: §6.8 asks whether this
+      // SHIP is a re-run of that work or the next slice (r7.1).
+      return withBroken({ kind: 'unit', id, hasRecord: true, status: unit.status, ...(unit.status === 'closing' ? { proof: unit.closing_proof } : {}) });
+    }
+    if (listed.broken.some((b) => b.id === id)) return { kind: 'broken-record', id, broken };
+    return withBroken({ kind: 'unit', id, hasRecord: false, status: null });
   }
-  const units = listUnits(baseDir).units.filter((u) => u.status !== 'closed').map((u) => ({ id: u.id, status: u.status }));
-  return units.length === 0 ? { kind: 'none' } : { kind: 'ask', units };
+  const units = listed.units.filter((u) => u.status !== 'closed').map((u) => ({ id: u.id, status: u.status }));
+  return withBroken(units.length === 0 ? { kind: 'none' } : { kind: 'ask', units });
 }
 
