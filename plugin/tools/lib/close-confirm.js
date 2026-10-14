@@ -76,9 +76,11 @@ export function noRemotePart(result) {
 }
 // The way out for the three reasons no git answer can change (M6.E16 r7,
 // `confirmCloseByHand`, `work-records.js`): a person confirms each close by
-// hand. Named in the line, never run from it.
-const BY_HAND_LINE = ' — or a person confirms each by hand, one ID at a time and only with their yes for it: /sig:item confirm <ID>';
-const byHandWords = (id) => ` Or a person may confirm it by hand, only with their yes for it: /sig:item confirm ${id}.`;
+// hand. Named in the line as a question for the person (r7.1), never run from it.
+const BY_HAND_LINE = ' — or ask the person whether to confirm each by hand, one ID at a time (`/sig:item confirm <ID>`)';
+const byHandWords = (id) => ` Or ask the person whether to confirm it by hand (\`/sig:item confirm ${id}\`).`;
+// For `no-origin-remote` the first way out is a remote named `origin` (r7.1).
+const RENAME = 'rename one to it (`git remote rename <name> origin`)';
 const AGAINST_A_REMOTE = 'Signal confirms a close only against a remote\'s default branch';
 const NO_REMOTE = `this project has no remote. ${AGAINST_A_REMOTE}`;
 
@@ -87,7 +89,7 @@ const NO_REMOTE = `this project has no remote. ${AGAINST_A_REMOTE}`;
 // either: `git remote set-head origin -a` fails without a remote of that name.
 export function noOriginRemotePart(result) {
   if (!anyReason(result, 'no-origin-remote')) return null;
-  return `no-origin-remote: ${NO_ORIGIN_REMOTE}, so these closes stay closing until a remote named \`origin\` exists${BY_HAND_LINE}`;
+  return `no-origin-remote: ${NO_ORIGIN_REMOTE}, so these closes stay closing until a remote named \`origin\` exists: ${RENAME}${BY_HAND_LINE}`;
 }
 const NO_ORIGIN_REMOTE = 'Signal reads the default branch of the remote named `origin`, and this project\'s remotes are named otherwise';
 
@@ -192,7 +194,7 @@ function closingTooLongWords(reason, proof, words) {
     case 'no-remote':
       return `${requested}${NO_REMOTE}, so it stays closing until the project has one.${byHandWords(words.id)}`;
     case 'no-origin-remote':
-      return `${requested}${NO_ORIGIN_REMOTE}. It stays closing until a remote named \`origin\` exists.${byHandWords(words.id)}`;
+      return `${requested}${NO_ORIGIN_REMOTE}. It stays closing until a remote named \`origin\` exists: ${RENAME}.${byHandWords(words.id)}`;
     case 'not-a-repo':
       return `${requested}${NOT_A_REPO}, so it stays closing.${byHandWords(words.id)}`;
     case 'git-too-old':

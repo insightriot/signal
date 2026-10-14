@@ -264,16 +264,25 @@ describe('a repository git cannot read is not taken for no repository', () => {
 });
 
 describe('the confirm line and the sweep name the hand-confirm for the three reasons, and only for them', () => {
-  const HAND = /yes.*\/sig:item confirm <ID>/;
+  // r7.1: worded as a question for the person, never as a command to run.
+  const HAND = /ask the person whether to confirm each by hand, one ID at a time \(`\/sig:item confirm <ID>`\)/;
   it('the line ends of the three reasons name the command; no-default-branch does not', () => {
     for (const reason of BY_HAND_REASONS) {
       expect(formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-1', reason }], stale: [] })).toMatch(HAND);
     }
     expect(formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-1', reason: 'no-default-branch' }], stale: [] })).not.toMatch(/sig:item confirm/);
   });
+  it('no-origin-remote names renaming a remote to origin first, then the hand-confirm', () => {
+    const line = formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-1', reason: 'no-origin-remote' }], stale: [] });
+    expect(line.indexOf('git remote rename <name> origin')).toBeGreaterThan(-1);
+    expect(line.indexOf('git remote rename <name> origin')).toBeLessThan(line.indexOf('/sig:item confirm'));
+    const words = itemClosingTooLongWords('no-origin-remote', 'abc1234', 'SIG-1');
+    expect(words.indexOf('git remote rename <name> origin')).toBeGreaterThan(-1);
+    expect(words.indexOf('git remote rename <name> origin')).toBeLessThan(words.indexOf('/sig:item confirm'));
+  });
   it('closing too long: an item and a unit are each named in the command, for the three reasons only', () => {
     for (const reason of BY_HAND_REASONS) {
-      expect(itemClosingTooLongWords(reason, 'abc1234', 'SIG-1')).toMatch(/\/sig:item confirm SIG-1/);
+      expect(itemClosingTooLongWords(reason, 'abc1234', 'SIG-1')).toMatch(/Or ask the person whether to confirm it by hand \(`\/sig:item confirm SIG-1`\)\.$/);
       expect(unitClosingTooLongWords(reason, 'abc1234', UNIT)).toMatch(/\/sig:item confirm phase-3/);
     }
     expect(itemClosingTooLongWords('not-on-default-branch', 'abc1234', 'SIG-1')).not.toMatch(/sig:item confirm/);

@@ -249,11 +249,11 @@ describe('closing-too-long for an item: the advice follows the reason', { timeou
   });
 
   // Since M6.E16 r7 each ends naming the hand-confirm (tests/close-by-hand.test.js).
-  const HAND = ' Or a person may confirm it by hand, only with their yes for it: /sig:item confirm SIG-1.';
+  const HAND = ' Or ask the person whether to confirm it by hand (`/sig:item confirm SIG-1`).';
   const ends = (re) => new RegExp(`${re.source}${HAND.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
   for (const [name, setup, says] of [
     ['no remote', () => repo(null), ends(/this project has no remote\. Signal confirms a close only against a remote's default branch, so it stays closing until the project has one\./)],
-    ['remotes, none named origin', () => repo('upstream'), ends(/Signal reads the default branch of the remote named `origin`, and this project's remotes are named otherwise\. It stays closing until a remote named `origin` exists\./)],
+    ['remotes, none named origin', () => repo('upstream'), ends(/Signal reads the default branch of the remote named `origin`, and this project's remotes are named otherwise\. It stays closing until a remote named `origin` exists: rename one to it \(`git remote rename <name> origin`\)\./)],
     ['not a git repository', () => NOWHERE, ends(/this project is not a git repository\. Signal confirms a close only against a remote's default branch, so it stays closing\./)],
   ]) {
     it(`${name}: the item is told that, with its commit, and not "Merge it"`, async () => {
@@ -271,7 +271,7 @@ describe('closing-too-long for an item: the advice follows the reason', { timeou
     const head = repo(null);
     await store(head, [closingItem(head)]);
     // Each names its own ID in the hand-confirm command (M6.E16 r7); otherwise the same.
-    const after = (m) => m.slice(m.indexOf(' — ') + 3).replace(/\/sig:item confirm \S+\.$/, '/sig:item confirm <ID>.');
+    const after = (m) => m.slice(m.indexOf(' — ') + 3).replace(/\/sig:item confirm [^`]+`\)\.$/, '/sig:item confirm <ID>`).');
     expect(after(staleItem())).toBe(after(staleUnit()));
   });
 });

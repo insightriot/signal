@@ -200,7 +200,7 @@ describe('t4.4 — checkClosingTooLong', () => {
         // names the hand-confirm (`tests/close-by-hand.test.js`).
         message: 'SIG-6 has been closing for 32 days — its close was requested with the commit abcdef1; this project is not a git repository. ' +
           'Signal confirms a close only against a remote\'s default branch, so it stays closing. ' +
-          'Or a person may confirm it by hand, only with their yes for it: /sig:item confirm SIG-6.',
+          'Or ask the person whether to confirm it by hand (`/sig:item confirm SIG-6`).',
       },
     ]);
   });

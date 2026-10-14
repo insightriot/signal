@@ -224,7 +224,7 @@ describe('runConfirmCloses — the SHIP and sweep entry (fail-open)', () => {
     // and, since M6.E16 r6, the line says what `not-a-repo` means for the close — and, since r7, the hand-confirm
     expect(out.line).toBe('Closes: 1 still closing (SIG-1: not-a-repo) · not-a-repo: this project is not a git repository. '
       + 'Signal confirms a close only against a remote\'s default branch, so these closes stay closing'
-      + ' — or a person confirms each by hand, one ID at a time and only with their yes for it: /sig:item confirm <ID>');
+      + ' — or ask the person whether to confirm each by hand, one ID at a time (`/sig:item confirm <ID>`)');
   });
 });
 
@@ -316,7 +316,7 @@ describe('a unit closing over 14 days: the line says why, by that unit\'s own re
     // Since M6.E16 r7 the sentence ends naming the hand-confirm (tests/close-by-hand.test.js).
     const SAYS = 'no-remote: this project has no remote. Signal confirms a close only against a remote\'s default branch, '
       + 'so these closes stay closing until it has one'
-      + ' — or a person confirms each by hand, one ID at a time and only with their yes for it: /sig:item confirm <ID>';
+      + ' — or ask the person whether to confirm each by hand, one ID at a time (`/sig:item confirm <ID>`)';
 
     it.each(Object.entries(results))('%s: the confirm line says so once, names no command that needs a remote, and claims nothing about a branch', (_label, result) => {
       const line = formatConfirmClosesLine(result);
