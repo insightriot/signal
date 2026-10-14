@@ -54,11 +54,17 @@
 // hook's prefilter lets every edit in a project with a store through for them.
 // Not seen: a hard link (or such a real path) outside the project, edited
 // with a cwd that is outside it too — nothing then names the project.
+//
+// A third such name (r6.1): macOS opens a file by its numbers,
+// `/.vol/<device>/<inode>`. Those are compared with the numbers of the
+// project's guarded files and folders (`volTarget`), found from the cwd — a
+// `/.vol` path has no folder of its own to look above.
 
 import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
 import { shownName } from './printable-text.js';
+import { pathCannotExist } from './store-above.js';
 
 const VIEWS = new Set(['bugs.md', 'backlog.md', 'issues-inbox.md', 'open-questions.md']);
 
@@ -83,6 +89,20 @@ export const BLOCK_MESSAGE = (rel) =>
 
 // Said before `BLOCK_MESSAGE` when the edit named the file by a hard link.
 const LINK_NOTE = (abs, rel) => `${shownName(abs)} is another name (a hard link) for ${shownName(rel)}. `;
+// And when it named the file, or the folder it is in, by number (r6.1).
+const NUMBERS_NOTE = (abs, rel) => `${shownName(abs)} names ${shownName(rel)} by its file numbers (a /.vol path). `;
+
+const IN_A_V2_STORE = 'this project has a v2 work store (.planning/work/WORK.md has `schema_version: 2`), whose records and views are written by code';
+// A `/.vol` path nothing could be read from: it cannot be shown not to be a record.
+const UNRESOLVED_MESSAGE = (abs) =>
+  `${shownName(abs)} is a /.vol path — a file named by its numbers, not by where it is — and it could not be resolved, so it `
+  + `cannot be shown not to be one of the store's files: ${IN_A_V2_STORE}. Nothing was changed. Address the file by its path.`;
+// A file with another name, or one named by number, in a store too large to compare it with.
+const UNDECIDED_MESSAGE = (abs) =>
+  `${shownName(abs)} ${isVolPath(abs) ? 'is a /.vol path (a file named by its numbers)' : 'has more than one name (a hard link)'}, and `
+  + `this project's store holds too many files to check that it is not another name for one of them: ${IN_A_V2_STORE}. `
+  + 'Nothing was changed. '
+  + (isVolPath(abs) ? 'Address the file by its path.' : 'If it is not a record, give it a single name (copy it, remove the link), then edit it.');
 
 export const WORK_MD_MESSAGE = (rel) =>
   `${shownName(rel)} switches this project's v2 work store on (\`schema_version: 2\`) and names its \`key\`, which `
@@ -250,51 +270,159 @@ function underRealFolder(real, root) {
   return out;
 }
 
-// How many entries a search for a hard link's other name reads before it
-// gives up and allows: Signal's own store holds a few hundred files.
+// How many folder entries a search by file numbers reads before it stops:
+// Signal's own store holds a few hundred files. A search that stops short has
+// not shown the target to be unguarded, and its caller refuses (r6.1).
 const LINK_SCAN_MAX = 20000;
+
+/** For tests only: a lower limit than `LINK_SCAN_MAX`, so no test writes 20,001 files. Nothing in Signal sets it. */
+export const testSeam = { linkScanMax: null };
+
+// The guarded files every store has, asked about by name before any folder is
+// read — a folder with too many entries cannot hide them.
+const KNOWN_FILES = [
+  '.planning/work/WORK.md', '.planning/work/EPICS.md',
+  '.planning/BUGS.md', '.planning/BACKLOG.md', '.planning/ISSUES-INBOX.md', '.planning/OPEN-QUESTIONS.md',
+];
+
+const numbersOf = (path) => {
+  try {
+    const s = statSync(path, { bigint: true });
+    return { dev: s.dev, ino: s.ino, nlink: s.nlink, file: s.isFile() };
+  } catch {
+    return null;
+  }
+};
+const sameNumbers = (a, b) => a !== null && b !== null && a.dev !== null && a.dev === b.dev && a.ino === b.ino;
+
+// The guarded files and folders of a project, each with its device and file
+// numbers: `{rel, dir, dev, ino}`. The known files first, then the folders
+// records are in (`units`, `items`, `history`), and only then the two folders
+// that also hold other things (`.planning/work`, `.planning`) — so that
+// whatever fills those does not use up the limit before a record is reached.
+// Ends with `{incomplete: true}` when the limit stops it.
+function* guardedEntries(root) {
+  const at = (rel) => join(root, ...rel.split('/'));
+  const entry = (rel, dir) => {
+    const n = numbersOf(at(rel));
+    return n === null ? null : { rel, dir, dev: n.dev, ino: n.ino };
+  };
+  for (const rel of KNOWN_FILES) {
+    const e = entry(rel, false);
+    if (e !== null) yield e;
+  }
+  for (const rel of GUARDED_DIRS) {
+    const e = entry(rel, true);
+    if (e !== null) yield e;
+  }
+  const max = testSeam.linkScanMax ?? LINK_SCAN_MAX;
+  let read = 0;
+  // Taken from the end: units, items, history, then `.planning/work`, then `.planning`.
+  const pending = [['.planning', false], ['.planning/work', false], ['.planning/work/history', false], ['.planning/work/items', true], ['.planning/work/units', true]];
+  while (pending.length > 0) {
+    const [dir, deep] = pending.pop();
+    let listed;
+    try {
+      listed = readdirSync(at(dir), { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of listed) {
+      read += 1;
+      if (read > max) {
+        yield { incomplete: true };
+        return;
+      }
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory() && !deep) continue;
+      if (e.isDirectory()) pending.push([rel, true]);
+      else if (!isTargetRel(rel)) continue;
+      const found = entry(rel, e.isDirectory());
+      if (found !== null) yield found;
+    }
+  }
+}
 
 // A target that is a second name (a hard link) for a guarded file. Asked only
 // of a file that has more than one name; then the device and file numbers of
-// each guarded file of the project are compared with the target's.
+// each guarded file of the project are compared with the target's. One that
+// is not found before the limit is `undecided`, and refused.
 function hardLinkTo(abs, root) {
   try {
-    const target = statSync(abs, { bigint: true });
-    if (!target.isFile() || target.nlink < 2n) return [];
-    const same = (rel) => {
-      try {
-        const s = statSync(join(root, ...rel.split('/')), { bigint: true });
-        return s.dev === target.dev && s.ino === target.ino;
-      } catch {
-        return false;
-      }
-    };
-    let read = 0;
-    // `.planning` itself (the views), then everything under `.planning/work`.
-    const pending = [['.planning', false], ['.planning/work', true]];
-    while (pending.length > 0) {
-      const [dir, deep] = pending.pop();
-      let entries;
-      try {
-        entries = readdirSync(join(root, ...dir.split('/')), { withFileTypes: true });
-      } catch {
-        continue;
-      }
-      for (const e of entries) {
-        read += 1;
-        if (read > LINK_SCAN_MAX) return [];
-        const rel = `${dir}/${e.name}`;
-        if (e.isDirectory()) {
-          if (deep) pending.push([rel, true]);
-        } else if (isTargetRel(rel) && same(rel)) {
-          return [{ baseDir: root, rel, linkedFrom: abs }];
-        }
-      }
+    const target = numbersOf(abs);
+    if (target === null || !target.file || target.nlink < 2n) return [];
+    for (const e of guardedEntries(root)) {
+      if (e.incomplete) return [{ baseDir: root, undecided: abs }];
+      if (!e.dir && sameNumbers(e, target)) return [{ baseDir: root, rel: e.rel, linkedFrom: abs }];
     }
     return [];
   } catch {
     return [];
   }
+}
+
+// ── A file named by its numbers: `/.vol/<device>/<inode>` (macOS, r6.1) ──────
+//
+// macOS opens any file as `/.vol/<device>/<inode>`, and a file in a folder as
+// `/.vol/<device>/<the folder's inode>/<name>`. Such a path has no `.planning`
+// in it, `realpath` does not resolve it, and the file has one name — so none
+// of the checks above sees it. The numbers are what there is to compare.
+
+/**
+ * Is `abs` under `/.vol`? By its first folder, read as the guard reads every
+ * name (`foldName`): the top folder of a Mac's disk does not tell case apart.
+ *
+ * @param {string} abs — absolute
+ * @returns {boolean}
+ */
+export function isVolPath(abs) {
+  const parts = abs.split(sep);
+  return parts[0] === '' && parts.length > 1 && foldName(parts[1]) === '.vol';
+}
+
+/**
+ * The decision for a `/.vol` path, from numbers alone (no disk read).
+ *
+ * @param {{dev: bigint, ino: bigint}|null} target — the target's numbers; null when it is not there
+ * @param {Array<{dev: bigint|null, ino: bigint|null, rest: string[]}>} above — each folder above the
+ *   target, nearest first: its numbers (null when it does not resolve) and the path from it to the target
+ * @param {Iterable<{rel?: string, dir?: boolean, dev?: bigint, ino?: bigint, incomplete?: boolean}>} entries —
+ *   the project's guarded files and folders (`guardedEntries`)
+ * @returns {{rel: string}|{unresolved: true}|{undecided: true}|null} the guarded path the target is;
+ *   `unresolved` when neither it nor a folder above it resolves; `undecided` when the entries stopped
+ *   short; null when it is not a guarded path
+ */
+export function volCandidate(target, above, entries) {
+  if (target === null && above.every((a) => a.dev === null)) return { unresolved: true };
+  for (const e of entries) {
+    if (e.incomplete) return { undecided: true };
+    if (!e.dir) {
+      if (sameNumbers(e, target)) return { rel: e.rel };
+      continue;
+    }
+    for (const a of above) {
+      if (!sameNumbers(e, a)) continue;
+      const rel = [e.rel, ...a.rest].join('/');
+      if (isTargetRel(rel)) return { rel };
+    }
+  }
+  return null;
+}
+
+function volTarget(abs, root) {
+  if (!isVolPath(abs)) return [];
+  const above = [];
+  const rest = [basename(abs)];
+  // Up to `/.vol/<device>/<inode>`: above that there is no file to name.
+  for (let cur = dirname(abs); cur.split(sep).length > 3; cur = dirname(cur)) {
+    const n = numbersOf(cur);
+    above.push({ dev: n?.dev ?? null, ino: n?.ino ?? null, rest: [...rest] });
+    rest.unshift(basename(cur));
+  }
+  const found = volCandidate(numbersOf(abs), above, guardedEntries(root));
+  if (found === null) return [];
+  if (found.rel !== undefined) return [{ baseDir: root, rel: found.rel, numberedFrom: abs }];
+  return [{ baseDir: root, ...(found.unresolved ? { unresolved: abs } : { undecided: abs }) }];
 }
 
 // The content a tool call would leave in `abs`, or null when it cannot be
@@ -351,19 +479,26 @@ export async function checkWorkWrite({ filePath, cwd, tool, input }) {
     if (typeof filePath !== 'string' || filePath === '') return { block: false };
     const base = typeof cwd === 'string' && isAbsolute(cwd) ? cwd : process.cwd();
     const abs = resolve(base, filePath);
+    // No file can be opened by a path this long, so there is no edit to judge.
+    if (pathCannotExist(abs)) return { block: false };
     const { candidates } = protectedTarget(abs);
-    // And the two routes the path does not show: the real path of a symlinked
-    // folder, and a second name for a guarded file.
+    // And the routes the path does not show: the real path of a symlinked
+    // folder, a second name for a guarded file, and a file named by number.
     const real = realpathLoose(abs);
-    for (const root of storeRoots(base, dirname(abs))) candidates.push(...underRealFolder(real, root), ...hardLinkTo(abs, root));
-    for (const { baseDir, rel, linkedFrom } of candidates) {
+    for (const root of storeRoots(base, dirname(abs))) {
+      candidates.push(...underRealFolder(real, root), ...hardLinkTo(abs, root), ...volTarget(abs, root), ...(real === abs ? [] : volTarget(real, root)));
+    }
+    for (const { baseDir, rel, linkedFrom, numberedFrom, unresolved, undecided } of candidates) {
       // A stat before the import: a project with `.planning` and no store —
       // every project but Signal's — never loads the store library.
       if (!existsSync(join(baseDir, '.planning', 'work', 'WORK.md'))) continue;
       try {
         const { storeVersion } = await import('./work-records.js');
         if (storeVersion(baseDir) !== 2) continue;
-        if (!isWorkMd(rel)) return { block: true, reason: (linkedFrom ? LINK_NOTE(linkedFrom, rel) : '') + BLOCK_MESSAGE(rel) };
+        if (unresolved) return { block: true, reason: UNRESOLVED_MESSAGE(unresolved) };
+        if (undecided) return { block: true, reason: UNDECIDED_MESSAGE(undecided) };
+        const note = linkedFrom ? LINK_NOTE(linkedFrom, rel) : numberedFrom ? NUMBERS_NOTE(numberedFrom, rel) : '';
+        if (!isWorkMd(rel)) return { block: true, reason: note + BLOCK_MESSAGE(rel) };
         if (await changesVersionOrKey(abs, tool, input)) return { block: true, reason: WORK_MD_MESSAGE(rel) };
       } catch {
         // A broken or unknown WORK.md — allow.

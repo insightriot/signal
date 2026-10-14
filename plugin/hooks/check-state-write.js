@@ -20,13 +20,14 @@
 // us anything testable — the core logic is in tools/lib/retrospective.js
 // where unit tests can exercise it directly.
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import {
   checkProposedStateWrite,
   checkStateFrontmatterShape,
 } from '../tools/lib/retrospective.js';
+import { pathCannotExist, storeAbove } from '../tools/lib/store-above.js';
 
 // Read event JSON from stdin.
 let raw = '';
@@ -82,23 +83,21 @@ function realpathLoose(abs) {
 // `foldName` in the guard): macOS opens `.planning/work/unitſ` as `units`.
 const mentionsPlanning = (p) => p.normalize('NFKC').toLowerCase().toUpperCase().toLowerCase().includes('.planning');
 
-// Is `dir`, or a folder above it, a project with a work store? Two routes to a
-// guarded file have no `.planning` in the path at all (REVIEW r6): a hard link
-// to a record, and the real path of a `.planning` that is a symlink. The guard
-// finds both from the project, so it is also loaded for any edit made in, or
-// to a file in, a project that has a store. The cost elsewhere is one
-// `existsSync` for each folder above the cwd and above the target.
-function storeAbove(dir) {
-  for (let cur = dir; ; cur = dirname(cur)) {
-    if (existsSync(join(cur, '.planning', 'work', 'WORK.md'))) return true;
-    if (dirname(cur) === cur) return false;
-  }
-}
+// `storeAbove` (`tools/lib/store-above.js`): is a folder, or one above it, a
+// project with a work store? Two routes to a guarded file have no `.planning`
+// in the path at all (REVIEW r6): a hard link to a record, and the real path
+// of a `.planning` that is a symlink. The guard finds both from the project,
+// so it is also loaded for any edit made in, or to a file in, a project that
+// has a store. The cost elsewhere is one `existsSync` for each folder above
+// the cwd and above the target.
 
 if (typeof target === 'string') {
   try {
     const cwd = typeof event.cwd === 'string' ? event.cwd : process.cwd();
     const abs = resolve(cwd, target);
+    // A path longer than any file can be opened by names no edit (r6.1): let
+    // it through before a single folder of it is looked at.
+    if (pathCannotExist(abs)) process.exit(0);
     if (mentionsPlanning(abs) || mentionsPlanning(realpathLoose(abs)) || storeAbove(resolve(cwd)) || storeAbove(dirname(abs))) {
       const { checkWorkWrite } = await import('../tools/lib/work-write-guard.js');
       const guard = await checkWorkWrite({ filePath: target, cwd, tool, input });
