@@ -103,7 +103,9 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   trailing dot or space and anything from a `:` in its last segment taken off —
   the spellings Windows opens as the same file. Look-alike letters are folded first
   (`unitſ` reads as `units`: NFKC, then lower, upper, lower case), a file that is
-  another name (a hard link) for a guarded file inside the project is refused, and
+  another name (a hard link) for a guarded file inside the project is refused
+  (so is one the guard could not finish checking in a very large store, and a macOS
+  `/.vol/<device>/<inode>` address of a guarded file or folder), and
   the real path of the target is compared with the real path of `.planning` and
   the store's folders, so a symlinked `.planning` is guarded by either address.
   `NotebookEdit` is read by its `notebook_path`. Item bodies
@@ -124,8 +126,8 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
 ### What the work-store guard cannot see (REVIEW I7)
 
 The guard is a `PreToolUse` hook on `Edit|Write|MultiEdit|NotebookEdit`, so it sees those
-four tools and nothing else. A hard link or a real path outside the project, edited
-with a cwd also outside it, is not seen. **An edit made through Bash** — `sed -i`, a shell
+four tools and nothing else. A hard link, a `/.vol` address or a real path outside the project, edited
+with a cwd also outside it, is not seen; a path longer than 4096 bytes is let through unread. **An edit made through Bash** — `sed -i`, a shell
 redirect, a script, `git checkout` of an old file — reaches a record (an item's
 or a unit's), a view or `WORK.md` without the hook running. That is the spirit of AC5.1 (*records
 change only through `/sig:item`*) held by convention, not enforcement, on that
