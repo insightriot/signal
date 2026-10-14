@@ -271,6 +271,22 @@ describe('what a person types is cleaned and bounded, for an item as for a unit'
 
 // r7.1: "git failed" is not "not a git repository". Only git saying so, with
 // no `.git` entry at or above the folder, reads as `not-a-repo`.
+// The knob alone is not enough: a global `safe.directory` (CI's checkout step
+// sets `*`) makes git trust the folder anyway. Signal's git calls read the real
+// global config, so these cases switch it off for the call, as the probe does.
+const DISTRUST = { GIT_TEST_ASSUME_DIFFERENT_OWNER: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+async function asDistrusted(fn) {
+  const saved = Object.fromEntries(Object.keys(DISTRUST).map((k) => [k, process.env[k]]));
+  Object.assign(process.env, DISTRUST);
+  try {
+    return await fn();
+  } finally {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
+  }
+}
+
 describe('a repository git cannot read is not taken for no repository', () => {
   async function refusedAsGitFailed(work, head) {
     await store(work, { items: [closingItem('SIG-1', head)] });
@@ -299,22 +315,12 @@ describe('a repository git cannot read is not taken for no repository', () => {
   // that reason elsewhere; the injected cases below run everywhere.
   it.skipIf(!DUBIOUS_HONOURED)('git refusing a repository it does not trust (dubious ownership): git-failed [skipped where this git does not honour GIT_TEST_ASSUME_DIFFERENT_OWNER]', async () => {
     const { work, head } = await repo();
-    process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER = '1';
-    try {
-      await refusedAsGitFailed(work, head);
-    } finally {
-      delete process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER;
-    }
+    await asDistrusted(() => refusedAsGitFailed(work, head));
   });
 
   it.skipIf(!DUBIOUS_HONOURED)('the same with a remote not named origin: git-failed, not no-origin-remote [skipped where this git does not honour GIT_TEST_ASSUME_DIFFERENT_OWNER]', async () => {
     const { work, head } = await repo(['upstream']);
-    process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER = '1';
-    try {
-      await refusedAsGitFailed(work, head);
-    } finally {
-      delete process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER;
-    }
+    await asDistrusted(() => refusedAsGitFailed(work, head));
   });
 
   // Any git, by an injected git (r7.1 CI follow-up): a git that refuses the

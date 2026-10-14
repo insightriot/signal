@@ -44,6 +44,23 @@ afterEach(() => {
 
 const gate = (dir, opts = {}) => checkBranchPosture(dir, { tier: 'FULL', ...opts });
 
+// The knob alone is not enough: a global `safe.directory` (CI's checkout step
+// sets `*`) makes git trust the folder anyway. Signal's git calls read the real
+// global config, so these cases switch it off for the call, as the probe does.
+const DISTRUST = { GIT_TEST_ASSUME_DIFFERENT_OWNER: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+async function asDistrusted(fn) {
+  const saved = Object.fromEntries(Object.keys(DISTRUST).map((k) => [k, process.env[k]]));
+  Object.assign(process.env, DISTRUST);
+  try {
+    return await fn();
+  } finally {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
+  }
+}
+
+
 describe('checkBranchPosture when git fails', () => {
   it('control: a folder with no repository is NOT_APPLICABLE, "not a git repository"', () => {
     const r = gate(root);
@@ -94,18 +111,16 @@ describe('checkBranchPosture when git fails', () => {
     expect(r.reason).toBe(GIT_FAILED);
   });
 
-  it.skipIf(!DUBIOUS_HONOURED)('a repository git does not trust, asked at its own top (real git): not NOT_APPLICABLE [skipped where this git does not honour GIT_TEST_ASSUME_DIFFERENT_OWNER]', () => {
+  it.skipIf(!DUBIOUS_HONOURED)('a repository git does not trust, asked at its own top (real git): not NOT_APPLICABLE [skipped where this git does not honour GIT_TEST_ASSUME_DIFFERENT_OWNER]', async () => {
     g(root, 'init', '-q', '-b', 'main');
-    process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER = '1';
-    expect(gate(root).status).toBe(BRANCH_GATE.CANNOT_DETERMINE);
+    expect(await asDistrusted(() => gate(root).status)).toBe(BRANCH_GATE.CANNOT_DETERMINE);
   });
 
-  it.skipIf(!DUBIOUS_HONOURED)('a repository git does not trust, asked from a folder inside it (real git): CANNOT_DETERMINE [skipped where this git does not honour GIT_TEST_ASSUME_DIFFERENT_OWNER]', () => {
+  it.skipIf(!DUBIOUS_HONOURED)('a repository git does not trust, asked from a folder inside it (real git): CANNOT_DETERMINE [skipped where this git does not honour GIT_TEST_ASSUME_DIFFERENT_OWNER]', async () => {
     g(root, 'init', '-q', '-b', 'main');
     const sub = join(root, 'sub');
     mkdirSync(sub);
-    process.env.GIT_TEST_ASSUME_DIFFERENT_OWNER = '1';
-    const r = gate(sub);
+    const r = await asDistrusted(() => gate(sub));
     expect(r.status).toBe(BRANCH_GATE.CANNOT_DETERMINE);
     expect(r.reason).toBe(GIT_FAILED);
   });
