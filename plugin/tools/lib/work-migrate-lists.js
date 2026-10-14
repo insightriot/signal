@@ -19,7 +19,10 @@
 //
 //   - `WORK.md` exists, whatever it holds → "already on the store", checked
 //     first (AC1.5; D-M6E11-21; `isStoreOn` throws on a broken one, so this
-//     checks the file exists rather than asking it);
+//     checks the file exists rather than asking it) — UNLESS the store is a
+//     real v2 store with no `work/units/` folder, which takes the units-only
+//     branch below (M6.E16 t7.3). A store that has the folder is refused:
+//     unit records are already on;
 //   - list copies in the archive with no MANIFEST.json AND evidence this
 //     tool left them (a list gone from .planning/, or a `pre-work-store-*`
 //     tag) → the shape of an apply stopped part-way; the reset to the tag is
@@ -72,16 +75,36 @@
 // generated file). WORK.md and the views are never moved in over a file that
 // appeared at their path (`moveInNew`). The snapshotter is not used.
 //
+// UNITS ONLY (M6.E16 t7.3, AC9.2). A project already on the store with no
+// unit records runs the same command and gets them, and nothing else in its
+// store changes. The dry run prints the plan (`work-migrate-units.js`): every
+// unit and its proposal, the proposed legacy closes as one list, the flagged,
+// the refused, the declared (`--also`). The apply needs the dry run's hash, a
+// clean tree, `/sig:add`'s lock and the store's lock, and tags the pre-apply
+// HEAD. It writes IN PLACE, through `importUnits` (`unit-records.js`), not
+// aside: the store's lock is taken there — once, by the one library that may
+// write a unit record — and this module's second look, the hash check and the
+// tag run under it as that writer's `gate`. Its put-back is the writer's own:
+// if a record cannot be written, the views cannot be regenerated, or the check
+// after the write (`checkUnits` and `checkRecords`, its `verify`) finds
+// anything, every record, the folder and every view go back to what they were,
+// and the tag is removed. A store that does not check clean beforehand is
+// refused, so the regeneration can change no view but `work/EPICS.md` (and the
+// Epic table of the current milestone's file, and of any other milestone's
+// file, only where it already has the markers).
+//
 // No v2 store module may import this one (`tests/legacy-lists.test.js`
 // V2_MODULES): it reaches the list parsers.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, readdirSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
 import { acquireLock as acquireAddLock, LOCK_FILE as ADD_LOCK_REL } from './add.js';
 import { atomicWrite } from './atomic-write.js';
+import { capitalised, exactRefExists, RECORD_DEFAULT_BRANCH_HINT, remoteNames, resolveDefaultBranch } from './branch-guard.js';
 import { acquireLock } from './file-lock.js';
+import { gitCannotAsk, gitEnv } from './git-env.js';
 import {
   CURRENT_LAYOUT_VERSION,
   hashState,
@@ -92,10 +115,15 @@ import {
 } from './migrate-memory.js';
 import { isForeignIndexFormat, regeneratePlanningIndexCore } from './planning-index.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
+import { printable, shownName, shownRef } from './printable-text.js';
 import { bodyDirFor } from './work-convert.js';
 import { lockFailure, WorkStoreError } from './work-errors.js';
 import { GENERATED_FILES } from './work-generate.js';
 import { rewriteRelativeLinks } from './work-links.js';
+import {
+  milestoneTableWrites, otherTablesReportLines, planForUnitsWithoutRecord, planUnits, refusedTablesSentence, unitImportList, unitImportTexts,
+  unitsReportLines,
+} from './work-migrate-units.js';
 import {
   backlogTag,
   bugTitle,
@@ -112,10 +140,11 @@ import {
   TAG_TYPES,
 } from './work-migrate.js';
 import { checkEvents, serializeRecord, validateRecord } from './work-record.js';
-import { bodyPath, checkRecords, listRecords, recordPath } from './work-records.js';
+import { bodyPath, checkRecords, listRecords, recordPath, storeVersion, V1_STORE_MESSAGE } from './work-records.js';
+import { checkUnits, importUnits, importUnitsEntries, listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 import { scrubSensitive } from './scrub.js';
 import { isGeneratedFile } from './work-marker.js';
-import { STORE_KEY_RE, WORK_DIR, WORK_FILE, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
+import { isStoreOn, STORE_KEY_RE, WORK_DIR, WORK_FILE, WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
 import { confineView, regenerateViews, VIEW_PATHS } from './work-views.js';
 
 const WORK_MD_REL = `.planning/${WORK_DIR}/${WORK_FILE}`;
@@ -152,6 +181,28 @@ export function proposeKey(folderName) {
   return STORE_KEY_RE.test(key) ? key : null;
 }
 
+// The folder list's line for `units/` in a new store's WORK.md. A project that
+// adds unit records to a store it already has keeps the WORK.md it has —
+// after creation the file is the person's (the edit hook guards only its
+// `schema_version` and `key` lines; nothing regenerates it) — so that run
+// prints this line for the person to add (M6.E16 t10.4).
+export const WORK_MD_UNITS_LINE = '- `units/` — one record per Epic or unit, `<ID>.json`. A unit\'s status is derived from its own events too: '
+  + 'open, *closing*, closed — and a closed unit can be held';
+
+// What a units-only run says about WORK.md: nothing when its text names
+// `units/` (or does not read), else the line to add. `did`: "is" in the dry
+// run, "was" after the apply.
+function workMdUnitsNote(baseDir, did) {
+  let text;
+  try {
+    text = readFileSync(join(baseDir, WORK_MD_REL), 'utf-8');
+  } catch {
+    return [];
+  }
+  if (text.includes('units/')) return [];
+  return ['', `${WORK_MD_REL} is yours to edit and ${did} not changed. Its folder list does not name units/ — add this line by hand:`, `  ${WORK_MD_UNITS_LINE}`];
+}
+
 // WORK.md for a project the store was turned on in by this command. Names no
 // maintainer script and no other project's history (AC7.3).
 function workMd(key, archived) {
@@ -168,7 +219,8 @@ schema_version: 2
 This file switches the work-item store on for this project. Every bug, backlog row, inbox capture and open question is one **record**, \`items/NN/${key}-n.json\` in this folder (NN is the item number divided by 1000, two digits), with its body beside it as \`${key}-n.md\`. **A record never moves.** Its status is not stored: it is derived from the record's own events — \`created\` → N, \`triaged\` → T, \`queued\` → Q, \`started\` → P, \`close_requested\` → *closing*, \`closed\` → C, \`reopened\` → T.
 
 - \`items/\` — every record and its body, by number
-- \`epics/<EpicID>/\` — an Epic's documents; its items are the records whose events name the Epic
+${WORK_MD_UNITS_LINE}
+- \`epics/<EpicID>/\` — an Epic's documents, when a folder was made for it by hand; an Epic's items are the records whose events name it, folder or not
 - \`history/YYYY.md\` — closes from more than 30 days before the newest event (a view)
 
 \`key\` is the prefix of every item ID (\`${key}-1\`, \`${key}-2\`, …).
@@ -188,7 +240,7 @@ function listDates(baseDir, rel, execFn) {
   let out = '';
   try {
     out = String(execFn('git', ['log', '--follow', '--format=%ad', '--date=short', '--', rel], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 16 * 1024 * 1024,
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 16 * 1024 * 1024, env: gitEnv(baseDir),
     })).trim();
   } catch {
     out = '';
@@ -209,13 +261,17 @@ function listDates(baseDir, rel, execFn) {
 //     flag, and each proposed close with its wording and evidence. The lists
 //     can stay byte-identical while this moves — a commit, a fetch into the
 //     default branch, a checkout, a retrospective added — and a yes given to one
-//     list of closes must never close another.
-function inputHashOf(stateText, texts, shown, dates) {
+//     list of closes must never close another. The units are in this half too
+//     (t7.4): what each unit is named by, and what is proposed for it.
+function inputHashOf(stateText, texts, shown, dates, unitsHash) {
   const parts = [['STATE.md', stateText], ...GENERATED_FILES.map((n) => [n, texts[n] ?? null])];
   const inputs = hashState(parts.map(([n, t]) => `${n}\0${t === null ? '\u0001absent' : t}\0`).join('') + JSON.stringify(GENERATED_FILES.map((n) => [dates[n]?.first, dates[n]?.last])));
   const outcome = hashState(JSON.stringify({
     items: shown.manifest.items.map((it) => [it.id, it.status, it.flag]),
     proposed: shown.proposedCloses.map((c) => [c.id, c.legacyId, c.reason, c.wording, c.evidence, c.proof]),
+    // The unit plan's own hash (M6.E16 t7.4): every source a unit is named
+    // by, the `--also` list, and every unit's proposal and evidence.
+    units: unitsHash,
   }));
   return `${inputs}:${outcome}`;
 }
@@ -227,22 +283,28 @@ function hashDriftReason(expected, actual) {
     return `${STATE_REL} or a list (${GENERATED_FILES.join(', ')}) changed since the dry run, so nothing was written. Re-run the dry run.`;
   }
   return 'What the dry run showed changed since the dry run, though the lists and STATE.md did not: this repository\'s history '
-    + 'or retrospectives now give a different outcome — an item\'s status or flag, or the proposed closes or their evidence '
-    + '(a commit, a fetch, a checkout or a retrospective since then). Nothing was written. Re-run the dry run and confirm what it shows now.';
+    + 'or retrospectives now give a different outcome — an item\'s status or flag, the proposed closes or their evidence, '
+    + 'or what is proposed for a unit (a commit, a fetch, a checkout, a retrospective, a milestone row, a unit\'s files or the --also list '
+    + 'since then). Nothing was written. Re-run the dry run and confirm what it shows now.';
 }
 
 // Everything both modes decide before writing: the refusals, the key, the
 // lists' texts and dates, and the plan. Reads only.
-function assess(baseDir, opts) {
+async function assess(baseDir, opts) {
   const refuse = (reason) => ({ refusal: reason });
 
   // "Already on the store" wins whenever WORK.md exists (AC1.5): a project on
   // the store may well keep its old lists in the archive (REVIEW pass 2 I-A).
+  // AT this check, not before it (M6.E16 t7.3): a store with no `work/units/`
+  // takes the units-only branch; one that has the folder is refused.
   if (existsSync(join(baseDir, WORK_MD_REL))) {
-    const items = onDisk(baseDir, ITEMS_REL);
-    return refuse(`This project is already on the store: ${WORK_MD_REL} exists, so nothing was written.`
-      + (items ? '' : ` It has no ${ITEMS_REL}/ — if ${WORK_MD_REL} was made by hand in a project that was never migrated, `
-        + 'move that one file aside and re-run.'));
+    if (!onDisk(baseDir, ITEMS_REL)) {
+      return refuse(`This project is already on the store: ${WORK_MD_REL} exists, so nothing was written.`
+        + ` It has no ${ITEMS_REL}/ — if ${WORK_MD_REL} was made by hand in a project that was never migrated, `
+        + 'move that one file aside and re-run. (A real store with no item yet gets unit records once it has one: '
+        + 'add an item with /sig:item new, commit, then re-run.)');
+    }
+    return assessUnitsOnly(baseDir, opts);
   }
 
   // A run stopped after it moved a list but before it wrote MANIFEST.json left
@@ -258,7 +320,9 @@ function assess(baseDir, opts) {
     if (gone.length > 0 || tags.length > 0) {
       const found = [
         ...(gone.length > 0 ? [`${gone.join(', ')} ${gone.length === 1 ? 'is' : 'are'} no longer in .planning/`] : []),
-        ...(tags.length > 0 ? [`this repository has ${tags.length === 1 ? 'the tag' : 'the tags'} ${tags.join(', ')}`] : []),
+        // A tag is named by whoever pushed it: each through `shownRef`, and five at most.
+        ...(tags.length > 0 ? [`this repository has ${tags.length === 1 ? 'the tag' : 'the tags'} `
+          + `${tags.slice(0, TAGS_SHOWN).map((t) => shownRef(t, 'tag')).join(', ')}${tags.length > TAGS_SHOWN ? `, and ${tags.length - TAGS_SHOWN} more` : ''}`] : []),
       ].join(', and ');
       return refuse(`${copies.map(archiveRel).join(', ')} ${copies.length === 1 ? 'is' : 'are'} in the archive with no ${MANIFEST_REL}, and ${found} — `
         + 'the shape this tool leaves when an apply stops part-way. Nothing was written. To put the project back in git: find the '
@@ -272,7 +336,7 @@ function assess(baseDir, opts) {
   // repository, and every list a regular file (t4.6).
   // The lock files too (REVIEW I5): `file-lock.js` reads a lock it finds, and
   // a held lock's first line is printed as its pid.
-  for (const rel of [WORK_MD_REL, `${ITEMS_REL}/x`, `${HISTORY_REL}/x`, MANIFEST_REL, WORK_LOCK_REL, ADD_LOCK_REL]) {
+  for (const rel of [WORK_MD_REL, `${ITEMS_REL}/x`, `${UNITS_REL}/x`, `${HISTORY_REL}/x`, MANIFEST_REL, WORK_LOCK_REL, ADD_LOCK_REL]) {
     try {
       confineView(baseDir, rel);
     } catch (err) {
@@ -344,8 +408,8 @@ function assess(baseDir, opts) {
 
   // Never overwrite: a store file or an archive copy already where this run
   // would put one.
-  const taken = [ITEMS_REL, HISTORY_REL, VIEW_PATHS.epics, MANIFEST_REL, ...archived.map((x) => x.to)]
-    .filter((rel) => existsSync(join(baseDir, rel)));
+  const taken = [ITEMS_REL, UNITS_REL, HISTORY_REL, VIEW_PATHS.epics, MANIFEST_REL, ...archived.map((x) => x.to)]
+    .filter((rel) => onDisk(baseDir, rel));
   if (taken.length > 0) {
     return refuse(`${taken.join(', ')} already exist${taken.length === 1 ? 's' : ''}; this run never overwrites one, so nothing was written. `
       + 'Move it aside (or remove it), commit, then re-run.');
@@ -354,6 +418,8 @@ function assess(baseDir, opts) {
   // Closes are checked against this repository's history (D-M6E15-24). The
   // look under the lock reads it again (AC4.3): a commit landing while the
   // apply waited for its locks must not slip past the hash.
+  // On this path the project has no unit records yet, so the retrospective
+  // rule still applies here (`D-M6E16-15` is about a project that has them).
   const evidence = buildEvidenceIndex(baseDir, { execFn: opts.execFn });
   const planOpts = { key, dates, evidence, ...(opts.segmenters ? { segmenters: opts.segmenters } : {}) };
   let plan = planListsToRecords(texts, planOpts);
@@ -376,18 +442,390 @@ function assess(baseDir, opts) {
     }
   }
 
+  // The units (M6.E16 t7.4): proposed in the same dry run, inside the same
+  // hash, written by the same apply.
+  const unitsPlan = await planUnits(baseDir, { also: opts.also, storeKey: key });
+  if (unitsPlan.refusal) return refuse(unitsPlan.refusal);
+  if (unitsPlan.milestone !== null && (unitsPlan.milestone.markers === 'ok' || unitsPlan.milestone.markers === 'broken')) {
+    return refuse(`${unitsPlan.milestone.rel} already carries the Epic-table markers, which belong to a project that has unit records — and this `
+      + 'run builds the store beside the project, where that file is not. Take the two marker lines out, commit, run this again, then put '
+      + 'them back: the next change to a unit fills the table. Nothing was written.');
+  }
+  // The same for any other milestone's file that carries them (r6, SIG-310):
+  // the built store is checked against it once it is in place, and its table
+  // is not the one the records give — the apply would fail there, after a dry
+  // run that said the table would be written.
+  if (unitsPlan.otherMarked.length > 0) {
+    return refuse(`${unitsPlan.otherMarked[0]} already carries the Epic-table markers, which belong to a project that has unit records — and this `
+      + 'run builds the store beside the project, where that file is not, so its table would not be written. Take the two marker lines out'
+      + `${unitsPlan.otherMarked.length > 1 ? ` (and out of ${unitsPlan.otherMarked.slice(1).join(', ')})` : ''}, commit, run this again, then put `
+      + 'them back: the next change to a unit fills the table. Nothing was written.');
+  }
+  sensitiveHits = [...sensitiveHits, ...unitSensitiveHits(unitsPlan)];
+
   const files = present.map((name) => {
     const f = plan.manifest.files[name] ?? { items: 0, open: 0, closed: 0, flagged: 0, regions: [] };
     return { file: `.planning/${name}`, items: f.items, open: f.open, closed: f.closed, flagged: f.flagged, regions: f.regions.map((r) => r.name) };
   });
-  return { key, keySource, folder, files, archived, dates, texts, plan, shown, sensitiveHits, evidence, inputHash: inputHashOf(stateText, texts, shown, dates) };
+  return { key, keySource, folder, files, archived, dates, texts, plan, shown, unitsPlan, sensitiveHits, evidence, inputHash: inputHashOf(stateText, texts, shown, dates, unitsPlan.inputHash) };
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// UNITS ONLY (M6.E16 t7.3) — a project already on the store, with no unit
+// records. See the header.
+// ═════════════════════════════════════════════════════════════════════════════
+
+const ALREADY_ON = `This project is already on the store: ${WORK_MD_REL} exists`;
+
+// Sensitive-data hits in the text a plan's unit records would hold.
+function unitSensitiveHits(plan) {
+  return unitImportTexts(plan).flatMap(({ id, text }) => sensitiveHits(text).map((h) => ({ id, file: 'unit', type: h.type, match: h.match })));
+}
+
+// Everything both modes decide before writing, for a project already on the
+// store: the refusals and the plan. Reads only.
+//
+// With no `work/units/` folder the plan is every unit the project names, and
+// the apply turns unit records on. With the folder already there (REVIEW pass
+// 1, C-I5, `D-M6E16-23`) the plan is narrowed to the units that have NO record
+// (`existing` lists the ones that do): a project whose units are not Epic IDs
+// has no other command that gives a new unit its record. An existing record is
+// never touched, and never proposed again.
+async function assessUnitsOnly(baseDir, opts) {
+  const refuse = (reason) => ({ refusal: reason });
+  let unitsOn;
+  try {
+    unitsOn = unitRecordsOn(baseDir);
+  } catch (err) {
+    return refuse(`${ALREADY_ON}, so nothing was written. Unit records cannot be added: ${err.message}`);
+  }
+  let key;
+  try {
+    if (storeVersion(baseDir) !== 2) return refuse(`${ALREADY_ON}, so nothing was written. ${V1_STORE_MESSAGE}`);
+    ({ key } = isStoreOn(baseDir));
+  } catch (err) {
+    return refuse(`${ALREADY_ON}, so nothing was written. It does not read, so unit records cannot be added: ${err.message}`);
+  }
+  for (const rel of [`${UNITS_REL}/x`, VIEW_PATHS.epics, WORK_LOCK_REL, ADD_LOCK_REL]) {
+    try {
+      confineView(baseDir, rel);
+    } catch (err) {
+      return refuse(String(err.message));
+    }
+  }
+  // Unit records are added to a store that checks clean, so that the one
+  // regeneration the apply runs can change no view but the Epic index.
+  let findings;
+  try {
+    findings = checkRecords(baseDir);
+  } catch (err) {
+    findings = [{ message: err.message }];
+  }
+  if (findings.length > 0) {
+    return refuse(`${ALREADY_ON}, and it does not check clean (${findings.length} finding${findings.length === 1 ? '' : 's'}; the first: `
+      + `${clip(printable(findings[0].message), 300)}). Nothing was written. Unit records are added only to a store with no finding, so that nothing `
+      + 'else in it changes: run /sig:docs-sweep, fix what it reports, commit, then re-run.');
+  }
+  // With unit records on, which units have a record must be known: a record
+  // that does not read has no ID to trust, so the run stops until it does.
+  let existing = null;
+  let existingUnits = [];
+  if (unitsOn) {
+    let unitFindings;
+    let listed = { units: [] };
+    try {
+      unitFindings = checkUnits(baseDir);
+      listed = listUnits(baseDir);
+    } catch (err) {
+      unitFindings = [{ message: err.message }];
+    }
+    if (unitFindings.length > 0) {
+      return refuse(`${ALREADY_ON}, with unit records, and they do not check clean (${unitFindings.length} finding${unitFindings.length === 1 ? '' : 's'}; `
+        + `the first: ${clip(printable(unitFindings[0].message), 300)}). Nothing was written. A record is added only beside records that all read: `
+        + 'run /sig:docs-sweep, fix what it reports, commit, then re-run.');
+    }
+    existingUnits = listed.units;
+    existing = existingUnits.map((u) => u.id);
+  }
+  const full = await planUnits(baseDir, { also: opts.also, storeKey: key });
+  if (full.refusal) return refuse(full.refusal);
+  if (existing !== null) {
+    const again = full.declared.find((d) => existing.includes(d.id));
+    if (again) return refuse(`--also ${again.id}: ${again.id} already has a unit record (${UNITS_REL}/${again.id}.json), so it cannot be declared. Nothing was written.`);
+  }
+  const plan = existing === null ? full : planForUnitsWithoutRecord(full, existing);
+  if (plan.milestone?.markers === 'broken') {
+    return refuse(`${plan.milestone.rel}: its Epic-table markers are broken (${plan.milestone.problem}), so its table could not be written from the `
+      + 'unit records. Nothing was written. Fix the markers (one begin, one end, in that order) or take them out, commit, then re-run.');
+  }
+  // Every milestone file whose Epic table the apply writes, for each answer to
+  // the proposed closes (r6, SIG-310): the current milestone's, and any other
+  // marked one whose table the new records change. The dry run names each.
+  const tablesFor = (confirmCloses) => milestoneTableWrites(
+    baseDir, plan.milestone?.rel ?? null,
+    [...existingUnits, ...importUnitsEntries(unitImportList(plan, { confirmCloses, at: '2000-01-01' }))],
+    { replaceTyped: existing === null },
+  );
+  const tables = { confirmed: tablesFor(true), unconfirmed: tablesFor(false) };
+  // The hash also covers which units already have a record: one written after
+  // the dry run changes what this run would add. And what is written in
+  // another milestone's file, when anything is: the dry run showed it.
+  const elsewhere = [...tables.confirmed, ...tables.unconfirmed].some((t) => !t.current);
+  let inputHash = existing === null ? `units:${plan.inputHash}` : `units:${hashState(JSON.stringify([plan.inputHash, plan.existing]))}`;
+  if (elsewhere) inputHash = ['units', hashState(JSON.stringify([inputHash, tables]))].join(':');
+  return {
+    unitsOnly: true, key, plan, tables, sensitiveHits: unitSensitiveHits(plan), inputHash,
+    nothingToAdd: existing !== null && plan.units.every((u) => u.proposal === 'refused'),
+  };
+}
+
+const count = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+// What an apply of this plan creates, in words.
+function unitCounts(plan) {
+  const made = plan.units.filter((u) => u.proposal !== 'refused');
+  return { made: made.length, proposed: plan.proposedCloses.length, dropped: plan.declared.length };
+}
+
+function sensitiveLines(hits) {
+  if (hits.length === 0) return [];
+  return ['', 'Sensitive data found — the apply stops here until you decide (keep the text as it is, or abort and edit the file first):',
+    ...hits.map((h) => `  ${h.id} (${h.file}): ${h.type} "${masked(h.match)}"`)];
+}
+
+// Every file an apply of this plan writes, for one answer to the proposed
+// closes (`tables`: `a.tables.confirmed` or `.unconfirmed`), sorted: the
+// record files (and the folder's `.keep`, when the run turns unit records
+// on), the Epic index, and each milestone file whose table changes. None when
+// there is nothing to add, or when a table would refuse the apply.
+function unitsWrites(a, tables) {
+  if (a.nothingToAdd || tables.some((t) => t.typed.length > 0)) return [];
+  return [
+    ...(Array.isArray(a.plan.existing) ? [] : [`${UNITS_REL}/.keep`]),
+    ...a.plan.units.filter((u) => u.proposal !== 'refused').map((u) => `${UNITS_REL}/${u.id}.json`),
+    VIEW_PATHS.epics,
+    ...tables.map((t) => t.rel),
+  ].sort();
+}
+
+// " and the Epic table in <file>", once for each milestone file in `rels`;
+// a file that is not the current milestone's is said to be another's.
+const tableWords = (a, rels, note = () => '') => rels.map((rel) => (
+  ` and the Epic table in ${rel}${rel === a.plan.milestone?.rel ? '' : ` (another milestone's file${note(rel)})`}`
+)).join('');
+
+function unitsDryRunReport(baseDir, a) {
+  const c = unitCounts(a.plan);
+  // The milestone files the apply writes, on either answer; one written on
+  // only one of the two is marked so.
+  const written = (tables) => tables.filter((t) => t.typed.length === 0).map((t) => t.rel);
+  const [yes, no] = [written(a.tables.confirmed), written(a.tables.unconfirmed)];
+  const table = tableWords(a, [...new Set([...yes, ...no])], (rel) => (yes.includes(rel) && no.includes(rel) ? '' : '; only on one of the two answers, as said above'));
+  const adding = Array.isArray(a.plan.existing); // unit records are already on
+  const ifConfirmed = c.proposed > 0 ? ` (${c.proposed} of them closed as legacy only if you confirm the list above; otherwise open)` : '';
+  // A table with lines typed by hand between its markers refuses the apply
+  // (`unitsWrites` is then empty): the last sentence says that, and not what
+  // an apply that cannot run would create (r6.1).
+  const refusing = (tables) => tables.filter((t) => t.typed.length > 0);
+  const [refusedYes, refusedNo] = [refusing(a.tables.confirmed), refusing(a.tables.unconfirmed)];
+  const refusal = refusedTablesSentence;
+  const refusedOnBoth = refusedYes.length > 0 && refusedNo.length > 0;
+  const refusedOnOne = refusedOnBoth ? [] : [[refusedYes, 'confirmed'], [refusedNo, 'not confirmed']].filter(([tables]) => tables.length > 0);
+  return [
+    '/sig:docs-migrate --work-store — unit records, dry run (nothing written)',
+    '',
+    adding
+      ? `This project is already on the store (key ${a.key}) and has unit records: this run adds a record for each unit it names that has none, `
+        + 'and changes no record that exists and nothing else in the store.'
+      : `This project is already on the store (key ${a.key}) and has no unit records: this run adds them, and changes nothing else in the store.`,
+    '',
+    ...unitsReportLines(a.plan),
+    ...otherTablesReportLines(a.tables),
+    ...sensitiveLines(a.sensitiveHits),
+    '',
+    a.nothingToAdd
+      ? '--apply would write nothing: there is no record to add.'
+      : refusedOnBoth
+        ? `--apply is refused as the files stand, and writes nothing: ${refusal([...refusedYes, ...refusedNo])}`
+        : adding
+        ? `--apply adds ${count(c.made, 'unit record')} under ${UNITS_REL}/${ifConfirmed}, regenerates ${VIEW_PATHS.epics}${table}, and leaves `
+          + 'them staged, not committed. No existing record, no item and no other view is changed.'
+        : `--apply creates ${UNITS_REL}/ with ${count(c.made, 'unit record')}${ifConfirmed}`
+          + `, regenerates ${VIEW_PATHS.epics}${table}, and leaves them staged, not committed. No item is changed, and no other view.`,
+    ...(a.nothingToAdd ? [] : refusedOnOne.map(([tables, answer]) => (
+      `If the proposed closes are ${answer}, --apply is refused instead, and writes nothing: ${refusal(tables)}`
+    ))),
+    ...workMdUnitsNote(baseDir, 'is'),
+  ].map(printable).join('\n');
+}
+
+// The undo line for a units-only apply. `added`: the record files this run
+// wrote, when unit records were already on — then the undo removes those files
+// only, never the folder, which holds records this run did not write.
+function unitsRevertLine(probe, force, tag, paths, added = null) {
+  const records = added ?? [UNITS_REL];
+  const views = paths.filter((rel) => !records.includes(rel));
+  const remove = added === null ? `rm -rf -- ${UNITS_REL}` : `rm -f -- ${added.join(' ')}`;
+  if (probe.mode !== 'git') {
+    return `# nothing staged (.planning/ is not under git): undo with ${remove}, then make any /sig:item change to regenerate `
+      + `${VIEW_PATHS.epics}` + (views.length > 1 ? '; a milestone file\'s Epic table has no copy to go back to' : '');
+  }
+  if (probe.dirty && force) {
+    // Only a generated file is restored from HEAD (REVIEW pass 1, S-M4). A
+    // milestone file is a person's document with one generated table in it,
+    // and on a dirty tree it may hold their uncommitted edits: no command
+    // printed here touches its bytes, and the line says where the old rows are.
+    const generated = views.filter((rel) => rel === VIEW_PATHS.epics);
+    const tables = views.filter((rel) => rel !== VIEW_PATHS.epics);
+    return '# --force on a dirty tree: do NOT \'git reset --hard\' (it would discard your other uncommitted work). '
+      + tables.map((rel) => `The Epic table in ${rel} was regenerated between its markers, and no command here changes that file, `
+        + `which may hold your own edits: after the undo, \`git diff -- ${rel}\` shows the old rows, to put back by hand. `).join('')
+      + `Undo only this migration: git reset -q -- ${paths.join(' ')} && ${remove} && git checkout -- ${generated.join(' ')}`;
+  }
+  return `git reset --hard ${tag ?? '<pre-apply-commit>'}   # discards the staged unit records`;
+}
+
+// A milestone file among the paths a regeneration wrote.
+const MILESTONE_REL_RE = /^\.planning\/MILESTONE-\d+(?:\.\d+)?\.md$/;
+
+// A refusal found under the store's lock, thrown out of `importUnits`' gate.
+class UnitsStop extends Error {}
+
+async function runUnitsOnly(baseDir, a, opts, { refused, sensitiveStop, maskHits }) {
+  const { execFn, stamp, force } = opts;
+  if (!opts.apply) {
+    return {
+      applied: false, dryRun: true, unitsOnly: true, key: a.key, units: a.plan.units, proposedUnitCloses: a.plan.proposedCloses,
+      flagged: a.plan.flagged, refusedUnits: a.plan.refused, declared: a.plan.declared, sensitiveHits: maskHits(a.sensitiveHits),
+      inputHash: a.inputHash, report: unitsDryRunReport(baseDir, a), ...(a.nothingToAdd ? { nothingToAdd: true } : {}),
+      // Every file an apply writes, for each answer to the proposed closes.
+      writes: { confirmed: unitsWrites(a, a.tables.confirmed), unconfirmed: unitsWrites(a, a.tables.unconfirmed) },
+    };
+  }
+  if (typeof opts.expectedHash !== 'string' || opts.expectedHash === '') {
+    return refused('An apply needs the dry run\'s inputHash as expectedHash, so nothing was written. Run the dry run, read it, '
+      + 'then apply with {expectedHash: dry.inputHash}.');
+  }
+  const drift = 'What the dry run showed changed since the dry run — a unit\'s files, a milestone row, a retrospective, STATE.md\'s current unit, '
+    + 'an item\'s unit, or the --also list — so the plan is no longer the one that was read. Nothing was written. Re-run the dry run and confirm what it shows now.';
+  if (opts.expectedHash !== a.inputHash) return refused(drift);
+  if (a.nothingToAdd) {
+    return refused(`This project is already on the store and has unit records, and there is nothing to add: every unit it names that can have a `
+      + `record has one (${UNITS_REL}/). Nothing was written.`);
+  }
+  if (a.sensitiveHits.length > 0 && !opts.acknowledgeSensitive) return sensitiveStop(a.sensitiveHits);
+
+  const probe = probeGitState(baseDir, { execFn, force });
+  if (!probe.proceed) return refused(probe.reason, { warnings: probe.warnings });
+
+  const confirmed = opts.confirmUnitCloses === true;
+  const at = typeof opts.at === 'string' ? opts.at : new Date().toISOString().slice(0, 10);
+  // The list is the first look's: it is written only if the look under the
+  // lock gives the same hash, which covers everything the list is built from.
+  const list = unitImportList(a.plan, { confirmCloses: confirmed, at });
+
+  let addLock;
+  try {
+    addLock = await acquireAddLock(baseDir);
+  } catch (err) {
+    throw lockFailure(err);
+  }
+  let tag = null;
+  const dropTag = () => {
+    if (tag === null) return;
+    try {
+      execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv(baseDir) });
+    } catch {
+      /* best-effort — keep the original throw */
+    }
+    tag = null;
+  };
+  // Every path the regeneration wrote: a milestone file is in it only when
+  // its table changed (`regenerateViews`).
+  let regenerated = [];
+  try {
+    await importUnits(baseDir, list, {
+      ensureDir: true,
+      regenerate: async (dir, o) => {
+        const done = await regenerateViews(dir, o);
+        regenerated = done.written;
+        return done;
+      },
+      // The old table between the markers was kept by hand: its rows are
+      // replaced by the generated ones, as the dry run said.
+      replaceTableRows: !Array.isArray(a.plan.existing),
+      acknowledgeSensitive: true, // gated above, on the same texts
+      // Under the store's lock, before anything is written: look again.
+      gate: async () => {
+        opts.onSwapStep?.('units-gate');
+        const b = await assessUnitsOnly(baseDir, opts);
+        if (b.refusal) throw new UnitsStop(b.refusal);
+        if (b.inputHash !== opts.expectedHash) throw new UnitsStop(drift);
+        if (probe.mode === 'git') tag = tagPreApply(baseDir, `pre-work-store-units-${stamp}`, execFn);
+      },
+      // Under the lock, after the records and the views are written.
+      verify: async () => {
+        opts.onSwapStep?.('units-verify');
+        const errors = [];
+        const listed = listUnits(baseDir);
+        const want = (a.plan.existing?.length ?? 0) + list.length;
+        if (listed.units.length !== want) errors.push(`the store holds ${listed.units.length} unit records, not ${want}`);
+        for (const f of checkUnits(baseDir)) errors.push(`checkUnits ${f.code}${f.id ? ` ${f.id}` : ''}: ${f.message}`);
+        for (const f of checkRecords(baseDir)) errors.push(`checkRecords ${f.code}${f.id ? ` ${f.id}` : ''}: ${f.message}`);
+        if (errors.length > 0) throw new WorkStoreError('SCHEMA', `the unit records did not verify:\n  ${errors.join('\n  ')}`);
+      },
+    });
+  } catch (err) {
+    dropTag();
+    if (err instanceof UnitsStop) return refused(err.message);
+    throw err;
+  } finally {
+    await addLock.released();
+  }
+
+  // Every milestone file whose table was written — the current milestone's,
+  // and any other marked one the new records changed (r6, SIG-310). Each is
+  // staged and reported with the rest, so nothing this run wrote is left out.
+  const table = regenerated.filter((rel) => MILESTONE_REL_RE.test(rel));
+  // With unit records already on, only the records this run added are staged
+  // and named in the undo line: the folder holds records it did not write.
+  const added = Array.isArray(a.plan.existing) ? list.map((u) => `${UNITS_REL}/${u.id}.json`) : null;
+  const paths = [...(added ?? [UNITS_REL]), VIEW_PATHS.epics, ...table];
+  if (probe.mode === 'git') stagePaths(baseDir, paths, execFn);
+  const revertLine = unitsRevertLine(probe, force, tag, paths, added);
+  const c = unitCounts(a.plan);
+  const report = [
+    added === null ? `/sig:docs-migrate --work-store — unit records are on (key ${a.key})` : `/sig:docs-migrate --work-store — unit records added (key ${a.key})`,
+    '',
+    `${added === null ? 'Wrote' : 'Added'} ${count(list.length, 'unit record')} under ${UNITS_REL}/ and regenerated ${VIEW_PATHS.epics}${tableWords(a, table)}. `
+      + (added === null ? 'No item and no other view was changed.' : 'No existing record, no item and no other view was changed.'),
+    ...(c.proposed === 0 ? []
+      : confirmed
+        ? [`Recorded ${count(c.proposed, 'proposed legacy close')} as closed, as confirmed (each a legacy close: its record carries what was found, and its old row).`]
+        : [`${count(c.proposed, 'proposed legacy close')} ${c.proposed === 1 ? 'was' : 'were'} not confirmed: each unit was created open, with a note saying it looked finished.`]),
+    ...(c.dropped > 0 ? [`Recorded ${count(c.dropped, 'declared unit')} as closed (dropped).`] : []),
+    ...(a.plan.flagged.length > 0 ? [`${count(a.plan.flagged.length, 'unit is', 'units are')} flagged — created open, with a note: ${a.plan.flagged.map((u) => u.id).join(', ')}.`] : []),
+    ...(a.plan.refused.length > 0 ? [`${count(a.plan.refused.length, 'name was', 'names were')} refused and got no record: ${a.plan.refused.map((u) => u.id).join(', ')}.`] : []),
+    ...(a.plan.milestone?.markers === 'none' ? [`${a.plan.milestone.rel} has no Epic-table markers and was left exactly as it is (the dry run says what to add by hand).`] : []),
+    probe.mode === 'git' ? 'Staged, not committed — review with `git diff --cached`, then commit.' : 'Not a git checkout: nothing staged.',
+    ...(tag ? [`Pre-apply tag: ${tag}`] : []),
+    `Undo: ${revertLine}`,
+    ...workMdUnitsNote(baseDir, 'was'),
+  ].map(printable).join('\n');
+  return {
+    applied: true, unitsOnly: true, key: a.key, mode: probe.mode, tag, revertLine, units: list.length,
+    unitClosesConfirmed: confirmed ? c.proposed : 0, written: paths, warnings: probe.warnings, report,
+  };
+}
+
+// How many of them a refusal names; the rest are counted.
+const TAGS_SHOWN = 5;
 
 // The `pre-work-store-*` tags this tool's apply makes, from a fixed-argument
 // `git tag -l`; none outside git.
 function preStoreTags(baseDir, execFn = execFileSync) {
   try {
-    return String(execFn('git', ['tag', '-l', 'pre-work-store-*'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }))
+    return String(execFn('git', ['tag', '-l', 'pre-work-store-*'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) }))
       .split('\n').map((t) => t.trim()).filter(Boolean);
   } catch {
     return [];
@@ -422,7 +860,28 @@ const masked = (m) => (m.length > 8 ? `${m.slice(0, 6)}…` : m);
 // the invisible tag characters that could carry text a model reads and a
 // person does not (REVIEW pass 4); plus the line and paragraph separators and
 // the variation selectors.
-const printable = (s) => String(s).replace(/[\p{Cc}\p{Cf}\u2028\u2029\p{Variation_Selector}]/gu, '');
+// (`printable`, `printable-text.js`).
+
+// One line, when the history the closes are checked against is NOT the
+// remote's recorded default branch (r6): which ref it is, why that matters,
+// and — only where there is a remote named `origin` — the command that
+// records the default.
+function evidenceSourceLine(evidence) {
+  if (evidence.source !== 'git' || evidence.recorded !== false) return [];
+  const local = evidence.ref !== 'HEAD';
+  const what = local ? `the local branch ${shownRef(evidence.ref, 'branch', { noCommandHere: true })}` : 'HEAD — whatever is checked out; there is no local main or master';
+  if (!evidence.remote) {
+    return [`The history read is ${what}: this repository has no remote, so there is no recorded default branch to check against.`];
+  }
+  // Remotes, none named `origin`: the command below names `origin` and fails there.
+  if (evidence.originRemote === false) {
+    return [`The history read is ${what}: Signal reads the default branch of the remote named \`origin\`, and this repository's `
+      + 'remotes are named otherwise, so there is no recorded default branch to check against.'];
+  }
+  return [`The history read is ${what}${local ? ',' : ' —'} which is not the remote's recorded default branch (origin/HEAD is not set): `
+    + `${local ? 'a local branch' : 'it'} can hold commits nobody merged. ${capitalised(RECORD_DEFAULT_BRANCH_HINT)}, `
+    + 'then run this again to check against that.'];
+}
 
 function dryRunReport(a) {
   const lines = ['/sig:docs-migrate --work-store — dry run (nothing written)', ''];
@@ -430,11 +889,12 @@ function dryRunReport(a) {
     ? `Project key: ${a.key} (from --key)`
     : `Project key: ${a.key} (proposed from the folder name "${a.folder}"; pass --key KEY to choose another)`);
   lines.push(a.evidence.source === 'git'
-    ? `Closes are checked against this repository's history — the default branch, ${a.evidence.ref} (${a.evidence.commits.length} commits, ${a.evidence.epics.size} retrospectives): `
+    ? `Closes are checked against this repository's history — the default branch, ${shownRef(a.evidence.ref, 'branch', { noCommandHere: true })} (${a.evidence.commits.length} commits, ${a.evidence.epics.size} ${a.evidence.units ? 'units closed as shipped' : 'retrospectives'}): `
       + 'an entry is proposed for closing only when its wording says it is finished AND a commit, pull request or Epic it cites is found there. '
       + 'Nothing closes unless you confirm the proposals. Anything else stays open, flagged, with a note saying what was found and not found.'
     : 'The migration could not read this repository\'s history, so nothing can be proposed for closing (not a git checkout, no commits, or git failed): '
       + 'every entry stays open, flagged, whatever its wording says.');
+  lines.push(...evidenceSourceLine(a.evidence));
   if (a.files.length === 0) {
     lines.push('Lists: none — the store starts empty.');
   } else {
@@ -466,14 +926,18 @@ function dryRunReport(a) {
       lines.push(`  ${c.id}  ${c.legacyId ?? '—'}  ${c.title}  — wording ${quote(clip(c.wording))}; evidence ${c.evidence.join('; ')}`);
     }
   }
+  lines.push('', ...unitsReportLines(a.unitsPlan));
   if (a.sensitiveHits.length > 0) {
     lines.push('', `Sensitive data found — the apply stops here until you decide (keep the text as it is, or abort and edit the list first):`);
     for (const h of a.sensitiveHits) lines.push(`  ${h.id} (${h.file}): ${h.type} "${masked(h.match)}"`);
   }
+  const uc = unitCounts(a.unitsPlan);
   lines.push('', `--apply moves ${a.files.length > 0 ? 'each list' : 'nothing'}${a.files.length > 0 ? ` to ${PRE_STORE_ARCHIVE_REL}/ (with MANIFEST.json)` : ''}, `
     + `writes ${items.length} record${items.length === 1 ? '' : 's'}, ${WORK_MD_REL} and the generated views `
     + `(${Object.values(VIEW_PATHS).join(', ')}, plus .planning/work/history/ for closes more than 30 days old), `
-    + `regenerates .planning/INDEX.md if the project has one, and leaves them staged, not committed.`);
+    + `creates ${UNITS_REL}/ with ${count(uc.made, 'unit record')}`
+    + (uc.proposed > 0 ? ` (${uc.proposed} of them closed as legacy only if you confirm that list; otherwise open)` : '')
+    + `, regenerates .planning/INDEX.md if the project has one, and leaves them staged, not committed.`);
   return lines.map(printable).join('\n');
 }
 
@@ -495,15 +959,19 @@ function revertLineFor(probe, force, tag, created, archived, indexRegenerated) {
 }
 
 // The store at `root`, checked: `errors` says why it is not the `count`
-// records the plan made ([] when it is); `records` and `checks` are what was
-// measured (the record count read, `checkRecords`' findings).
-function verifyBuilt(root, count) {
+// records and `unitCount` unit records the plan made ([] when it is);
+// `records` and `checks` are what was measured (the record count read,
+// `checkRecords`' findings).
+function verifyBuilt(root, count, unitCount) {
   const errors = [];
   const listed = listRecords(root);
   const checks = checkRecords(root);
+  const units = listUnits(root);
+  if (units.units.length !== unitCount) errors.push(`the store holds ${units.units.length} unit records, not ${unitCount}`);
+  for (const f of checkUnits(root)) errors.push(`checkUnits ${f.code}${f.id ? ` ${f.id}` : ''}: ${f.message}`);
   if (listed.version !== 2) errors.push(`the store reads as v${listed.version}, not v2`);
   if (listed.records.length !== count) errors.push(`the store holds ${listed.records.length} records, not ${count}`);
-  for (const b of listed.broken) errors.push(`record ${b.id ?? b.path} is broken: ${b.error}`);
+  for (const b of listed.broken) errors.push(`record ${b.id ?? shownName(b.path)} is broken: ${b.error}`);
   for (const f of checks) errors.push(`checkRecords ${f.code}${f.id ? ` ${f.id}` : ''}: ${f.message}`);
   return { errors, records: listed.records.length, checks };
 }
@@ -549,6 +1017,7 @@ function restore(baseDir, done) {
   };
   for (const rel of done.views) quietly(() => { if (isGeneratedFile(join(baseDir, rel))) unlinkSync(join(baseDir, rel)); });
   if (done.items) quietly(() => rmSync(join(baseDir, ITEMS_REL), { recursive: true, force: true }));
+  if (done.units) quietly(() => rmSync(join(baseDir, UNITS_REL), { recursive: true, force: true }));
   if (done.workMd) quietly(() => unlinkSync(join(baseDir, WORK_MD_REL)));
   if (done.manifest) quietly(() => unlinkSync(join(baseDir, MANIFEST_REL)));
   if (done.index !== null) quietly(() => writeFileSync(join(baseDir, INDEX_REL), done.index));
@@ -592,15 +1061,21 @@ async function buildAndSwap(baseDir, a, ctx) {
   const aside = join(baseDir, ctx.asideRel);
   const records = a.plan.records;
   await buildAside(aside, records, workMd(a.key, a.archived));
+  // The unit records (M6.E16 t7.4), through their own writer, into the store
+  // being built aside: it has its own WORK.md, so the lock taken there is the
+  // aside's, not the project's (which this run holds). The folder is made even
+  // when no unit is planned (`D-M6E16-16`).
+  const unitList = unitImportList(a.unitsPlan, { confirmCloses: ctx.confirmUnitCloses === true, at: ctx.at });
+  await importUnits(aside, unitList, { ensureDir: true, acknowledgeSensitive: true, regenerate: async () => {} });
   const { written } = await regenerateViews(aside);
-  const built = verifyBuilt(aside, records.length).errors;
+  const built = verifyBuilt(aside, records.length, unitList.length).errors;
   if (built.length > 0) {
     throw new WorkStoreError('SCHEMA', `the store built aside did not verify, so the project was not changed:\n  ${built.join('\n  ')}`);
   }
 
   const step = (name) => ctx.onSwapStep?.(name);
   // `index`: INDEX.md's bytes before it was regenerated, or null.
-  const done = { archived: [], views: [], made: [], items: false, workMd: false, manifest: false, index: null };
+  const done = { archived: [], views: [], made: [], items: false, units: false, workMd: false, manifest: false, index: null };
   let index = null; // 'regenerated' | 'foreign' | 'not-a-file' | null
   try {
     step('archive');
@@ -625,6 +1100,9 @@ async function buildAndSwap(baseDir, a, ctx) {
       renameSync(join(aside, ITEMS_REL), join(baseDir, ITEMS_REL));
       done.items = true;
     }
+    step('units');
+    moveInNew(join(aside, UNITS_REL), baseDir, UNITS_REL); // never over a folder that appeared there
+    done.units = true;
     step('views');
     for (const rel of written) {
       confineView(baseDir, rel);
@@ -633,7 +1111,7 @@ async function buildAndSwap(baseDir, a, ctx) {
       done.views.push(rel);
     }
     step('verify');
-    const after = verifyBuilt(baseDir, records.length);
+    const after = verifyBuilt(baseDir, records.length, unitList.length);
     if (after.errors.length > 0) throw new WorkStoreError('SCHEMA', `the migrated store did not verify:\n  ${after.errors.join('\n  ')}`);
     if (a.archived.length > 0) {
       const manifest = {
@@ -682,7 +1160,7 @@ async function buildAndSwap(baseDir, a, ctx) {
     restore(baseDir, done);
     throw err;
   }
-  return { written, items: records.length > 0, manifest: a.archived.length > 0, index };
+  return { written, items: records.length > 0, manifest: a.archived.length > 0, index, units: unitList.length };
 }
 
 /**
@@ -729,13 +1207,21 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
       + 'Keep the text as it is (re-run the apply with acknowledgeSensitive), or abort and edit the list first.',
   });
 
-  const a = assess(baseDir, { ...opts, execFn });
+  // Git could not be asked (r6.5): no history to read closes from and no
+  // working tree state to respect. The dry run proposes nothing; the apply
+  // is refused. Said first, before anything is read as "not a git checkout".
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) return refused(`${cannotAsk}. Nothing was written.`);
+
+  const a = await assess(baseDir, { ...opts, execFn });
   if (a.refusal) return refused(a.refusal);
+  if (a.unitsOnly) return runUnitsOnly(baseDir, a, { ...opts, apply, force, execFn, stamp }, { refused, sensitiveStop, maskHits });
   if (!apply) {
     for (const c of a.shown.proposedCloses) if (c.evidence.length > 3) c.evidence = [...c.evidence.slice(0, 3), `… and ${c.evidence.length - 3} more`]; // shown capped; the hash, taken, keeps all
     return {
       applied: false, dryRun: true, key: a.key, files: a.files, items: a.shown.manifest.items, dates: a.dates,
-      proposedCloses: a.shown.proposedCloses, sensitiveHits: maskHits(a.sensitiveHits), inputHash: a.inputHash, report: dryRunReport(a),
+      proposedCloses: a.shown.proposedCloses, units: a.unitsPlan.units, proposedUnitCloses: a.unitsPlan.proposedCloses,
+      sensitiveHits: maskHits(a.sensitiveHits), inputHash: a.inputHash, report: dryRunReport(a),
     };
   }
   // The apply is bound to what a person read in the dry run (AC6.4): without
@@ -784,18 +1270,21 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   try {
     // Again under the lock: another writer may have turned the store on, or
     // STATE.md or a list may have changed since the dry run.
-    b = assess(baseDir, { ...opts, execFn, underLock: true });
+    b = await assess(baseDir, { ...opts, execFn, underLock: true });
     if (b.refusal) stop = refused(b.refusal);
     else if (opts.expectedHash !== b.inputHash) stop = refused(hashDriftReason(opts.expectedHash, b.inputHash)); else if (b.sensitiveHits.length > 0 && !opts.acknowledgeSensitive) stop = sensitiveStop(b.sensitiveHits);
     if (stop === null) {
       if (probe.mode === 'git') tag = tagPreApply(baseDir, `pre-work-store-${stamp}`, execFn);
       try {
-        swapped = await buildAndSwap(baseDir, b, { asideRel, onSwapStep: opts.onSwapStep });
+        swapped = await buildAndSwap(baseDir, b, {
+          asideRel, onSwapStep: opts.onSwapStep, confirmUnitCloses: opts.confirmUnitCloses,
+          at: typeof opts.at === 'string' ? opts.at : new Date().toISOString().slice(0, 10),
+        });
       } catch (err) {
         failed = true;
         if (tag) {
           try {
-            execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+            execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv(baseDir) });
           } catch {
             /* best-effort — keep the original throw */
           }
@@ -824,7 +1313,7 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   if (stop !== null) return stop;
 
   const { written } = swapped;
-  const created = [WORK_MD_REL, ...(swapped.items ? [ITEMS_REL] : []), ...written, ...(swapped.manifest ? [MANIFEST_REL] : [])];
+  const created = [WORK_MD_REL, ...(swapped.items ? [ITEMS_REL] : []), UNITS_REL, ...written, ...(swapped.manifest ? [MANIFEST_REL] : [])];
   // INDEX.md is staged but never in `created`: the undo line removes those.
   const indexRegenerated = swapped.index === 'regenerated';
   if (probe.mode === 'git') stagePaths(baseDir, [...created, ...b.archived.map((x) => x.to), ...(indexRegenerated ? [INDEX_REL] : [])], execFn);
@@ -838,6 +1327,8 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
     : confirmedN > 0
       ? [`Closed ${confirmedN} proposed close${confirmedN === 1 ? '' : 's'}, as confirmed (each a legacy close; its proof is the wording and the evidence).`]
       : [`${proposedN} proposed close${proposedN === 1 ? ' was' : 's were'} not confirmed: left open, flagged looks-finished.`];
+  const uc = unitCounts(b.unitsPlan);
+  const unitsConfirmed = opts.confirmUnitCloses === true;
   const report = [
     `/sig:docs-migrate --work-store — the work store is on (key ${b.key})`,
     '',
@@ -848,6 +1339,14 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
     ...(swapped.index === 'not-a-file' ? [`${INDEX_REL} is a symbolic link or not a regular file, so it was not regenerated: run /sig:docs-index.`] : []),
     ...(swapped.index === 'foreign' ? [`${INDEX_REL} is hand-written, so it was left as it is: reconcile it with /sig:docs-index.`] : []),
     ...proposedLine,
+    `Wrote ${count(swapped.units, 'unit record')} under ${UNITS_REL}/ — unit records are on.`,
+    ...(uc.proposed === 0 ? []
+      : unitsConfirmed
+        ? [`Recorded ${count(uc.proposed, 'proposed legacy close')} as closed, as confirmed (each a legacy close: its record carries what was found, and its old row).`]
+        : [`${count(uc.proposed, 'proposed legacy close')} ${uc.proposed === 1 ? 'was' : 'were'} not confirmed: each unit was created open, with a note saying it looked finished.`]),
+    ...(uc.dropped > 0 ? [`Recorded ${count(uc.dropped, 'declared unit')} as closed (dropped).`] : []),
+    ...(b.unitsPlan.flagged.length > 0 ? [`${count(b.unitsPlan.flagged.length, 'unit is', 'units are')} flagged — created open, with a note: ${b.unitsPlan.flagged.map((u) => u.id).join(', ')}.`] : []),
+    ...(b.unitsPlan.refused.length > 0 ? [`${count(b.unitsPlan.refused.length, 'name was', 'names were')} refused and got no unit record: ${b.unitsPlan.refused.map((u) => u.id).join(', ')}.`] : []),
     ...(flagged > 0 ? [`${flagged} item${flagged === 1 ? ' is' : 's are'} flagged for a person's look (each carries a migration_note saying why): triage with /sig:item.`] : []),
     probe.mode === 'git' ? 'Staged, not committed — review with `git diff --cached`, then commit.' : 'Not a git checkout: nothing staged.',
     ...(tag ? [`Pre-apply tag: ${tag}`] : []),
@@ -855,7 +1354,8 @@ export async function runWorkStoreMigrate(baseDir, opts = {}) {
   ].join('\n');
   return {
     applied: true, key: b.key, mode: probe.mode, tag, revertLine, written, archived: b.archived,
-    records: items.length, flagged, closesConfirmed: confirmedN, warnings: probe.warnings, report,
+    records: items.length, flagged, closesConfirmed: confirmedN, units: swapped.units,
+    unitClosesConfirmed: unitsConfirmed ? uc.proposed : 0, warnings: probe.warnings, report,
   };
 }
 
@@ -1161,21 +1661,55 @@ const RETRO_WALK_MAX = 50000;
  * commit subjects carry (→ that commit), and the Epic IDs with a
  * retrospective under `.planning/` (→ its path). Reads only.
  *
+ * On a project with unit records (`unitRecordsOn`; M6.E16 t4.4) `epics` is
+ * instead the units whose record is closed with reason `shipped` (→ the
+ * record's path), and `units` is true. A `legacy`- or `dropped`-closed unit is
+ * not in it, whether or not it has a retrospective (`D-M6E16-15`). A `units/`
+ * folder that cannot be trusted is read the same way — `units` true, `epics`
+ * empty, the fault in `unitsProblem` — never from the retrospectives: records
+ * that cannot be read are evidence of nothing.
+ *
  * @param {string} baseDir
  * @param {{execFn?: Function}} [opts]
- * @returns {{source: 'git'|'none', commits: string[], prs: Map<number, string>, epics: Map<string, string>,
- *   origin: {host: string, repo: string}|null}}
+ * @returns {{source: 'git'|'none', ref?: string, recorded?: boolean, remote?: boolean, commits: string[],
+ *   prs: Map<number, string>, epics: Map<string, string>, origin: {host: string, repo: string}|null, units?: true,
+ *   unitsProblem?: string}}
+ *   With `source: 'git'` — `ref`: the history read, as the dry run names it (`origin/HEAD`, `main`, `master`,
+ *   `HEAD`); `recorded`: it is the remote's recorded default branch; `remote` (only when it is not):
+ *   whether the repository has a remote at all
  */
 export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   let out = '';
   let source = 'git';
-  const ref = ['refs/remotes/origin/HEAD', 'refs/heads/main', 'refs/heads/master'].find((r) => { try { execFn('git', ['rev-parse', '--verify', '--quiet', r], { cwd: baseDir, stdio: 'ignore' }); return true; } catch { return false; } }) ?? 'HEAD';
+  // Which ref is read (r6). The remote's default branch is the one
+  // `origin/HEAD` records, read as a close is confirmed (`resolveDefaultBranch`,
+  // `guess: false`: the symbolic ref by its full name, its target as that
+  // exact ref). Each fallback is asked for as an exact ref too
+  // (`exactRefExists`). A name lookup (`rev-parse --verify`) is not used: it
+  // takes a tag called `refs/remotes/origin/HEAD`, or `refs/heads/main`, for
+  // the ref when the ref is not there, and a pushed tag on unmerged work
+  // would then support a proposed close.
+  const recorded = resolveDefaultBranch(baseDir, { execFn, guess: false });
+  const ref = recorded !== null ? `refs/remotes/origin/${recorded}`
+    : ['refs/heads/main', 'refs/heads/master'].find((r) => exactRefExists(baseDir, r, execFn)) ?? 'HEAD';
+  // What the dry run calls it, and whether it is the remote's recorded
+  // default branch: when it is not, the dry run says which ref this is
+  // (`evidenceSourceLine`), and names the command that records the default
+  // only where there is a remote named `origin` to record it from
+  // (`originRemote: false`, there only when remotes exist and none is).
+  const remotes = recorded !== null ? null : remoteNames(baseDir, { execFn }) ?? [];
+  const read = {
+    ref: recorded !== null ? 'origin/HEAD' : ref.replace(/^refs\/heads\//, ''),
+    recorded: recorded !== null,
+    ...(remotes === null ? {} : { remote: remotes.length > 0 }),
+    ...(remotes === null || remotes.length === 0 || remotes.includes('origin') ? {} : { originRemote: false }),
+  };
   try {
     // The default branch (origin/HEAD, else main, else master, else HEAD), not --all (D-M6E15-25, AC4.1): unmerged branches, stashes and fetched
     // remote work are not what this project shipped; native closes, too, are
     // confirmed only once their commit is on the default branch.
     out = String(execFn('git', ['log', '--format=%H%x09%s', ref, '--'], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024,
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024, env: gitEnv(baseDir),
     }));
   } catch {
     out = '';
@@ -1204,10 +1738,41 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
   let origin = null;
   try {
     origin = parseOrigin(String(execFn('git', ['remote', 'get-url', 'origin'], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir),
     })).trim());
   } catch {
     origin = null;
+  }
+
+  // With unit records (M6.E16 t4.4, `D-M6E16-15`, AC8.2) an Epic or unit is
+  // evidence only when its record is closed as `shipped` — a close confirmed
+  // against the default branch, or (M6.E16 r7.1) confirmed by a person's yes
+  // where git never can (`confirmed_by: 'person'`: no remote, no remote named
+  // `origin`, no repository), which is evidence on that person's word, not
+  // git's. A `legacy` close (recorded as over, never
+  // checked) and a `dropped` one (it did not ship) are not, and neither is a
+  // retrospective existing. Records that cannot be read are evidence of nothing.
+  let unitsOn;
+  let unitsProblem = null;
+  try {
+    unitsOn = unitRecordsOn(baseDir);
+  } catch (err) {
+    unitsOn = true;
+    unitsProblem = err.message;
+  }
+  if (unitsOn) {
+    const shipped = new Map();
+    let listed = { units: [] };
+    try {
+      if (unitsProblem === null) listed = listUnits(baseDir);
+    } catch (err) {
+      unitsProblem = err?.message ?? String(err);
+    }
+    for (const u of listed.units) if (u.status === 'closed' && u.close?.reason === 'shipped') shipped.set(u.id, u.path);
+    return {
+      source, ...read, commits, prs, epics: shipped, origin, units: true,
+      ...(unitsProblem === null ? {} : { unitsProblem }),
+    };
   }
 
   const epics = new Map();
@@ -1230,7 +1795,7 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
       }
     }
   }
-  return { source, ref: ref.replace(/^refs\/(?:heads|remotes)\//, ''), commits, prs, epics, origin };
+  return { source, ...read, commits, prs, epics, origin };
 }
 
 const repoKey = (owner, repo) => `${owner}/${repo}`.toLowerCase().replace(/\.git$/, '');
@@ -1303,6 +1868,7 @@ function checkEvidence(text, legacy, evidence, { bareHash = true } = {}) {
       cited.push(`Epic ${r.key}`);
       const path = evidence?.epics.get(r.key);
       if (path) found.push(`${r.key} → ${path}`);
+      else if (evidence?.units) missing.push(`Epic ${r.key} has no unit record closed as shipped (an open, legacy or dropped unit is not evidence)`);
       else missing.push(`Epic ${r.key} has no retrospective under .planning/`);
     }
   }

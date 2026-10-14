@@ -24,6 +24,59 @@
 // this repository files bugs about. What it does guarantee is that a merge
 // cannot be *unaware*.
 
+import { execFileSync } from 'node:child_process';
+
+import { gitEnv, gitUnusableReason } from './git-env.js';
+import { printable } from './printable-text.js';
+
+/** Bounded, so an auth prompt or a dead network cannot wedge a ship run. */
+const GH_TIMEOUT_MS = 30000;
+// What GitHub allows in an owner or a repository name. Anything else is not
+// passed to `gh`: `@file` would be read as a file by `-F`, `--flag` as an option.
+// At most 100 characters, and not `.` or `..`, which are folders, not names.
+const GITHUB_NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
+const plainGithubName = (name) => typeof name === 'string' && GITHUB_NAME_RE.test(name) && !name.startsWith('-') && name !== '.' && name !== '..';
+
+// Why a `gh` call failed, for a `reason`: the first line `gh` wrote to
+// stderr when there is one — "not logged in", "could not resolve host" and
+// "rate limit" then read differently — else the first line of the error.
+// (Node's own message for a failed command is the whole command line.)
+const WHY_MAX = 200;
+function whyFailed(err) {
+  const lines = String(err?.stderr ?? '').split('\n').map((l) => printable(l).trim()).filter(Boolean);
+  const first = lines[0] ?? printable(String(err?.message ?? err).split('\n')[0]);
+  return first.length > WHY_MAX ? `${first.slice(0, WHY_MAX - 1)}…` : first;
+}
+
+// Why `gh` is not run for this call at all, or null (M6.E16 r6.3).
+function ghRefusal({ owner, repo }) {
+  if (!plainGithubName(owner)) return 'the owner is not a plain GitHub owner name — nothing was asked';
+  if (!plainGithubName(repo)) return 'the repository is not a plain GitHub repository name — nothing was asked';
+  // `gh` runs git to learn where it is, with the environment `gitEnv` gives
+  // it: its git then refuses a folder that only looks like a repository. On a
+  // git too old for that, `gh` is not run.
+  const unusable = gitUnusableReason();
+  return unusable === null ? null : `${unusable} — nothing was asked`;
+}
+
+// How `gh` is run: by the caller's `execFn` when one is given — handed the
+// folder and git's environment (`gitEnv`: `gh` runs git) as its third
+// argument — and otherwise here, with the same two. Safe with no `execFn`,
+// which is how `/sig:ship` is told to call this (r6.3).
+function ghRunner(execFn, cwd) {
+  if (typeof execFn === 'function') return (args) => String(execFn('gh', args, { cwd, env: gitEnv(cwd) }));
+  return (args) => String(execFileSync('gh', args, {
+    cwd,
+    encoding: 'utf8',
+    // stderr is kept: it is where `gh` says why it failed (`whyFailed`).
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: GH_TIMEOUT_MS,
+    killSignal: 'SIGKILL',
+    maxBuffer: 64 * 1024 * 1024,
+    env: { ...gitEnv(cwd), GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1' },
+  }));
+}
+
 /** A thread is "needs a person" when it is unresolved and still applies. */
 const NEEDS_A_PERSON = (t) => !t.resolved && !t.outdated;
 
@@ -46,8 +99,14 @@ const GRAPHQL = `query($owner:String!,$repo:String!,$pr:Int!){
  *
  * @param {{
  *   owner: string, repo: string, pr: number,
- *   execFn?: (cmd: string, args: string[]) => string,
- * }} opts
+ *   execFn?: (cmd: string, args: string[], options?: {cwd: string, env: object}) => string,
+ *   cwd?: string,
+ * }} opts — `execFn` is optional: without one, `gh` is run here, with git's
+ *   own environment (`gitEnv`: `gh` runs git). One that is given is handed the
+ *   folder and that environment as its third argument, to pass on to the
+ *   process it starts. `cwd` defaults to the current folder. An `owner` or
+ *   `repo` that is not a plain GitHub name, or a folder that only looks like a
+ *   repository, is `cannot-check` and `gh` is not run.
  * @returns {{
  *   status: 'clean'|'findings'|'cannot-check',
  *   open: Array<{path: string, line: number|null, author: string, excerpt: string}>,
@@ -62,28 +121,30 @@ const GRAPHQL = `query($owner:String!,$repo:String!,$pr:Int!){
  * consulted and a reviewer that found nothing look identical otherwise, which is
  * `B39`'s shape and the reason four real findings went unread in the first place.
  */
-export function readPrReviewFindings({ owner, repo, pr, execFn }) {
+export function readPrReviewFindings({ owner, repo, pr, execFn, cwd = process.cwd() }) {
   const empty = { status: 'cannot-check', open: [], outdated: 0, resolved: 0, reason: null };
   if (!owner || !repo || !Number.isInteger(pr)) {
     return { ...empty, reason: 'no pull request identified for this branch' };
   }
-  if (typeof execFn !== 'function') {
-    return { ...empty, reason: 'no exec function supplied' };
-  }
+  const refusal = ghRefusal({ owner, repo });
+  if (refusal !== null) return { ...empty, reason: refusal };
+  const run = ghRunner(execFn, cwd);
 
   let raw;
   try {
-    raw = execFn('gh', [
+    // `-f` for text: `-F` reads a FILE when the value starts with `@`. The
+    // number keeps `-F`, which is what sends it as a number.
+    raw = run([
       'api', 'graphql',
       '-f', `query=${GRAPHQL}`,
-      '-F', `owner=${owner}`,
-      '-F', `repo=${repo}`,
+      '-f', `owner=${owner}`,
+      '-f', `repo=${repo}`,
       '-F', `pr=${pr}`,
     ]);
   } catch (err) {
     return {
       ...empty,
-      reason: `could not reach GitHub (${String(err?.message ?? err).split('\n')[0]}) — the reviewer's findings were NOT checked`,
+      reason: `could not reach GitHub (${whyFailed(err)}) — the reviewer's findings were NOT checked`,
     };
   }
 
@@ -206,8 +267,9 @@ const REVIEW_WORKFLOW = 'claude-code-review.yml';
  *
  * @param {{
  *   owner: string, repo: string, pr: number,
- *   execFn?: (cmd: string, args: string[]) => string,
- * }} opts
+ *   execFn?: (cmd: string, args: string[], options?: {cwd: string, env: object}) => string,
+ *   cwd?: string,
+ * }} opts — `execFn` and `cwd` as `readPrReviewFindings`'
  * @returns {{
  *   status: 'reviewed'|'hollow'|'small-change'|'cannot-check',
  *   turns: number|null, costUsd: number|null, changedLines: number|null,
@@ -218,22 +280,21 @@ const REVIEW_WORKFLOW = 'claude-code-review.yml';
  * a log with no result line — the reviewer action refuses to run on a PR that
  * edits its own workflow, and that must not read as a review either.
  */
-export function readReviewerEffort({ owner, repo, pr, execFn }) {
+export function readReviewerEffort({ owner, repo, pr, execFn, cwd = process.cwd() }) {
   const empty = { status: 'cannot-check', turns: null, costUsd: null, changedLines: null, reason: null };
   if (!owner || !repo || !Number.isInteger(pr)) {
     return { ...empty, reason: 'no pull request identified for this branch' };
   }
-  if (typeof execFn !== 'function') {
-    return { ...empty, reason: 'no exec function supplied' };
-  }
+  const refusal = ghRefusal({ owner, repo });
+  if (refusal !== null) return { ...empty, reason: refusal };
   const R = `${owner}/${repo}`;
-  const run = (args) => String(execFn('gh', args));
+  const run = ghRunner(execFn, cwd);
 
   let pull;
   try {
     pull = JSON.parse(run(['pr', 'view', String(pr), '-R', R, '--json', 'additions,deletions,headRefOid']));
   } catch (err) {
-    return { ...empty, reason: `could not read the PR (${String(err?.message ?? err).split('\n')[0]})` };
+    return { ...empty, reason: `could not read the PR (${whyFailed(err)})` };
   }
   const changedLines = (Number(pull?.additions) || 0) + (Number(pull?.deletions) || 0);
   if (!pull?.headRefOid) return { ...empty, changedLines, reason: 'the PR has no head commit in the response' };
@@ -245,7 +306,7 @@ export function readReviewerEffort({ owner, repo, pr, execFn }) {
       '--commit', pull.headRefOid, '--json', 'databaseId,status,conclusion', '--limit', '1',
     ]));
   } catch (err) {
-    return { ...empty, changedLines, reason: `could not list reviewer runs (${String(err?.message ?? err).split('\n')[0]})` };
+    return { ...empty, changedLines, reason: `could not list reviewer runs (${whyFailed(err)})` };
   }
   const latest = Array.isArray(runs) ? runs[0] : null;
   if (!latest) return { ...empty, changedLines, reason: 'no reviewer run found for the PR head commit' };
@@ -258,7 +319,7 @@ export function readReviewerEffort({ owner, repo, pr, execFn }) {
   try {
     log = run(['run', 'view', String(latest.databaseId), '-R', R, '--log']);
   } catch (err) {
-    return { ...empty, changedLines, reason: `could not read the reviewer log (${String(err?.message ?? err).split('\n')[0]})` };
+    return { ...empty, changedLines, reason: `could not read the reviewer log (${whyFailed(err)})` };
   }
   const turns = lastNumber(log, /"num_turns":\s*(\d+)/g);
   const costUsd = lastNumber(log, /"total_cost_usd":\s*([\d.]+)/g);

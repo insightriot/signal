@@ -1,0 +1,18 @@
+{
+  "id": "M5.E19",
+  "legacy_row": [
+    "**E19**",
+    "✅ shipped as **v0.1.22** (2026-08-07) — Epic-scoped **FEATURE** against the project's FULL",
+    "**`/sig:archive` — file finished work away, and say why you didn't.** Signal could already archive closed units but had **no command whose job that was**; it happened inside `/sig:migrate-memory`, a command about document *layout*. Closure is a **gate** (a unit not provably closed is not moved), dry-run by default. **The release's content is the report:** the pre-existing helpers named what *would* move and what *could not be evaluated*, and said **nothing** about units considered and **refused** — three of six vanished, the stub-retrospective veto among them, the most surprising thing the tool does and the least explained. Every refusal now carries its reason, and *\"checked and clean\"* never renders as *\"could not check.\"* **The Epic's premise was false and running it is what proved so** (`D-M5E19-6`): the backlog's *\"built the engine and wired none of it\"* quoted M5.E18's **mid-Epic** finding as an end state. A **safety bug** was caught by the Epic's own acceptance test — the report took its plan from the half that cannot see an unreadable `STATE.md` and its refusals from the half that can. Also shipped `references/command-taxonomy.md` and `examples/sandbox/` (**production repos are not test beds**). Filed `B87`. 2284 → **2300 tests**, **20 commands**. Decisions `D-M5E19-1…9`. Retro: [`M5.E19-RETROSPECTIVE.md`](M5.E19-RETROSPECTIVE.md)."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-5.md:44: “✅ shipped as **v0.1.22** (2026-08-07) — Epic-scoped **FEATURE** against the project's FULL”); its retrospective is complete (.planning/M5.E19-RETROSPECTIVE.md); today's closure check reads it closed (M5.E19-VERIFICATION.md records a PASS, and M5.E19 is not the current unit).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

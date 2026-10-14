@@ -1,0 +1,13 @@
+{
+  "id": "SIG-319",
+  "type": "NEW",
+  "title": "/sig:resume says \"Next phase: done\" at SHIP while the PR is unmerged and the close waits",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-14T22:41:53.011Z",
+      "by": "Claude (M6.E16 SHIP)"
+    }
+  ]
+}

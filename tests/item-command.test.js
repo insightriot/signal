@@ -1,7 +1,7 @@
 // Tests for the /sig:item command file (M6.E11.S3.t3.3, AC-5.1).
 // See .planning/M6.E11-VALIDATION.md row AC-5.1.
 //
-// A presence check: the command documents all eight actions and every lib
+// A presence check: the command documents all nine actions and every lib
 // function it names is a real export. It does not — cannot — prove an agent
 // reading the file calls them (the phase-recording.test.js caveat).
 //
@@ -35,6 +35,8 @@ const ACTIONS = {
   edit: ['editItem'],
   show: ['getRecord'],
   list: ['listRecords'],
+  // M6.E16 r7: a close git can never confirm, confirmed by hand.
+  confirm: ['confirmCloseByHand'],
 };
 
 function section(action) {
@@ -109,6 +111,16 @@ describe('/sig:item command file', () => {
     expect(close).toContain('confirmCloses');
     // v1's "none given" proof is gone: requestClose refuses anything but a hash.
     expect(text).not.toContain('proof: none given');
+  });
+
+  it('confirm (M6.E16 r7): only the three reasons, one ID at a time, and never without the person\'s yes for that ID', () => {
+    const confirm = section('confirm');
+    for (const r of ['no-remote', 'no-origin-remote', 'not-a-repo']) expect(confirm).toContain(`\`${r}\``);
+    // r7.1: worded as asking first, not as an offer.
+    expect(confirm).toMatch(/Never run it without asking the person first and getting their yes for that ID/);
+    expect(confirm).toMatch(/Pass the ID/);
+    expect(confirm).toMatch(/no "confirm all"/);
+    expect(confirm).toMatch(/units? too/);
   });
 
   it('carries no folder-is-status sentence (AC3.4): a record never moves, status comes from events', () => {

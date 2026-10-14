@@ -1,0 +1,13 @@
+{
+  "id": "SIG-318",
+  "type": "NEW",
+  "title": "readsOwnConfig depends on core.repositoryformatversion being present",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-14T21:16:08.577Z",
+      "by": "Claude (M6.E16 r7.2)"
+    }
+  ]
+}

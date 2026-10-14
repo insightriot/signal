@@ -1,0 +1,18 @@
+{
+  "id": "M5.E8",
+  "legacy_row": [
+    "**E8**",
+    "✅ shipped as **v0.1.13** (2026-07-28)",
+    "**The measurement foundation.** Signal can now measure whether one of its own instructions changes what an agent does. **The ceiling, published first (FR5):** of **407 directive lines** across 18 `commands/*.md`, **91 (22.4%) are trace-measurable, 316 (77.6%) are not** — and the log states the remainder is *unmeasured, not passing*, pinned by a wording test. This **corrects R1's estimate** (22/202 = 10.9%) and **falsifies its inference** that `execute`/`verify`/`review`/`calibrate` name zero library calls — they name **4/3/3/0**, including this Epic's own canary. **The verdict:** `B41-phase-entry` → **3/3 as-written, 0/3 deleted, OBEYED** — ***this verdict was withdrawn and later re-earned; see the note*** (added 2026-08-09, backlog-review finding `S4`): `M5.E13` found the control arm was never isolated across files (`B55`), and the re-run returned **`INDETERMINATE`**, so *this* run's `OBEYED` was clean by luck rather than by construction. `M5.E15` (v0.1.19) rebuilt the control arm and **re-ran `B41-phase-entry` to `OBEYED` for real** — treatment 3/3, control 0/3, seam PASS. **The conclusion below stands; the provenance does not** — the standing verdict belongs to `M5.E15`'s run, not this one. The retraction is placed on this line deliberately, because a correction three paragraphs away leaves the claim's own line reading as live to a `grep` (`M5.E10`'s correction-protocol corollary). M5.E9's phase-entry fix works; it shipped unverified in v0.1.12 and is the first thing the harness measured. **Every defect found was in the instrument, and each produced a plausible result rather than an error** — an unreachable fixture (`ABSENT`), a broken seam, a control arm that deleted one line from a section restating the instruction three more times (near-miss `INERT`), and a commit captured post-run that defeated `--combine`'s pairing guard. The near-miss `INERT` is the one that matters: **the plan had pre-authorised `inert` in writing** so a null result would not be tuned away, and that guardrail is exactly what would have carried a broken control into the published log. 1652 → **1736 tests**. VERIFY PASS (28 ACs). REVIEW **PASS-WITH-FIXES** (1 Critical, 3 Important, all fixed in-phase; the four-verdict impostor analysis is the artifact worth re-reading). New: **`B48`** (P2, live in v0.1.12 — an agent *correctly refuses* an unconditional Signal instruction), **`B49`** (P3, fixed here). Decisions D-M5E8-1…6. Retro: [`M5.E8-RETROSPECTIVE.md`](M5.E8-RETROSPECTIVE.md)."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-5.md:39: “✅ shipped as **v0.1.13** (2026-07-28)”); its retrospective is complete (.planning/M5.E8-RETROSPECTIVE.md); today's closure check reads it closed (M5.E8-VERIFICATION.md records a PASS, and M5.E8 is not the current unit).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

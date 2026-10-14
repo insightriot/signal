@@ -1,0 +1,510 @@
+// M6.E16 r7 — a close git can never confirm is confirmed by a person, one ID
+// at a time (`confirmCloseByHand`, `work-records.js`).
+//
+// The automatic confirm (`confirmCloses`) closes a *closing* item or unit
+// only once its commit is on the remote's default branch. A project with no
+// remote, with no remote named `origin`, or that is not a git repository has
+// no such branch, so its closes stay *closing* for ever. A person may confirm
+// one of those by hand: the record gets the ordinary `closed` event the
+// automatic confirm writes, plus `confirmed_by: 'person'` and the reason git
+// could not (`git_reason`). Every other reason refuses, naming what to do.
+//
+// Temp repositories, real git. Names are invented.
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+
+import * as records from '../plugin/tools/lib/work-records.js';
+import { ITEM_KIND, serializeRecord } from '../plugin/tools/lib/work-record.js';
+import { getUnit } from '../plugin/tools/lib/unit-records.js';
+import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
+import { testSeam } from '../plugin/tools/lib/git-env.js';
+import { regenerateViews } from '../plugin/tools/lib/work-views.js';
+import { checkClosedProofs } from '../plugin/tools/lib/sweep.js';
+import { formatConfirmClosesLine, itemClosingTooLongWords, unitClosingTooLongWords } from '../plugin/tools/lib/close-confirm.js';
+import { BY_HAND_REASONS } from '../plugin/tools/lib/work-records.js';
+import { renderEpicTable } from '../plugin/tools/lib/milestone-table.js';
+import { snapshotTree } from './helpers/write-inventory.js';
+
+const AT = '2026-10-14T10:00:00.000Z';
+const by = 'claude';
+const person = 'a person';
+const UNIT = 'phase-3';
+const UNITS = '.planning/work/units';
+const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+
+function g(cwd, ...args) {
+  const r = spawnSync('git', ['-c', 'commit.gpgsign=false', '-c', 'user.email=t@t.co', '-c', 'user.name=T', ...args], { cwd, encoding: 'utf8', env: GIT_ENV });
+  if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
+  return r.stdout.trim();
+}
+
+// Does this git refuse a repository when told the folder has another owner?
+// Asked once, in a throwaway repository: the dubious-ownership case below runs
+// only where it does (git's test knob is not honoured by every build).
+const DUBIOUS_HONOURED = (() => {
+  const dir = mkdtempSync(join(tmpdir(), 'sig-dubious-probe-'));
+  try {
+    spawnSync('git', ['init', '-q'], { cwd: dir, env: GIT_ENV });
+    const r = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
+      cwd: dir, encoding: 'utf8', env: { ...GIT_ENV, GIT_TEST_ASSUME_DIFFERENT_OWNER: '1', LC_ALL: 'C' },
+    });
+    return r.status !== 0 && /dubious ownership/.test(r.stderr);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+})();
+
+let root;
+beforeEach(async () => {
+  root = await mkdtemp(join(tmpdir(), 'sig-close-by-hand-'));
+});
+afterEach(async () => {
+  testSeam.gitVersion = undefined;
+  await rm(root, { recursive: true, force: true });
+});
+
+async function put(dir, rel, content) {
+  const p = join(dir, rel);
+  await mkdir(dirname(p), { recursive: true });
+  await writeFile(p, content, 'utf-8');
+}
+
+const closingItem = (id, proof, extra = []) => ({
+  id, type: 'BUG', title: `bug ${id}`,
+  events: [{ type: 'created', at: AT, by }, ...extra, { type: 'close_requested', at: AT, by, reason: 'fixed', proof }],
+});
+const openItemIn = (id, unit) => ({
+  id, type: 'BUG', title: `bug ${id}`,
+  events: [{ type: 'created', at: AT, by }, { type: 'triaged', at: AT, by }, { type: 'queued', at: AT, by, epic: unit }],
+});
+
+// A store in `dir`: the items given, and — with `unitProof` — the unit
+// `phase-3` closing on that commit.
+async function store(dir, { items = [], unitProof = null } = {}) {
+  await put(dir, '.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n');
+  await put(dir, '.planning/work/items/.keep', '');
+  await put(dir, `${UNITS}/.keep`, '');
+  if (unitProof !== null) {
+    await put(dir, `${UNITS}/${UNIT}.json`, UNIT_KIND.serializeRecord({
+      id: UNIT, events: [{ type: 'opened', at: AT, by }, { type: 'close_requested', at: AT, by, proof: unitProof, pr: '7' }],
+    }));
+  }
+  for (const r of items) await put(dir, records.recordPath(r.id), serializeRecord(r));
+  await regenerateViews(dir);
+}
+
+// A repository with one commit, and the remotes named.
+async function repo(remotes = []) {
+  const work = join(root, 'work');
+  await mkdir(work, { recursive: true });
+  g(work, 'init', '-q', '-b', 'main');
+  g(work, 'commit', '-q', '--allow-empty', '-m', 'the fix');
+  for (const name of remotes) g(work, 'remote', 'add', name, join(root, `${name}.git`));
+  return { work, head: g(work, 'rev-parse', 'HEAD') };
+}
+
+const lastEvent = (record) => record.events[record.events.length - 1];
+
+describe('allowed: the three reasons no git answer can change', () => {
+  it('no remote: an item gets the ordinary fixed close, with confirmed_by and git_reason; the views show it closed', async () => {
+    const { work, head } = await repo();
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    const out = await records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT, why: 'this project keeps no remote' });
+    expect(out).toMatchObject({ kind: 'item', id: 'SIG-1', confirmed_by: 'person', git_reason: 'no-remote', proof: head });
+    const rec = records.getRecord(work, 'SIG-1');
+    expect(rec.status).toBe('C');
+    expect(lastEvent(rec.record)).toEqual({
+      type: 'closed', at: AT, by: person, reason: 'fixed', proof: head, confirmed_by: 'person', git_reason: 'no-remote', why: 'this project keeps no remote',
+    });
+    expect(await readFile(join(work, '.planning/BUGS.md'), 'utf-8')).toMatch(/0 closing · 1 closed \(1 total\)/);
+    // A later automatic confirm has nothing left to say about it.
+    expect((await records.confirmCloses(work)).stillClosing).toEqual([]);
+  });
+
+  it('no remote named origin: a unit gets the ordinary shipped close (proof and pr copied), with confirmed_by and git_reason; EPICS.md shows it closed', async () => {
+    const { work, head } = await repo(['upstream']);
+    await store(work, { unitProof: head });
+    const out = await records.confirmCloseByHand(work, UNIT, { by: person, at: AT });
+    expect(out).toMatchObject({ kind: 'unit', id: UNIT, confirmed_by: 'person', git_reason: 'no-origin-remote', proof: head });
+    const unit = getUnit(work, UNIT);
+    expect(unit.status).toBe('closed');
+    expect(unit.close).toEqual({ reason: 'shipped', at: AT, by: person, proof: head, pr: '7', confirmed_by: 'person', git_reason: 'no-origin-remote' });
+    expect(await readFile(join(work, '.planning/work/EPICS.md'), 'utf-8')).toMatch(/phase-3.*closed 2026-10-14 \(shipped\)/);
+  });
+
+  it('not a git repository: an item closing on a commit it names', async () => {
+    const work = join(root, 'plain');
+    await mkdir(work, { recursive: true });
+    await store(work, { items: [closingItem('SIG-2', 'abc1234')] });
+    const out = await records.confirmCloseByHand(work, 'SIG-2', { by: person, at: AT });
+    expect(out).toMatchObject({ kind: 'item', git_reason: 'not-a-repo' });
+    expect(records.getRecord(work, 'SIG-2').status).toBe('C');
+  });
+
+  // r7.1: the closed-proof audit asks about a hand-confirmed close too. r7
+  // skipped it, and a record carrying the two fields by hand switched the
+  // audit off for that close.
+  async function addOriginWithoutTheCommit(work) {
+    const remote = join(root, 'origin.git');
+    const seed = join(root, 'seed');
+    await mkdir(seed, { recursive: true });
+    g(root, 'init', '-q', '--bare', '-b', 'main', remote);
+    g(seed, 'init', '-q', '-b', 'main');
+    g(seed, 'commit', '-q', '--allow-empty', '-m', 'other');
+    g(seed, 'remote', 'add', 'origin', remote);
+    g(seed, 'push', '-q', '-u', 'origin', 'main');
+    g(work, 'remote', 'add', 'origin', remote);
+    g(work, 'fetch', '-q', 'origin');
+    g(work, 'remote', 'set-head', 'origin', 'main');
+  }
+
+  it('a close confirmed by hand when there was no remote is reported once the project has origin and the commit is not on it — worded as such', async () => {
+    const { work, head } = await repo();
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    await records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT });
+    await addOriginWithoutTheCommit(work);
+    const found = checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message));
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/confirmed closed by hand when the project had no remote; it now has origin\/main, and the commit is not on it/);
+  });
+
+  it('confirmed by hand as not-a-repo, then the folder becomes a repository with origin: worded for that, and not "the work was not merged"', async () => {
+    const work = join(root, 'work');
+    await mkdir(work, { recursive: true });
+    await store(work, { items: [closingItem('SIG-1', 'abc1234')] });
+    await records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT });
+    g(work, 'init', '-q', '-b', 'main');
+    g(work, 'commit', '-q', '--allow-empty', '-m', 'first');
+    await addOriginWithoutTheCommit(work);
+    const found = checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message));
+    expect(found).toHaveLength(1);
+    expect(found[0].message).toMatch(/SIG-1 was confirmed closed by hand before this project was a git repository; its commit \(abc1234\) is not in this history/);
+    expect(found[0].message).not.toMatch(/was not merged/);
+  });
+
+  it('a forged hand-confirm (the two fields typed onto a close on a project with origin) does not switch the audit off', async () => {
+    const { work, head } = await repo();
+    await addOriginWithoutTheCommit(work);
+    const closed = {
+      id: 'SIG-1', type: 'BUG', title: 't',
+      events: [
+        { type: 'created', at: AT, by },
+        { type: 'close_requested', at: AT, by, reason: 'fixed', proof: head },
+        { type: 'closed', at: AT, by, reason: 'fixed', proof: head },
+      ],
+    };
+    await store(work, { items: [closed] });
+    expect(checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message))).toHaveLength(1);
+    closed.events[2] = { ...closed.events[2], confirmed_by: 'person', git_reason: 'no-remote' };
+    await put(work, records.recordPath('SIG-1'), serializeRecord(closed));
+    expect(checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message))).toHaveLength(1);
+    // r7.2: typing `not-a-repo` instead does not soften it. Git has the commit
+    // and the default branch lacks it, so it is "not merged", not "not in this history".
+    closed.events[2] = { ...closed.events[2], git_reason: 'not-a-repo' };
+    await put(work, records.recordPath('SIG-1'), serializeRecord(closed));
+    const found = checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message));
+    expect(found).toHaveLength(1);
+    expect(found[0].message).not.toMatch(/not in this history/);
+    expect(found[0].message).toMatch(/when the project was not a git repository; it now has origin\/main, and the commit is not on it .*the work was not merged: reopen it/);
+  });
+});
+
+// r7.1: the views say a close was confirmed by hand; every other row is as it was.
+describe('the views say "confirmed by hand", and only for such a close', () => {
+  const unitOf = (close) => ({ id: 'M7.E3', record: { id: 'M7.E3', events: [] }, status: 'closed', held: false, hold_reason: null, close, closing_proof: null });
+  const shipped = { reason: 'shipped', at: AT, by, proof: 'abc1234', pr: '7' };
+  it('the milestone table: a hand-confirmed shipped close says so; the same close confirmed by git is byte-identical to before', () => {
+    expect(renderEpicTable([unitOf(shipped)], { milestone: '7' })).toContain('| `M7.E3` | **shipped** — 2026-10-14 (PR 7) |');
+    expect(renderEpicTable([unitOf({ ...shipped, confirmed_by: 'person', git_reason: 'no-remote' })], { milestone: '7' }))
+      .toContain('| `M7.E3` | **shipped** — 2026-10-14 (PR 7) (confirmed by hand) |');
+  });
+  it('EPICS.md: a hand-confirmed unit says so', async () => {
+    const { work, head } = await repo();
+    await store(work, { unitProof: head });
+    const before = await readFile(join(work, '.planning/work/EPICS.md'), 'utf-8');
+    expect(before).not.toMatch(/confirmed by hand/);
+    await records.confirmCloseByHand(work, UNIT, { by: person, at: AT });
+    expect(await readFile(join(work, '.planning/work/EPICS.md'), 'utf-8')).toMatch(/phase-3.*closed 2026-10-14 \(shipped\) · PR 7 \(confirmed by hand\)/);
+  });
+});
+
+// r7.1: an item's `why` and `by` are stored as the unit writers store them —
+// one line, no control or invisible characters, cut at their limits — and a
+// `why` that is not words, or an `at` before the request, is refused first.
+describe('what a person types is cleaned and bounded, for an item as for a unit', () => {
+  it('a 50,023-character `why` with ESC, a newline and U+202E, and a 5,000-character `by`: stored cut and printable', async () => {
+    const { work, head } = await repo();
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    const why = `a\u001b[31m\nb‮c${'x'.repeat(50_017)}`;
+    await records.confirmCloseByHand(work, 'SIG-1', { by: 'p'.repeat(5000), at: AT, why });
+    const e = lastEvent(records.getRecord(work, 'SIG-1').record);
+    expect(e.why.length).toBeLessThanOrEqual(2000);
+    expect(e.why).not.toMatch(/[\u0000-\u001f\u007f‮]/);
+    expect(e.why.startsWith('a[31m b')).toBe(true);
+    expect(e.by.length).toBeLessThanOrEqual(200);
+  });
+
+  it('the item schema gives `why` the bounded, no-control text a unit\'s has', () => {
+    const rec = (why) => ({
+      id: 'SIG-1', type: 'BUG', title: 't',
+      events: [
+        { type: 'created', at: AT, by },
+        { type: 'close_requested', at: AT, by, reason: 'fixed', proof: 'abc1234' },
+        { type: 'closed', at: AT, by, reason: 'fixed', proof: 'abc1234', confirmed_by: 'person', git_reason: 'no-remote', why },
+      ],
+    });
+    expect(ITEM_KIND.validateRecord(rec('fine words'))).toEqual([]);
+    expect(ITEM_KIND.validateRecord(rec('bad\u001bword'))).not.toEqual([]);
+    expect(ITEM_KIND.validateRecord(rec('y'.repeat(2001)))).not.toEqual([]);
+  });
+
+  it('a `why` that is empty, blank or a number, and an `at` before the close request: SCHEMA, plainly, nothing written', async () => {
+    const { work, head } = await repo();
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    const before = snapshotTree(work);
+    for (const why of ['', '   ', 42]) {
+      await expect(records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT, why }))
+        .rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/`why` is the person's words/) });
+    }
+    await expect(records.confirmCloseByHand(work, 'SIG-1', { by: person, at: '2026-10-01T10:00:00.000Z' }))
+      .rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/before the close was requested/) });
+    expect(snapshotTree(work)).toEqual(before);
+  });
+});
+
+// r7.1: "git failed" is not "not a git repository". Only git saying so, with
+// no `.git` entry at or above the folder, reads as `not-a-repo`.
+// The knob alone is not enough: a global `safe.directory` (CI's checkout step
+// sets `*`) makes git trust the folder anyway. Signal's git calls read the real
+// global config, so these cases switch it off for the call, as the probe does.
+const DISTRUST = { GIT_TEST_ASSUME_DIFFERENT_OWNER: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+async function asDistrusted(fn) {
+  const saved = Object.fromEntries(Object.keys(DISTRUST).map((k) => [k, process.env[k]]));
+  Object.assign(process.env, DISTRUST);
+  try {
+    return await fn();
+  } finally {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
+  }
+}
+
+describe('a repository git cannot read is not taken for no repository', () => {
+  async function refusedAsGitFailed(work, head) {
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    expect((await records.confirmCloses(work)).stillClosing).toEqual([{ id: 'SIG-1', reason: 'git-failed' }]);
+    await expect(records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT }))
+      .rejects.toMatchObject({ code: 'CONFLICT', reason: 'git-failed' });
+    expect(records.getRecord(work, 'SIG-1').status).toBe('closing');
+  }
+
+  it('a broken line in .git/config: git-failed, the hand-confirm refuses', async () => {
+    const { work, head } = await repo();
+    await writeFile(join(work, '.git/config'), `${await readFile(join(work, '.git/config'), 'utf-8')}[broken\n`);
+    await refusedAsGitFailed(work, head);
+  });
+
+  it('a .git file whose gitdir points nowhere: git-failed', async () => {
+    const work = join(root, 'linked');
+    await mkdir(work, { recursive: true });
+    await writeFile(join(work, '.git'), `gitdir: ${join(root, 'nowhere')}\n`);
+    await refusedAsGitFailed(work, 'abc1234');
+  });
+
+  // Real git: only where this git honours its test knob for "the folder has
+  // another owner" (CI's git did not, and the case then passed nothing — a
+  // trusted repository with no remote is rightly `no-remote`). Skipped with
+  // that reason elsewhere; the injected cases below run everywhere.
+  it.skipIf(!DUBIOUS_HONOURED)('git refusing a repository it does not trust (dubious ownership): git-failed [skipped where this git does not honour GIT_TEST_ASSUME_DIFFERENT_OWNER]', async () => {
+    const { work, head } = await repo();
+    await asDistrusted(() => refusedAsGitFailed(work, head));
+  });
+
+  it.skipIf(!DUBIOUS_HONOURED)('the same with a remote not named origin: git-failed, not no-origin-remote [skipped where this git does not honour GIT_TEST_ASSUME_DIFFERENT_OWNER]', async () => {
+    const { work, head } = await repo(['upstream']);
+    await asDistrusted(() => refusedAsGitFailed(work, head));
+  });
+
+  // Any git, by an injected git (r7.1 CI follow-up): a git that refuses the
+  // repository — at the work-tree question, or only when the remotes are
+  // listed — is `git-failed`, never `no-remote` or `not-a-repo`.
+  const refusing = (failAt, remotes = '') => (cmd, args) => {
+    const refuse = () => {
+      throw Object.assign(new Error('git failed'), { status: 128, stderr: "fatal: detected dubious ownership in repository at '/x'\n" });
+    };
+    if (args.includes('--is-inside-work-tree')) return failAt === 'work-tree' ? refuse() : 'true\n';
+    if (args[0] === 'remote') return failAt === 'remote' ? refuse() : remotes;
+    // A git that found the repository and did not read its own config (the
+    // reviewer's reading of CI's `no-remote`): the remotes vanish with it.
+    if (args[0] === 'config' && args.includes('--local')) return failAt === 'config' ? refuse() : '0\n';
+    return '';
+  };
+  // An empty remote list, or one with no `origin`, is believed only when git
+  // has shown it read this repository's own config (r7.1).
+  for (const [remotes, would] of [['', 'no-remote'], ['upstream\n', 'no-origin-remote']]) {
+    it(`a remote list (${would}) from a git that did not read this repository's config (injected): git-failed`, async () => {
+      const { work, head } = await repo();
+      await store(work, { items: [closingItem('SIG-1', head)] });
+      expect((await records.confirmCloses(work, { execFn: refusing('config', remotes) })).stillClosing).toEqual([{ id: 'SIG-1', reason: 'git-failed' }]);
+      // Control: the same list, with the config read, is believed.
+      expect((await records.confirmCloses(work, { execFn: refusing(null, remotes) })).stillClosing).toEqual([{ id: 'SIG-1', reason: would }]);
+    });
+  }
+  for (const failAt of ['work-tree', 'remote']) {
+    it(`a git that refuses the repository at the ${failAt} question (injected): git-failed, the hand-confirm refuses`, async () => {
+      const { work, head } = await repo();
+      await store(work, { items: [closingItem('SIG-1', head)] });
+      const execFn = refusing(failAt);
+      expect((await records.confirmCloses(work, { execFn })).stillClosing).toEqual([{ id: 'SIG-1', reason: 'git-failed' }]);
+      await expect(records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT }, { execFn }))
+        .rejects.toMatchObject({ code: 'CONFLICT', reason: 'git-failed' });
+      expect(records.getRecord(work, 'SIG-1').status).toBe('closing');
+    });
+  }
+
+  it('controls: a folder with no repository is not-a-repo (allowed); no git installed is git-too-old (refused)', async () => {
+    const work = join(root, 'plain');
+    await mkdir(work, { recursive: true });
+    await store(work, { items: [closingItem('SIG-1', 'abc1234'), closingItem('SIG-2', 'abc1234')] });
+    testSeam.gitVersion = null;
+    await expect(records.confirmCloseByHand(work, 'SIG-2', { by: person, at: AT })).rejects.toMatchObject({ reason: 'git-too-old' });
+    testSeam.gitVersion = undefined;
+    expect((await records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT })).git_reason).toBe('not-a-repo');
+  });
+});
+
+describe('the confirm line and the sweep name the hand-confirm for the three reasons, and only for them', () => {
+  // r7.1: worded as a question for the person, never as a command to run.
+  const HAND = /ask the person whether to confirm each by hand, one ID at a time \(`\/sig:item confirm <ID>`\)/;
+  it('the line ends of the three reasons name the command; no-default-branch does not', () => {
+    for (const reason of BY_HAND_REASONS) {
+      expect(formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-1', reason }], stale: [] })).toMatch(HAND);
+    }
+    expect(formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-1', reason: 'no-default-branch' }], stale: [] })).not.toMatch(/sig:item confirm/);
+  });
+  // r7.1: `git-failed` says what it means and what to do, everywhere it appears.
+  const GIT_FAILED = 'git could not read the repository — a broken config, a `.git` pointing nowhere, a folder git does not trust — '
+    + 'fix that and run the confirm again';
+  it('git-failed: the confirm line, the closing-too-long words and the hand-confirm refusal say what it means', async () => {
+    const line = formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-1', reason: 'git-failed' }], stale: [] });
+    expect(line).toContain(`git-failed: ${GIT_FAILED}`);
+    expect(line).not.toMatch(/sig:item confirm/);
+    for (const words of [itemClosingTooLongWords('git-failed', 'abc1234', 'SIG-1'), unitClosingTooLongWords('git-failed', 'abc1234', UNIT)]) {
+      expect(words).toContain(GIT_FAILED);
+      expect(words).not.toMatch(/Merge it|sig:item confirm/);
+    }
+    const { work, head } = await repo();
+    await writeFile(join(work, '.git/config'), `${await readFile(join(work, '.git/config'), 'utf-8')}[broken\n`);
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    await expect(records.confirmCloseByHand(work, 'SIG-1', { by: person, at: AT }))
+      .rejects.toMatchObject({ message: expect.stringContaining(`git-failed: ${GIT_FAILED}`) });
+  });
+  it('no-origin-remote names renaming a remote to origin first, then the hand-confirm', () => {
+    const line = formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-1', reason: 'no-origin-remote' }], stale: [] });
+    expect(line.indexOf('git remote rename <name> origin')).toBeGreaterThan(-1);
+    expect(line.indexOf('git remote rename <name> origin')).toBeLessThan(line.indexOf('/sig:item confirm'));
+    const words = itemClosingTooLongWords('no-origin-remote', 'abc1234', 'SIG-1');
+    expect(words.indexOf('git remote rename <name> origin')).toBeGreaterThan(-1);
+    expect(words.indexOf('git remote rename <name> origin')).toBeLessThan(words.indexOf('/sig:item confirm'));
+  });
+  it('closing too long: an item and a unit are each named in the command, for the three reasons only', () => {
+    for (const reason of BY_HAND_REASONS) {
+      expect(itemClosingTooLongWords(reason, 'abc1234', 'SIG-1')).toMatch(/Or ask the person whether to confirm it by hand \(`\/sig:item confirm SIG-1`\)\.$/);
+      expect(unitClosingTooLongWords(reason, 'abc1234', UNIT)).toMatch(/\/sig:item confirm phase-3/);
+    }
+    expect(itemClosingTooLongWords('not-on-default-branch', 'abc1234', 'SIG-1')).not.toMatch(/sig:item confirm/);
+    expect(unitClosingTooLongWords('open-items', 'abc1234', UNIT)).not.toMatch(/sig:item confirm/);
+  });
+});
+
+describe('the record shape: confirmed_by and git_reason together, on the close that confirms a request', () => {
+  const head = [{ type: 'created', at: AT, by }, { type: 'close_requested', at: AT, by, reason: 'fixed', proof: 'abc1234' }];
+  const item = (closed) => ({ id: 'SIG-1', type: 'BUG', title: 't', events: [...head, { type: 'closed', at: AT, by, ...closed }] });
+  it('item: valid with both; refused with one, on another reason, or `why` without them', () => {
+    expect(ITEM_KIND.validateRecord(item({ reason: 'fixed', proof: 'abc1234', confirmed_by: 'person', git_reason: 'no-remote' }))).toEqual([]);
+    expect(ITEM_KIND.validateRecord(item({ reason: 'fixed', proof: 'abc1234', confirmed_by: 'person' }))).toEqual([expect.stringMatching(/together/)]);
+    expect(ITEM_KIND.validateRecord(item({ reason: 'wontdo', proof: 'no', confirmed_by: 'person', git_reason: 'no-remote' })))
+      .toEqual([expect.stringMatching(/only allowed when reason is fixed/)]);
+    expect(ITEM_KIND.validateRecord(item({ reason: 'fixed', proof: 'abc1234', why: 'x' }))).toEqual([expect.stringMatching(/why is only allowed/)]);
+    expect(ITEM_KIND.validateRecord(item({ reason: 'fixed', proof: 'abc1234', confirmed_by: 'person', git_reason: 'not-on-default-branch' })))
+      .not.toEqual([]);
+  });
+  it('unit: the same rule, on a shipped close', () => {
+    const unit = (closed) => ({ id: UNIT, events: [{ type: 'opened', at: AT, by }, { type: 'close_requested', at: AT, by, proof: 'abc1234' }, { type: 'closed', at: AT, by, ...closed }] });
+    expect(UNIT_KIND.validateRecord(unit({ reason: 'shipped', proof: 'abc1234', confirmed_by: 'person', git_reason: 'not-a-repo' }))).toEqual([]);
+    expect(UNIT_KIND.validateRecord(unit({ reason: 'shipped', proof: 'abc1234', git_reason: 'not-a-repo' }))).toEqual([expect.stringMatching(/together/)]);
+  });
+});
+
+describe('refused, with what to do, and nothing written', () => {
+  async function refuses(work, id, code, message) {
+    const before = snapshotTree(work);
+    await expect(records.confirmCloseByHand(work, id, { by: person, at: AT })).rejects.toMatchObject({ code, message: expect.stringMatching(message) });
+    expect(snapshotTree(work)).toEqual(before);
+  }
+
+  it('a unit with an item that is not closed: close the items first (OPEN_ITEMS)', async () => {
+    const { work, head } = await repo();
+    await store(work, { unitProof: head });
+    // The item is queued while the unit is still open, then the unit's close is requested.
+    await put(work, records.recordPath('SIG-4'), serializeRecord(openItemIn('SIG-4', UNIT)));
+    await refuses(work, UNIT, 'OPEN_ITEMS', /SIG-4.*Close each/s);
+  });
+
+  it('the commit is not on the default branch: merge it', async () => {
+    const remote = join(root, 'origin.git');
+    g(root, 'init', '-q', '--bare', '-b', 'main', remote);
+    const work = join(root, 'work');
+    await mkdir(work, { recursive: true });
+    g(work, 'init', '-q', '-b', 'main');
+    g(work, 'commit', '-q', '--allow-empty', '-m', 'c0');
+    g(work, 'remote', 'add', 'origin', remote);
+    g(work, 'push', '-q', '-u', 'origin', 'main');
+    g(work, 'remote', 'set-head', 'origin', 'main');
+    g(work, 'checkout', '-q', '-b', 'feat/x');
+    g(work, 'commit', '-q', '--allow-empty', '-m', 'the fix, not merged');
+    await store(work, { items: [closingItem('SIG-1', g(work, 'rev-parse', 'HEAD'))] });
+    await refuses(work, 'SIG-1', 'CONFLICT', /not-on-default-branch.*[Mm]erge it/s);
+    // On the default branch now: git confirms it, so a person does not.
+    g(work, 'push', '-q', 'origin', 'HEAD:main');
+    g(work, 'fetch', '-q', 'origin');
+    await refuses(work, 'SIG-1', 'CONFLICT', /\/sig:docs-sweep/);
+  });
+
+  it('the remote\'s default branch is not recorded: run git fetch origin, then git remote set-head origin -a', async () => {
+    const { work, head } = await repo(['origin']);
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    await refuses(work, 'SIG-1', 'CONFLICT', /no-default-branch.*git fetch origin.*git remote set-head origin -a/s);
+  });
+
+  it('a git older than 2.38: update git', async () => {
+    const { work, head } = await repo();
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    testSeam.gitVersion = 'git version 2.34.1';
+    await refuses(work, 'SIG-1', 'CONFLICT', /git-too-old.*[Uu]pdate git/s);
+  });
+
+  it('a record that is not closing', async () => {
+    const { work } = await repo();
+    const triaged = { id: 'SIG-1', type: 'BUG', title: 'bug', events: [{ type: 'created', at: AT, by }, { type: 'triaged', at: AT, by }] };
+    await store(work, { items: [triaged] });
+    await refuses(work, 'SIG-1', 'CONFLICT', /not closing/);
+  });
+
+  it('no such item or unit (NOT_FOUND); no `by`, or anything but one ID (SCHEMA)', async () => {
+    const { work, head } = await repo();
+    await store(work, { items: [closingItem('SIG-1', head)] });
+    await refuses(work, 'SIG-9', 'NOT_FOUND', /SIG-9/);
+    await refuses(work, 'phase-9', 'NOT_FOUND', /phase-9/);
+    const before = snapshotTree(work);
+    await expect(records.confirmCloseByHand(work, 'SIG-1', { at: AT })).rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/by/) });
+    await expect(records.confirmCloseByHand(work, ['SIG-1'], { by: person })).rejects.toMatchObject({ code: 'SCHEMA', message: expect.stringMatching(/one ID/) });
+    expect(snapshotTree(work)).toEqual(before);
+  });
+});

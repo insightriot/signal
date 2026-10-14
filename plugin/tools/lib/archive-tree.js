@@ -38,13 +38,15 @@ import { readFile, mkdir, rm, readdir } from 'node:fs/promises';
 import { realpathSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative, sep, posix } from 'node:path';
 
-import { deriveUnits, suffixOf } from './work-units.js';
+import { currentUnit, deriveUnits, suffixOf } from './work-units.js';
+import { isSafeUnitName } from './unit-name.js';
 
-import { PLANNING_DIR, EPIC_ID_STRICT_RE, compareEpicIds } from './state.js';
+import { PLANNING_DIR, EPIC_ID_STRICT_RE, compareEpicIds, readState } from './state.js';
 import { atomicWrite } from './atomic-write.js';
 import { deriveEpicArchiveDir } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
-import { resolveClosures } from './closure.js';
+import { readUnitRecords, resolveClosures } from './closure.js';
+import { unitRecordsOn } from './unit-records.js';
 import { INBOX_NEW, INBOX_LEGACY, LEDGER_NEW, LEDGER_LEGACY } from './inbox-path.js';
 import { acquireLock } from './file-lock.js';
 import { isGeneratedText } from './work-marker.js';
@@ -89,29 +91,10 @@ export function toPosix(p) {
  * @param {{scaffoldSuffixes?: string[]}} [opts]
  * @returns {{moves: Array<{from,to}>, moveMap: Map<string,string>}}
  */
-// M5.E18 S6 (NFR4) — what may become a directory name under `.planning/archive/`.
-//
-// Units are DERIVED from filenames (S1), so a `/` cannot occur in practice and
-// the real corpus has no hostile name. That is luck of inventory, not safety:
-// the derivation rule could widen, and a project could name a file anything. So
-// the constraint is stated rather than assumed.
-//
-// First character must be alphanumeric — that alone blocks `.`, `..`, `.hidden`
-// and `/abs`. The charset excludes `/` and `\`. `..` anywhere is rejected
-// separately because `.` must remain legal INSIDE a name: `M4.5.E1` and `v0.1.6`
-// are both real units.
-const SAFE_UNIT_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-
-/**
- * Is this unit name safe to use as a path component under `.planning/archive/`?
- * @param {unknown} unit
- * @returns {boolean}
- */
-export function isSafeUnitName(unit) {
-  if (typeof unit !== 'string' || unit.length === 0 || unit.length > 100) return false;
-  if (unit.includes('..')) return false;
-  return SAFE_UNIT_RE.test(unit);
-}
+// M5.E18 S6 (NFR4) — what may become a directory name under `.planning/archive/`
+// is `isSafeUnitName`, which lives in the leaf module `unit-name.js` (M6.E16 S6)
+// and is re-exported here for its callers.
+export { isSafeUnitName };
 
 /**
  * Where a closed unit's scaffold archives to.
@@ -468,11 +451,34 @@ function assertInsidePlanning(baseDir, destAbs) {
  * them, as before). `renameFroms` is surfaced so the migrate's residual-flat-path
  * scan can apply the same archive exemption.
  *
+ * On a project with unit records a unit that has a record is closed when its
+ * record says so, and a held unit is never moved: `held` names each closed,
+ * held unit with its hold reason (always `[]` without unit records). Neither
+ * is the current unit while its record reads closed: `current` names it (the
+ * key is there only with unit records), and it is in no move and not in
+ * `closedUnits` until another unit is current.
+ *
  * @param {string} baseDir
- * @param {{scaffoldSuffixes?: string[], v3Rename?: boolean}} [opts]
- * @returns {Promise<{moves: Array, moveMap: Map, closedEpicIds: string[], files: string[], editsByFile: Map<string, Array>, renameFroms: Set<string>}>}
+ * @param {{scaffoldSuffixes?: string[], v3Rename?: boolean, closedUnits?: string[]}} [opts]
+ * @returns {Promise<{moves: Array, moveMap: Map, closedEpicIds: string[], closedUnits: string[], files: string[],
+ *   editsByFile: Map<string, Array>, renameFroms: Set<string>, dropped: Array, held: Array<{unit: string, reason: string}>,
+ *   current?: string[], unitsProblem?: string}>} `unitsProblem`: `work/units/` is there and cannot be trusted — then every list is empty
+ *   and nothing is planned
  */
 export async function senseArchiveTree(baseDir, opts = {}) {
+  // A `units/` FOLDER THAT CANNOT BE TRUSTED (REVIEW pass 1, C-I4) — a link, a
+  // file, one that cannot be listed — moves nothing at all, whoever named a
+  // unit closed: which units are held is not known, and a held unit never
+  // moves. The fault is returned in `unitsProblem`. Asked first, before
+  // `.planning/` is walked: a folder that cannot be listed would stop the walk
+  // with a raw error.
+  const unitRecords = readUnitRecords(baseDir);
+  if (typeof unitRecords?.problem === 'string') {
+    return {
+      moves: [], moveMap: new Map(), closedEpicIds: [], closedUnits: [], files: [], editsByFile: new Map(), renameFroms: new Set(),
+      dropped: [], held: [], unitsProblem: unitRecords.problem,
+    };
+  }
   const retros = await enumerateRetros(baseDir);
   // M5.E18 S5.t1 (`B64`): a STUB retro is not closure. `enumerateRetros` has
   // always reported `isStub`; this call discarded it, so a card that is still
@@ -503,6 +509,17 @@ export async function senseArchiveTree(baseDir, opts = {}) {
   //
   // Fail-open: closure resolution is additive here, so if it throws the mover
   // falls back to exactly the retro-derived behaviour rather than losing moves.
+  //
+  // WITH UNIT RECORDS (M6.E16 t6.2, `D-M6E16-2`) a unit that has a record is
+  // closed here only when its RECORD is closed — `resolveClosures` answers it
+  // from the record. The current unit reads closed too when its record does,
+  // marked `current`, and is taken out of the moves below. For such a unit a filled
+  // retrospective is not closure (`SIG-288`), a stub does not veto, and where
+  // its VERIFICATION sits does not matter (`SIG-289`). A unit whose record does
+  // not read is not closed. The union above still decides a unit with NO
+  // record. And if closure resolution throws, a unit with a record does not
+  // fall back to its retrospective: it is not archived.
+  const hasRecord = (unit) => unitRecords !== null && (unitRecords.byId.has(unit) || unitRecords.broken.has(unit));
   let closedUnits = opts.closedUnits;
   if (!closedUnits) {
     const stubbed = new Set(retros.filter((r) => r.isStub).map((r) => r.epicId));
@@ -510,12 +527,43 @@ export async function senseArchiveTree(baseDir, opts = {}) {
     try {
       const resolved = await resolveClosures(baseDir);
       verdictClosed = resolved.units
-        .filter((u) => u.status === 'closed' && !stubbed.has(u.unit))
+        .filter((u) => u.status === 'closed' && (u.source === 'record' || !stubbed.has(u.unit)))
         .map((u) => u.unit);
     } catch {
       verdictClosed = [];
     }
-    closedUnits = [...new Set([...closedEpicIds, ...verdictClosed])];
+    closedUnits = [...new Set([...closedEpicIds.filter((id) => !hasRecord(id)), ...verdictClosed])];
+  }
+
+  // A HELD unit never moves, whoever named it closed (AC5.2, `SIG-255`): it is
+  // taken out of the set here, after `opts.closedUnits`, and returned in `held`
+  // with its reason so a caller can say why nothing of it moved.
+  const held = [];
+  if (unitRecords !== null) {
+    for (const u of unitRecords.byId.values()) {
+      if (u.held && u.status === 'closed') held.push({ unit: u.id, reason: u.hold_reason });
+    }
+    held.sort((a, b) => a.unit.localeCompare(b.unit));
+    closedUnits = closedUnits.filter((unit) => unitRecords.byId.get(unit)?.held !== true);
+  }
+
+  // THE CURRENT UNIT'S FILES STAY, though its record reads closed (the record
+  // decides that it is closed; being current decides that nothing of it moves
+  // yet). Read from STATE.md here, not from the closed set, so a caller's own
+  // `opts.closedUnits` cannot move it either. It is taken out and returned in
+  // `current`. A held one is said as held, above. Without unit records nothing
+  // is closed while it is current, and nothing here runs.
+  let stillCurrent = [];
+  if (unitRecords !== null) {
+    let currentId = null;
+    try {
+      currentId = currentUnit(await readState(baseDir));
+    } catch {
+      currentId = null; // STATE.md does not read: the resolver closes nothing then
+    }
+    const own = typeof currentId === 'string' ? unitRecords.byId.get(currentId) : undefined;
+    if (own !== undefined && own.status === 'closed' && own.held !== true) stillCurrent = [currentId];
+    closedUnits = closedUnits.filter((unit) => !stillCurrent.includes(unit));
   }
 
   const files = await walkPlanningMd(baseDir);
@@ -561,7 +609,11 @@ export async function senseArchiveTree(baseDir, opts = {}) {
   // callers and tests read it as "which Epics have a finished retrospective".
   // `closedUnits` is what actually drove the moves. Two names because they are
   // two facts; collapsing them would be the drift this Epic keeps finding.
-  return { moves, moveMap, closedEpicIds, closedUnits, files, editsByFile, renameFroms, dropped };
+  return {
+    moves, moveMap, closedEpicIds, closedUnits, files, editsByFile, renameFroms, dropped, held,
+    // Only with unit records: without them no unit is closed while it is current.
+    ...(unitRecords !== null ? { current: stillCurrent } : {}),
+  };
 }
 
 /**
@@ -579,6 +631,9 @@ export async function senseArchiveTree(baseDir, opts = {}) {
  */
 export async function applyArchiveTree(baseDir, opts = {}) {
   const apply = opts.apply ?? false;
+  // An apply on a `units/` folder that cannot be trusted is refused before
+  // anything is sensed or moved (`unitRecordsOn` throws; REVIEW pass 1, C-I4).
+  if (apply) unitRecordsOn(baseDir);
   const { moves, moveMap, files, editsByFile } = await senseArchiveTree(baseDir, opts);
 
   if (!apply) {

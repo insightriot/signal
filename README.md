@@ -30,7 +30,7 @@ That FULL run is committed as a worked example you can read end to end: **[`exam
 | **Node.js 22+** | ESM, no native modules |
 | **Claude Code 2.1.141+** | That release shipped the `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` env var used by the troubleshooting workaround below |
 | **Operating system** | Verified on macOS; Linux/WSL untested — see [`docs/install-verification.md`](./docs/install-verification.md) for the verification matrix |
-| **Git** | Any modern version (`.planning/` requires a git repo to be useful) |
+| **Git 2.38+** | Signal's git-backed checks stop with a plain message on an older git (`.planning/` requires a git repo to be useful) |
 
 ### Via Claude Code plugin marketplace
 

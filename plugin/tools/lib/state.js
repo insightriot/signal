@@ -6,6 +6,8 @@ import { randomBytes } from 'node:crypto';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 
 import { atomicWrite } from './atomic-write.js';
+import { resolveDefaultBranch } from './branch-guard.js';
+import { gitCannotAsk, gitEnv } from './git-env.js';
 import { LAYOUT_VERSION } from './layout-stamp.js';
 import {
   acquireLock as fileAcquireLock,
@@ -129,6 +131,7 @@ function getCurrentGitCommit(baseDir) {
     const out = execFileSync('git', ['rev-parse', 'HEAD'], {
       cwd: baseDir,
       stdio: ['ignore', 'pipe', 'ignore'],
+      env: gitEnv(baseDir),
     });
     return String(out).trim() || null;
   } catch {
@@ -1098,7 +1101,7 @@ export async function detectOrphans(baseDir, opts = {}) {
     const out = execFn(
       'git',
       ['log', '--since', sinceIso, '--pretty=format:%s', '--', '.planning/'],
-      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) }
     );
     subjects = String(out).split('\n').filter(Boolean);
   } catch (err) {
@@ -1195,7 +1198,11 @@ const COMMIT_TOKEN_RE = /^[0-9A-Za-z][0-9A-Za-z._/-]*$/;
  */
 export async function isStateStale(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
-  const empty = { stale: false, commitCount: 0, commits: [] };
+  // Git could not be asked (r6.5): not stale as far as anyone can tell, and
+  // `cannotCheck` says why nobody could tell.
+  const cannotAsk = gitCannotAsk(baseDir);
+  const empty = { stale: false, commitCount: 0, commits: [], ...(cannotAsk === null ? {} : { cannotCheck: cannotAsk }) };
+  if (cannotAsk !== null) return empty;
 
   // Fail open on a schema-drifted / malformed STATE.md — readState throws
   // StateSchemaError on an ahead/unknown/missing schema_version, and this feeds
@@ -1241,7 +1248,7 @@ export async function isStateStale(baseDir, opts = {}) {
         '--',
         ...affecting,
       ],
-      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) }
     );
     const lines = String(out).split('\n').filter(Boolean);
     const commits = lines.map((line) => {
@@ -1270,7 +1277,7 @@ export async function isStateStale(baseDir, opts = {}) {
         '.',
         ...BOOKKEEPING_EXCLUDES,
       ],
-      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) }
     );
     const genuineWork = String(workOut).split('\n').filter(Boolean).length;
     if (genuineWork === 0) return empty;
@@ -1318,7 +1325,11 @@ const ORIGIN_FETCH_ENV = {
  */
 export async function isStaleVsOrigin(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
-  const notStale = { stale: false, aheadCount: 0, commits: [], touchedPlanning: false };
+  // Git could not be asked (r6.5): `cannotCheck` carries the reason, so the
+  // caller can say origin was not checked instead of saying nothing.
+  const cannotAsk = gitCannotAsk(baseDir);
+  const notStale = { stale: false, aheadCount: 0, commits: [], touchedPlanning: false, ...(cannotAsk === null ? {} : { cannotCheck: cannotAsk }) };
+  if (cannotAsk !== null) return notStale;
 
   // Fail open on a schema-drifted / malformed STATE.md — readState throws
   // StateSchemaError on an ahead/unknown/missing schema_version (exactly the
@@ -1336,24 +1347,13 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
   if (!stored) return notStale; // no baseline — can't measure
   if (!COMMIT_TOKEN_RE.test(stored)) return notStale; // Sec-2: reject option-like tokens
 
-  // 1. Resolve the remote default branch. Unset origin/HEAD prints the
-  //    literal "origin/HEAD" and exits 128; both the throw and the literal
-  //    fall back to `main` (AC2.5).
-  let branch = 'main';
-  try {
-    const ref = String(
-      execFn('git', ['rev-parse', '--abbrev-ref', 'origin/HEAD'], {
-        cwd: baseDir,
-        stdio: ['ignore', 'pipe', 'ignore'],
-      })
-    ).trim();
-    if (ref && ref !== 'origin/HEAD') {
-      branch = ref.startsWith('origin/') ? ref.slice('origin/'.length) : ref;
-    }
-  } catch {
-    branch = 'main';
-  }
-  const tracking = `origin/${branch}`;
+  // 1. Resolve the remote default branch from the stored `origin/HEAD`
+  //    (`resolveDefaultBranch`, `branch-guard.js`), which reads full refs: a
+  //    lookup by short name (`origin/HEAD`, `origin/main`) is also answered by
+  //    a tag of that name, and tags arrive with any fetch. When it cannot say,
+  //    fall back to `main` (AC2.5). The branch is named by its full ref below.
+  const branch = resolveDefaultBranch(baseDir, { execFn }) ?? 'main';
+  const tracking = `refs/remotes/origin/${branch}`;
 
   // 2. Bounded, non-interactive fetch of just that branch. Any throw
   //    (offline / no-remote / timeout / auth-hang) → fail open.
@@ -1364,14 +1364,14 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
         '-c', 'credential.helper=',
         '-c', 'core.askPass=',
         'fetch', '--no-tags', '--quiet', '--no-recurse-submodules',
-        'origin', branch,
+        'origin', `refs/heads/${branch}`,
       ],
       {
         cwd: baseDir,
         timeout: ORIGIN_FETCH_TIMEOUT_MS,
         killSignal: 'SIGKILL',
         stdio: ['ignore', 'ignore', 'ignore'],
-        env: { ...process.env, ...ORIGIN_FETCH_ENV },
+        env: { ...gitEnv(baseDir), ...ORIGIN_FETCH_ENV },
       }
     );
   } catch {
@@ -1392,6 +1392,7 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
         execFn('git', ['rev-list', '--count', `HEAD..${tracking}`], {
           cwd: baseDir,
           stdio: ['ignore', 'pipe', 'ignore'],
+          env: gitEnv(baseDir),
         })
       ).trim(),
       10
@@ -1409,7 +1410,7 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
     const out = execFn(
       'git',
       ['log', '--pretty=format:%H %s', `HEAD..${tracking}`],
-      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) }
     );
     commits = String(out)
       .split('\n')
@@ -1435,7 +1436,7 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
           execFn(
             'git',
             ['rev-list', '--count', `HEAD..${tracking}`, '--', '.planning/'],
-            { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] }
+            { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) }
           )
         ).trim(),
         10
@@ -1779,6 +1780,7 @@ function resolveHeadCommit(baseDir, execFn) {
     const out = execFn('git', ['rev-parse', 'HEAD'], {
       cwd: baseDir,
       stdio: ['ignore', 'pipe', 'ignore'],
+      env: gitEnv(baseDir),
     });
     return String(out).trim() || null;
   } catch {

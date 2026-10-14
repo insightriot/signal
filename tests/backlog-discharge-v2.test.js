@@ -26,7 +26,9 @@ import { snapshotTree } from './helpers/write-inventory.js';
 
 const AT = '2026-10-01T10:00:00.000Z';
 const TODAY = '2026-10-04';
-const SHA = '0123abcd';
+// The commit passed as the Epic's: a real one, behind HEAD (set by `v2Store`).
+// A `commit` that names none is refused (`tests/backlog-discharge-commit.test.js`).
+let SHA = '0123abcd';
 const by = 'claude';
 const created = { type: 'created', at: AT, by };
 const triaged = { type: 'triaged', at: AT, by };
@@ -72,6 +74,8 @@ async function v2Store({ git = true } = {}) {
     g(root, 'init', '-q', '-b', 'feature');
     g(root, 'add', '-A');
     g(root, 'commit', '-q', '-m', 'seed');
+    SHA = g(root, 'rev-parse', 'HEAD');
+    g(root, 'commit', '-q', '--allow-empty', '-m', 'later');
   }
 }
 

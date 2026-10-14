@@ -1,0 +1,18 @@
+{
+  "id": "M4.5.E8",
+  "legacy_row": [
+    "**E8 — `/sig:doctor` install-state diagnostician + reframe**",
+    "**✓ shipped 2026-05-30 (in v0.1.3)**",
+    "Scoped after E7 surfaced that 3 of 5 install failure modes (P1/P2/P3) are upstream Claude Code plugin-host bugs, not Signal bugs, but the 280-line troubleshooting doc reads as Signal's shame. E8 ships a single command users run to get diagnosis + the exact remediation commands, reframes the troubleshooting doc to name upstream-vs-Signal ownership, and adds auto-version-check to `/sig:status` so staleness gets surfaced before strangers hit weird behavior. Sequenced before E5 launch — launching without it ships the current install dance to strangers. See § E8 below."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-4.5.md:44: “**✓ shipped 2026-05-30 (in v0.1.3)**”); its retrospective is complete (.planning/M4.5.E8-RETROSPECTIVE.md).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

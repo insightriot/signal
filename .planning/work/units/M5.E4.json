@@ -1,0 +1,18 @@
+{
+  "id": "M5.E4",
+  "legacy_row": [
+    "**E4**",
+    "✅ shipped as **v0.1.9** (2026-07-21)",
+    "**Bug & doc-runtime hygiene close-out** — 12 confirmed `BUGS.md` items cleared + FR5 concurrency-lock; 1492→1529 tests; REVIEW PASS-WITH-FIXES (evict.js false-green security bypass caught + fixed in-phase). Retro: [`M5.E4-RETROSPECTIVE.md`](M5.E4-RETROSPECTIVE.md). *(Interleaved bug-squash Epic — not doc-runtime-flagship; listed here for a complete Epic status.)*"
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-5.md:33: “✅ shipped as **v0.1.9** (2026-07-21)”); its retrospective is complete (.planning/M5.E4-RETROSPECTIVE.md); today's closure check reads it closed (M5.E4-VERIFICATION.md records a PASS, and M5.E4 is not the current unit).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

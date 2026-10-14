@@ -26,11 +26,14 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { readCorpus } from './advise-corpus.js';
+import { readCorpus, readUnitSource } from './advise-corpus.js';
+import { shownName, shownRef } from './printable-text.js';
 import { readState, partitionCompletedPhases, compareEpicIds, EPIC_ID_STRICT_RE } from './state.js';
 import { parseEpicStatusRows } from './milestones.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
 import { bugRowPriority, countInboxHeadings, listOpenQuestions } from './legacy-lists.js';
+import { compareUnitIds, epicIdParts } from './unit-record.js';
+import { unitRecordsOn } from './unit-records.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -102,6 +105,23 @@ function sectionBody(lines, i) {
   return out.join('\n').trim();
 }
 
+// ── Units, as digest lines (M6.E16 t5.3) ────────────────────────────────────
+
+// A unit's state in words: open; closing, with the start of the commit its
+// close was requested with; closed, with the date, the reason and the release
+// when recorded. A hold is shown beside any of them.
+function unitState(u, here = '') {
+  let text = `open${here}`;
+  if (u.status === 'closing') text = `closing (close requested with ${String(u.closing_proof).slice(0, 7)})${here}`;
+  if (u.status === 'closed') {
+    text = `closed ${String(u.close?.at).slice(0, 10)} (${u.close?.reason})${u.close?.release ? `, ${u.close.release}` : ''}`;
+  }
+  return u.held ? `${text} · held: ${u.hold_reason}` : text;
+}
+
+// A unit line cites its record: the file, line 1.
+const unitEntry = (u, text) => ({ path: u.path, line: 1, text: clip(text, DIGEST_CAPS.row) });
+
 /**
  * Gather the big-picture digest.
  *
@@ -133,7 +153,7 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
   const unread = c.work?.broken ?? [];
   if (unread.length > 0) {
     notes.push(
-      `${unread.length} work item(s) could not be read and are in no list here: ${unread.slice(0, 5).map((b) => b.id ?? b.path).join(', ')}${unread.length > 5 ? ', …' : ''}`
+      `${unread.length} work item(s) could not be read and are in no list here: ${unread.slice(0, 5).map((b) => b.id ?? shownName(b.path)).join(', ')}${unread.length > 5 ? ', …' : ''}`
     );
   }
 
@@ -147,6 +167,27 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
     } catch {
       state = null;
     }
+  }
+
+  // With unit records (`unitRecordsOn`, M6.E16 t5.3, AC7.3) the Epic lines below
+  // come from the records: no row of a milestone file is parsed, and "no SHIP
+  // entry in STATE.md" does not decide what is open. The corpus's read is
+  // reused when it carries one, so the advisory and its digest see the same units.
+  //
+  // A `units/` folder that cannot be trusted is treated as unit records that
+  // did not read: the sections below say they could not be checked, with the
+  // fault, and no milestone row is parsed in their place.
+  let byRecords;
+  let unitSource = null;
+  try {
+    byRecords = unitRecordsOn(baseDir);
+  } catch (err) {
+    byRecords = true;
+    unitSource = { error: err.message };
+  }
+  if (byRecords && unitSource === null) {
+    const fromCorpus = c.sources?.milestones?.units;
+    unitSource = Array.isArray(fromCorpus) ? { units: fromCorpus } : readUnitSource(baseDir);
   }
 
   // ── vision — PROJECT.md in .planning/, or at the root for self-managed repos.
@@ -188,10 +229,24 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
       const h1 = lines.findIndex((l) => /^#\s/.test(l));
       const at = h1 === -1 ? 0 : h1;
       entries.milestone.push({ path: rel, line: at + 1, text: clip(`${lines[at] ?? ''} ${sectionBody(lines, at)}`, DIGEST_CAPS.excerpt) });
-      for (const row of parseEpicStatusRows(content, { milestone: file.match(MILESTONE_FILE_RE)[1] })) {
-        entries.milestone.push({ path: rel, line: row.line, text: clip(`${row.id ?? ''} ${row.title ?? ''} — ${row.status ?? ''}`, DIGEST_CAPS.row) });
+      const number = file.match(MILESTONE_FILE_RE)[1];
+      if (!byRecords) {
+        for (const row of parseEpicStatusRows(content, { milestone: number })) {
+          entries.milestone.push({ path: rel, line: row.line, text: clip(`${row.id ?? ''} ${row.title ?? ''} — ${row.status ?? ''}`, DIGEST_CAPS.row) });
+        }
+        ok('milestone');
+      } else if (unitSource.error) {
+        entries.milestone.length = 0;
+        fail('milestone', unitSource.error);
+      } else {
+        // The Epics of this milestone, from their records, in order.
+        const mine = unitSource.units.filter((u) => epicIdParts(u.id)?.milestone === number).sort((a, b) => compareUnitIds(a.id, b.id));
+        for (const u of mine) {
+          const label = u.summary ?? u.title;
+          entries.milestone.push(unitEntry(u, `${u.id}${label ? ` ${label}` : ''} — ${unitState(u)}`));
+        }
+        ok('milestone');
       }
-      ok('milestone');
     }
   } catch (err) {
     fail('milestone', `milestone file could not be read — ${err.message}`);
@@ -200,7 +255,26 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
   // ── open Epics — local (from STATE.md) and on other branches (B118).
   {
     let looked = false;
-    if (state) {
+    if (byRecords) {
+      // Every unit whose record reads open or closing — of any milestone, and
+      // any name. A closed unit is not open, held or not.
+      if (!unitSource.error) {
+        looked = true;
+        const open = unitSource.units.filter((u) => u.status !== 'closed').sort((a, b) => compareUnitIds(a.id, b.id));
+        const current = state?.current_epic ?? null;
+        let shown = open;
+        if (open.length > DIGEST_CAPS.openEpics) {
+          cut.push(`open Epics: ${DIGEST_CAPS.openEpics} of ${open.length} shown`);
+          // The current one always stays.
+          const first = open.filter((u) => u.id !== current).slice(0, DIGEST_CAPS.openEpics - (open.some((u) => u.id === current) ? 1 : 0));
+          shown = open.filter((u) => u.id === current || first.includes(u));
+        }
+        for (const u of shown) {
+          const here = u.id === current ? ` here at ${state.phase ?? 'an unrecorded phase'}` : '';
+          entries['open Epics'].push(unitEntry(u, `${u.id} — ${unitState(u, here)}`));
+        }
+      }
+    } else if (state) {
       looked = true;
       const { valid } = partitionCompletedPhases(state.completed_phases ?? []);
       if (state.current_epic && !valid.some((e) => e.startsWith('SHIP '))) {
@@ -225,12 +299,17 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
         cut.push(`open Epics on other branches: ${DIGEST_CAPS.openEpics} of ${other.open.length} shown`);
       }
       for (const o of other.open.slice(0, DIGEST_CAPS.openEpics)) {
+        // And named as `shownRef` names a branch (r6.3, r6.4): the digest is read by a model.
+        const on = o.branches.map((b) => shownRef(b, 'branch', { noCommandHere: true })).join(', ');
         // Clipped: another branch's STATE.md is anyone-who-can-push input (REVIEW pass 2:
         // a 100 KB `phase` produced a 100,942-char digest).
-        entries['open Epics'].push({ branch: clip(o.branches.join(', '), DIGEST_CAPS.row), text: clip(`${o.epic} — open at ${o.phase ?? 'an unrecorded phase'} on ${o.branches.join(', ')}`, DIGEST_CAPS.row) });
+        entries['open Epics'].push({ branch: clip(on, DIGEST_CAPS.row), text: clip(`${o.epic} — open at ${o.phase ?? 'an unrecorded phase'} on ${on}`, DIGEST_CAPS.row) });
       }
     }
-    if (stateRefusal) fail('open Epics', stateRefusal);
+    if (byRecords && unitSource.error) {
+      entries['open Epics'].length = 0;
+      fail('open Epics', unitSource.error);
+    } else if (stateRefusal) fail('open Epics', stateRefusal);
     else if (looked) ok('open Epics');
     else fail('open Epics', 'neither STATE.md nor the branch scan could be read');
   }

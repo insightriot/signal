@@ -4159,3 +4159,384 @@ proposed close — is part of the dry-run hash, so the apply refuses if any of i
 from the default branch's history (`git log HEAD`), as native closes require, not `--all`. A wrong
 proposal is now visible before it is acted on, which is the property three passes could not get from
 wording rules alone. Loop 3 runs past the ceiling by Brett's choice.
+
+## 2026-10-11 — M6.E16 DISCUSS and PLAN: Epics and units become records (D-M6E16-1 … D-M6E16-40)
+
+Picked by Brett as priority 1 of [`BACKLOG-REVIEW-2026-10-10.md`](BACKLOG-REVIEW-2026-10-10.md). Stage 1
+of the "after Epic 1" list in
+[`analysis/STORAGE-ARCHITECTURE-PROPOSAL.md`](../analysis/STORAGE-ARCHITECTURE-PROPOSAL.md) §4. The
+list every decision below rests on is [`M6.E16-INVENTORY.md`](M6.E16-INVENTORY.md). `D-M6E16-1` … `-5`
+are Brett's, accepted as recommended in one batch (2026-10-11); `-6` … `-9` are Claude's defaults,
+stated to Brett in the same message and not objected to.
+
+### D-M6E16-1 — The unit record holds existence, membership, close and hold; phase progress stays in STATE.md (Brett)
+A unit record says that the unit exists, which items belong to it, its close (with proof), and a
+"keep live" hold. `phase`, `completed_phases` and every reader of them stay on `STATE.md` and do not
+switch in this Epic; moving them is the later `STATE.md` split stage. **Why:** including phase progress
+about doubles the Epic (roughly 27 inventoried functions switch on this line, roughly 18 stay — counts
+from the inventory, not yet hand-checked; PLAN re-derives them as lists).
+
+### D-M6E16-2 — A unit closes the way an item does; the retrospective is a condition, not the close (Brett)
+SHIP records a close request on the unit with the Epic's commit as proof. The unit reads *closed* only
+once that commit is on the default branch. A filled retrospective is something the close refuses
+without; a retrospective existing no longer *is* closure. **Supersedes `D-M5E18-3`** (closure inferred
+from files, three outcomes) for any project with unit records. `SIG-288` and `SIG-289` go by
+construction: no reader infers closure from a retro or from which folder a VERIFICATION file is in.
+
+### D-M6E16-3 — Units that shipped before this Epic are closed as `legacy` (Brett)
+Same rule as the 145 legacy items (`D-M6E13-14`, `-20`): they count as closed everywhere, and a `legacy` close can
+never be used as proof of anything. Nobody re-checks about 40 Epics.
+
+### D-M6E16-4 — The milestone Epic table is generated from the records, between markers (Brett)
+Code writes the Epic rows in `MILESTONE-*.md` from the unit records, inside a marked region. The
+hand-written text around the table is left alone. No code parses the rows again: `findEpicStatusRow`,
+`EPIC_ROW` and `parseEpicStatusRows` are removed or re-pointed at the records. Closes `SIG-132`.
+Rejected: keep the table hand-written and fix the parser — cheaper, and the table goes stale again
+(`M6.E15`'s row was missing after its own SHIP).
+
+### D-M6E16-5 — A unit keeps the project's own name as its ID (Brett)
+For the 8 of 12 corpus projects whose units are not Epic IDs, the unit record's ID is the name the
+project already uses (for example `phase-11`). The item schema's `epic_id` rule, which accepts only
+`M6.E16`-shaped IDs today, widens to accept a unit ID. Rejected: Signal-assigned IDs, which would
+rename things people already say out loud. **Supersedes `D-M5E18-2`** (units derived from filenames)
+for any project with unit records.
+
+### D-M6E16-6 — One archive layout going forward; existing folders stay where they are (Claude)
+New closes use one layout. Nothing already in `archive/epics/` or `archive/<M>/E<n>/` is moved or
+deleted in this Epic (`D-M6E11-12`: nothing is deleted). PLAN picks which layout, from which has more
+readers in the inventory.
+
+### D-M6E16-7 — The hold is a recorded event on the unit (Claude)
+`SIG-255`'s "closed, but keep it live" is an event with a reason. Archiving refuses a held unit and
+prints the reason. Another plugin's keep-live file is not read.
+
+### D-M6E16-8 — Other projects get unit records through the existing migration, proposed for one yes (Claude)
+`/sig:docs-migrate --work-store` proposes unit records and their legacy closes; the person confirms the
+list; nothing is closed on its own (`D-M6E15-25`). Not automatic, and not run by Claude on a live
+project.
+
+### D-M6E16-9 — Not re-opened here
+JSON records at fixed paths, status folded from events, one write library, the edit hook, committed
+generated views that no code reads (`D-M6E13-1` … `-22`). Typed verdicts and the `STATE.md` split are
+later stages.
+
+### D-M6E16-10 — With unit records, `STATE.md` alone says whether a SHIP closes the Epic (Claude, PLAN)
+`isEpicCloseByState` becomes the only signal; the milestone-row read and the `stale-milestone-row`
+branch of `shipFR1Check` go. **Measured:** the row parser matches 0 of 16 rows in `MILESTONE-6.md`, so
+every M6 Epic already closed on the `STATE.md` fallback alone. The `warn-dirty-execute` hook's trigger
+(row says shipped while phase is EXECUTE) becomes: the current unit's record reads closing or closed.
+
+### D-M6E16-11 — Epics that never ran get a record closed as `dropped`, with words (Claude, PLAN)
+`M5.E11` (became `M6.E7`), `M5.E12`, `M5.E14` and `M5.E20` (parked) get a record so their IDs are taken:
+today `deriveNextEpicId` under milestone 5 returns `M5.E20`, which is in use. Closed with reason
+`dropped` and a sentence naming where the work went (`SIG-191`, `-198`, `-199`, `-192`); reopenable.
+Shown to Brett in the cutover diff before the commit (AC8.3). Rejected: a "parked" status — a third
+kind of not-open that every open-Epic reader would have to learn.
+
+### D-M6E16-12 — Only the live milestone file gets a generated Epic table (Claude, PLAN)
+Narrows `D-M6E16-4`. `MILESTONE-4.5.md` and `MILESTONE-5.md` use two other row formats, are not in
+numeric order and carry hand-written titles and free-text status; once the parsers are gone nothing
+reads them, and generating them would put paragraphs into records. They stay as written. The marked
+region is written in the milestone file of the current Epic (`MILESTONE-6.md` today). A legacy record
+carries its old row's cells verbatim and the generator prints them unchanged.
+**Narrowed by `D-M6E16-30` (2026-10-13):** another milestone's file that already carries the
+markers is kept current too. A file without them still stays as written.
+
+### D-M6E16-13 — Units other than Epic IDs are created by the migration, not by the phase commands (Claude, PLAN)
+Bounds `D-M6E16-5`. A record for `phase-11` is created by `/sig:docs-migrate --work-store`, can be
+named by an item, and is read by the closure, archive and view readers. `/sig:discuss --epic`,
+`setCurrentEpic`, `deriveRetroPath` and `isEpicDone`'s strict-ID path stay strict in this Epic.
+`v0.1.6`, Signal's own non-Epic unit, gets a legacy record at the cutover: the one real case of a
+non-Epic unit ID outside fixtures.
+
+### D-M6E16-14 — Archive layout: `archive/<M>/E<n>/`; Epic folders in the store are retired (Claude, PLAN)
+Settles `D-M6E16-6`. It has five writers and 34 folders against one and one, and is the only layout
+that already handles a non-Epic unit name. `closeEpic` stops moving a `work/epics/<ID>/` folder that
+nothing creates and records a close on the unit instead. `archive/epics/M6.E11/` stays where it is and
+stays readable.
+
+### D-M6E16-15 — A legacy-closed unit is not evidence for another close (Claude, PLAN)
+Makes AC8.2 testable. The migration uses "an Epic with a retrospective" as evidence that a list entry
+is finished (`buildEvidenceIndex`). With unit records that becomes "the unit's record is closed", and
+a `legacy` or `dropped` close does not count there.
+
+### D-M6E16-16 — "Unit records are on" means the `work/units/` folder exists (Claude, EXECUTE)
+Not "at least one record". With the at-least-one rule a new project never gets its first record:
+`openEpic` creates none while there are none, and the migration has no Epic to propose. The folder is
+the switch, as `WORK.md` is for items; whoever creates it writes a `.keep` file inside so git carries
+an empty one. Signal's cutover creates it full, a first-time `--work-store` creates it empty, and
+`openEpic` writes the first record. A unit with no record still falls back per unit.
+
+### D-M6E16-17 — A closed Epic is reopened by confirming, not by naming it (Claude, EXECUTE)
+Settles AC3.3. `--epic <ID>` on `/sig:discuss` names an Epic; it does not force past a close. A closed
+unit is refused with its close line, and reopened only when the person then confirms. The other
+reading made the refusal unreachable from the only command that opens Epics.
+
+### D-M6E16-18 — The next Epic ID is the higher of the records and the filenames (Claude, EXECUTE)
+Amends AC3.2. Records decide; filenames are a floor, so a project part-way through adopting records is
+never handed an ID already in use.
+
+### D-M6E16-19 — A unit's narrative is evicted when its close is confirmed (Claude)
+Settles `SIG-295`. With unit records SHIP only requests the close and `/sig:checkpoint` looks only at
+`current_epic`, which has usually moved on by the time the close is confirmed, so nothing evicted a
+finished Epic's narrative. The confirm step (`runConfirmCloses`, at SHIP and in the sweep) is the one
+place that knows a unit has just become closed, so it evicts there and reports the result; a refusal
+leaves the confirmation standing.
+
+### D-M6E16-20 — "Exactly as `v0.1.50`" means the same answers, refusals and moves; four named differences are accepted (Claude)
+Amends AC6.4, at VERIFY loop 1. Run side by side against `main`, a project with no unit records got
+identical closure answers, refusals and file moves, and differed in four places: one refusal's
+wording, the item schema's wider unit-name rule (declared under Blast radius), two new empty fields
+on the archive report, and one dry-run sentence corrected because it was false. Restoring the old
+text and shape would mean a second schema rule and a sentence known to be untrue, so the criterion
+names the four and `tests/unit-records-off-parity.test.js` fails on a fifth.
+
+*Amended at VERIFY loop 2 (2026-10-12).* The list of four was not complete: run wider (106 calls),
+five more things differed, in functions the test did not call. A closed list failed twice, so AC6.4
+now says what is identical **by kind** (closure answers, file moves, item writes and reads of a
+record `v0.1.50` accepted, refusals with their codes, printed reports) and what differs **by kind**:
+what this Epic adds (the edit hook on `work/units/` paths, the migration's dry run on a store-on
+project, new keys that are empty without unit records); the unit-name rule (a wider schema, the
+same refusals from writers and readers, and a 100-character limit kept on purpose); and wording.
+One of the five was removed in code rather than named: without unit records the readers refuse a
+record naming a unit that is not an Epic ID again, as `v0.1.50` did. The test now compares 72 answers,
+takes out only the named kinds and fails on anything else. "Four named differences" in this
+entry's title is loop 1's wording; the four are still true and are now instances of the kinds.
+
+*Amended after VERIFY loop 3 (2026-10-12).* Loop 3 passed AC6.4 with a limit: four differences fitted
+kind (a), "what this Epic adds", by its label and not by the three things it listed, and the test
+called none of the paths they are on. Kind (a) now names them: the first-time
+`/sig:docs-migrate --work-store` migration proposes unit records in its dry run and its apply
+creates `work/units/` (AC9.1), so a project migrated on this version has unit records on; that apply
+no longer fails its own check on a project that has `.planning/archive/epics/<ID>/` (`v0.1.50` threw
+`SCHEMA` and wrote nothing); the `WORK.md` body a migration writes names `units/`; and the migrate
+command reads `--also`. Once the test called the first-time dry run it showed a fifth: on a project
+whose milestone file has no Epic-table markers, that dry run prints one sentence saying the file is
+left as it is (AC7.2). It is the same kind, and is named in kind (a) with the dry run. No code changed. "The test now compares 72 answers" above was loop 2's
+count; after this amendment it compares more, and the number is in AC6.4. It also no longer takes
+out every message: one `v0.1.50` worded the same way is compared word for word.
+
+### D-M6E16-21 — A closing unit takes no items; the proof must postdate the default branch or the tree must be clean (Claude)
+Settles REVIEW pass 1, `C-I1`. The close request checked the unit's items once, and nothing checked
+them again: an item queued, started or reopened into a *closing* unit, or a record that arrived by a
+merge, left a unit reading closed with an open item in it. So `queueItem`, `startItem` and
+`reopenItem` refuse on a closing unit as they do on a closed one, and `confirmCloses` leaves a unit
+closing (`open-items`) until each of its items is closed or confirmed in the same write.
+
+*The proof, same decision (`C-I2`).* `closeEpic` takes HEAD as the proof when no commit is passed, and
+on a checkout whose HEAD was already on the default branch, with the Epic's work uncommitted, the
+same SHIP run confirmed the close on a commit from before that work. So the proof must postdate the
+default branch or the tree must be clean: HEAD already on the default branch with uncommitted or
+untracked changes is refused, a clean tree there (the recovery after a squash merge) and an explicit
+commit are not.
+
+### D-M6E16-22 — A `work/units/` folder that cannot be trusted is an error, never "no unit records" (Claude)
+Settles REVIEW pass 1, `C-I4` / `S-M6` / `T-I1`. A folder that was a link, a file or unreadable read
+as "off" at 24 call sites, so closure went back to the retrospective and the verdict — an open unit
+could read closed — a hold was lost, and an item record was blamed for the folder's fault. Every
+caller now asks one helper (`unitRecordsOn`) that answers yes or no on a sound layout and throws on
+a faulty one: a writer or a mover refuses, and a reader answers its own "cannot tell" with the fault.
+
+### D-M6E16-23 — A unit with no record is judged from its files and reported; the units-only migration adds records for new units (Claude)
+Settles REVIEW pass 1, `C-I5` / `T-I2`, and amends AC6.2. On a project whose units are not Epic IDs,
+a unit named after the migration could get no record — the migration refused once `work/units/`
+existed, and the refusal named it anyway — and such a unit was silently closed by its retrospective
+while AC6.2 said no reader did that. Reading a unit with no record as open would stop every older
+unit from archiving, so it stays judged from its files, `/sig:docs-sweep` names each one, and
+`/sig:docs-migrate --work-store` on a store that has unit records adds a record for each unit that
+has none and touches no record that exists.
+
+### D-M6E16-24 — An item closing on a commit that never reached the branch may have its close asked again (Claude)
+Settles REVIEW pass 2, `C2-I2`. After a pull request merged by squash or rebase, the Epic's items
+and its unit are *closing* on a branch commit the default branch will never hold. A unit's close
+could already be asked again (`rerequestUnitClose`); an item's could not, so the recovery `ship.md`
+§6.8 gave refused, and the only chain that worked went through `reopenUnit` and took the items out
+of the Epic. Now an item's close may be asked again with a new commit (`rerequestCloses`,
+`work-records.js`), under three guards: the new proof is a full hash; it names a commit in this
+repository; and the commit the item is closing on is certainly not in HEAD's history — a proof HEAD
+can reach is never replaced, and "git cannot tell" is not "not reachable". It is three recorded
+events (`reopened`, the `queued` or `started` that keeps the item in its unit, `close_requested`);
+the transition table is unchanged and no event replaces a proof. `closeEpic`, on a project with unit
+records, uses it only when its proof is already on the default branch — the recovery — and writes
+the items and the unit in one take of the lock. On the Epic's own branch such an item is still
+open. **What this trusts and cannot check:** that the merged commit holds the items' fixes. The
+person running the close on the default branch is saying so, as they are for the Epic.
+
+**Replaced in part by `D-M6E16-26` (2026-10-13):** the last three sentences. `closeEpic` no longer
+asks again for every such item on its own, and running the close on the default branch is no
+longer taken as the person's word for each item. `rerequestCloses` and its three guards stand.
+
+### D-M6E16-25 — A closed unit that is still the current unit reads closed; its files stay while it is current (Claude)
+Settles REVIEW pass 2, `C2-I5` / `T2-I5`, and amends AC6.2. A unit whose record was closed and
+which `STATE.md` still named as `current_epic` read **open** to `resolveClosures` and
+`senseArchiveTree` and **closed** to every other reader of the same record, while AC6.2 said "by
+its record alone". The record decides: both now answer `closed`, with `current: true`. What being
+current still decides is that nothing of the unit moves: the archive plan leaves it out (also when
+a caller names it closed), `/sig:docs-migrate` leaves its files and its narrative, and the report
+says "closed; still the current unit, so its files stay until the next Epic opens". A current unit
+whose record is open, closing, unreadable or missing is open as before, and so is every current
+unit on a project without unit records.
+
+### D-M6E16-26 — After a squash, an item's close is asked again only for the items a person names (Brett, 2026-10-13)
+Decided by Brett at the REVIEW loop ceiling; settles REVIEW pass 3, `S3-H1` / `C3-I1` / `T3-I2` /
+`T3-I3`, and replaces the automatic part of `D-M6E16-24`. **How the defect came about:** the
+automatic swap in `-24` was chosen by the session driving this Epic, without asking Brett. Pass 3
+found that it closed unmerged work: on the default branch, `closeEpic` asked again, with HEAD as
+the proof, for every item closing on a commit that was "not in HEAD" — which is also true of an
+item whose fix sits on a branch nobody merged, and of a proof that names no commit. The next
+confirm then closed the item and the Epic. Git cannot tell a squashed branch from an unmerged one,
+so a person does. The rule:
+- It is the recovery only when this checkout's HEAD **and** the proof are both on the remote's
+  default branch. Passing an older default-branch commit as `commit` from a feature branch does not
+  qualify (pass 3's second way in).
+- With no list from the caller, `closeEpic` returns `rerequest-proposed`: each such item, the
+  commit it is closing on, and why (`not-in-history`, or `unknown-commit` when the clone no longer
+  has the commit). It writes nothing: no event, no unit record, no view.
+- The caller passes back the items the person said yes to, each with the commit it was shown
+  (`close.rerequest`). Only those are asked again, in the one write with the unit's close. A listed
+  item that was not named is open and refuses the close (`OPEN_ITEMS`). A named item that is no
+  longer on the list, or is closing on another commit by then, refuses (`CONFLICT`); this is
+  checked again under the store's lock.
+- An item git cannot answer for (a shallow clone, no remote, no default-branch ref, an invalid or
+  ambiguous proof) is open, and never listed.
+- The retrospective check runs before a list is returned, as before any write.
+`rerequestCloses`, the by-ID library call, is unchanged. `ship.md` §6.8 gives the steps and says to
+ask the person; nothing is swapped without that yes.
+
+### D-M6E16-27 — The default branch is not guessed when a close is confirmed (Brett, 2026-10-13)
+Decided by Brett at the REVIEW loop ceiling; settles REVIEW pass 2, `S2-M1`, which `r3.9` had
+written down as a known limit. A close is confirmed when its commit is on
+`refs/remotes/origin/<default>`. With `origin/HEAD` not set in the clone, the default was taken to
+be whichever one of `origin/main` / `origin/master` existed — the rule item closes have used since
+`v0.1.48`. On a project whose default branch has another name, anyone who can push a branch called
+`main` could then confirm a close nobody merged. Now the default is the branch `origin/HEAD` names
+and nothing else (`defaultBranchRef`, `work-write.js`, through `resolveDefaultBranch`'s
+`guess: false`): with it unset every close stays *closing* with the reason `no-default-branch`,
+and the confirm step's line says to run `git remote set-head origin -a`. **What it costs:** a clone
+made with `git remote add` rather than `git clone` confirms nothing until that one command is run.
+**What it changes outside this Epic:** item closes on every project, with or without unit records —
+a named difference from `v0.1.50` (AC6.4, kind d). **What it leaves alone:** the branch gate
+(`checkBranchPosture`) and the `v1 → v2` migration's report (`work-migrate-v2.js`) still call
+`resolveDefaultBranch` with the guess; neither takes the answer as proof of a close.
+
+### D-M6E16-28 — A close from a tree with uncommitted work is refused when the default branch is not recorded (Brett, 2026-10-13)
+Decided by Brett at REVIEW pass 4; settles `T4-C1`, a hole `D-M6E16-27` opened. `closeEpic` takes
+HEAD as the proof when no `commit` is passed, and refuses when HEAD is already on the default
+branch with the project's work uncommitted (`D-M6E16-21`). Since `-27`, a clone where `origin/HEAD`
+is not set has no default branch to compare with, so that refusal stopped firing there: the close
+was requested on the commit from before the work, and once `git remote set-head origin -a` was run
+the next confirm closed the Epic. Now, when HEAD is taken as the proof, the project has
+uncommitted or untracked changes, there is a remote, and its default branch is not recorded in the
+clone, the close is refused (`CONFLICT`, nothing written, no unit record created): Signal cannot
+tell whether HEAD is already on the default branch. The message names
+`git remote set-head origin -a`, then the two ways out the existing refusal gives: commit the
+Epic's work first, or pass `commit`. **What stays:** a clean tree is allowed; no repository or no
+remote is allowed (nothing can be confirmed there); with `origin/HEAD` set nothing changes.
+**What it costs:** in such a clone a normal SHIP on the Epic's branch, with the SHIP commit's files
+not yet committed, is refused too until that one command is run — HEAD's place cannot be told
+there either.
+
+### D-M6E16-29 — The migration proposes a close from a row only when "shipped" leads its status cell (Brett, 2026-10-13)
+Decided by Brett at REVIEW pass 4; settles `C4-I4`. The row rule proposed a legacy close for any
+status cell that said "shipped" as a word and did not also say pending, in flight or parked. So
+`S1 shipped; S2 in progress`, `partially shipped, rest deferred` and
+`planned — not started; ships after E4 is shipped` were each proposed closed, and one yes closes
+the whole list — the class of rule that closed open entries in `M6.E15`. Now the cell must BEGIN
+with the word: only characters that are neither letters nor digits (bold, backticks, a check mark)
+may stand before "shipped". A cell that begins "closed" and goes on to say shipped counts too
+(`closed — shipped as v0.1.3`); "closed" alone is not evidence, as before. The not-over words and
+"not/never shipped" are read as before. Any other cell that says shipped is proposed open and
+flagged `row-unclear`, with the cell quoted on the unit's line of the dry run; said yes or no to
+the list, it is created open and keeps its row's cells. **What stays:** evidence that is not the
+row's words — a complete retrospective, today's closure check — proposes the close as before, and
+no flag is set then. **Not changed:** the list of not-over words (`pending`, `in flight`,
+`parked`); a cell such as `shipped S1; S2 in progress` still counts.
+
+### D-M6E16-30 — A marked Epic table in another milestone's file is kept current too (Brett, 2026-10-13)
+Decided by Brett at REVIEW pass 4; settles `C4-I2`, and narrows `D-M6E16-12`. Only the current
+milestone's file was written. So when `M7.E1` was opened before `M6.E20`'s close was confirmed,
+`MILESTONE-6.md` kept saying *closing* for good, and no check reported it (AC7.4 against AC7.2).
+Now a regeneration also rewrites the Epic table of any other `MILESTONE-<n>.md` that exists,
+already carries the markers, and whose generated table differs from what is between them
+(`milestoneTables`, `work-views.js`). The rules are the current file's: only the bytes between the
+markers change, and a row or a line a person typed there refuses the write and is never deleted.
+The store check reports such a table as `view-stale`, because it is one of the views now.
+**What stays from `-12`:** a milestone file without the markers is never touched, and the markers
+are never added by code — `MILESTONE-4.5.md` and `MILESTONE-5.md` here have none and stay as
+written. **Chosen while building it, not in the decision:**
+- Only a milestone that has an Epic among the unit records is looked at; a marked file with no
+  unit record behind it is not opened.
+- Broken markers in another milestone's file are a note and no write, not a refusal: one damaged
+  old file must not stop every store write. In the current file they still refuse.
+- The migration's leave to replace rows it has shown (`replaceHandRows`) covers the current file
+  only, since that is the only file its dry run lists. Another marked file gets the ordinary check
+  during the apply; the dry run names each such file in a note.
+
+### D-M6E16-31 — `/sig:discuss` halts on an Epic whose close is requested and waiting (Brett, 2026-10-13)
+Decided by Brett at REVIEW pass 4; settles `C4-I3`. Between SHIP and the confirmed close a unit
+reads *closing*, and `isEpicDone` (`retrospective.js`) answered `not-done` for it — so
+`/sig:discuss` without `--epic` ran DISCUSS into an Epic that had shipped, where `v0.1.50`
+answered `done` from the complete retrospective. Now a *closing* unit answers
+`{status: 'done', reason: "<ID>'s close is requested with commit <proof> and waits for the merge
+to be confirmed"}`. **Why `done` and not `cannot-evaluate` or a new field:** `discuss.md` halts on
+`done` and prints the reason, and `isEpicDone` has no other caller — no archive or closure reader
+uses it (they read `unitClosure` and `resolveClosures`, where *closing* stays open, AC6.2). So one
+status halts DISCUSS and bends nothing else. `--epic <name>` still opens another unit, as for any
+`done`.
+
+### D-M6E16-32 — Signal needs git 2.38 or newer; no home-built check for a planted repository (Claude, 2026-10-13 — put to Brett as a scope call, built so it is one revert)
+A project folder that holds committed `HEAD`, `config`, `objects/`, `refs/` is a bare repository to
+git, and its `config` can run a command. Git's own answer is `safe.bareRepository=explicit` (2.38+),
+which every git and `gh` call now carries (`gitEnv`, `git-env.js`). For older git a check of our own
+was built in `r6.1` and rebuilt in `r6.3`; readers and CI broke it seven times in three rounds (a
+version-dependent answer, a `HEAD` symlink, a lexical walk, legitimate layouts turned away, a
+trailing-space folder name, a remembered answer going stale, a timeout read as "no repository").
+It was removed in `r6.4`. **Instead:** `git --version` is read once per process, and below 2.38 no
+git or `gh` process is started; the checks say "Signal needs git 2.38 or newer …". **Do not re-add a
+look of our own**: every read found git's setting holding where ours did not.
+
+### D-M6E16-33 — A git Signal cannot use means "could not ask", never "not a repository" (Claude, 2026-10-13)
+Follows `-32`. Under the gate a "no repository" branch that writes, or that quietly weakens a check,
+refuses with the version sentence: the lists and v2 migrations, new item IDs (`nextIdV2`), a short
+proof, an explicit `commit`, the Epic folder archive. With no git installed at all, a folder with no
+`.git` entry at or above it is a non-repository as before (`gitCannotAsk`).
+
+### D-M6E16-34 — The migration keeps `D-M6E15-25`'s evidence fallback and says which history it read (Claude, 2026-10-13)
+The whole-diff read asked for no fallback when `origin/HEAD` is unset. That broke 43 tests, the
+`v0.1.50` comparison among them, and reversed a decision Brett made in `M6.E15`. Kept: `origin/HEAD`
+→ local `main` → `master` → `HEAD`, each read as an exact ref so a tag cannot stand in, and the dry
+run names the history read when it is not the recorded default branch. The evidence only ever
+supports a proposal a person answers. The strict variant is on branch
+`worktree-agent-a03c9cf552d12fb2f-f3-default-branch`.
+
+### D-M6E16-35 — The backlog discharge and an explicit `commit` are checked on every project (Claude, 2026-10-13)
+`dischargeBacklogRows` and `closeEpic` verify a passed `commit` (`explicitCommit`: it must name one
+commit here; the full hash is stored) and the discharge refuses a HEAD that proves nothing, as the
+Epic close does. This changes projects without unit records too (AC6.4 kind e): the alternative was
+a false "done" recorded with a made-up hash.
+
+### D-M6E16-36 — `/sig:permissions` proposes rules only for what the prompt files tell the agent to run (Claude, 2026-10-13)
+A binary only Signal's own Node code starts never passes through a Bash permission, so it is counted
+and not proposed; `gh` is never proposed, nor `git bisect`, `git clone`, `git config`; a
+`package.json` script name becomes a rule only when it is plainly a name. Found because `r6.3` made
+Signal call `gh` directly and the scan then offered `Bash(gh:*)`. The bare-`git` fall-through is
+unchanged and filed.
+
+### D-M6E16-37 — A unit that is not an Epic ID is closed at SHIP like an Epic, in this release (Brett, 2026-10-14)
+Asked at the end of fix round 6, with the alternative of filing it: "Build it now". No command reached
+the close for a unit named another way (`phase-11`), so after `/sig:docs-migrate --work-store` most
+projects outside this one could never record a unit finished. SHIP closes the current unit under the
+same rules as an Epic: a close request with proof, confirmed when the commit is on the default branch.
+
+### D-M6E16-38 — A close git can never confirm is confirmed by hand, one yes per close (Brett, 2026-10-14)
+"Add a hand-confirm". Only while the close waits for a reason no merge can change (no remote, no
+remote named `origin`, not a git repository); recorded as confirmed by a person, not by git. Every
+other reason refuses and names what would confirm it.
+
+### D-M6E16-39 — Signal needs git 2.38 or newer (Brett, 2026-10-14)
+"Keep 2.38+": confirms `D-M6E16-32`, which was built before he was asked and stated as one revert.
+
+### D-M6E16-40 — Rows between the Epic-table markers are Signal's (Brett, 2026-10-14)
+"Keep the rule". A typed row is protected and refused; an edit inside one of Signal's own rows is put
+back at the next regeneration and reported as `view-stale`. Remembering what was printed (a
+fingerprint in the marker) was offered and not taken: it changes the marker on every project.

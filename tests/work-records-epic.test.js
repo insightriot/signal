@@ -6,13 +6,14 @@
 // Moving the Epic folder stays in v1 `closeEpic` until S7.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, readFile, writeFile, symlink } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 
 import * as records from '../plugin/tools/lib/work-records.js';
 import { serializeRecord } from '../plugin/tools/lib/work-record.js';
+import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
 import { snapshotTree } from './helpers/write-inventory.js';
 
 const AT = '2026-10-04T10:00:00.000Z';
@@ -227,5 +228,162 @@ describe('isEpicArchived', () => {
     await put('.planning/archive/epics/M6.E12/README.md', 'x\n');
     await records[fn](base, 'SIG-1', { epic: 'M6.E13', by }, { regenerate: async () => {} });
     expect(records.getRecord(base, 'SIG-1').epic).toBe('M6.E13');
+  });
+});
+
+// M6.E16.S3.t3.3 — items naming a unit (AC1.4), on a project with unit
+// records. See .planning/M6.E16-VALIDATION.md rows AC1.4 and AC6.4. New
+// cases; everything above is the no-unit-records path and is unchanged.
+describe('queueItem / startItem / reopenItem with unit records (M6.E16 AC1.4)', () => {
+  const U = {
+    opened: { type: 'opened', at: AT, by },
+    closing: { type: 'close_requested', at: AT, by, proof: '0123abc' },
+    shipped: { type: 'closed', at: AT, by, reason: 'shipped', proof: '0123abc' },
+    dropped: { type: 'closed', at: AT, by, reason: 'dropped', words: 'the work moved elsewhere' },
+    held: { type: 'held', at: AT, by, reason: 'still read daily' },
+  };
+  const unit = (id, events) => put(`.planning/work/units/${id}.json`, UNIT_KIND.serializeRecord({ id, events }));
+  const quiet = { regenerate: async () => {} };
+  const verbs = [['queueItem', 'Q'], ['startItem', 'P']];
+
+  beforeEach(async () => {
+    await unit('M6.E13', [U.opened]);
+    await unit('M6.E14', [U.opened, U.closing]);
+    await unit('M6.E12', [U.opened, U.closing, U.shipped]);
+    await unit('M6.E11', [U.opened, U.dropped, U.held]);
+    await unit('phase-11', [U.opened]);
+    await unit('GATE-A', [U.opened, U.dropped]);
+    await store([rec('SIG-1', [E.created, E.triaged])]);
+  });
+
+  it.each(verbs)('%s into an open Epic succeeds', async (fn, status) => {
+    await records[fn](base, 'SIG-1', { epic: 'M6.E13', by }, quiet);
+    expect(records.getRecord(base, 'SIG-1')).toMatchObject({ epic: 'M6.E13', status });
+  });
+
+  it.each(verbs)('%s into a unit that is not an Epic ID succeeds', async (fn, status) => {
+    // Not `quiet`: the views are regenerated for real, with the unit name in them.
+    await records[fn](base, 'SIG-1', { epic: 'phase-11', by });
+    expect(records.getRecord(base, 'SIG-1')).toMatchObject({ epic: 'phase-11', status });
+    expect(records.checkRecords(base)).toEqual([]);
+  });
+
+  // Changed at REVIEW pass 1 (C-I1, `D-M6E16-21`): this case pinned the
+  // opposite — "into a closing unit succeeds (a requested close is not a
+  // close)" — which let a unit read closed with an open item in it.
+  it.each(verbs)('%s into a closing unit is refused: CONFLICT, nothing written', async (fn) => {
+    const before = snapshotTree(base);
+    const err = await records[fn](base, 'SIG-1', { epic: 'M6.E14', by }, quiet).catch((e) => e);
+    expect(err).toMatchObject({ code: 'CONFLICT' });
+    expect(err.message).toContain('M6.E14\'s close has been requested');
+    expect(snapshotTree(base)).toEqual(before);
+  });
+
+  it.each([
+    ['queueItem', 'M6.E15'], ['startItem', 'M6.E15'], ['queueItem', 'phase-12'], ['startItem', 'phase-12'],
+    ['queueItem', 'm6.e13'], ['startItem', 'PHASE-11'],
+  ])('%s into %s, which has no record: NOT_FOUND naming the unit and how one is made, nothing written', async (fn, epic) => {
+    const before = snapshotTree(base);
+    const err = await records[fn](base, 'SIG-1', { epic, by }, quiet).catch((e) => e);
+    expect(err).toMatchObject({ code: 'NOT_FOUND' });
+    expect(err.message).toContain(epic);
+    expect(err.message).toMatch(/\/sig:discuss --epic/);
+    expect(err.message).toMatch(/\/sig:docs-migrate --work-store/);
+    expect(snapshotTree(base)).toEqual(before);
+  });
+
+  it.each([
+    ['queueItem', 'M6.E12'], ['startItem', 'M6.E12'], ['queueItem', 'M6.E11'], ['startItem', 'M6.E11'],
+    ['queueItem', 'GATE-A'], ['startItem', 'GATE-A'],
+  ])('%s into %s, which is closed (or closed and held): CONFLICT, nothing written', async (fn, epic) => {
+    const before = snapshotTree(base);
+    const err = await records[fn](base, 'SIG-1', { epic, by }, quiet).catch((e) => e);
+    expect(err).toMatchObject({ code: 'CONFLICT' });
+    expect(err.message).toContain(`${epic} is closed`);
+    expect(snapshotTree(base)).toEqual(before);
+  });
+
+  it.each(verbs)('%s: an archive folder is not read — an open unit with one is accepted', async (fn) => {
+    await put('.planning/archive/epics/M6.E13/README.md', 'x\n');
+    await records[fn](base, 'SIG-1', { epic: 'M6.E13', by }, quiet);
+    expect(records.getRecord(base, 'SIG-1').epic).toBe('M6.E13');
+  });
+
+  it.each([['a b'], ['a/b'], ['../M6.E13'], ['a..b'], [`M${'1'.repeat(100)}`], [''], [7]])('queueItem into %j is refused by the schema (SCHEMA), nothing written', async (epic) => {
+    const before = snapshotTree(base);
+    await expect(records.queueItem(base, 'SIG-1', { epic, by }, quiet)).rejects.toMatchObject({ code: 'SCHEMA' });
+    expect(snapshotTree(base)).toEqual(before);
+  });
+
+  it('a broken record for the unit named: refused (SCHEMA), nothing written', async () => {
+    await put('.planning/work/units/M6.E19.json', '{ not json');
+    const before = snapshotTree(base);
+    await expect(records.queueItem(base, 'SIG-1', { epic: 'M6.E19', by }, quiet)).rejects.toMatchObject({ code: 'SCHEMA' });
+    expect(snapshotTree(base)).toEqual(before);
+  });
+
+  it.each([['M6.E12'], ['M6.E11'], ['GATE-A']])('reopenItem: refused when the item\'s unit %s is closed, nothing written', async (epic) => {
+    await store([rec('SIG-2', [E.created, E.triaged, E.started(epic), E.wontdo])]);
+    const before = snapshotTree(base);
+    const err = await records.reopenItem(base, 'SIG-2', { reason: 'r', by }, quiet).catch((e) => e);
+    expect(err).toMatchObject({ code: 'CONFLICT' });
+    expect(err.message).toContain(`${epic}, which is closed`);
+    expect(snapshotTree(base)).toEqual(before);
+  });
+
+  it.each([['M6.E13'], ['phase-11']])('reopenItem: allowed when the item\'s unit %s is open, even with an archive folder', async (epic) => {
+    await store([rec('SIG-2', [E.created, E.triaged, E.started(epic), E.wontdo])]);
+    await put(`.planning/archive/epics/${epic}/README.md`, 'x\n');
+    await records.reopenItem(base, 'SIG-2', { reason: 'r', by }, quiet);
+    expect(records.getRecord(base, 'SIG-2')).toMatchObject({ status: 'T', epic: null });
+  });
+
+  it('reopenItem: allowed when the item\'s unit has no record (nothing says it is closed)', async () => {
+    await store([rec('SIG-2', [E.created, E.triaged, E.started('M6.E15'), E.wontdo])]);
+    await records.reopenItem(base, 'SIG-2', { reason: 'r', by }, quiet);
+    expect(records.getRecord(base, 'SIG-2').status).toBe('T');
+  });
+});
+
+describe('queueItem / startItem with NO unit records — as before unit records (M6.E16 AC6.4)', () => {
+  const quiet = { regenerate: async () => {} };
+  const verbs = [['queueItem'], ['startItem']];
+
+  it.each(verbs)('%s into an Epic with no record of any kind succeeds', async (fn) => {
+    await store([rec('SIG-1', [E.created, E.triaged])]);
+    await records[fn](base, 'SIG-1', { epic: 'M6.E13', by }, quiet);
+    expect(records.getRecord(base, 'SIG-1').epic).toBe('M6.E13');
+  });
+
+  it.each(verbs)('%s into a name that is not an Epic ID is refused (SCHEMA), nothing written', async (fn) => {
+    await store([rec('SIG-1', [E.created, E.triaged])]);
+    const before = snapshotTree(base);
+    const err = await records[fn](base, 'SIG-1', { epic: 'phase-11', by }, quiet).catch((e) => e);
+    expect(err).toMatchObject({ code: 'SCHEMA' });
+    expect(err.message).toMatch(/epic does not match .* \(got "phase-11"\)/);
+    expect(snapshotTree(base)).toEqual(before);
+  });
+
+  // Changed at REVIEW pass 1 (r1.4, C-I4, `D-M6E16-22`): this case pinned the
+  // opposite — a `units/` the library refuses read as "no unit records".
+  it.each(verbs)('%s: `units/` is a link (a hostile layout) — refused, naming the folder; the archive-folder check does not answer', async (fn) => {
+    const outside = await mkdtemp(join(tmpdir(), 'sig-records-epic-out-'));
+    try {
+      await writeFile(join(outside, 'M6.E12.json'), UNIT_KIND.serializeRecord({ id: 'M6.E12', events: [{ type: 'opened', at: AT, by }] }), 'utf-8');
+      await mkdir(join(base, '.planning/work'), { recursive: true });
+      await symlink(outside, join(base, '.planning/work/units'));
+      await store([rec('SIG-1', [E.created, E.triaged])]);
+      await put('.planning/archive/epics/M6.E12/README.md', 'x\n');
+      const before = await readFile(join(base, records.recordPath('SIG-1')), 'utf-8');
+      for (const epic of ['M6.E12', 'M6.E13']) {
+        const err = await records[fn](base, 'SIG-1', { epic, by }, quiet).catch((e) => e);
+        expect(err).toMatchObject({ name: 'WorkStoreError', code: 'CONFLICT' });
+        expect(err.message).toMatch(/\.planning\/work\/units\/ cannot be trusted.*symbolic link/);
+        expect(err.message).not.toMatch(/archived/);
+      }
+      expect(await readFile(join(base, records.recordPath('SIG-1')), 'utf-8')).toBe(before);
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 });

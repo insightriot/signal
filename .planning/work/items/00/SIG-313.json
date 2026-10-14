@@ -1,0 +1,20 @@
+{
+  "id": "SIG-313",
+  "type": "BUG",
+  "title": "A project unpacked from an archive with a hostile .git/config runs its commands under any git call",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E16 fix round 6 (security read of r6.0)",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-14T04:01:45.415Z",
+      "by": "claude (M6.E16 fix round 6)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-14T04:01:45.415Z",
+      "by": "claude (M6.E16 fix round 6)"
+    }
+  ]
+}

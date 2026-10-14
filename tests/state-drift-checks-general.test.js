@@ -14,6 +14,7 @@ import {
   checkProfilesParse,
 } from '../plugin/tools/lib/state-drift.js';
 import { markFresh } from '../plugin/tools/lib/state.js';
+import { testSeam } from '../plugin/tools/lib/git-env.js';
 
 /**
  * M5.E16 S2 — the three checks that work everywhere.
@@ -325,6 +326,24 @@ describe('M5.E16 S2.t2 — (d) the STATE baseline commit is not in this history'
     try {
       expect((await statusOf(dir, checkBaselineCommitOffHistory)).status).toBe(STATUS.NOT_APPLICABLE);
     } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  // M6.E16 r6.4: with a git older than 2.38 Signal runs no git-backed check,
+  // and every git call fails as "not a git repository". Read as an answer,
+  // that failure said the baseline commit "is not in this repository at all"
+  // — of a commit that is there. The check is not run, and says why.
+  it('with a git Signal does not use: no finding about the repository — not-applicable, with the version as the reason', async () => {
+    const dir = await makeRepo();
+    testSeam.gitVersion = 'git version 2.34.1';
+    try {
+      const r = await statusOf(dir, checkBaselineCommitOffHistory);
+      expect(r.status).toBe(STATUS.NOT_APPLICABLE);
+      expect(r.findings ?? []).toEqual([]);
+      expect(JSON.stringify(r)).toContain('Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1');
+    } finally {
+      testSeam.gitVersion = undefined;
       await rm(dir, { recursive: true, force: true });
     }
   });

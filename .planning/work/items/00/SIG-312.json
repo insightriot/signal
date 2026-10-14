@@ -1,0 +1,20 @@
+{
+  "id": "SIG-312",
+  "type": "BUG",
+  "title": "/sig:permissions proposes any git subcommand a prompt file names, some of which run a command",
+  "theme": "hygiene",
+  "priority": "P2",
+  "source": "M6.E16 fix round 6 (security reads of r6.4 and r6.5)",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-14T04:01:45.415Z",
+      "by": "claude (M6.E16 fix round 6)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-14T04:01:45.415Z",
+      "by": "claude (M6.E16 fix round 6)"
+    }
+  ]
+}

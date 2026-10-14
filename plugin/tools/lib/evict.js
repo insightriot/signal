@@ -40,6 +40,7 @@ import { deriveRetroPath } from './retrospective.js';
 import { atomicWrite } from './atomic-write.js';
 import { assertRealInsidePlanning } from './path-confine.js';
 import { FR_ID_RE, AC_ID_RE } from './requirement-ids.js';
+import { readUnitRecords } from './closure.js';
 
 // --- ID / date / status-token extractors (the deterministic backstop) --------
 
@@ -325,14 +326,18 @@ export function insertCarryOvers(body, heading, epicId, carry) {
  *   - STATE.md has no frontmatter (`no-frontmatter`)
  *   - the Epic has no narrative block in the body (`no-section`)
  *   - the Epic isn't closed — no `{EpicID}-RETROSPECTIVE.md` (`not-closed`;
- *     the Auditor-style closed-vs-live confirm)
+ *     the Auditor-style closed-vs-live confirm). On a project with unit
+ *     records, for an Epic that has a record: its record is open or closing
+ *     (`not-closed`), it is closed and held (`held`, with `holdReason`), it is
+ *     closed with no retrospective to check against (`no-card`), or the record
+ *     does not read (`unit-record-unreadable`, with `detail`)
  *   - the card fails the coverage gate (`lossy-card`, with `missing`)
  *
  * @param {string} baseDir
  * @param {string} epicId
  * @param {{dropped?: string[], carryOverHeading?: string}} [opts]
- * @returns {Promise<{evicted: boolean, reason?: string, missing?: object,
- *   archivePath?: string, pointer?: string, carriedOver?: string[]}>}
+ * @returns {Promise<{evicted: boolean, reason?: string, missing?: object, holdReason?: string|null,
+ *   detail?: string, archivePath?: string, pointer?: string, carriedOver?: string[]}>}
  */
 export async function evictEpicNarrative(baseDir, epicId, opts = {}) {
   const { dropped = [], carryOverHeading = 'In-flight' } = opts;
@@ -353,9 +358,35 @@ export async function evictEpicNarrative(baseDir, epicId, opts = {}) {
 
     // Closed-vs-live confirm (Auditor-style): only evict a genuinely CLOSED
     // Epic. An Epic is closed iff its retrospective (the card) exists.
+    //
+    // With unit records (M6.E16 t6.3, `D-M6E16-2`) the Epic's record says
+    // whether it is closed, when it has one — a retrospective existing does
+    // not. Open or *closing* is not closed. A held Epic is closed and keeps
+    // its narrative live: that is what the hold is for. A record that does not
+    // read evicts nothing. An Epic with no record is read as before.
+    let closedByRecord = false;
+    const unitRecords = readUnitRecords(baseDir);
+    if (unitRecords !== null) {
+      // The `units/` folder itself cannot be trusted: whether this Epic is
+      // closed, or held, is not known, so nothing is evicted.
+      if (typeof unitRecords.problem === 'string') {
+        return { evicted: false, reason: 'unit-record-unreadable', detail: unitRecords.problem };
+      }
+      if (unitRecords.broken.has(epicId)) {
+        return { evicted: false, reason: 'unit-record-unreadable', detail: unitRecords.broken.get(epicId) };
+      }
+      const record = unitRecords.byId.get(epicId);
+      if (record !== undefined) {
+        if (record.status !== 'closed') return { evicted: false, reason: 'not-closed' };
+        if (record.held) return { evicted: false, reason: 'held', holdReason: record.hold_reason };
+        closedByRecord = true;
+      }
+    }
     const retroRel = deriveRetroPath(epicId);
     const retroPath = join(baseDir, retroRel);
-    if (!existsSync(retroPath)) return { evicted: false, reason: 'not-closed' };
+    // A closed record with no retrospective (a legacy close) IS closed; what is
+    // missing is the card the coverage gate below checks the narrative against.
+    if (!existsSync(retroPath)) return { evicted: false, reason: closedByRecord ? 'no-card' : 'not-closed' };
     const card = await readFile(retroPath, 'utf-8');
 
     // The gate. A lossy card FAILS — no eviction, so the live narrative is never

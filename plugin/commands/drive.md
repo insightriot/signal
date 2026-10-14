@@ -78,6 +78,10 @@ Otherwise call `proposeEpicCandidates(baseDir)`. **An already-open Epic comes fi
 beats starting something new — so if any candidate is an open Epic (from `STATE.md`, or carrying
 `branch`), offer those first.
 
+On a project with unit records, the current Epic is open when its **unit record** is open, whatever
+`STATE.md` has recorded. One whose close is requested and not yet confirmed is not offered: it comes
+back in `awaitingMerge` — say it is waiting for its merge, and do not resume or restart it.
+
 **With no open Epic chosen, the work comes from `/sig:advise`'s priorities flow** (`M6.E12`,
 `D-M6E12-3`). Run its steps 1–5 as written in `commands/advise.md`: `prepareAdvise`, propose 3–5
 priorities from the digest, `runAdvise`, ask, `recordChoice`. **The picked priority becomes this
@@ -106,8 +110,8 @@ user's behalf — that is the silent selection `LOOP-GOAL-DIRECTION.md` measured
 **"Already open" means open on ANY branch, not just this one** (`B118`). STATE.md is one
 branch's answer, so `proposeEpicCandidates` also reads `STATE.md` from every branch not already
 merged into this one, and an Epic open there (that STATE.md is not a version this branch's history already
-holds, records no SHIP, and has no retrospective or SHIP artifact here) is proposed right after the local
-open Epic, carrying `branch` and `nextStep`. Branches whose
+holds, records no SHIP, and has no retrospective or SHIP artifact here — or, when it has a unit record here, that record is not closed) is proposed right after the local
+open Epic, carrying `branch` (the name as it may be shown: for a name that is not plainly a name, a note, not something to paste) and `nextStep`; when two such candidates would share an `id`, each ends " on `<branch>`", and one still shared after that ends " (2)", " (3)" in list order. Branches whose
 STATE.md names no Epic come back in `unclassifiedBranches` — name them on one line, so an empty
 list cannot read as "checked every branch". Remote branches are as fresh as the last `git fetch`.
 
@@ -135,7 +139,7 @@ Call `resolveStartPhase(state, candidate)`.
 
 ⚠ **A candidate with `branch` comes back `blocked: true`, and the run stops there.** Its next
 phase would run against this branch's files and write this branch's STATE.md. Print the `why`:
-it names the one step that reaches the work — `git checkout <branch>`, **`git pull`** when the
+it names the one step that reaches the work — `git checkout <branch>` (no command is given for a branch whose name cannot be written safely in one; the `why` says so), **`git pull`** when the
 work is on this branch's own remote copy (pushed from another machine), or the other worktree's
 path. The person takes that step and starts `/sig:drive` again. This run never switches branches
 or pulls.

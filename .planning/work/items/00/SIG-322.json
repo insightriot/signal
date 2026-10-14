@@ -1,0 +1,13 @@
+{
+  "id": "SIG-322",
+  "type": "NEW",
+  "title": "checkClosedProofs repeats a hand-confirm's typed git_reason as fact",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-14T22:42:49.944Z",
+      "by": "Claude (M6.E16 SHIP)"
+    }
+  ]
+}

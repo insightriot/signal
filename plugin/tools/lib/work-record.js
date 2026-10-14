@@ -12,38 +12,8 @@
 
 import { readFileSync } from 'node:fs';
 
+import { echoed, shownName } from './printable-text.js';
 import { WorkStoreError } from './work-errors.js';
-
-/**
- * The shipped JSON Schema (`plugin/references/work-item.schema.json`). It is
- * the source of truth for the record's shape; `validateRecord` interprets it.
- *
- * The validator is hand-rolled because `plugin/` ships exactly one dependency
- * (Decision 7). It supports ONLY these keywords: `type`, `properties`,
- * `required`, `additionalProperties: false`, `enum`, `const`, `pattern`,
- * `items`, and `$ref` to `#/$defs/…`. `tests/work-record-schema.test.js` fails
- * if the schema uses anything else, because an unsupported keyword would be
- * silently ignored here.
- *
- * Rules the subset cannot express are written in code below and listed where
- * they live: event dispatch by `type` (there is no `oneOf`); `closed` proof
- * unless legacy or dup; `dup_of` if and only if `dup`; `changes` (on `edited`,
- * and on `triaged` when present) names at least one field.
- */
-export const RECORD_SCHEMA = deepFreeze(
-  JSON.parse(readFileSync(new URL('../../references/work-item.schema.json', import.meta.url), 'utf8')),
-);
-
-export const EVENT_TYPES = Object.freeze([
-  'created',
-  'triaged',
-  'queued',
-  'started',
-  'close_requested',
-  'closed',
-  'reopened',
-  'edited',
-]);
 
 function deepFreeze(value) {
   if (value && typeof value === 'object') {
@@ -74,66 +44,223 @@ function compiled(pattern) {
   return re;
 }
 
-function resolveRef(ref) {
-  const m = /^#\/\$defs\/([A-Za-z_]+)$/.exec(ref);
-  const target = m && Object.hasOwn(RECORD_SCHEMA.$defs, m[1]) ? RECORD_SCHEMA.$defs[m[1]] : undefined;
-  // A ref that does not resolve is a bug in the shipped schema, not in the
-  // record — so it throws rather than becoming a record error.
-  if (!target) throw new Error(`work-item.schema.json: unresolvable $ref ${ref}`);
-  return target;
-}
-
 function join(path, key) {
   return path === '' ? key : `${path}.${key}`;
 }
 
-// Validate `value` against `schema` (one node of the supported subset),
-// pushing every violation onto `errors`. A type mismatch stops that node: the
-// other keywords would only restate it.
-function check(schema, value, path, errors) {
-  if (schema.$ref !== undefined) return check(resolveRef(schema.$ref), value, path, errors);
-  const where = path === '' ? 'record' : path;
-
-  if (schema.type !== undefined) {
-    const allowed = Array.isArray(schema.type) ? schema.type : [schema.type];
-    if (!allowed.includes(jsonType(value))) {
-      errors.push(`${where} must be of type ${allowed.join(' or ')}`);
-      return;
-    }
-  }
-  if (schema.const !== undefined && value !== schema.const) {
-    errors.push(`${where} must be ${JSON.stringify(schema.const)} (got ${JSON.stringify(value)})`);
-  }
-  if (schema.enum !== undefined && !schema.enum.includes(value)) {
-    errors.push(`${where} must be one of ${schema.enum.join('/')} (got ${JSON.stringify(value)})`);
-  }
-  if (schema.pattern !== undefined && typeof value === 'string' && !compiled(schema.pattern).test(value)) {
-    errors.push(`${where} does not match ${schema.pattern} (got ${JSON.stringify(value)})`);
-  }
-  if (isMapping(value)) {
-    const props = schema.properties ?? {};
-    for (const key of schema.required ?? []) {
-      if (!Object.hasOwn(value, key)) errors.push(`${join(path, key)} is required`);
-    }
-    for (const key of Object.keys(value)) {
-      if (Object.hasOwn(props, key)) check(props[key], value[key], join(path, key), errors);
-      else if (schema.additionalProperties === false) errors.push(`${join(path, key)} is not a known field`);
-    }
-  }
-  if (Array.isArray(value) && schema.items !== undefined) {
-    value.forEach((item, i) => check(schema.items, item, `${path}[${i}]`, errors));
-  }
+// Only called on a validated record, so every key is in `order`.
+function ordered(obj, order) {
+  const out = {};
+  for (const key of order) if (Object.hasOwn(obj, key)) out[key] = obj[key];
+  return out;
 }
 
-// The per-event rules that need no prior state. Sequence rules (what may
-// follow what) are `checkEvents`'s, not these.
-function checkEvent(event, path, errors) {
-  if (!EVENT_TYPES.includes(event.type)) {
-    errors.push(`${path}.type must be one of ${EVENT_TYPES.join('/')} (got ${JSON.stringify(event.type)})`);
-    return;
+/**
+ * Build the record machinery for one kind of record (M6.E16.S1): validate,
+ * serialise, parse and fold, over the schema and the kind-specific pieces
+ * passed in. Items are one kind (`ITEM_KIND`, below); nothing here knows them.
+ *
+ * `fold(record)` is the kind's one pass over the events. It returns at least
+ * `{sequenceErrors, editErrors}`, each a list of `{index, message}`, plus
+ * whatever the kind derives (an item: `status` and `epic`).
+ *
+ * @param {object} kind
+ * @param {object} kind.schema — the record's JSON Schema, in the supported subset; each event type has a `$defs` entry of its name
+ * @param {string} kind.schemaName — the schema's file name, for the message when the schema itself is broken
+ * @param {string} kind.label — what a record is called in messages (an item: `work record`)
+ * @param {string[]} kind.eventTypes
+ * @param {(event: object, path: string, errors: string[]) => void} kind.eventRules — per-event rules the schema subset cannot express
+ * @param {string[]} kind.recordOrder — the record's key order on disk
+ * @param {string[]} kind.eventHead — the keys every event starts with, in order
+ * @param {Record<string, string[]>} kind.eventFields — per event type, the keys after the head, in order
+ * @param {string[]} kind.changeOrder — key order inside one entry of an event's `changes`
+ * @param {(record: object) => {sequenceErrors: object[], editErrors: object[]}} kind.fold
+ * @returns {{schema: object, eventTypes: string[], validateRecord: Function, serializeRecord: Function,
+ *   parseRecord: Function, fold: Function, folded: Function, checkEvents: Function}}
+ */
+export function makeRecordKind({
+  schema, schemaName, label, eventTypes, eventRules, recordOrder, eventHead, eventFields, changeOrder, fold,
+}) {
+  function resolveRef(ref) {
+    const m = /^#\/\$defs\/([A-Za-z_]+)$/.exec(ref);
+    const target = m && Object.hasOwn(schema.$defs, m[1]) ? schema.$defs[m[1]] : undefined;
+    // A ref that does not resolve is a bug in the shipped schema, not in the
+    // record — so it throws rather than becoming a record error.
+    if (!target) throw new Error(`${schemaName}: unresolvable $ref ${ref}`);
+    return target;
   }
-  check(RECORD_SCHEMA.$defs[event.type], event, path, errors);
 
+  // Validate `value` against `node` (one node of the supported subset),
+  // pushing every violation onto `errors`. A type mismatch stops that node: the
+  // other keywords would only restate it.
+  function check(node, value, path, errors) {
+    if (node.$ref !== undefined) return check(resolveRef(node.$ref), value, path, errors);
+    const where = path === '' ? 'record' : path;
+
+    if (node.type !== undefined) {
+      const allowed = Array.isArray(node.type) ? node.type : [node.type];
+      if (!allowed.includes(jsonType(value))) {
+        errors.push(`${where} must be of type ${allowed.join(' or ')}`);
+        return;
+      }
+    }
+    if (node.const !== undefined && value !== node.const) {
+      errors.push(`${where} must be ${JSON.stringify(node.const)} (got ${echoed(value)})`);
+    }
+    if (node.enum !== undefined && !node.enum.includes(value)) {
+      errors.push(`${where} must be one of ${node.enum.join('/')} (got ${echoed(value)})`);
+    }
+    if (node.pattern !== undefined && typeof value === 'string' && !compiled(node.pattern).test(value)) {
+      errors.push(`${where} does not match ${node.pattern} (got ${echoed(value)})`);
+    }
+    if (isMapping(value)) {
+      const props = node.properties ?? {};
+      for (const key of node.required ?? []) {
+        if (!Object.hasOwn(value, key)) errors.push(`${join(path, key)} is required`);
+      }
+      for (const key of Object.keys(value)) {
+        if (Object.hasOwn(props, key)) check(props[key], value[key], join(path, key), errors);
+        else if (node.additionalProperties === false) errors.push(`${join(path, shownName(key, 80))} is not a known field`);
+      }
+    }
+    if (Array.isArray(value) && node.maxItems !== undefined && value.length > node.maxItems) {
+      errors.push(`${where} must have at most ${node.maxItems} entries (got ${value.length})`);
+    }
+    if (Array.isArray(value) && node.items !== undefined) {
+      value.forEach((item, i) => check(node.items, item, `${path}[${i}]`, errors));
+    }
+  }
+
+  // The per-event rules that need no prior state. Sequence rules (what may
+  // follow what) are `checkEvents`'s, not these.
+  function checkEvent(event, path, errors) {
+    if (!eventTypes.includes(event.type)) {
+      errors.push(`${path}.type must be one of ${eventTypes.join('/')} (got ${echoed(event.type)})`);
+      return;
+    }
+    check(schema.$defs[event.type], event, path, errors);
+    eventRules(event, path, errors);
+  }
+
+  function validateRecord(record) {
+    const errors = [];
+    check(schema, record, '', errors);
+    if (isMapping(record) && Array.isArray(record.events)) {
+      record.events.forEach((event, i) => {
+        if (isMapping(event)) checkEvent(event, `events[${i}]`, errors);
+      });
+    }
+    return errors;
+  }
+
+  function orderedEvent(event) {
+    const out = ordered(event, [...eventHead, ...eventFields[event.type]]);
+    if (out.changes !== undefined) {
+      const changes = ordered(out.changes, recordOrder);
+      for (const field of Object.keys(changes)) changes[field] = ordered(changes[field], changeOrder);
+      out.changes = changes;
+    }
+    return out;
+  }
+
+  function serializeRecord(record) {
+    const errors = validateRecord(record);
+    if (errors.length > 0) {
+      throw new WorkStoreError('SCHEMA', `invalid ${label}: ${errors.join('; ')}`);
+    }
+    const out = ordered(record, recordOrder);
+    out.events = record.events.map(orderedEvent);
+    return `${JSON.stringify(out, null, 2)}\n`;
+  }
+
+  function parseRecord(text, opts = {}) {
+    const where = opts.path ?? label;
+    let record;
+    try {
+      record = JSON.parse(text);
+    } catch (err) {
+      return { record: null, errors: [`${where}: not valid JSON (${shownName(err.message)})`] };
+    }
+    return { record, errors: validateRecord(record).map((e) => `${where}: ${e}`) };
+  }
+
+  // The fold's result, or a throw when the event sequence is illegal.
+  function folded(record, what) {
+    const result = fold(record);
+    if (result.sequenceErrors.length > 0) {
+      // An illegal history has no honest answer; guessing one would read a
+      // broken record as, say, plausibly closed (Decision 1: nothing silently wrong).
+      const id = isMapping(record) && typeof record.id === 'string' ? record.id : label;
+      throw new WorkStoreError(
+        'SCHEMA',
+        `${id}: cannot derive ${what}: ${result.sequenceErrors.map((e) => e.message).join('; ')}`,
+      );
+    }
+    return result;
+  }
+
+  function checkEvents(record) {
+    const { sequenceErrors, editErrors } = fold(record);
+    return [...sequenceErrors, ...editErrors].sort((a, b) => a.index - b.index);
+  }
+
+  return Object.freeze({ schema, eventTypes, validateRecord, serializeRecord, parseRecord, fold, folded, checkEvents });
+}
+
+/**
+ * The shipped JSON Schema (`plugin/references/work-item.schema.json`). It is
+ * the source of truth for the record's shape; `validateRecord` interprets it.
+ *
+ * The validator is hand-rolled because `plugin/` ships exactly one dependency
+ * (Decision 7). It supports ONLY these keywords: `type`, `properties`,
+ * `required`, `additionalProperties: false`, `enum`, `const`, `pattern`,
+ * `items`, `maxItems`, and `$ref` to `#/$defs/…`. `tests/work-record-schema.test.js` fails
+ * if the schema uses anything else, because an unsupported keyword would be
+ * silently ignored here.
+ *
+ * Rules the subset cannot express are written in code below and listed where
+ * they live: event dispatch by `type` (there is no `oneOf`); `closed` proof
+ * unless legacy or dup; `dup_of` if and only if `dup`; `changes` (on `edited`,
+ * and on `triaged` when present) names at least one field.
+ */
+export const RECORD_SCHEMA = deepFreeze(
+  JSON.parse(readFileSync(new URL('../../references/work-item.schema.json', import.meta.url), 'utf8')),
+);
+
+export const EVENT_TYPES = Object.freeze([
+  'created',
+  'triaged',
+  'queued',
+  'started',
+  'close_requested',
+  'closed',
+  'reopened',
+  'edited',
+]);
+
+/**
+ * A close a person confirmed by hand (M6.E16 r7, `confirmCloseByHand`,
+ * `work-records.js`) carries `confirmed_by: 'person'` and `git_reason`, the
+ * reason git could not confirm it — both or neither, on the close that
+ * confirms a request (`confirms`: `fixed` for an item, `shipped` for a unit)
+ * — and may carry the person's `why`, only beside them. Shared by both kinds.
+ *
+ * @param {object} event — a `closed` event
+ * @param {string} path
+ * @param {string[]} errors
+ * @param {string} confirms
+ */
+export function byHandRules(event, path, errors, confirms) {
+  const hand = event.confirmed_by !== undefined;
+  if (hand !== (event.git_reason !== undefined)) {
+    errors.push(`${path}.confirmed_by and ${path}.git_reason are recorded together, or not at all`);
+  }
+  if (hand && event.reason !== confirms) errors.push(`${path}.confirmed_by is only allowed when reason is ${confirms}`);
+  if (event.why !== undefined && !hand) errors.push(`${path}.why is only allowed on a close confirmed by hand`);
+}
+
+// The item's per-event rules that the schema subset cannot express.
+function itemEventRules(event, path, errors) {
   if (event.type === 'closed') {
     // PLAN Decision 3: a dup close's evidence is `dup_of`; proof is optional.
     if (event.proof === undefined && event.legacy !== true && event.reason !== 'dup') {
@@ -144,32 +271,11 @@ function checkEvent(event, path, errors) {
     } else if (event.reason !== 'dup' && event.dup_of !== undefined) {
       errors.push(`${path}.dup_of is only allowed when reason is dup`);
     }
+    byHandRules(event, path, errors, 'fixed');
   }
   if (isMapping(event.changes) && Object.keys(event.changes).length === 0) {
     errors.push(`${path}.changes must name at least one field`);
   }
-}
-
-/**
- * Validate a record against the shipped schema plus the per-event rules the
- * keyword subset cannot express. Returns EVERY violation, each with its path
- * (`events[3].proof is not a known field`), so one fix-and-rerun cycle is
- * enough. Never throws on bad content.
- *
- * Structure only: whether the events form a legal sequence is `checkEvents`.
- *
- * @param {unknown} record
- * @returns {string[]}
- */
-export function validateRecord(record) {
-  const errors = [];
-  check(RECORD_SCHEMA, record, '', errors);
-  if (isMapping(record) && Array.isArray(record.events)) {
-    record.events.forEach((event, i) => {
-      if (isMapping(event)) checkEvent(event, `events[${i}]`, errors);
-    });
-  }
-  return errors;
 }
 
 // Key order on disk (Decision 8). `JSON.stringify` writes keys in insertion
@@ -195,68 +301,11 @@ const EVENT_FIELDS = {
   queued: ['epic'],
   started: ['epic'],
   close_requested: ['reason', 'proof'],
-  closed: ['reason', 'proof', 'dup_of', 'legacy'],
+  closed: ['reason', 'proof', 'dup_of', 'legacy', 'confirmed_by', 'git_reason', 'why'],
   reopened: ['reason'],
   edited: ['changes'],
 };
 const CHANGE_ORDER = ['from', 'to'];
-
-// Only called on a validated record, so every key is in `order`.
-function ordered(obj, order) {
-  const out = {};
-  for (const key of order) if (Object.hasOwn(obj, key)) out[key] = obj[key];
-  return out;
-}
-
-function orderedEvent(event) {
-  const out = ordered(event, [...EVENT_HEAD, ...EVENT_FIELDS[event.type]]);
-  if (out.changes !== undefined) {
-    const changes = ordered(out.changes, RECORD_ORDER);
-    for (const field of Object.keys(changes)) changes[field] = ordered(changes[field], CHANGE_ORDER);
-    out.changes = changes;
-  }
-  return out;
-}
-
-/**
- * Render a record as its file's bytes: fixed key order, 2-space indent, one
- * trailing newline, non-ASCII written as is. Validates first and throws a
- * `WorkStoreError('SCHEMA')` listing every violation, so an invalid record,
- * or one with an unknown key, never reaches disk.
- *
- * @param {object} record
- * @returns {string}
- */
-export function serializeRecord(record) {
-  const errors = validateRecord(record);
-  if (errors.length > 0) {
-    throw new WorkStoreError('SCHEMA', `invalid work record: ${errors.join('; ')}`);
-  }
-  const out = ordered(record, RECORD_ORDER);
-  out.events = record.events.map(orderedEvent);
-  return `${JSON.stringify(out, null, 2)}\n`;
-}
-
-/**
- * Parse a record file. Never throws on bad content: malformed JSON yields
- * `{record: null, errors}`, and a record that parses but fails validation is
- * returned with its errors, so a store check can report every broken file
- * instead of stopping at the first.
- *
- * @param {string} text
- * @param {{path?: string}} [opts] — the file's path, used only in messages
- * @returns {{record: object|null, errors: string[]}}
- */
-export function parseRecord(text, opts = {}) {
-  const where = opts.path ?? 'work record';
-  let record;
-  try {
-    record = JSON.parse(text);
-  } catch (err) {
-    return { record: null, errors: [`${where}: not valid JSON (${err.message})`] };
-  }
-  return { record, errors: validateRecord(record).map((e) => `${where}: ${e}`) };
-}
 
 // The transition table (PLAN Decision 3). For each event, the derived states
 // it may follow. Status is never stored; `closing` is its own derived value,
@@ -304,7 +353,7 @@ function fold(record) {
   if (!isMapping(events[0]) || events[0].type !== 'created') {
     // Without a `created` there is no state to fold from; one error, not one per event.
     const got = isMapping(events[0]) ? events[0].type : events[0];
-    refuse(0, `events[0]: the first event must be created (got ${JSON.stringify(got)})`);
+    refuse(0, `events[0]: the first event must be created (got ${echoed(got)})`);
     return { status: null, epic: null, sequenceErrors, editErrors: [] };
   }
 
@@ -341,7 +390,7 @@ function fold(record) {
             return refuse(
               index,
               `events[${index}]: a fixed close must confirm the outstanding request's proof ` +
-                `(${JSON.stringify(pendingProof)}, got ${JSON.stringify(event.proof)})`,
+                `(${echoed(pendingProof)}, got ${echoed(event.proof)})`,
             );
           }
         } else if (![...OPEN, 'closing'].includes(status)) {
@@ -365,26 +414,71 @@ function fold(record) {
       editErrors.push({
         index,
         message:
-          `events[${index}]: ${field} was last ${type} to ${JSON.stringify(to)} ` +
-          `but the record holds ${JSON.stringify(current)}`,
+          `events[${index}]: ${field} was last ${type} to ${echoed(to)} ` +
+          `but the record holds ${echoed(current)}`,
       });
     }
   }
   return { status, epic, sequenceErrors, editErrors };
 }
 
-function folded(record, what) {
-  const result = fold(record);
-  if (result.sequenceErrors.length > 0) {
-    // An illegal history has no honest answer; guessing one would read a
-    // broken record as, say, plausibly closed (Decision 1: nothing silently wrong).
-    const id = isMapping(record) && typeof record.id === 'string' ? record.id : 'work record';
-    throw new WorkStoreError(
-      'SCHEMA',
-      `${id}: cannot derive ${what}: ${result.sequenceErrors.map((e) => e.message).join('; ')}`,
-    );
-  }
-  return result;
+/**
+ * The item kind: the machinery above over the item schema. Every export below
+ * is this kind's, under the name it has always had.
+ */
+export const ITEM_KIND = makeRecordKind({
+  schema: RECORD_SCHEMA,
+  schemaName: 'work-item.schema.json',
+  label: 'work record',
+  eventTypes: EVENT_TYPES,
+  eventRules: itemEventRules,
+  recordOrder: RECORD_ORDER,
+  eventHead: EVENT_HEAD,
+  eventFields: EVENT_FIELDS,
+  changeOrder: CHANGE_ORDER,
+  fold,
+});
+
+/**
+ * Validate a record against the shipped schema plus the per-event rules the
+ * keyword subset cannot express. Returns EVERY violation, each with its path
+ * (`events[3].proof is not a known field`), so one fix-and-rerun cycle is
+ * enough. Never throws on bad content.
+ *
+ * Structure only: whether the events form a legal sequence is `checkEvents`.
+ *
+ * @param {unknown} record
+ * @returns {string[]}
+ */
+export function validateRecord(record) {
+  return ITEM_KIND.validateRecord(record);
+}
+
+/**
+ * Render a record as its file's bytes: fixed key order, 2-space indent, one
+ * trailing newline, non-ASCII written as is. Validates first and throws a
+ * `WorkStoreError('SCHEMA')` listing every violation, so an invalid record,
+ * or one with an unknown key, never reaches disk.
+ *
+ * @param {object} record
+ * @returns {string}
+ */
+export function serializeRecord(record) {
+  return ITEM_KIND.serializeRecord(record);
+}
+
+/**
+ * Parse a record file. Never throws on bad content: malformed JSON yields
+ * `{record: null, errors}`, and a record that parses but fails validation is
+ * returned with its errors, so a store check can report every broken file
+ * instead of stopping at the first.
+ *
+ * @param {string} text
+ * @param {{path?: string}} [opts] — the file's path, used only in messages
+ * @returns {{record: object|null, errors: string[]}}
+ */
+export function parseRecord(text, opts = {}) {
+  return ITEM_KIND.parseRecord(text, opts);
 }
 
 /**
@@ -398,7 +492,7 @@ function folded(record, what) {
  * @returns {'N'|'T'|'Q'|'P'|'C'|'closing'}
  */
 export function deriveStatus(record) {
-  return folded(record, 'status').status;
+  return ITEM_KIND.folded(record, 'status').status;
 }
 
 /**
@@ -410,7 +504,7 @@ export function deriveStatus(record) {
  * @returns {string|null}
  */
 export function epicOf(record) {
-  return folded(record, 'Epic').epic;
+  return ITEM_KIND.folded(record, 'Epic').epic;
 }
 
 /**
@@ -428,6 +522,5 @@ export function epicOf(record) {
  * @returns {{index: number, message: string}[]}
  */
 export function checkEvents(record) {
-  const { sequenceErrors, editErrors } = fold(record);
-  return [...sequenceErrors, ...editErrors].sort((a, b) => a.index - b.index);
+  return ITEM_KIND.checkEvents(record);
 }

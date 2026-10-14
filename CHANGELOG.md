@@ -6,6 +6,249 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.51] — 2026-10-13 — Epics and units are records
+
+### M6.E16 — Epics and units are records
+
+Work items became records in `v0.1.48`. Epics, and the units of a project that does not use Epic IDs,
+were still worked out from filenames, a hand-kept table and which folder a file sat in. They are
+records now.
+
+#### Added
+- **One record per Epic or unit:** `.planning/work/units/<ID>.json`. A project that names its units
+  its own way (`phase-11`) keeps those names as the IDs. The `units/` folder existing is what turns
+  unit records on.
+- **Status comes from the record's events:** open, *closing*, closed. A closed unit can also be
+  **held** — closed, but its files stay where they are — with a reason, and released later.
+- **An Epic is closed at SHIP, with proof.** `/sig:ship` records a close request with the Epic's
+  commit, its PR and its release. The Epic reads *closing* until that commit is on the default
+  branch; `/sig:docs-sweep` or a later SHIP then confirms it and it reads closed. The close is
+  refused while an item of the Epic is open or its retrospective is missing or still a placeholder.
+  A *closing* Epic takes no new item — queueing, starting or reopening one into it is refused — and
+  it is confirmed only when every item of it is closed. Without a commit passed, the proof is HEAD;
+  that is refused when HEAD is already on the default branch and the project has uncommitted
+  changes, because such a commit says nothing about the Epic. It is refused too when the project
+  has uncommitted changes and the remote's default branch is not recorded in the clone, because
+  then nothing can say where HEAD is; the message names `git fetch origin`, then
+  `git remote set-head origin -a`.
+- **A finished Epic's narrative leaves `STATE.md` when its close is confirmed** (`SIG-295`). The step
+  that confirms the close — `/sig:docs-sweep`, or a later SHIP — moves the narrative to its archive
+  file and says so beside the confirmation: moved, nothing to move, or kept and why (held, or a
+  retrospective that does not cover it). A narrative that is kept never undoes the close.
+- **How to place and release a hold is written down** (`SIG-255`): `/sig:docs-archive` has a
+  *Holding a unit* section naming `holdUnit` and `releaseUnit`. The reason is required and is printed
+  every time the unit is declined. There is still no slash command for it. The same section says how
+  to open a unit that is not an Epic ID, close one as dropped, reopen one and edit one, by hand.
+- **`/sig:discuss` halts on an Epic whose close is requested and still waiting for its merge**, as
+  it does for any finished Epic, and says the close is requested, with which commit. `--epic` opens
+  the next one.
+- **Opening an Epic creates its record.** `/sig:discuss --epic` and `/sig:new-project --epic` refuse
+  an Epic whose record is closed, unless you say you mean to reopen it, which is recorded.
+- **`/sig:docs-migrate --work-store` creates unit records for a project already on Signal** — in the
+  same run as the items for a project not yet on the store, or on their own for a project that is.
+  Units that look finished are proposed as legacy closes in one list and closed on one yes; on no,
+  each is created open with a note. `--also <ID>:dropped:<words>` declares a unit no file names.
+  A milestone row counts as evidence only when its status cell begins with *shipped*: a cell such as
+  `S1 shipped; S2 in progress` or `planned — ships after E4 is shipped` is proposed open, flagged,
+  and quoted in the dry run, so one yes to the list cannot close it.
+  On a project that already has unit records the same command adds a record for each unit that has
+  none and touches no record that exists; `/sig:docs-sweep` names the units that have none.
+- **The recovery after a squash or rebase merge works, and asks first.** Run on the default branch
+  after the merge, `/sig:ship`'s close step lists each of the Epic's items still waiting on a commit
+  that is not in the branch's history, and writes nothing. You say which of them were in the merged
+  pull request; it then asks again for the Epic's close and, in the same write, for the close of
+  those items only, and they stay in the Epic. An item you did not confirm stays open and holds the
+  Epic open. Before, that step refused and every remedy it named refused too.
+- **A unit is never closed with an open item in it.** `/sig:ship` already refused one. Now the
+  migration proposes such a unit open and names the items, closing a unit as dropped or legacy is
+  refused until its items are closed or moved out, and `/sig:docs-sweep` reports a closed unit that
+  still holds one (`closed-unit-open-items`).
+- **SHIP closes a unit whose ID is not an Epic ID** (`phase-11`), under the same rules as an Epic:
+  a close request with proof, confirmed when its commit is on the default branch. This includes a
+  linear project, which has no `current_epic`; there SHIP asks which unit, when it cannot tell. When
+  the unit is already *closing*, SHIP names the commit the close is waiting on and asks before
+  requesting it again. It says plainly when a unit is already closed and there is nothing to close.
+  A `current_epic` holding characters no unit name has is refused. Code decides which unit SHIP closes
+  (`unitToCloseAtShip`), not the prose in `/sig:ship`.
+- **A close that git can never confirm can be confirmed by a person, one ID at a time.** This is
+  allowed only while the close is waiting for a reason no merge can change: there is no remote, no
+  remote named `origin`, or the project is not a git repository. Every other reason is refused, and
+  the refusal names what would confirm the close. The record, `EPICS.md` and the milestone table say
+  the close was *confirmed by hand*. A record that was hand-confirmed is still checked by
+  `/sig:docs-sweep` against the default branch once there is one. Typing the hand-confirm fields
+  into a record does not switch that check off, and does not soften what it says.
+
+#### Changed
+- **`work/EPICS.md` and the Epic table in the current milestone file are generated from the
+  records.** The table is written between `signal:epics` markers; text outside them is left alone,
+  and a milestone file without markers is not touched. Another milestone's file that carries the
+  markers is kept current too: when a close is confirmed, or an Epic is reopened or held, after the
+  next milestone's Epic was opened, its table is rewritten under the same rules, and
+  `/sig:docs-sweep` reports one that does not match its records. A marker counts only on a line of its own —
+  one mentioned in a sentence or a code example is text — and `/sig:docs-migrate`'s dry run lists
+  any line between the markers that is not a table row, since the apply replaces it. `/sig:docs-sweep` reports a view that does
+  not match its records.
+  A row or a line you type between the markers is not deleted (a line that is not a table row is
+  refused the same way, and the remedy is to move it outside the markers): if it is for an Epic with no unit record, or for
+  nothing the records hold, the next store write is refused and names the row and the two ways out —
+  give it a record, or move it outside the markers. A row for a unit that has a record is rewritten.
+  A row is an Epic's own only when its first cell is that Epic's ID and nothing else (or the first
+  cell of the old row its record keeps): `M6.E2.S3`, `E2-bis` or `E2 follow-ups` is a row you typed,
+  and so is a second row for the same Epic: the write is refused and the row stays.
+  When `/sig:docs-migrate --work-store` adds unit records, every unit keeps all the cells of its old
+  milestone row in its record, open or closed; the dry run lists each row between the markers that
+  goes into no record (it is removed), and says when a table with another header becomes three
+  columns. The table prints an old row only for a unit closed as legacy.
+  A unit closed as legacy prints no close date in `work/EPICS.md` — the date on that record is the
+  day it was written — and prints its old milestone row's status words instead.
+- **Everything that asks "is this unit closed?" reads the record** when `work/units/` exists:
+  archiving, the Done-Epic guard in `/sig:discuss`, `/sig:drive`'s open-Epic list, moving or
+  reopening an item of the unit, the narrative eviction in `/sig:checkpoint`. For a unit that has a
+  record, a retrospective existing, a verdict line, a milestone row or a file's folder no longer
+  decides it. A unit with no record is still judged from its files, and `/sig:docs-sweep` says so.
+  `/sig:docs-archive` declines a held unit and prints the reason. SHIP no longer reads the milestone
+  row to decide whether it closes the Epic, and the next Epic ID counts records as well as filenames.
+  A unit whose record is closed reads closed even while it is still the current Epic; its files
+  stay where they are until the next Epic opens, and `/sig:docs-archive` prints it as `[current]`.
+- **A project without `work/units/` gets the same closure answers, file moves and refusals as on
+  `v0.1.50`.** Every reader keeps its old path, and the existing tests for those projects pass
+  unchanged. Three kinds of thing differ, and a test that compares 94 answers with `v0.1.50`'s
+  fails on any other: what this release adds (the edit hook also guards every path under `work/units/`;
+  `/sig:docs-migrate --work-store` on a project already on the store proposes unit records where it
+  used to refuse; some return values have new keys, empty here; moving a project onto the store
+  for the first time also proposes and creates its unit records, so it has `work/units/`
+  afterwards, and its dry run says when a milestone file has no markers and is left alone; that first move no longer fails on a project that has
+  `.planning/archive/epics/<ID>/`, where `v0.1.50` stopped with "the migrated store did not verify"
+  and wrote nothing; the `WORK.md` a migration writes names `units/`; and `--also` is read); the
+  unit-name rule (the item
+  schema accepts a unit name that is not an Epic ID, the commands and the readers still refuse one
+  without unit records, and a name over 100 characters is refused everywhere); and wording (the
+  text of some refusals, and one sentence of `/sig:docs-migrate`'s dry run, corrected below,
+  `SIG-289`).
+- **Text in a unit record is cleaned where it is written and again where it is printed.** A title,
+  summary, note, PR, release, reason or old-row cell is stored without control or invisible
+  characters, with a line break made a space, and cut at a limit; `work/EPICS.md` and the milestone
+  table do the same to whatever they read and take a comment opener apart; and the unit schema
+  refuses such a value, so `/sig:docs-sweep` reports a record that was not written by the library.
+  An old row keeps at most 32 cells (a longer one is cut and ends `…`), and a long run of spaces in a
+  record no longer makes every write to the store slow.
+- **A file name or a record's value is never printed raw.** A path under `work/items/` or
+  `work/units/` reaches a message with anything outside printable ASCII written as an escape and
+  cut at 240 characters — in refusals, `/sig:docs-sweep`, `/sig:advise`, `/sig:drive` and the edit
+  hook's message. A refusal echoes at most 300 characters of a record's value. A record file over
+  4 MB is reported as broken by name and is not read. The refusal to open a closed Epic no longer
+  prints the close's free-text words.
+- **`/sig:docs-migrate --work-store` scans the text it will store.** Its sensitive-data check read a
+  milestone row as written and the record kept it without invisible characters, so a key split by
+  one passed the check and was stored whole. The check now reads the cleaned text.
+  It also scans each source text whole, so a key that straddles a length limit is found; it does not
+  read retrospectives through a linked `.planning/archive`; and its dry run lists at most 500 units.
+- **The undo line after `--force` on a dirty tree no longer discards your edits to the milestone
+  file.** It restores only generated files, and says that the Epic table was regenerated between its
+  markers and that `git diff` shows the old rows.
+- **The edit hook guards everything in `work/units/`,** not only `*.json`, whether or not the folder
+  exists, and matches a path with a trailing dot, a trailing space or a `::$DATA` suffix as the file
+  Windows would open. Its message says a hold is placed only when the user asks.
+  A folder called `.planning` inside `work/units/` or `work/items/` no longer hides a path from it.
+- **A Windows device name is not a unit ID** (`CON`, `NUL`, `COM1`, … with or without an extension):
+  its record could not be a file on Windows.
+- **A `git replace` ref no longer counts** when a close's commit is checked against the default
+  branch.
+- **A `work/units/` folder that cannot be trusted is an error, not "no unit records".** When it is
+  a symbolic link, a file, or cannot be listed, commands that write or move refuse and name the
+  folder, and everything that asks whether a unit is closed answers that it cannot tell. No unit is
+  read from its retrospective in that state, and a held unit does not move.
+- **Signal's own Epics are records:** 48 of them — 1 open, 43 closed as legacy (shipped before this
+  release, confirmed as one list), 4 Epic IDs that never ran recorded as dropped.
+
+#### Fixed
+- **A pushed tag can no longer change which branch a close is confirmed against.** Signal looked the
+  default branch up by name, and git answers a name lookup differently once a tag shares the name.
+  Someone able to push a tag called `origin/main` and a branch called `remotes/origin/main`, but not
+  the default branch itself, could make unmerged work read as closed after an ordinary fetch; a tag
+  called `origin/HEAD` stopped every close from confirming. The recorded default branch is now read
+  directly (`git symbolic-ref refs/remotes/origin/HEAD`). This was in `v0.1.50` and earlier for item
+  closes. Found by the fourth review pass of `M6.E16`.
+- **The migration's "shipped" rule also reads what follows the word.** A status cell that leads with
+  shipped and goes on to name work left over ("in progress", "TODO", "blocked", "reverted",
+  "follow-ups", "partially", "deferred", "planned", "not started") is proposed open and flagged, not
+  proposed closed.
+- **`/sig:docs-sweep` asks git again about recorded closes.** An item closed as fixed, or an Epic
+  closed as shipped, whose commit is not on the default branch in your clone is reported
+  (`close-not-on-default-branch`). Nothing else re-checked a record once it said closed, so a close
+  typed into a record by hand was believed.
+- **The two milestone-table parsers that each read one format** (`SIG-132`): with unit records no
+  code reads the rows.
+- **A filled retrospective alone could archive an unfinished Epic** (`SIG-288`): with unit records
+  the record decides.
+- **An Epic whose VERIFICATION was already archived read as open** (`SIG-289`): with unit records the
+  record decides, wherever that file sits. The `/sig:docs-migrate` dry run also no longer says its
+  closed list "comes from retrospectives" — it says what holds a closed unit back.
+- **The message shown when a unit record is hand-edited** lists every command that writes one, not two.
+- **The default branch is no longer guessed when a close is confirmed.** If your clone has no
+  `origin/HEAD` (usual after `git remote add`, never after `git clone`), no close is confirmed, of
+  an item or an Epic. `/sig:ship`, `/sig:resume` and `/sig:docs-sweep` each say so in one line. Run `git remote set-head origin -a` once and re-run. Before, `origin/main` or
+  `origin/master` was assumed, so on a project whose default branch has another name a pushed
+  branch called `main` could confirm a close nobody merged. This applies to item closes on every
+  project, with or without unit records.
+- **Adding unit records to an existing store** prints the one line to add to `WORK.md`'s folder list.
+  The file itself is yours and is not rewritten.
+
+#### Hardening from the last whole-diff review
+- **Signal needs git 2.38 or newer.** Every git and `gh` call Signal makes now tells git not to use
+  a bare-repository layout it finds in the project folder (`safe.bareRepository=explicit`), so files
+  named `HEAD`, `config`, `objects`, `refs` committed into a project cannot run a command. Git
+  older than 2.38 does not know that setting: there Signal starts no git process, its git-backed
+  checks say "Signal needs git 2.38 or newer …", and the commands that write on git's answer
+  (closes, new item IDs, the migrations) refuse. `/sig:doctor` reports the git version.
+- **A commit you pass is checked.** `/sig:ship`'s Epic close and backlog discharge refuse a `commit`
+  that names no commit here, or that more than one commit starts with, and record its full hash.
+  The discharge refuses, as the Epic close does, when HEAD would prove nothing about the work. The
+  refusals no longer offer `commit` as the way around uncommitted work. This holds on every project.
+- **A still-closing item or Epic is told its real reason**: an item not closed, the commit not on
+  the default branch, no recorded default branch (run `git fetch origin`, then
+  `git remote set-head origin -a`), no remote, no remote named `origin`, not a git repository, or a
+  git too old. A merge is advised only when a merge would help.
+- **The generated Epic table refuses two more typed shapes it used to delete**: a row whose first
+  cell is `Epic` or `---`, and a row with a separator typed above the table's header.
+- **The units migration's dry run names every file the run writes**, other milestones' marked files
+  included, and the run stages and reports each (`SIG-310`). A status cell that leads with *shipped*
+  counts as evidence only when nothing follows but a version, a date, a PR or issue number, a
+  hash, *released* or *merged*: `shipped — S2 remaining` and `shipped?` are flagged, not proposed.
+- **The edit guard closes more ways to a record**: look-alike letters (`unitſ`), a hard link, the
+  real path of a symlinked `.planning`, a macOS `/.vol` or `/System/Volumes/Data` address, a
+  dangling link, and `NotebookEdit`.
+- **A branch or remote name with characters a shell acts on is never put in a suggested command**,
+  and is shown only when it is safe to read.
+- **A git that fails is not taken for "no repository" or "no remote".** A new reason, `git-failed`,
+  covers git refusing the folder (unsafe ownership, say) or a repository it cannot read. It is
+  reported in the confirm line, in the sweep and in the hand-confirm refusal, together with what to
+  do. A close cannot be confirmed by hand on `git-failed`. Signal now reads "not a git repository"
+  only when git says so and there is no `.git` at or above the folder. It reads an empty remote list
+  as "no remote" only when git has read the repository's own config. The branch gate no longer
+  switches itself off when git fails.
+- **`/sig:permissions` proposes rules only for commands the prompt files tell the agent to run.** It
+  no longer proposes `gh`, `git bisect`, `git clone` or `git config`, and a `package.json` script
+  name becomes a rule only when it is plainly a name.
+
+#### Known limits
+- With unit records, a finished Epic's narrative leaves `STATE.md` when its close is confirmed — at
+  the next `/sig:docs-sweep` or SHIP after the merge — not at the SHIP that requests the close.
+- If the narrative is kept at that point (the retrospective does not cover it, say), no later sweep,
+  SHIP or `/sig:checkpoint` retries it for an Epic that is no longer current: fix the retrospective,
+  then call `evictEpicNarrative` (`tools/lib/evict.js`).
+- A hold is placed by calling `holdUnit`; there is no slash command for it. Neither is there one to
+  open a unit that is not an Epic ID, drop a unit or edit one: `/sig:docs-archive` names the calls.
+- A pull request merged by squash or rebase does not confirm an Epic's close on its own: the branch
+  commit does not reach the default branch. Re-run `/sig:ship`'s close step on the default branch
+  after the merge (§6.8 gives the steps): it lists the items left closing, and asks again, with
+  the merged commit, for the unit's close and for the items you confirm. Git cannot tell a squashed
+  branch from one nobody merged, so that the merged commit holds an item's fix is your word.
+- On a project with unit records, a unit named only by a row of a milestone table is not proposed by
+  `/sig:docs-migrate --work-store` (the rows are generated there, and not read).
+- While `work/units/` cannot be trusted, nothing lists or writes work items either, until it is fixed.
+- A project without unit records still has the behaviour `SIG-132`, `SIG-288` and `SIG-289` describe.
+
 ## [0.1.50] — 2026-10-10 — other projects can move onto the work store
 
 ### M6.E15 — `/sig:docs-migrate --work-store`

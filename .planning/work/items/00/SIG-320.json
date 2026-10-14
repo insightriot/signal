@@ -1,0 +1,13 @@
+{
+  "id": "SIG-320",
+  "type": "NEW",
+  "title": "ancestryFailure reads a merge-base error as unknown-commit after rev-parse found the commit",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-14T22:42:49.291Z",
+      "by": "Claude (M6.E16 SHIP)"
+    }
+  ]
+}

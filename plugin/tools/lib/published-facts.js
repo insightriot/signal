@@ -27,6 +27,7 @@ import {
 import { retroStatusFromContent, RETRO_STATUS } from './retro-index.js';
 import { isStoreOn } from './work-store.js';
 import { listRecords } from './work-records.js';
+import { unitRecordsOn } from './unit-records.js';
 import { renderBugTally } from './work-views.js';
 
 /**
@@ -402,6 +403,8 @@ const EPIC_ROW = /^\|\s*`?(M\d+(?:\.\d+)*\.E\d+)`?\s*\|\s*([^|]*)\|/;
  *
  * A stub retrospective is NOT closure (`B64`), so completeness is read through
  * `retroStatusFromContent` rather than by the file existing.
+ *
+ * NOT APPLICABLE on a project with unit records (M6.E16 t5.3): see `applicability`.
  */
 export const checkMilestoneStatusVsState = defineCheck({
   id: 'milestone-status-vs-state',
@@ -411,6 +414,27 @@ export const checkMilestoneStatusVsState = defineCheck({
     `Reach: ${describeReach(REACH['milestone-status-vs-state'])}.`,
 
   applicability: (ctx) => {
+    // With unit records (M6.E16 t5.3, AC7.3) the Epic rows are generated from
+    // the records and no code reads them back (`D-M6E16-4`): no milestone file
+    // is opened here. A table that has fallen behind its records is the store
+    // check's `view-stale` finding (`checkRecords`, `work-records.js`).
+    //
+    // A `units/` folder that cannot be trusted is BLIND, not N/A and not a
+    // reason to read the rows: whether they are generated is not known.
+    let unitsOn;
+    try {
+      unitsOn = unitRecordsOn(ctx.baseDir);
+    } catch (err) {
+      return { status: APPLICABILITY.BLIND, reason: err.message };
+    }
+    if (unitsOn) {
+      return {
+        status: APPLICABILITY.NA,
+        reason:
+          'this project has unit records: the Epic rows are generated from them and are not read back — ' +
+          'a stale table is reported by the work-store check as `view-stale`',
+      };
+    }
     const rows = (ctx.files || []).filter((f) => /^MILESTONE-.*\.md$/.test(f));
     for (const f of rows) {
       const c = readIf(join(ctx.planningDir, f));
@@ -423,6 +447,14 @@ export const checkMilestoneStatusVsState = defineCheck({
   },
 
   run: (ctx) => {
+    // Never reached with unit records, or with a `units/` folder that cannot
+    // be trusted (`applicability` answers first); said here too, so the row
+    // parser below is behind the same switch on its own.
+    try {
+      if (unitRecordsOn(ctx.baseDir)) return [];
+    } catch {
+      return [];
+    }
     const current = ctx.state?.current_epic ?? null;
     const out = [];
     for (const f of (ctx.files || []).filter((x) => /^MILESTONE-.*\.md$/.test(x))) {

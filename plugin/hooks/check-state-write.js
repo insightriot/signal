@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// PreToolUse(Edit|Write|MultiEdit) hook — D-E9-8 layer 2.
+// PreToolUse(Edit|Write|MultiEdit|NotebookEdit) hook — D-E9-8 layer 2.
 //
 // Reads the Claude Code hook event JSON from stdin. On a proposed write to
 // .planning/STATE.md it runs two checks with DIFFERENT strictness (the
@@ -20,13 +20,14 @@
 // us anything testable — the core logic is in tools/lib/retrospective.js
 // where unit tests can exercise it directly.
 
-import { readFileSync, realpathSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, isAbsolute, resolve } from 'node:path';
 
 import {
   checkProposedStateWrite,
   checkStateFrontmatterShape,
 } from '../tools/lib/retrospective.js';
+import { isLink, pathCannotExist, pathReadings, realpathLoose, storeAbove } from '../tools/lib/store-above.js';
 
 // Read event JSON from stdin.
 let raw = '';
@@ -49,24 +50,10 @@ try {
 const tool = event?.tool_name;
 const input = event?.tool_input ?? {};
 
-if (tool !== 'Edit' && tool !== 'Write' && tool !== 'MultiEdit') process.exit(0);
+if (tool !== 'Edit' && tool !== 'Write' && tool !== 'MultiEdit' && tool !== 'NotebookEdit') process.exit(0);
 
-// The real path of `abs`, or of its nearest existing ancestor with the rest
-// appended (the file may not exist yet). `abs` itself when nothing resolves.
-function realpathLoose(abs) {
-  const rest = [];
-  let cur = abs;
-  for (;;) {
-    try {
-      return join(realpathSync.native(cur), ...rest);
-    } catch {
-      const parent = dirname(cur);
-      if (parent === cur) return abs;
-      rest.unshift(basename(cur));
-      cur = parent;
-    }
-  }
-}
+// The path the tool would write: NotebookEdit names it `notebook_path`.
+const target = tool === 'NotebookEdit' ? input.notebook_path : input.file_path;
 
 // M6.E13/t5.1 — a v2 work store's records, views, history and WORK.md are
 // written by code, not by hand. The guard is loaded only when the resolved
@@ -74,13 +61,44 @@ function realpathLoose(abs) {
 // is seen (REVIEW loop 1) — mentions `.planning`. An edit anywhere else pays
 // one string test and one realpath; the guard blocks only at
 // `schema_version: 2` and allows on any failure.
-if (typeof input.file_path === 'string') {
+//
+// The test reads look-alike letters as the plain ones (REVIEW r6, as
+// `foldName` in the guard): macOS opens `.planning/work/unitſ` as `units`.
+const mentionsPlanning = (p) => p.normalize('NFKC').toLowerCase().toUpperCase().toLowerCase().includes('.planning');
+
+// `storeAbove` (`tools/lib/store-above.js`): is a folder, or one above it, a
+// project with a work store? Two routes to a guarded file have no `.planning`
+// in the path at all (REVIEW r6): a hard link to a record, and the real path
+// of a `.planning` that is a symlink. The guard finds both from the project,
+// so it is also loaded for any edit made in, or to a file in, a project that
+// has a store. The cost elsewhere is one `existsSync` for each folder above
+// the cwd and above the target.
+
+if (typeof target === 'string') {
   try {
-    const cwd = typeof event.cwd === 'string' ? event.cwd : process.cwd();
-    const abs = resolve(cwd, input.file_path);
-    if (abs.toLowerCase().includes('.planning') || realpathLoose(abs).toLowerCase().includes('.planning')) {
+    // The guard's rule for the cwd (r6.10): the event's when it is absolute,
+    // else this process's. This cwd is what the guard is handed below.
+    const cwd = typeof event.cwd === 'string' && isAbsolute(event.cwd) ? event.cwd : process.cwd();
+    // Both readings of the path (`pathReadings`, `store-above.js`, r6.9),
+    // from that one cwd, as the guard makes them: `abs`, normalised as text, is the
+    // file Claude Code writes; `written`, with its `..` kept, is what a raw
+    // write of the string would hit.
+    const { abs, written } = pathReadings(cwd, target);
+    // A path longer than any file can be opened by names no edit (r6.1): let
+    // it through before a single folder of it is looked at.
+    if (pathCannotExist(abs)) process.exit(0);
+    // Where each reading would land is judged with the guard's own resolver
+    // (`realpathLoose`, r6.7), which follows a dangling link: a link into a
+    // store BELOW the cwd — a monorepo's sub-package, another project — was
+    // judged by the link itself, and the guard was never loaded. And any
+    // target that is itself a link loads it.
+    const loads = (p) => {
+      const real = realpathLoose(p);
+      return isLink(p) || real === null || mentionsPlanning(real) || (real !== abs && storeAbove(dirname(real)));
+    };
+    if (mentionsPlanning(abs) || storeAbove(resolve(cwd)) || storeAbove(dirname(abs)) || loads(abs) || (written !== abs && loads(written))) {
       const { checkWorkWrite } = await import('../tools/lib/work-write-guard.js');
-      const guard = await checkWorkWrite({ filePath: input.file_path, cwd, tool, input });
+      const guard = await checkWorkWrite({ filePath: target, cwd, tool, input });
       if (guard.block) {
         process.stderr.write(`[signal:check-state-write] ${guard.reason}\n`);
         process.exit(2);
@@ -90,9 +108,9 @@ if (typeof input.file_path === 'string') {
     // Fail open: the guard must never be the reason an ordinary edit fails.
   }
 }
-// MultiEdit reaches only the guard above; the STATE.md checks below judge
-// Edit and Write, as before.
-if (tool === 'MultiEdit') process.exit(0);
+// MultiEdit and NotebookEdit reach only the guard above; the STATE.md checks
+// below judge Edit and Write, as before.
+if (tool === 'MultiEdit' || tool === 'NotebookEdit') process.exit(0);
 
 const filePath = input.file_path ?? '';
 // Require a path-boundary (start-of-string or `/`) before `.planning/STATE.md`.

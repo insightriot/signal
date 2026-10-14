@@ -1,0 +1,18 @@
+{
+  "id": "M4.5.E5",
+  "legacy_row": [
+    "**E5 — External validation + launch**",
+    "**✓ shipped 2026-06-06 (v0.1.4)**",
+    "All 4 slices / 9 tasks (launch post, demo script, tester brief + friction log, launch kit, CHANGELOG). v0.1.4 tagged + first GitHub Release; E4's `[Unreleased]` block shipped with it. The outward tester loop (voice pass, recruit ≥3, record demo) remains open — tracked in `M4.5.E5-LAUNCH-KIT.md` §3."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-4.5.md:39: “**✓ shipped 2026-06-06 (v0.1.4)**”); its retrospective is complete (.planning/M4.5.E5-RETROSPECTIVE.md).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

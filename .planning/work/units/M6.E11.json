@@ -1,0 +1,18 @@
+{
+  "id": "M6.E11",
+  "legacy_row": [
+    "`M6.E11`",
+    "**shipped** — `v0.1.43`, 2026-09-30 (PR #263)",
+    "The work-item store, step 1: one file per thing, moved through folders by `/sig:item` (24th command); Epic folders; Signal's own 248 records migrated. 3602 → 4237 tests."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-6.md:33: “**shipped** — `v0.1.43`, 2026-09-30 (PR #263)”); its retrospective is complete (.planning/M6.E11-RETROSPECTIVE.md).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

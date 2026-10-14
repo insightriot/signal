@@ -248,6 +248,8 @@ const READER_MODULES = [
   // REVIEW pass 2: the v1 store's library and its archive mover write the work
   // tree too, so a list parse there would be one on a store-on path.
   'work-ops.js', 'work-store.js', 'archive-tree.js',
+  // M6.E16.S2: the unit record, the second record kind.
+  'unit-record.js', 'unit-records.js',
 ];
 
 // The list-parsing shapes, as they appear in source text. REVIEW pass 2: the
@@ -366,8 +368,8 @@ const isExempt = (hit, text) => EXEMPTIONS.some((e) => {
 });
 
 describe('the ban in source text: no list-parsing literal in the reader modules (AC3.2)', () => {
-  it('scans the reviewed module set: 28 files, all present, legacy-lists.js not among them', () => {
-    expect(READER_MODULES).toHaveLength(28);
+  it('scans the reviewed module set: 30 files, all present, legacy-lists.js not among them', () => {
+    expect(READER_MODULES).toHaveLength(30);
     for (const f of READER_MODULES) expect(existsSync(join(LIB, f)), f).toBe(true);
     expect(READER_MODULES).not.toContain('legacy-lists.js');
   });

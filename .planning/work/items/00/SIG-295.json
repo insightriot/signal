@@ -1,0 +1,27 @@
+{
+  "id": "SIG-295",
+  "type": "BUG",
+  "title": "With unit records, a finished Epic's STATE narrative is not evicted once the next Epic is opened",
+  "theme": "ship",
+  "priority": "P2",
+  "source": "M6.E16 S9",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-12T17:08:57.272Z",
+      "by": "claude (M6.E16 S9)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-12T17:08:57.272Z",
+      "by": "claude (M6.E16 S9)"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-12T17:30:21.321Z",
+      "by": "claude",
+      "reason": "fixed",
+      "proof": "74f77f7b144cfb582d35086a9a88694aa99f556f"
+    }
+  ]
+}

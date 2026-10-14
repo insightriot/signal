@@ -193,8 +193,14 @@ describe('t4.4 — checkClosingTooLong', () => {
         check: 'closing-too-long',
         severity: 'advisory',
         file: recordPath('SIG-6'),
-        message: 'SIG-6 has been closing for 32 days — its fix commit abcdef1 is not confirmed on the default branch. ' +
-          'Merge it, or reopen the item (`/sig:item reopen SIG-6 "<reason>"`) if the fix did not land.',
+        // The fixture project is not a git repository, so since M6.E16 r6 the
+        // advisory says that instead of "Merge it, or reopen the item …" (the
+        // text for a commit that is not on the default branch, pinned in
+        // `tests/close-reasons-unconfirmable.test.js`). Since M6.E16 r7 it also
+        // names the hand-confirm (`tests/close-by-hand.test.js`).
+        message: 'SIG-6 has been closing for 32 days — its close was requested with the commit abcdef1; this project is not a git repository. ' +
+          'Signal confirms a close only against a remote\'s default branch, so it stays closing. ' +
+          'Or ask the person whether to confirm it by hand (`/sig:item confirm SIG-6`).',
       },
     ]);
   });

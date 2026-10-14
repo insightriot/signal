@@ -489,6 +489,14 @@ export function renderResumeBriefing(params = {}) {
     lines.push('');
   }
 
+  // Neither could be checked because git could not be asked (r6.5): one
+  // line, so a silent pass is not read as "in step with history and origin".
+  const notChecked = isStaleResult?.cannotCheck ?? originDriftResult?.cannotCheck;
+  if (notChecked) {
+    lines.push(`⚠ STATE.md was not compared with the work history or with origin: ${notChecked}.`);
+    lines.push('');
+  }
+
   // STATE-vs-world drift (M5.E16 FR3 / D-M5E16-2). ONE line, CATEGORY 3 ONLY.
   //
   // FR3 asked PLAN to decide with a reason, and both sides were real: the

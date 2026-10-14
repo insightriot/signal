@@ -133,7 +133,7 @@
 | SIG-128 | `rejected` | — | **M5.E7's changelog section is invisible to `/sig:update` · **RESOLVED 2026-08-18**** |
 | SIG-130 | `confirmed` | P2 | **Archived phase logs are written but never staged** |
 | SIG-131 | `rejected` | — | **`attention` is undocumented in profile-schema.md** |
-| SIG-132 | `confirmed` | — | **Two mutually-blind milestone Epic-row parsers, and the one feeding the SHIP gate cannot read Milestone 6 at all** |
+| SIG-132 | `closing` | — | **Two mutually-blind milestone Epic-row parsers, and the one feeding the SHIP gate cannot read Milestone 6 at all** |
 | SIG-133 | `confirmed` | P3 | **`transitionPhase` regenerates INDEX.md at phase ENTRY, so INDEX never holds the current phase's own artifact** |
 | SIG-134 | `confirmed` | P3 | **`ROUTE_REVERSIBILITY` is not frozen, and it aliases calibration's own enum** |
 | SIG-135 | `fixed` | P2 | **dischargeBacklogRows is blind to rows nested below h3** |
@@ -147,7 +147,7 @@
 | SIG-251 | `fixed` | P3 | **file-lock held-error understates the wait for a live holder (10x ttl)** |
 | SIG-252 | `fixed` | P3 | **file-lock: a failed stat treats a fresh empty lock as stale** |
 | SIG-254 | `fixed` | P1 | **A plan named PLAN-<unit>.md is left out of its unit, so the archive moves 5 of 6 files and splits the slice** |
-| SIG-255 | `confirmed` | P2 | **Archiving ignores a project's explicit keep-live list, so work held open on purpose is proposed for archive** |
+| SIG-255 | `closing` | P2 | **Archiving ignores a project's explicit keep-live list, so work held open on purpose is proposed for archive** |
 | SIG-257 | `confirmed` | P3 | **/sig:advise hostile-repository hardening — the residue after M6.E12 review pass 3** |
 | SIG-258 | `confirmed` | P2 | **advise digest: milestone files named MILESTONE-M2.9.md are not recognised, so it reports "no milestone file" when there are two** |
 | SIG-259 | `confirmed` | P2 | **advise digest: the vision is found only under ## Vision / ## Problem; GSD-style projects use What This Is / Core Value** |
@@ -156,7 +156,7 @@
 | SIG-262 | `confirmed` | P3 | **advise cannot see a backlog kept in GitHub Issues** |
 | SIG-264 | `confirmed` | P2 | **advise "Other" answer must stay verbatim; summaries go in a separate field** |
 | SIG-265 | `confirmed` | P2 | **isStateStale counts STATE.md-only commits as unreflected work** |
-| SIG-266 | `closing` | P2 | **private-name guard can time out under a full parallel run** |
+| SIG-266 | `fixed` | P2 | **private-name guard can time out under a full parallel run** |
 | SIG-267 | `confirmed` | P2 | **advise digest never reads a roadmap file inside .planning/ — planned milestones vanish from the priorities** |
 | SIG-268 | `confirmed` | P3 | **advisory says "Could not read: nothing" while the digest lists two gaps** |
 | SIG-269 | `confirmed` | P3 | **SIG-146 and SIG-166 link to references/command-taxonomy.md, which moved to plugin/references/** |
@@ -176,8 +176,28 @@
 | SIG-285 | `confirmed` | P3 | **SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'** |
 | SIG-286 | `fixed` | P3 | **/sig:docs-migrate dry run lists a unit's files to move while also saying it "could not evaluate" that unit** |
 | SIG-287 | `confirmed` | P3 | **/sig:docs-sweep dangling-reference flags non-bug IDs like "B3." research-assumption labels as missing bugs** |
-| SIG-288 | `confirmed` | P3 | **/sig:docs-archive shares the retro-only closure default (archive-tree.js senseArchiveTree), so a filled retrospective alone can archive an unfinished Epic** |
-| SIG-289 | `confirmed` | P3 | **An Epic whose VERIFICATION is already in archive/ keeps its STATE narrative and isV3Conformant reads true (resolveClosures lists only top-level .planning/)** |
+| SIG-288 | `closing` | P3 | **/sig:docs-archive shares the retro-only closure default (archive-tree.js senseArchiveTree), so a filled retrospective alone can archive an unfinished Epic** |
+| SIG-289 | `closing` | P3 | **An Epic whose VERIFICATION is already in archive/ keeps its STATE narrative and isV3Conformant reads true (resolveClosures lists only top-level .planning/)** |
 | SIG-292 | `fixed` | P2 | **Work-store migration: a backlog row absorbs a folded <details> block below it, so its evidence check can borrow a sibling's PR reference** |
+| SIG-294 | `confirmed` | P3 | **SHIP's first check accepts a retrospective with a placeholder line, and closeEpic refuses it later in the same SHIP** |
+| SIG-295 | `closing` | P2 | **With unit records, a finished Epic's STATE narrative is not evicted once the next Epic is opened** |
+| SIG-296 | `confirmed` | P3 | **A unit narrative whose eviction was refused at the confirm is never retried** |
+| SIG-297 | `confirmed` | P3 | **Without unit records, an Epic whose VERIFICATION was archived still reads open** |
+| SIG-298 | `confirmed` | P3 | **Narrative eviction knows Epic IDs only; a unit named another way reports nothing to move** |
+| SIG-299 | `confirmed` | P2 | **Work items store and print free text as given; unit records now clean it at both ends** |
+| SIG-300 | `confirmed` | P3 | **A unit's text is cleaned or cut on write with no word to the caller** |
+| SIG-301 | `confirmed` | P3 | **One record over a limit, written past the writer, stops every write to the store** |
+| SIG-302 | `confirmed` | P3 | **`npm run lint` does not cover tests/; the Closed section of EPICS.md is in ID order** |
+| SIG-303 | `confirmed` | P3 | **Three timing tests fail under machine load and pass alone** |
+| SIG-304 | `confirmed` | P3 | **A slow pattern at milestones.js:229 is now reached by readMilestoneRows** |
+| SIG-305 | `closing` | P3 | **The edit hook misses a record written by its real path when .planning is a link** |
+| SIG-306 | `confirmed` | P3 | **Three older refusals print project text through JSON.stringify, not shownName** |
+| SIG-307 | `confirmed` | P3 | **Small notes from M6.E16 REVIEW pass 3 that no round took up** |
+| SIG-308 | `confirmed` | P3 | **The v1-to-v2 migration manifest names a guessed default branch beside closes that no longer use the guess** |
+| SIG-309 | `confirmed` | P3 | **Six Low findings from the security review of M6.E16 pass 4** |
+| SIG-310 | `closing` | P3 | **The units migration dry run does not list the lines it replaces in a marked milestone file other than the current one** |
+| SIG-311 | `confirmed` | P3 | **Suggestions from M6.E16 REVIEW pass 4 and the narrow review that no round took up** |
+| SIG-312 | `confirmed` | P2 | **/sig:permissions proposes any git subcommand a prompt file names, some of which run a command** |
+| SIG-313 | `confirmed` | P3 | **A project unpacked from an archive with a hostile .git/config runs its commands under any git call** |
 
-*0 needs-triage · 54 confirmed · 1 closing · 121 closed (176 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 67 confirmed · 7 closing · 122 closed (196 total) · closes more than 30 days before the newest event are in `work/history/`*

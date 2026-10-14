@@ -1,0 +1,18 @@
+{
+  "id": "M4.5.E3",
+  "legacy_row": [
+    "**E3 — Public-facing docs rewrite**",
+    "**✓ shipped 2026-05-24 (released in v0.1.3 on 2026-05-31)**",
+    "Audience reframe to self + peers (D-E3-11). 2 slices, 10 tasks. New: tools/audit-network-calls.js + README Privacy section + Compat table + docs/map link + README Open Source Origins rewrite + SECURITY.md + references/facts.md + tests/cross-file-consistency.test.js. 384 → 397 tests. CONTRIBUTING.md + issue templates + docs/compatibility.md deferred per D-E3-11 (see FUTURE-IDEAS.md \"E3 contribution scaffolding — deferred\")."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-4.5.md:37: “**✓ shipped 2026-05-24 (released in v0.1.3 on 2026-05-31)**”). Also found: its retrospective is a stub (.planning/M4.5.E3-RETROSPECTIVE.md).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

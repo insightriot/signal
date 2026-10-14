@@ -41,6 +41,56 @@ failed the way warnings fail.
 So closure is a **gate**, not a note: a unit that is not provably closed is **not moved**, and the
 run says so rather than moving it with a caveat attached.
 
+**With unit records** (`.planning/work/units/` exists), a unit that has a record is closed when its
+**record** is closed — a retrospective, a verdict line or where its VERIFICATION sits does not decide
+it. A closed unit that is **held** is declined: the dry run prints it as `[held]` with the hold
+reason, and `--apply` moves nothing of it. A closed unit that is still the **current** unit
+(`current_epic` in `STATE.md`) is declined too, as `[current]`: it is closed, and its files stay until `current_epic` names another unit — opening an Epic (`/sig:discuss --epic`) does that; no
+command sets it to another unit that is not an Epic. A unit with no record is judged from its files, as the rest of this page describes.
+
+## Holding a unit
+
+A hold says "this unit is closed and its files stay live" — work that shipped and is dormant, say.
+It is a recorded event on the unit's record, placed and released through the library; no slash
+command does it. Place or release one only when the user asks.
+
+- **Hold:** `holdUnit(baseDir, id, {reason, by})` from `tools/lib/unit-records.js`. The reason is
+  required — a blank one is refused and nothing is written — and it is printed beside `[held]` every
+  time this command declines the unit. `by` is who placed it. A unit already held is refused. A hold
+  can be placed before the unit closes.
+- **Release:** `releaseUnit(baseDir, id, {by})` from `tools/lib/unit-records.js`. Refused on a unit
+  that is not held. The next run may then move the unit's files.
+
+Each writes one event to `.planning/work/units/<ID>.json` and regenerates the views; commit them.
+
+### Opening, dropping, reopening or editing a unit by hand
+
+`/sig:discuss --epic` opens an Epic, and `/sig:ship` closes the current unit whatever its name — an
+Epic, or a unit that is not an Epic ID (`phase-12`) once it has a record. Any other change to a unit,
+and a unit that will never ship, has no command: its unit record is written through the library. Do
+any of these only when the user asks.
+
+- **A record for each unit that has none:** `/sig:docs-migrate --work-store`. On a project that
+  already has unit records it proposes a record for every unit the project's files name that has
+  none, and changes no record that exists. Prefer it to the calls below when a unit has files.
+- **Open one unit:** `openUnit(baseDir, id, {title, summary, by})` from `tools/lib/unit-records.js`.
+  `title` and `summary` are optional. Refused when the unit already has a unit record, when the ID
+  cannot be a unit ID, and when there is no `work/units/` folder.
+- **Close as dropped:**
+  `closeUnit(baseDir, id, {reason: 'dropped', words, by})` from `tools/lib/unit-records.js` — the
+  unit stopped, or its work went elsewhere. `words` is required: say where it went, or why it
+  stopped. A `shipped` close is refused here: only `/sig:ship` requests one, and it is confirmed once
+  its commit is on the default branch. Refused (`OPEN_ITEMS`, nothing written) while the unit has an item
+  that is not closed: close or move the items first (`/sig:item close <id>`, `/sig:item move <id> T`).
+- **Reopen:** `reopenUnit(baseDir, id, {reason, by})` from `tools/lib/unit-records.js` — a closed
+  unit record, or one whose close has been requested, back to open. The reason is required.
+- **Edit:** `editUnit(baseDir, id, {changes, by})` from `tools/lib/unit-records.js`, where `changes`
+  is `{title, summary, migration_note}` — any of the three, `null` to remove one. The unit record's
+  status and hold do not change.
+
+Without unit records there is no hold available: both calls refuse and write nothing, and a closed
+unit is moved. Unit records are added with `/sig:docs-migrate --work-store`.
+
 ## Workflow
 
 ### 1. Pre-flight
@@ -61,7 +111,9 @@ comes back as a **reported refusal** (`stateReadable: false` plus `reason`), bec
 dies cannot tell you why it archived nothing.
 
 Every unit lands in **exactly one** of `plan` or `refusals`, and every refusal carries the reason
-its resolver produced.
+its resolver produced. With unit records there is a third list, `settled`: units whose record is
+closed and that have nothing left in `.planning/` to move. They were not declined, so they are
+printed on their own line, not among the refusals.
 
 ### 3. Render
 
@@ -99,6 +151,7 @@ nothing is re-proposed.
 | "Archive a unit whose closure I could not read — it's probably done." | No. `cannotDetermine` is a refusal. **9 of 30** terminal artifacts carried no readable verdict when M5.E18 measured the real corpus (2026-08-04 — inherited figure, not re-derived here); guessing at that rate is how the retired tool proposed archiving live work. |
 | "A retrospective file exists, so the unit is closed." | No — a **stub** retro still holding `[FILL IN]` is not closure (`B64`). The file existing is not the unit being finished, and this is the refusal most likely to surprise, so it is reported with its reason rather than silently. |
 | "Skip the ungrouped line when it's zero — it's noise." | No. An empty collection must stay distinguishable from one that was never computed (`B39`). It renders at 0. |
+| "It is closed, so move it — the hold is only a note." | No. A held unit's files stay where they are until the hold is released (`releaseUnit`, `tools/lib/unit-records.js`). Print the reason; do not work around it. |
 | "Archive the current unit; it looks finished." | No. The unit named by `STATE.md`'s `current_epic` is mid-flight by definition. Without a readable `STATE.md` there is no way to know which unit that is, which is why an unreadable STATE refuses *everything*. |
 | "Move files first, rewrite links after — if a link rewrite fails, the moves are already good." | No. `applyArchiveTree` owns the ordering (move + read-back assert, then rewrite). Do not reimplement it here. |
 | "Test it against a real project to be sure." | **Never.** Use `examples/sandbox/`, which exists for exactly this. Production repos are not test beds, `--apply` or not. |
@@ -106,7 +159,7 @@ nothing is re-proposed.
 ## Gate: Archive Complete
 
 - [ ] Dry-run wrote nothing (verify: no `.planning/` mtime changed without `--apply`)
-- [ ] Every unit appears exactly once — in the plan or in the refusals
+- [ ] Every unit appears exactly once — in the plan, in the refusals, or (unit records only) in `settled`
 - [ ] Every refusal shows its reason
 - [ ] The ungrouped count rendered, including at zero
 - [ ] On `--apply`: a second run is a clean no-op

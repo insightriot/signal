@@ -27,11 +27,11 @@ import { readFileSync, readdirSync, realpathSync, existsSync, lstatSync, mkdirSy
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
-import { acquireLock } from './file-lock.js';
-import { assertRealInsidePlanning } from './path-confine.js';
-import { scrubSensitive } from './scrub.js';
-import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
-import { RECORD_SCHEMA, parseRecord, serializeRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
+import { RECORD_DEFAULT_BRANCH_HINT } from './branch-guard.js';
+import { GIT_FAILED, gitCannotAsk, gitUnusableReason } from './git-env.js';
+import { echoed, shownName } from './printable-text.js';
+import { asWorkStoreError, WorkStoreError } from './work-errors.js';
+import { ITEM_KIND, RECORD_SCHEMA, parseRecord, checkEvents, deriveStatus, epicOf } from './work-record.js';
 import { bodyDirFor, convertV1Item } from './work-convert.js';
 import { ITEM_ID_RE } from './work-item.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -46,11 +46,33 @@ import {
   STORE_OFF_MESSAGE,
   WORK_DIR,
   WORK_FILE,
-  WORK_LOCK_REL,
-  WORK_LOCK_TTL_MS,
 } from './work-store.js';
-import { parseFrontmatter } from './state.js';
-import { hasRemote, resolveDefaultBranch } from './branch-guard.js';
+import { EPIC_ID_STRICT_RE, parseFrontmatter } from './state.js';
+// A cycle, by design, as with work-views.js: unit-records.js imports this
+// module's store check. Neither uses the other's bindings while it is being
+// evaluated. (The sync readers below — `listClosing`, `probeCloses` — need it
+// without an `await`.)
+import * as unitLib from './unit-records.js';
+import { listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
+// The write helpers every record kind shares. `regenerateAfter` comes in under
+// another name because this module keeps its own, which names the views.
+import {
+  ancestryFailure,
+  commitsStartingWith,
+  confine,
+  defaultBranchRef,
+  existsNoFollow,
+  gitEnv,
+  readRecordFile,
+  recordWriter,
+  regenerateAfter as regenerateWith,
+  runGit,
+  sensitivePending,
+  shallowProbe,
+  withEvent,
+  withWorkLock,
+  writePlanned,
+} from './work-write.js';
 
 const ITEMS_DIR = 'items';
 const ITEMS_REL = `.planning/${WORK_DIR}/${ITEMS_DIR}`;
@@ -211,7 +233,7 @@ function walkItems(baseDir, opts = {}) {
   for (const b of entriesOf(itemsAbs)) {
     const bucketRel = `${ITEMS_REL}/${b.name}`;
     if (b.isSymbolicLink()) {
-      out.broken.push({ id: null, path: bucketRel, code: 'link', error: `${bucketRel} ${LINK_REFUSED}` });
+      out.broken.push({ id: null, path: bucketRel, code: 'link', error: `${shownName(bucketRel)} ${LINK_REFUSED}` });
       continue;
     }
     if (!b.isDirectory()) {
@@ -226,18 +248,18 @@ function walkItems(baseDir, opts = {}) {
       const isJson = f.name.endsWith('.json');
       const id = idFromName(f.name, '.json') ?? idFromName(f.name, '.md');
       if (f.isSymbolicLink()) {
-        if (isJson || id !== null) out.broken.push({ id, path: rel, code: 'link', error: `${rel} ${LINK_REFUSED}` });
+        if (isJson || id !== null) out.broken.push({ id, path: rel, code: 'link', error: `${shownName(rel)} ${LINK_REFUSED}` });
         continue;
       }
       if (!f.isFile()) {
         if (opts.strict && (isJson || id !== null)) {
-          out.broken.push({ id, path: rel, code: 'not-regular', error: `${rel} is not a regular file — a record or body is a plain file` });
+          out.broken.push({ id, path: rel, code: 'not-regular', error: `${shownName(rel)} is not a regular file — a record or body is a plain file` });
         }
         continue;
       }
       if (isJson) {
         if (id === null) {
-          out.broken.push({ id: null, path: rel, code: 'path', error: `${rel}: file name is not a record name (KEY-n.json)` });
+          out.broken.push({ id: null, path: rel, code: 'path', error: `${shownName(rel)}: file name is not a record name (KEY-n.json)` });
         } else {
           out.records.push({ id, rel, abs: join(itemsAbs, b.name, f.name) });
         }
@@ -255,20 +277,38 @@ const keyOf = (id) => id.slice(0, id.lastIndexOf('-'));
 // One record file → an entry, or {broken}. Never throws for content. A
 // broken entry's `code` says what kind (`path`, `unreadable`, `invalid`,
 // `events`), for `checkRecords`.
-function readOne(file, key, body) {
+//
+// `epicOnly` (M6.E16 v2.1, AC6.4): the project has no unit records — there is
+// no `work/units/` folder — so an event may name an Epic ID only, as the schema
+// itself said on `v0.1.50`; a record naming any other unit is `invalid`, as it
+// was then. The callers take it from `unitRecordsOn`, which throws on a folder
+// that is there and cannot be trusted (REVIEW pass 1, C-I4): that fault is the
+// folder's, and no record is read, or blamed, under it.
+function readOne(file, key, body, epicOnly) {
   const fail = (error, code) => ({ broken: { id: file.id, path: file.rel, code, error } });
   if (keyOf(file.id) !== key) return fail(`${file.rel}: key ${keyOf(file.id)} is not this store's key (${key})`, 'path');
   const expected = recordPath(file.id);
   if (file.rel !== expected) return fail(`${file.rel}: ${file.id} belongs in ${expected.slice(0, expected.lastIndexOf('/'))}`, 'path');
 
-  let text;
+  let read;
   try {
-    text = readFileSync(file.abs, 'utf-8');
+    read = readRecordFile(file.abs);
   } catch (err) {
     return fail(`${file.rel}: could not be read (${err.code ?? err.message})`, 'unreadable');
   }
-  const { record, errors } = parseRecord(text, { path: file.rel });
+  if (read.tooLarge) return fail(`${file.rel} ${read.tooLarge}`, 'unreadable');
+  const { record, errors } = parseRecord(read.text, { path: file.rel });
   if (errors.length > 0) return fail(errors.join('; '), 'invalid');
+  if (epicOnly) {
+    const notEpic = record.events
+      .map((e, i) => (typeof e.epic === 'string' && !EPIC_ID_RE.test(e.epic)
+        ? `${file.rel}: events[${i}].epic does not match ${EPIC_ID_RE.source} (got ${echoed(e.epic)})` : null))
+      .filter((e) => e !== null);
+    if (notEpic.length > 0) {
+      return fail(`${notEpic.join('; ')} — not an Epic ID, and this project has no unit records `
+        + `(there is no ${UNITS_REL}/ folder), so an item can name an Epic only`, 'invalid');
+    }
+  }
   if (record.id !== file.id) return fail(`${file.rel}: file name says ${file.id} but the record id is ${record.id}`, 'path');
   const eventErrors = checkEvents(record);
   if (eventErrors.length > 0) return fail(`${file.rel}: ${eventErrors.map((e) => e.message).join('; ')}`, 'events');
@@ -285,6 +325,9 @@ function readOne(file, key, body) {
 }
 
 function listV2(baseDir, key, opts) {
+  // Asked before any record is read: a `units/` folder that cannot be trusted
+  // refuses the listing, and no item record is blamed for it.
+  const epicOnly = !unitRecordsOn(baseDir);
   const walked = walkItems(baseDir, { strict: opts.strict });
   const broken = [...walked.broken];
   const brokenBody = new Map(broken.filter((b) => b.id && b.path.endsWith('.md')).map((b) => [b.id, b]));
@@ -295,7 +338,7 @@ function listV2(baseDir, key, opts) {
       if (brokenBody.has(file.id)) body = { broken: brokenBody.get(file.id) };
       else body = walked.bodies.get(file.id) ?? null;
     }
-    const r = readOne(file, key, body);
+    const r = readOne(file, key, body, epicOnly);
     if (r.entry) records.push(r.entry);
     // A refused body is already in `broken` from the walk.
     else if (!(body?.broken && r.broken.path === body.broken.path)) broken.push(r.broken);
@@ -342,7 +385,7 @@ function firstAddedDates(baseDir, key, execFn) {
       'git',
       ['log', '--all', '--no-renames', '--diff-filter=A', '--date=short', '--format=%x00%ad', '--name-only', '--',
         `:(glob).planning/**/${key}-*.md`],
-      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024 },
+      { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024, env: gitEnv(baseDir) },
     ));
   } catch {
     return dates;
@@ -405,7 +448,9 @@ const byNumber = (a, b) => numberOf(a.id) - numberOf(b.id) || (a.path < b.path ?
  * `broken` by ID and path, with the reason. A record is broken when its JSON
  * does not parse or validate, its file name, ID, key or bucket disagree
  * (AC1.1), its event history does not fold (`checkEvents`), or it — or its
- * body, when bodies are read — is a symbolic link.
+ * body, when bodies are read — is a symbolic link. On a project with no unit
+ * records, a record whose event names a unit that is not an Epic ID is broken
+ * too (`invalid`), as on `v0.1.50` (M6.E16 v2.1, AC6.4).
  *
  * On a v1 store every item file is read through `convertV1Item` (Decision 1),
  * and `path` is the v1 file. An item with no created date of its own takes the
@@ -481,7 +526,7 @@ export function findByLegacyId(baseDir, oldId) {
   }
   if (hits.length === 0) {
     const unread = broken.length > 0
-      ? ` (${broken.length} record${broken.length === 1 ? '' : 's'} could not be read, so ${broken.length === 1 ? 'its' : 'their'} old IDs are unknown: ${broken.map((b) => b.id ?? b.path).join(', ')})`
+      ? ` (${broken.length} record${broken.length === 1 ? '' : 's'} could not be read, so ${broken.length === 1 ? 'its' : 'their'} old IDs are unknown: ${broken.map((b) => b.id ?? shownName(b.path)).join(', ')})`
       : '';
     throw new WorkStoreError('NOT_FOUND', `no item has the old ID ${want}${unread}`);
   }
@@ -505,7 +550,7 @@ function readV2One(baseDir, key, id) {
   let body = null;
   if (b?.isSymbolicLink()) body = { broken: { path: bodyRel, error: `${bodyRel} ${LINK_REFUSED}` } };
   else if (b?.isFile()) body = { rel: bodyRel, abs: join(baseDir, bodyRel) };
-  const r = readOne({ id, rel, abs: join(baseDir, rel) }, key, body);
+  const r = readOne({ id, rel, abs: join(baseDir, rel) }, key, body, !unitRecordsOn(baseDir));
   return r.entry ? { records: [r.entry], broken: [] } : { records: [], broken: [r.broken] };
 }
 
@@ -526,7 +571,6 @@ function readV2One(baseDir, key, id) {
 
 const ID_GIT_PATHS = ['.planning/work/', '.planning/archive/'];
 const ID_TREE_DIRS = [join('.planning', WORK_DIR), join('.planning', 'archive')];
-const GIT_MAX_BUFFER = 256 * 1024 * 1024;
 
 // Where the cutover relocates the v1 item files (PLAN t7.3), repo-root-relative.
 export const RELOCATED_V1_REL = '.planning/archive/pre-work-store-v2';
@@ -554,10 +598,6 @@ function maxFromNames(names, key) {
   return max;
 }
 
-function runGit(baseDir, args, execFn) {
-  return String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: GIT_MAX_BUFFER }));
-}
-
 /**
  * Allocate the next item ID on a v1 or v2 store. Reads only; writing the
  * record is the caller's job, under the `work` lock.
@@ -573,6 +613,12 @@ export function nextIdV2(baseDir, opts = {}) {
   let max = 0;
   for (const rel of ID_TREE_DIRS) max = Math.max(max, maxFromNames(walkFiles(join(baseDir, rel)), key));
 
+  // "Git could not be asked" is not "outside a repo" (r6.5): read as one, an
+  // ID another branch already holds was handed out.
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) {
+    throw new WorkStoreError('IO', `cannot allocate an ID: the IDs on other branches could not be read (${cannotAsk}). Nothing was written.`);
+  }
   if (!isGitRepo(baseDir, execFn)) return { id: `${key}-${max + 1}`, basis: 'worktree-only' };
 
   try {
@@ -663,20 +709,11 @@ export function findDuplicateIds(baseDir) {
 
 const WORK_LOCK_LABEL = 'work store';
 
+// The shared lock (`work-write.js`), over this store's check and its views.
+// The views are named here, at call time: `work-write.js` imports neither this
+// module nor `work-views.js`.
 async function withWorkLockV2(baseDir, label, opts, fn) {
-  const { key } = assertWritable(baseDir);
-  let lock;
-  try {
-    lock = await acquireLock(join(baseDir, WORK_LOCK_REL), { label, ttlMs: WORK_LOCK_TTL_MS });
-  } catch (err) {
-    throw lockFailure(err);
-  }
-  try {
-    viewsWritableOrRefuse(baseDir, opts);
-    return await fn({ baseDir, key });
-  } finally {
-    await lock.released();
-  }
+  return withWorkLock(baseDir, label, { assertWritable, beforeWrite: () => viewsWritableOrRefuse(baseDir, opts) }, fn);
 }
 
 // Before any record is written (SIG-280 (6), M6.E14): if the views would
@@ -690,32 +727,7 @@ function viewsWritableOrRefuse(baseDir, opts = {}) {
 }
 
 async function regenerateAfter(handle, done, opts) {
-  const run = opts.regenerate ?? regenerateViews;
-  try {
-    await run(handle.baseDir);
-  } catch (err) {
-    throw viewsNotRegenerated(done, err);
-  }
-}
-
-// Every sensitive-data hit in `texts`, each field scanned on its own (v1
-// `work-ops.js` `scrubTexts`). Non-strings and empty strings are skipped.
-function scrubTexts(texts) {
-  const hits = [];
-  for (const text of texts) {
-    if (typeof text === 'string' && text !== '') hits.push(...scrubSensitive(text).hits);
-  }
-  return hits;
-}
-
-// The sensitive-data gate (v1 `sensitivePending`, unchanged): with a hit and no
-// `acknowledgeSensitive`, nothing is written and the caller must ask.
-function sensitivePending(texts, opts) {
-  const sensitiveHits = scrubTexts(texts);
-  if (sensitiveHits.length > 0 && !opts.acknowledgeSensitive) {
-    return { aborted: 'sensitive-data-pending', sensitiveHits };
-  }
-  return null;
+  return regenerateWith(handle, done, opts.regenerate ?? regenerateViews, viewsNotRegenerated);
 }
 
 const nowIso = () => new Date().toISOString();
@@ -725,70 +737,19 @@ function pruneUndefined(obj) {
   return obj;
 }
 
-// A record's bytes, validated and with a legal history — or a throw, before
-// anything is written. Shape errors are SCHEMA; an event not legal where it
-// stands (the transition table) is CONFLICT.
-function recordText(record) {
-  const text = serializeRecord(record);
-  const errors = checkEvents(record);
-  if (errors.length > 0) {
-    throw new WorkStoreError('CONFLICT', `${record.id}: ${errors.map((e) => e.message).join('; ')} — nothing was written.`);
-  }
-  return text;
-}
-
 function entryOf(record) {
   return { id: record.id, path: recordPath(record.id), record, status: deriveStatus(record), epic: epicOf(record) };
 }
 
-// A record as it is on disk now, under the lock: {entry, text}.
-function readForWrite(handle, id) {
-  assertItemId(id);
-  const found = readV2One(handle.baseDir, handle.key, id);
-  if (found === null) throw new WorkStoreError('NOT_FOUND', `${id}: no such item`);
-  if (found.broken.length > 0) throw new WorkStoreError('SCHEMA', found.broken.map((b) => b.error).join('; '));
-  const entry = found.records[0];
-  return { entry, text: readFileSync(join(handle.baseDir, entry.path), 'utf-8') };
-}
-
-// `assertRealInsidePlanning`, as a WorkStoreError (v1 `confine`).
-function confine(baseDir, abs) {
-  try {
-    assertRealInsidePlanning(baseDir, abs, 'work store write');
-  } catch (err) {
-    throw asWorkStoreError(err, typeof err?.code === 'string' ? 'IO' : 'CONFLICT');
-  }
-}
-
-function existsNoFollow(abs) {
-  try {
-    lstatSync(abs);
-    return true;
-  } catch (err) {
-    if (err.code === 'ENOENT') return false;
-    throw asWorkStoreError(err, 'IO');
-  }
-}
-
-// One existing record, changed: its new bytes written atomically over the old.
-async function writeRecord(handle, next, opts) {
-  const text = recordText(next);
-  const abs = join(handle.baseDir, recordPath(next.id));
-  confine(handle.baseDir, abs);
-  try {
-    await atomicWrite(abs, text, { renameFn: opts.renameFn });
-  } catch (err) {
-    throw asWorkStoreError(err, 'IO');
-  }
-  return entryOf(next);
-}
-
-// Append one event (and apply `fields`) to the record `id` holds now.
-function withEvent(current, event, fields = {}) {
-  const next = { ...current.record, ...fields, events: [...current.record.events, event] };
-  for (const k of Object.keys(fields)) if (fields[k] === undefined || fields[k] === null) delete next[k];
-  return next;
-}
+// The shared write helpers (`work-write.js`), bound to the item kind.
+const { recordText, readForWrite, writeRecord, writeRecords } = recordWriter({
+  kind: ITEM_KIND,
+  pathOf: recordPath,
+  entryOf,
+  assertId: assertItemId,
+  readOne: readV2One,
+  noun: 'item',
+});
 
 // One new item, built and checked, nothing written.
 function planNew(handle, id, spec) {
@@ -1021,31 +982,87 @@ function epicEvent(type, move) {
   return pruneUndefined({ type, at: move.at ?? nowIso(), by: move.by, epic: move.epic });
 }
 
+// The unit-record library, when this project has unit records (M6.E16 t3.3);
+// null when it has none — the caller then does what it did before unit
+// records. A `units/` folder that cannot be trusted throws (`unitRecordsOn`):
+// every caller is a writer, and refuses.
+async function unitRecords(baseDir) {
+  return unitRecordsOn(baseDir) ? unitLib : null;
+}
+
 // An archived Epic is finished: nothing is queued or started in it, as
 // `reopenItem` refuses to pull an item out of one (REVIEW pass 1). A malformed
 // Epic is left to the schema check, which names it.
-function refuseArchivedEpic(baseDir, id, epic, verb) {
-  if (typeof epic !== 'string' || !EPIC_ID_RE.test(epic)) return;
-  if (isEpicArchived(baseDir, epic)) {
-    throw new WorkStoreError('CONFLICT', `${id}: Epic ${epic} is archived (${ARCHIVED_EPICS_REL}/${epic}/) — `
-      + `nothing was ${verb}. An archived Epic is finished; pick a live one.`);
+//
+// With unit records (M6.E16 AC1.4) the unit named — an Epic ID or the
+// project's own unit name — must have a record, and the record must not be
+// closed (a held unit is closed). Read under the store's lock, which unit
+// writers take too. The archive folder is not read.
+//
+// Without unit records the rule is the one from before them: an Epic ID
+// only, and not an archived one. The schema's rule for the name is the unit
+// ID's since t3.3, so the Epic-ID rule is applied here.
+async function refuseUnavailableEpic(baseDir, id, epic, verb) {
+  if (typeof epic !== 'string') return;
+  const units = await unitRecords(baseDir);
+  if (units === null) {
+    if (!EPIC_ID_RE.test(epic)) {
+      throw new WorkStoreError('SCHEMA', `invalid work record: ${id}: epic does not match ${EPIC_ID_RE.source} `
+        + `(got ${JSON.stringify(epic)}) — nothing was ${verb}.`);
+    }
+    if (isEpicArchived(baseDir, epic)) {
+      throw new WorkStoreError('CONFLICT', `${id}: Epic ${epic} is archived (${ARCHIVED_EPICS_REL}/${epic}/) — `
+        + `nothing was ${verb}. An archived Epic is finished; pick a live one.`);
+    }
+    return;
+  }
+  if (!UNIT_NAME_RE.test(epic)) return;
+  const closure = units.unitClosure(baseDir, epic);
+  if (closure === 'no-record') {
+    throw new WorkStoreError('NOT_FOUND', `${id}: there is no unit ${epic} (no record ${units.UNITS_REL}/${epic}.json) — `
+      + `nothing was ${verb}. An Epic's record is created when it is opened (/sig:discuss --epic). For any other unit: `
+      + '/sig:docs-migrate --work-store adds a record for each unit this project\'s files name that has none; or open one by hand '
+      + 'with openUnit(baseDir, id, {title, by}) in tools/lib/unit-records.js (see /sig:docs-archive, "Holding a unit").');
+  }
+  if (closure !== 'open') {
+    throw new WorkStoreError('CONFLICT', `${id}: ${epic} is closed (${units.UNITS_REL}/${epic}.json) — `
+      + `nothing was ${verb}. A closed unit is finished; pick an open one.`);
+  }
+  // `unitClosure` reads a *closing* unit as open: its files stay. For items it
+  // is not open — its close was requested over the items it had then (REVIEW
+  // pass 1, C-I1, `D-M6E16-21`).
+  if (units.getUnit(baseDir, epic).status === 'closing') {
+    throw new WorkStoreError('CONFLICT', `${id}: ${closingUnitRefusal(units, epic)} — nothing was ${verb}. ${REOPEN_UNIT_FIRST}`);
   }
 }
+
+// A unit whose close is requested and not yet confirmed takes no item: said
+// the same way by `queueItem`, `startItem` and `reopenItem`.
+const closingUnitRefusal = (units, unit) => `${unit}'s close has been requested (${units.UNITS_REL}/${unit}.json reads closing), `
+  + 'and a closing unit takes no new item';
+const REOPEN_UNIT_FIRST = 'Pick an open unit — or, to take the close back, reopen the unit first: '
+  + 'reopenUnit(baseDir, id, {reason, by}) in tools/lib/unit-records.js (see /sig:docs-archive, "Holding a unit"), then ask for the close again at SHIP.';
 
 /**
  * Queue an item for an Epic: a `queued` event (legal from T, Q, P). Refused
  * (CONFLICT) when the Epic is archived (`isEpicArchived`).
  *
+ * On a project with unit records (M6.E16 AC1.4) `epic` is any unit that has
+ * a record — an Epic ID or the project's own unit name — and the refusals
+ * are read from the record: NOT_FOUND when the unit has none, CONFLICT when
+ * it is closed (held or not) or *closing* — its close was requested over the
+ * items it had then. The archive folder is not read.
+ *
  * @param {string} baseDir
  * @param {string} id
- * @param {{epic: string, by: string, at?: string}} move — `epic` is an Epic ID (`M6.E13`)
+ * @param {{epic: string, by: string, at?: string}} move — `epic` is an Epic ID (`M6.E13`); with unit records, a unit ID
  * @param {object} [opts] — as `newItems`'s
  * @returns {Promise<object>} the entry
  */
 export async function queueItem(baseDir, id, move = {}, opts = {}) {
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
-    refuseArchivedEpic(baseDir, id, move.epic, 'queued');
+    await refuseUnavailableEpic(baseDir, id, move.epic, 'queued');
     const out = await writeRecord(handle, withEvent(current, epicEvent('queued', move)), opts);
     await regenerateAfter(handle, `${id} was queued for ${move.epic}`, opts);
     return out;
@@ -1054,7 +1071,8 @@ export async function queueItem(baseDir, id, move = {}, opts = {}) {
 
 /**
  * Start an item in an Epic: a `started` event (legal from T, Q). Refused
- * (CONFLICT) when the Epic is archived (`isEpicArchived`).
+ * (CONFLICT) when the Epic is archived (`isEpicArchived`). On a project with
+ * unit records, as `queueItem`: any unit with a record that is open.
  *
  * @param {string} baseDir
  * @param {string} id
@@ -1065,7 +1083,7 @@ export async function queueItem(baseDir, id, move = {}, opts = {}) {
 export async function startItem(baseDir, id, move = {}, opts = {}) {
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
-    refuseArchivedEpic(baseDir, id, move.epic, 'started');
+    await refuseUnavailableEpic(baseDir, id, move.epic, 'started');
     const out = await writeRecord(handle, withEvent(current, epicEvent('started', move)), opts);
     await regenerateAfter(handle, `${id} was started in ${move.epic}`, opts);
     return out;
@@ -1116,7 +1134,19 @@ function assertProof(id, proof) {
 // an enclosing one included, the same one the confirm-time checks ask. With no
 // repository it cannot say, and the request is accepted; `ancestryFailure`
 // checks again at confirm time.
+//
+// When git could not be ASKED the request is refused: a short proof (r6.5)
+// may name two commits or none, and a full hash (r6.6) may name no commit
+// here at all — a close recorded on either rests on an answer nobody got.
+export function refuseUncheckedProof(baseDir, id, proof) {
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk === null) return;
+  throw new WorkStoreError('CONFIG', `${id}: whether the proof ${proof} names one commit in this repository could not be checked: `
+    + `${cannotAsk}. Nothing was written.`);
+}
+
 function assertUnambiguousProof(baseDir, id, proof, opts = {}) {
+  refuseUncheckedProof(baseDir, id, proof);
   if (proof.length >= 40) return;
   const n = commitsStartingWith(baseDir, proof, opts.execFn ?? execFileSync);
   if (n > 1) {
@@ -1226,34 +1256,6 @@ function planClose(handle, close, batch) {
   return { next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) };
 }
 
-// Write several changed records, all or nothing: on a failure each record
-// already written is put back to its old bytes. A put-back that fails is named.
-async function writeRecords(handle, planned, opts) {
-  const done = [];
-  try {
-    for (const p of planned) {
-      confine(handle.baseDir, p.abs);
-      await atomicWrite(p.abs, p.text, { renameFn: opts.renameFn });
-      done.push(p);
-    }
-  } catch (err) {
-    const left = [];
-    for (const p of done.reverse()) {
-      try {
-        await atomicWrite(p.abs, p.oldText);
-      } catch {
-        left.push(p.next.id);
-      }
-    }
-    const wrapped = asWorkStoreError(err, 'IO', left.length
-      ? `the write failed and ${left.join(', ')} could not be put back: `
-      : '');
-    wrapped.leftChanged = left;
-    throw wrapped;
-  }
-  return planned.map((p) => entryOf(p.next));
-}
-
 /**
  * Close items directly: ONE `work` lock, every close built and checked before
  * any is written, all or nothing (a failure part-way puts back every record
@@ -1296,7 +1298,10 @@ export async function closeItems(baseDir, closes, opts = {}) {
  * Reopen a closed or closing item: a `reopened` event, back to T, the Epic
  * cleared. Refused when the item's Epic is archived
  * (`.planning/archive/epics/<Epic>/` exists): that Epic is finished, and
- * pulling an item out would change what the archive says it contained.
+ * pulling an item out would change what the archive says it contained. On a
+ * project with unit records the refusal is read from the unit's record
+ * instead — closed, held or not, or *closing* (its close is requested) — and
+ * a unit with no record refuses nothing.
  *
  * Sensitive data: `reason` (v1 `reopenItem`'s gate).
  *
@@ -1317,7 +1322,23 @@ export async function reopenItem(baseDir, id, reopen = {}, opts = {}) {
   if (pending) return pending;
   return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
     const current = readForWrite(handle, id).entry;
-    if (current.epic !== null && isEpicArchived(baseDir, current.epic)) {
+    const units = current.epic === null ? null : await unitRecords(baseDir);
+    if (units !== null) {
+      // With unit records (M6.E16 t3.3) the unit's record says whether it is
+      // closed; the archive folder is not read. No record: nothing says so.
+      const closure = units.unitClosure(baseDir, current.epic);
+      if (closure === 'closed' || closure === 'held') {
+        throw new WorkStoreError('CONFLICT', `${id} belongs to ${current.epic}, which is closed `
+          + `(${units.UNITS_REL}/${current.epic}.json) — nothing was reopened. Capture a new item and link it to ${id} instead.`);
+      }
+      // A *closing* unit, by the same rule (REVIEW pass 1, C-I1): its close
+      // was requested with this item closed, so the item is not pulled out.
+      if (closure === 'open' && units.getUnit(baseDir, current.epic).status === 'closing') {
+        throw new WorkStoreError('CONFLICT', `${id} belongs to ${current.epic}, whose close has been requested `
+          + `(${units.UNITS_REL}/${current.epic}.json reads closing) — nothing was reopened. Capture a new item and link it to ${id} `
+          + 'instead, or reopen the unit first: reopenUnit(baseDir, id, {reason, by}) in tools/lib/unit-records.js.');
+      }
+    } else if (current.epic !== null && isEpicArchived(baseDir, current.epic)) {
       throw new WorkStoreError('CONFLICT', `${id} belongs to Epic ${current.epic}, which is archived `
         + `(${ARCHIVED_EPICS_REL}/${current.epic}/) — nothing was reopened. Capture a new item and link it to ${id} instead.`);
     }
@@ -1333,7 +1354,13 @@ export async function reopenItem(baseDir, id, reopen = {}, opts = {}) {
 // an Epic may close is a query over every record, not a walk of its folder.
 // Moving the Epic folder stays in v1 `closeEpic` (`work-ops.js`) until S7.
 
-const EPIC_ID_RE = new RegExp(RECORD_SCHEMA.$defs.epic_id.pattern, 'u');
+// An Epic ID (`M6.E13`): what `isEpicArchived` and `closeEpicCheck` take, and
+// the only name an item may be queued to on a project with no unit records.
+// `state.js`'s rule, not the schema's: since M6.E16 t3.3 the schema's
+// `epic_id` is the wider unit-ID rule (`D-M6E16-5`).
+const EPIC_ID_RE = EPIC_ID_STRICT_RE;
+// What an item's event may name on a project with unit records: a unit ID.
+const UNIT_NAME_RE = new RegExp(RECORD_SCHEMA.$defs.epic_id.pattern, 'u');
 
 function assertEpicId(epicId) {
   if (typeof epicId !== 'string' || !EPIC_ID_RE.test(epicId)) {
@@ -1341,11 +1368,18 @@ function assertEpicId(epicId) {
   }
 }
 
+// With unit records any unit closes, not only an Epic (M6.E16 r7): the ID is
+// then checked against the unit-ID rule. An Epic ID passes both.
+function assertClosableId(epicId, unitRecords) {
+  if (unitRecords === true && typeof epicId === 'string' && UNIT_NAME_RE.test(epicId)) return;
+  assertEpicId(epicId);
+}
+
 /**
  * Whether an Epic is archived: `.planning/archive/epics/<Epic>/` exists (not
  * followed if it is a link). `reopenItem`, `queueItem` and `startItem` refuse
- * on it; `closeEpicCheck` reports it. The ID is checked against the schema's Epic pattern before it
- * becomes part of a path.
+ * on it (on a project with no unit records); `closeEpicCheck` reports it. The ID is checked against
+ * the Epic-ID pattern (`EPIC_ID_STRICT_RE`, `state.js`) before it becomes part of a path.
  *
  * @param {string} baseDir
  * @param {string} epicId
@@ -1373,18 +1407,41 @@ export function isEpicArchived(baseDir, epicId) {
  * store is broken: a broken record's Epic cannot be known, and passing over it
  * could close an Epic with an open item in it.
  *
+ * Two options, for the caller on a project with unit records (`closeEpic`'s
+ * unit path); neither is passed anywhere else, and without them nothing here
+ * differs from before:
+ * - `unitRecords: true` words the refusal for a close that moves nothing
+ *   ("Nothing was written"), and says how an item left *closing* by a squash
+ *   or rebase merge gets listed; it also takes any unit ID, not only an Epic
+ *   ID (M6.E16 r7: a unit named `phase-11` closes too), and `archived` is
+ *   false for one that is not an Epic;
+ * - `rerequest` is about an item that is *closing* on a commit that is
+ *   certainly not in HEAD's history (`notInHead`) — a candidate to have its
+ *   close asked again (`rerequestEpicClose`). An item git cannot answer for is
+ *   never one: it is open.
+ *   `rerequest: true` lists the candidates and counts none of them as open.
+ *   `rerequest: [{id, proof}]` is the ones a person named, each with the
+ *   commit it was shown closing on: a candidate that is not named is open
+ *   (OPEN_ITEMS); a named item that is not a candidate, or that is closing on
+ *   another commit now, refuses (CONFLICT).
+ *
  * @param {string} baseDir
  * @param {string} epicId
- * @param {{execFn?: Function}} [opts] — as `listRecords`'s; also runs the
- *   ancestry check
- * @returns {{epic: string, items: string[], closingOnBranch: string[], archived: boolean}}
+ * @param {{execFn?: Function, unitRecords?: boolean, rerequest?: true|Array<{id: string, proof: string}>}} [opts] — `execFn` as
+ *   `listRecords`'s; also runs the ancestry check
+ * @returns {{epic: string, items: string[], closingOnBranch: string[], archived: boolean,
+ *   rerequest?: Array<{id: string, title: string|null, proof: string, why: 'not-in-history'|'unknown-commit'}>}}
  *   `items`: the Epic's records, by number, every one closed or closing on the
  *   branch; `closingOnBranch`: those still *closing* (confirmed after the
- *   merge); `archived`: as `isEpicArchived`
- * @throws {WorkStoreError} SCHEMA (not an Epic ID, or a broken record), OPEN_ITEMS, CONFIG
+ *   merge); `archived`: as `isEpicArchived`; `rerequest` (only with
+ *   `opts.rerequest`): the candidates — all of them, or the named ones — each
+ *   with the commit it is closing on and `why` it is not in HEAD's history
+ *   (`not-in-history`: git has the commit and HEAD does not descend from it;
+ *   `unknown-commit`: no commit of that name is in this clone)
+ * @throws {WorkStoreError} SCHEMA (not an Epic ID, or a broken record), OPEN_ITEMS, CONFLICT (a named item), CONFIG
  */
 export function closeEpicCheck(baseDir, epicId, opts = {}) {
-  assertEpicId(epicId);
+  assertClosableId(epicId, opts.unitRecords);
   const { records, broken } = listRecords(baseDir, opts);
   if (broken.length) {
     throw new WorkStoreError('SCHEMA', `${epicId} cannot be checked — a broken record's Epic is unknown. `
@@ -1393,22 +1450,108 @@ export function closeEpicCheck(baseDir, epicId, opts = {}) {
   const mine = records.filter((r) => r.epic === epicId);
   const execFn = opts.execFn ?? execFileSync;
   const closingOnBranch = [];
+  const named = Array.isArray(opts.rerequest) ? opts.rerequest : null;
+  const candidates = [];
   let onHead;
+  let offHead;
   const open = mine.filter((r) => {
     if (r.status === 'C') return false;
     if (r.status !== 'closing') return true;
     onHead ??= headAncestry(baseDir, execFn);
-    if (!onHead(latestRequest(r.record)?.proof)) return true;
+    const proof = latestRequest(r.record)?.proof;
+    if (!onHead(proof)) {
+      if (opts.rerequest !== true && named === null) return true;
+      offHead ??= notInHead(baseDir, execFn);
+      const why = offHead(proof);
+      if (why === null) return true;
+      candidates.push({ id: r.id, title: r.record.title ?? null, proof, why });
+      // Listed, or named by a person: not open. A candidate nobody named is.
+      return named !== null && !named.some((n) => n?.id === r.id);
+    }
     closingOnBranch.push(r.id);
     return false;
   });
+  // What was named must be what is there now: the caller runs this again under
+  // the store's lock, so an item that moved since it was shown refuses here.
+  for (const n of named ?? []) {
+    const now = candidates.find((c) => c.id === n?.id);
+    if (now === undefined) {
+      throw new WorkStoreError('CONFLICT', `${epicId}: ${echoed(n?.id)} was named to have its close asked again, and it is not an item of this Epic `
+        + 'that is closing on a commit outside this branch\'s history. Nothing was written. Re-run without the list to see the items as they are now.');
+    }
+    if (now.proof !== n.proof) {
+      throw new WorkStoreError('CONFLICT', `${epicId}: ${now.id} was named as closing on ${echoed(n.proof)}, and it is closing on ${now.proof} now. `
+        + 'Nothing was written. Re-run without the list to see the items as they are now.');
+    }
+  }
   if (open.length) {
     const lines = open.map((r) => `  ${r.id} (status ${r.status})${r.record.title ? ` — ${r.record.title}` : ''}`);
+    // With unit records nothing moves at a close, and an item left closing by
+    // a squash or rebase merge has a way out that the folder close never had.
+    const closing = opts.unitRecords === true && open.some((r) => r.status === 'closing');
+    const squashed = !closing ? ''
+      : named !== null
+        ? ' An item closing on a commit that is not in this branch\'s history has its close asked again only when a person names it as part of '
+          + 'the merged pull request; one that was not named is open.'
+        : ' For an item still closing on a commit that never reached this branch (the pull request was merged by squash or rebase): re-running '
+          + 'this on the default branch after the merge, with a clean tree, lists each such item, so a person can say which were in the merge.';
     throw new WorkStoreError('OPEN_ITEMS', `${epicId} has ${open.length} open item${open.length === 1 ? '' : 's'} `
       + `in it — close each (\`/sig:item close\`; a closing item closes when confirmCloses finds its commit) `
-      + `or triage it out of the Epic, then re-run. Nothing was moved:\n${lines.join('\n')}`);
+      + `or triage it out of the Epic, then re-run.${squashed} Nothing was ${opts.unitRecords === true ? 'written' : 'moved'}:\n${lines.join('\n')}`);
   }
-  return { epic: epicId, items: mine.map((r) => r.id), closingOnBranch, archived: isEpicArchived(baseDir, epicId) };
+  return {
+    // A unit that is not an Epic has no archive folder (M6.E16 r7).
+    epic: epicId, items: mine.map((r) => r.id), closingOnBranch, archived: EPIC_ID_RE.test(epicId) && isEpicArchived(baseDir, epicId),
+    ...(opts.rerequest === true ? { rerequest: candidates } : {}),
+    ...(named !== null ? { rerequest: candidates.filter((c) => named.some((n) => n.id === c.id)) } : {}),
+  };
+}
+
+/**
+ * Would HEAD, taken as the proof of an Epic's close, say nothing about the
+ * Epic (REVIEW pass 1, C-I2, `D-M6E16-21`)? Yes when BOTH hold: `head` is
+ * already an ancestor of the remote's default branch
+ * (`refs/remotes/origin/<default>`, `confirmCloses`' ref), and the project
+ * has uncommitted or untracked changes. HEAD is then a commit from before
+ * that work, and the next confirm step would find it on the default branch
+ * and call the Epic closed with its work in nobody's history.
+ *
+ * No: a clean tree (on the default branch after a merge, HEAD is the merge —
+ * the recovery when a branch commit never landed); a HEAD that is not on the
+ * default branch (the normal SHIP, on a branch); and whenever git cannot
+ * answer — not a repository, no remote, an ancestry
+ * question git cannot settle, a status that fails. `git status` is asked about the project's
+ * folder only (`-- .`, from `baseDir`), so another package's changes in the
+ * same repository do not count. Reads only; never fetches.
+ *
+ * One more yes: there is a remote and its default branch is not recorded in
+ * this clone (`defaultBranchRef` answers `no-default-branch`), and the
+ * project has uncommitted or untracked changes. Whether `head` is already on
+ * the default branch cannot be told then, and a close requested on it would be
+ * confirmed as soon as `git remote set-head origin -a` records the branch.
+ * A clean tree is still a no.
+ *
+ * Call it BEFORE taking the store's lock: the lock is a file under the
+ * project and would itself read as an untracked change.
+ *
+ * @param {string} baseDir
+ * @param {string} head — a commit hash (HEAD's)
+ * @param {{execFn?: Function}} [opts]
+ * @returns {{ref: string}|{ref: null}|null} the default-branch ref `head` is already on; `ref: null` when
+ *   the default branch is not recorded and so nothing can say; or null
+ */
+export function headProvesNothing(baseDir, head, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  const target = defaultBranchRef(baseDir, execFn);
+  if (target.ref === undefined && target.reason !== 'no-default-branch') return null;
+  if (target.ref !== undefined && ancestryFailure(baseDir, head, target.ref, execFn, shallowProbe(baseDir, execFn)) !== null) return null;
+  let status;
+  try {
+    status = runGit(baseDir, ['status', '--porcelain', '--untracked-files=all', '--', '.'], execFn);
+  } catch {
+    return null;
+  }
+  return status.trim() === '' ? null : { ref: target.ref ?? null };
 }
 
 // `proof => boolean`: is this proof a commit in the current HEAD? Fail-closed —
@@ -1422,18 +1565,265 @@ function headAncestry(baseDir, execFn) {
     && ancestryFailure(baseDir, proof, 'HEAD', execFn, isShallow) === null;
 }
 
-// A lazy, memoised `git rev-parse --is-shallow-repository` (false on failure).
-function shallowProbe(baseDir, execFn) {
-  let shallow;
-  return () => {
-    if (shallow === undefined) {
-      try {
-        shallow = runGit(baseDir, ['rev-parse', '--is-shallow-repository'], execFn).trim() === 'true';
-      } catch {
-        shallow = false;
-      }
-    }
-    return shallow;
+// `proof => string|null`: is this proof CERTAINLY not a commit in the current
+// HEAD's history, and why? A reason only when git says so: `not-in-history` —
+// the commit is in this repository and `merge-base --is-ancestor` answers no;
+// `unknown-commit` — in a clone that is not shallow, no commit of that name is
+// here at all (every ancestor of HEAD is). Null whenever git cannot answer: no
+// repository, a shallow clone, an invalid or ambiguous proof, a failure. The
+// opposite of `headAncestry` is not this: "not shown to be in HEAD" includes
+// "cannot tell".
+function notInHead(baseDir, execFn) {
+  if (!isGitRepo(baseDir, execFn)) return () => null;
+  const isShallow = shallowProbe(baseDir, execFn);
+  return (proof) => {
+    if (typeof proof !== 'string' || !COMMIT_RE.test(proof)) return null;
+    const why = ancestryFailure(baseDir, proof, 'HEAD', execFn, isShallow);
+    if (why === 'not-on-default-branch') return 'not-in-history';
+    return why === 'unknown-commit' ? why : null;
+  };
+}
+
+/**
+ * Is this commit already on the remote's default branch — the ref
+ * `confirmCloses` checks against (`refs/remotes/origin/<default>`)? False when
+ * it is not, and whenever git cannot answer. Reads only; never fetches.
+ *
+ * @param {string} baseDir
+ * @param {string} sha — a commit hash
+ * @param {{execFn?: Function}} [opts]
+ * @returns {boolean}
+ */
+export function onDefaultBranch(baseDir, sha, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  if (typeof sha !== 'string' || !COMMIT_RE.test(sha)) return false;
+  const target = defaultBranchRef(baseDir, execFn);
+  if (target.ref === undefined) return false;
+  return ancestryFailure(baseDir, sha, target.ref, execFn, shallowProbe(baseDir, execFn)) === null;
+}
+
+// ── Asking again for a close whose commit never landed (REVIEW pass 2) ──────
+//
+// A pull request merged by squash or rebase leaves every close that was
+// requested on the branch pointing at a commit the default branch will never
+// hold: the item stays *closing* for ever. The way out is to ask again with a
+// commit that did land. An item's close is asked again ONLY when the commit
+// it is closing on is certainly not in HEAD's history — a proof that HEAD can
+// reach is never replaced — and only with a full hash that names a commit
+// here.
+//
+// It is three events, all real and all kept, as a unit's re-request is two:
+// `reopened` (its reason names both commits), then the `queued` or `started`
+// that puts the item back in the unit it was in (a reopen takes an item out of
+// its unit), then the new `close_requested`. No event replaces a proof.
+
+const FULL_COMMIT_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
+
+// The new proof of a re-request: a full hash, naming a commit in this repository.
+function assertFullCommit(baseDir, what, proof, execFn) {
+  if (typeof proof !== 'string' || !FULL_COMMIT_RE.test(proof)) {
+    throw new WorkStoreError('SCHEMA', `${what}: a close is asked again only with a full commit hash — 40 or 64 lowercase hex characters `
+      + `(got ${echoed(typeof proof === 'string' ? proof.slice(0, 80) : proof)}). Use \`git rev-parse <commit>\`. Nothing was written.`);
+  }
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) {
+    throw new WorkStoreError('CONFIG', `${what}: whether ${proof} is a commit in this repository could not be checked: ${cannotAsk}. `
+      + 'Nothing was written.');
+  }
+  let full = null;
+  try {
+    full = runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${proof}^{commit}`], execFn).trim().toLowerCase();
+  } catch {
+    full = null;
+  }
+  if (full !== proof) {
+    throw new WorkStoreError('SCHEMA', `${what}: ${proof} is not a commit in this repository (or git could not be asked), so a close cannot be `
+      + 'asked again with it. Nothing was written.');
+  }
+}
+
+// One item's re-request, built and checked under the lock, nothing written.
+// `offHead`: `notInHead`'s.
+function planRerequest(handle, id, { proof, by, at = nowIso() }, offHead) {
+  const { entry, text } = readForWrite(handle, id);
+  if (entry.status !== 'closing') {
+    throw new WorkStoreError('CONFLICT', `${id}: no close is outstanding (the item is ${entry.status === 'C' ? 'closed' : `at ${entry.status}`}) — `
+      + 'nothing was written. A close is asked again only while an earlier request is waiting.');
+  }
+  const events = entry.record.events;
+  const at0 = events.findLastIndex((e) => e.type === 'close_requested');
+  const previous = events[at0].proof;
+  if (previous === proof) throw new WorkStoreError('CONFLICT', `${id}: its close was already requested with ${proof} — nothing was written.`);
+  if (!offHead(previous)) {
+    throw new WorkStoreError('CONFLICT', `${id}: it is closing on ${echoed(previous)}, and that commit is in this branch's history (or git cannot say `
+      + 'that it is not) — a close is asked again only when its commit never reached the branch, as after a squash or rebase merge. Nothing was written.');
+  }
+  // Where the item stood when the earlier request was made: a reopen takes it
+  // out of its unit, so it is put back the way it was in.
+  const before = { ...entry.record, events: events.slice(0, at0) };
+  const was = deriveStatus(before);
+  const reason = `the close was requested again with the commit ${proof}; the earlier request named ${previous}, which never reached this branch`;
+  let next = withEvent(entry, { type: 'reopened', at, by, reason });
+  if (entry.epic !== null && entry.epic !== undefined) {
+    next = withEvent({ record: next }, epicEvent(was === 'P' ? 'started' : 'queued', { at, by, epic: entry.epic }));
+  }
+  next = withEvent({ record: next }, { type: 'close_requested', at, by, reason: 'fixed', proof });
+  return { next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path), previous };
+}
+
+/**
+ * Ask again for the close of items that are *closing* on a commit that never
+ * reached this branch (a squash or rebase merge), with a commit that did:
+ * ONE `work` lock, every request built and checked before any is written, all
+ * or nothing, then ONE `regenerate`.
+ *
+ * Refused, with nothing written: a `proof` that is not a full hash (40 or 64
+ * hex) or does not name a commit in this repository; an item that is not
+ * *closing*; one already closing on `proof`; and one whose outstanding commit
+ * is in HEAD's history, or that git cannot answer for (no repository, a
+ * shallow clone) — a proof that can be reached is never replaced. The same
+ * item twice is refused.
+ *
+ * Each item gets three events: `reopened`, the `queued` or `started` that
+ * keeps it in its unit, and the new `close_requested`. It reads *closing* on
+ * `proof`, in the unit it was in; `confirmCloses` closes it once `proof` is on
+ * the default branch.
+ *
+ * @param {string} baseDir
+ * @param {Array<{id: string, proof: string, by: string, at?: string}>} requests
+ * @param {object} [opts] — as `newItems`'s
+ * @returns {Promise<Array<object>>} the entries, in order, each with `previous_proof`
+ * @throws {WorkStoreError} SCHEMA, CONFLICT, NOT_FOUND, CONFIG, LOCKED, IO
+ */
+export async function rerequestCloses(baseDir, requests, opts = {}) {
+  if (!Array.isArray(requests) || requests.length === 0) {
+    throw new WorkStoreError('SCHEMA', 'rerequestCloses: pass at least one request — nothing was written.');
+  }
+  const ids = requests.map((r) => r?.id);
+  const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
+  if (twice.length) {
+    throw new WorkStoreError('SCHEMA', `rerequestCloses: ${[...new Set(twice)].join(', ')} named more than once — nothing was written.`);
+  }
+  const execFn = opts.execFn ?? execFileSync;
+  assertWritable(baseDir);
+  const checked = new Set();
+  for (const r of requests) {
+    if (checked.has(r?.proof)) continue;
+    checked.add(r?.proof);
+    assertFullCommit(baseDir, r?.id, r?.proof, execFn);
+  }
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
+    const offHead = notInHead(handle.baseDir, execFn);
+    const planned = requests.map((r) => planRerequest(handle, r.id, r, offHead));
+    const out = await writeRecords(handle, planned, opts);
+    await regenerateAfter(handle, `the close of ${ids.join(', ')} was requested again`, opts);
+    return out.map((entry, i) => ({ ...entry, previous_proof: planned[i].previous }));
+  });
+}
+
+/**
+ * Ask for an Epic's close — again, or for the first time — together with the
+ * re-request of the items of it that are *closing* on a commit that never
+ * reached this branch and that a person named: the recovery after a pull
+ * request merged by squash or rebase, run on the default branch (`closeEpic`,
+ * `work-ops.js`, is the one caller). ONE take of the store's lock and ONE write, all or nothing: the
+ * items' re-requests (`rerequestCloses`' rule and events) and the unit's
+ * close request (`planUnitCloseRequest`, `unit-records.js` — two events when
+ * it was already closing, one when it was open), then ONE `regenerate`.
+ *
+ * `opts.gate` runs under the lock before anything is read here and returns
+ * the items to ask again (`closeEpicCheck`'s `rerequest`, for a list of named
+ * items); what it throws is the refusal.
+ *
+ * @param {string} baseDir
+ * @param {string} epicId
+ * @param {{proof: string, by: string, at?: string, pr?: string, release?: string}} request — `proof`: a full commit hash
+ * @param {{gate: (handle: object) => Array<{id: string}>, execFn?: Function, renameFn?: Function, regenerate?: Function}} opts
+ * @returns {Promise<{unit: object, previous: string|null, items: string[]}>} `unit`: the unit's entry, now
+ *   *closing* on `proof`; `previous`: the commit it was closing on before, or null when it was open;
+ *   `items`: the items whose close was asked again
+ * @throws {WorkStoreError} as `rerequestCloses`, the gate's own, and CONFIG when the project has no unit records
+ */
+export async function rerequestEpicClose(baseDir, epicId, request = {}, opts = {}) {
+  // With unit records any unit ID is taken (M6.E16 r7); without, the ID is
+  // refused as before, ahead of the refusal for having none.
+  let on = false;
+  try {
+    on = unitRecordsOn(baseDir);
+  } catch {
+    // a `units/` folder that cannot be trusted: `unitRecords` below refuses it
+  }
+  assertClosableId(epicId, on);
+  const execFn = opts.execFn ?? execFileSync;
+  const { proof, by, at = nowIso() } = request;
+  assertFullCommit(baseDir, epicId, proof, execFn);
+  const units = await unitRecords(baseDir);
+  if (units === null) {
+    throw new WorkStoreError('CONFIG', `${epicId}: this project has no unit records (${UNITS_REL}/ does not exist) — nothing was written.`);
+  }
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
+    const again = await opts.gate(handle);
+    const offHead = notInHead(handle.baseDir, execFn);
+    const planned = again.map((r) => planRerequest(handle, r.id, { proof, by, at }, offHead));
+    const unit = units.planUnitCloseRequest(handle, epicId, { proof, by, at, pr: request.pr, release: request.release });
+    await writePlanned(handle, [...planned, unit], opts);
+    const ids = planned.map((p) => p.next.id);
+    await regenerateAfter(handle, `${epicId} is closing (its close was requested with ${proof})`
+      + (ids.length > 0 ? `, and the close of ${ids.join(', ')} was requested again` : ''), opts);
+    return { unit: units.getUnit(handle.baseDir, epicId), previous: unit.previous, items: ids };
+  });
+}
+
+// Reasons `ancestryFailure` gives when git has answered: the commit is not on
+// the default branch, or no commit of that name is in this clone.
+const PROOF_NOT_THERE = new Set(['not-on-default-branch', 'unknown-commit']);
+
+/**
+ * Ask git again about closes already recorded: every item closed as `fixed`,
+ * and every unit closed as `shipped`, whose proof is a commit hash. A proof
+ * that is words (a close recorded by a migration) is not a claim about a
+ * commit and is not asked about.
+ *
+ * Reads local refs only; nothing is written. `notThere` is empty whenever
+ * git cannot answer: no repository, no remote, a default branch this clone
+ * does not record, a shallow clone, an ambiguous proof.
+ *
+ * @param {string} baseDir
+ * @param {{execFn?: Function}} [opts]
+ * @returns {{branch: string|null, notThere: Array<{id: string, path: string, proof: string, failure: string, byHand?: string|null}>}}
+ *   `failure`: `not-on-default-branch` or `unknown-commit` — which of the two git gave
+ *   `byHand`: present when the close was confirmed by hand — the reason recorded then (`git_reason`)
+ *   `branch`: the ref asked about, as `origin/<default>`, or null when there is none
+ * @throws {WorkStoreError} as `listRecords`, and for a `units/` folder that cannot be trusted
+ */
+export function probeClosedProofs(baseDir, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  const closes = [];
+  // A close a person confirmed by hand is asked about too (M6.E16 r7.1): the
+  // two fields are text in a record and prove nothing, and where there really
+  // is no remote no ref is found below, so nothing is said. `byHand` carries
+  // the reason it was confirmed by hand, for the words.
+  const byHand = (e) => (e.confirmed_by === undefined ? {} : { byHand: e.git_reason ?? null });
+  for (const r of listRecords(baseDir, opts).records) {
+    if (r.status !== 'C') continue;
+    const e = r.record.events.findLast((x) => x.type === 'closed');
+    if (e?.reason === 'fixed') closes.push({ id: r.id, path: recordPath(r.id), proof: e.proof, ...byHand(e) });
+  }
+  for (const u of unitRecordsOn(baseDir) ? listUnits(baseDir).units : []) {
+    if (u.status === 'closed' && u.close?.reason === 'shipped') closes.push({ id: u.id, path: u.path, proof: u.close.proof, ...byHand(u.close) });
+  }
+  const asked = closes.filter((c) => typeof c.proof === 'string' && COMMIT_RE.test(c.proof));
+  if (asked.length === 0) return { branch: null, notThere: [] };
+  const target = defaultBranchRef(baseDir, execFn);
+  if (target.ref === undefined) return { branch: null, notThere: [] };
+  const isShallow = shallowProbe(baseDir, execFn);
+  return {
+    branch: target.ref.slice('refs/remotes/'.length),
+    // `failure` is kept (r7.2): "not in this history" and "not merged" are
+    // different findings, and the words depend on which git gave.
+    notThere: asked
+      .map((c) => ({ ...c, failure: ancestryFailure(baseDir, c.proof, target.ref, execFn, isShallow) }))
+      .filter((c) => PROOF_NOT_THERE.has(c.failure)),
   };
 }
 
@@ -1450,102 +1840,6 @@ const CONFIRM_BY = 'confirmCloses';
 
 const latestRequest = (record) => record.events.findLast((e) => e.type === 'close_requested');
 
-// The ref a confirmed commit must be an ancestor of, or why there is none.
-// The REMOTE ref (`refs/remotes/origin/<branch>`), not the local branch: a
-// local `main` can hold commits nobody merged. The ref is built here from a
-// fixed prefix, so it cannot begin with `-`.
-function defaultBranchRef(baseDir, execFn) {
-  if (!isGitRepo(baseDir, execFn)) return { reason: 'not-a-repo' };
-  const remote = hasRemote(baseDir, { execFn });
-  if (remote === null) return { reason: 'git-failed' };
-  if (remote === false) return { reason: 'no-remote' };
-  const branch = resolveDefaultBranch(baseDir, { execFn });
-  if (branch === null) return { reason: 'no-default-branch' };
-  const ref = `refs/remotes/origin/${branch}`;
-  try {
-    runGit(baseDir, ['rev-parse', '--verify', '--quiet', ref], execFn);
-  } catch {
-    return { reason: 'no-default-branch' };
-  }
-  return { ref };
-}
-
-// How many commit-like objects `prefix` abbreviates — commits, and tag objects
-// that lead to a commit, which is what git counts when it resolves
-// `<prefix>^{commit}`: two sharing the prefix make git call it ambiguous.
-// 0 when git cannot say.
-function commitsStartingWith(baseDir, prefix, execFn) {
-  let objects;
-  try {
-    objects = runGit(baseDir, ['rev-parse', `--disambiguate=${prefix}`], execFn).split('\n').map((l) => l.trim()).filter(Boolean);
-  } catch {
-    return 0;
-  }
-  // Each listed object once, counted when it is a commit or a tag (M6.E14
-  // REVIEW pass 2: counting commits only accepted a proof git itself calls
-  // ambiguous, which then could never confirm). Trees and blobs are not counted.
-  // Two are enough to answer.
-  let n = 0;
-  for (const o of new Set(objects)) {
-    try {
-      const type = runGit(baseDir, ['cat-file', '-t', '--end-of-options', o], execFn).trim();
-      // A tag counts only when it leads to a commit: git ignores one that
-      // points at a blob or a tree when it resolves `<prefix>^{commit}` (REVIEW pass 3).
-      if (type === 'commit') n += 1;
-      else if (type === 'tag') {
-        runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${o}^{commit}`], execFn);
-        n += 1;
-      }
-    } catch {
-      // not inspectable: not counted
-    }
-    if (n > 1) break;
-  }
-  return n;
-}
-
-// null when `sha` is an ancestor of `ref`; otherwise why not. `sha` has
-// already matched COMMIT_RE, so it is bare lowercase hex and never an option
-// (`--end-of-options` says so to git as well).
-//
-// The proof is resolved to a full SHA FIRST, and only that SHA is checked:
-// git resolves `<name>^{commit}` as a branch or tag before it tries an
-// abbreviated object id, so a ref named `deadbee` would otherwise stand in for
-// a commit (the M6.E13 VERIFY AC7.2 finding). A resolved SHA that does not
-// start with the proof means the proof named a ref → `proof-names-a-ref`.
-//
-// A short proof that more than one commit starts with → `ambiguous-proof`,
-// checked FIRST (SIG-276, M6.E14): a branch or tag named the shared prefix
-// makes `rev-parse` resolve the ref instead of failing, and the commit it
-// points at does start with the prefix — so without this check the proof
-// confirmed although it names two commits.
-function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
-  if (sha.length < 40 && commitsStartingWith(baseDir, sha, execFn) > 1) return 'ambiguous-proof';
-  let full;
-  try {
-    full = runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${sha}^{commit}`], execFn)
-      .trim().toLowerCase();
-  } catch {
-    // In a shallow clone a cut-off commit is simply absent, so it cannot be known.
-    return isShallow() ? 'shallow' : 'unknown-commit';
-  }
-  if (!full.startsWith(sha.toLowerCase())) return 'proof-names-a-ref';
-  try {
-    execFn('git', ['merge-base', '--is-ancestor', full, ref], {
-      cwd: baseDir,
-      stdio: ['ignore', 'ignore', 'ignore'],
-    });
-    return null;
-  } catch (err) {
-    // In a shallow clone a missing commit and a cut-off history look the same
-    // as "not an ancestor", so the answer is that it cannot be known.
-    if (isShallow()) return 'shallow';
-    if (err?.status === 1) return 'not-on-default-branch';
-    if (err?.status === 128) return 'unknown-commit';
-    return 'git-failed';
-  }
-}
-
 /**
  * Confirm fixed closes: for each record deriving *closing*, its latest
  * `close_requested` proof is checked as a bare commit hash (lowercase hex, 7
@@ -1553,28 +1847,46 @@ function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
  * with `git rev-parse --verify <sha>^{commit}` to a full SHA that must start
  * with the proof (a ref named like a hash is not a commit), then checked with
  * `git merge-base --is-ancestor <full sha> refs/remotes/origin/<default>`.
- * The default branch is `resolveDefaultBranch`'s (origin/HEAD, else the one of
- * main/master that exists); local refs only, never a fetch.
+ * The default branch is the one `origin/HEAD` names (`defaultBranchRef`); with
+ * `origin/HEAD` unset it is not guessed, and every close stays *closing* with
+ * the reason `no-default-branch`. Local refs only, never a fetch.
  *
  * Exit 0 → a `closed` event (reason fixed, the request's proof copied, by
  * `confirmCloses`), written through the library under ONE `work` lock, each
  * record re-read under the lock and confirmed only if it is still closing on
  * the same proof; then ONE `regenerate`. Anything else leaves the item
- * closing, with a reason: `invalid-proof`, `not-a-repo`, `no-remote`,
- * `no-default-branch`, `not-on-default-branch`, `unknown-commit`, `proof-names-a-ref`,
+ * closing, with a reason: `invalid-proof`, `git-too-old` (git older than 2.38, or
+ * none Signal could run: nothing was asked), `not-a-repo`, `no-remote`,
+ * `no-origin-remote` (remotes, none of them named `origin`), `no-default-branch`, `not-on-default-branch`, `unknown-commit`, `proof-names-a-ref`,
  * `ambiguous-proof` (a short id more than one commit starts with), `shallow`, `git-failed`,
- * or `changed` (it moved while git was asked).
+ * or `changed` (it moved while git was asked). A unit has one more: `open-items`
+ * (below).
  *
  * Git is not asked anything unless some proof is valid, and nothing is locked
  * unless some commit is confirmed. A broken record anywhere in the store
  * refuses the run (SCHEMA), before git and again under the lock: all or nothing.
  *
+ * **Unit closes too, on a project with unit records** (M6.E16 t4.2, AC4.2):
+ * every unit record reading *closing* is classified by the same rule, against
+ * the same ref, and confirmed in the same call — under the same one take of
+ * the lock, in the same all-or-nothing write as the items. A unit's event is
+ * `closed` with reason `shipped`, the request's proof, and the `pr` and
+ * `release` the request carried. The result then has a `units` field; the
+ * item fields mean what they did. A unit with an item that is not closed —
+ * and not confirmed by this same call — stays *closing*, reason `open-items`
+ * (REVIEW pass 1, C-I1): checked once its commit is on the default branch,
+ * and again under the lock. A broken unit record refuses the run as a
+ * broken item record does. Without unit records nothing here changes, and
+ * the result has no `units` field.
+ *
  * @param {string} baseDir
  * @param {{now?: Date|string, execFn?: Function, renameFn?: Function,
  *   regenerate?: (baseDir: string) => Promise<void>}} [opts]
  *   `now`: the clock, for the closing `at` and for `stale` (default: now)
- * @returns {Promise<{confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}>}
- *   `stale`: items still closing whose request is more than 14 days before `now`
+ * @returns {Promise<{confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[],
+ *   units?: {confirmed: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}>}
+ *   `stale`: items still closing whose request is more than 14 days before `now`;
+ *   `units`: the same three for unit records, by unit ID — present only on a project with unit records
  * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (a broken record), NOT_FOUND (a record removed between the check and the write), LOCKED, IO
  */
 export async function confirmCloses(baseDir, opts = {}) {
@@ -1583,14 +1895,19 @@ export async function confirmCloses(baseDir, opts = {}) {
   if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `confirmCloses: now ${JSON.stringify(opts.now)} is not a date`);
   assertWritable(baseDir);
 
-  const { still, ok } = classifyClosing(baseDir, execFn);
+  const units = await unitRecords(baseDir);
+  const onDefaultBranch = ancestrySplit(baseDir, execFn);
+  const { still, ok, records: itemRecords } = classifyClosing(baseDir, execFn, { onDefaultBranch });
+  const unitSide = units === null ? null : classifyClosingUnits(units, baseDir, onDefaultBranch, { items: itemsNotClosed(itemRecords, ok) });
 
   const confirmed = [];
-  if (ok.length > 0) {
+  const unitsConfirmed = [];
+  if (ok.length > 0 || (unitSide !== null && unitSide.ok.length > 0)) {
     await withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
       const at = now.toISOString();
       const planned = [];
-      refuseBroken(listRecords(handle.baseDir));
+      const listedNow = listRecords(handle.baseDir);
+      refuseBroken(listedNow);
       for (const c of ok) {
         const { entry, text } = readForWrite(handle, c.id);
         if (entry.status !== 'closing') continue; // closed or reopened meanwhile: nothing to confirm
@@ -1602,21 +1919,61 @@ export async function confirmCloses(baseDir, opts = {}) {
         const next = withEvent(entry, { type: 'closed', at, by: CONFIRM_BY, reason: 'fixed', proof: req.proof });
         planned.push({ next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) });
       }
-      if (planned.length === 0) return;
-      await writeRecords(handle, planned, opts);
+      // The unit closes, built and checked by the unit library and written with
+      // the items' — one write, all or nothing.
+      let unitPlanned = [];
+      if (unitSide !== null && unitSide.ok.length > 0) {
+        refuseBroken(units.listUnits(handle.baseDir));
+        // The unit's items, read again under the lock: closed, or confirmed in this same write.
+        const openItems = itemsNotClosed(listedNow.records, planned.map((p) => ({ id: p.next.id })));
+        const plan = units.planUnitConfirms(handle, unitSide.ok.map((c) => ({ id: c.id, proof: c.req.proof })), { at, by: CONFIRM_BY, openItems });
+        const reqOf = (id) => unitSide.ok.find((c) => c.id === id).req;
+        for (const id of plan.changed) unitSide.still.set(id, { reason: 'changed', req: reqOf(id) });
+        for (const { id } of plan.openItems) unitSide.still.set(id, { reason: OPEN_ITEMS_REASON, req: reqOf(id) });
+        unitPlanned = plan.planned;
+      }
+      if (planned.length + unitPlanned.length === 0) return;
+      await writePlanned(handle, [...planned, ...unitPlanned], opts);
       confirmed.push(...planned.map((p) => p.next.id));
-      await regenerateAfter(handle, `${confirmed.join(', ')} ${confirmed.length === 1 ? 'was' : 'were'} confirmed closed`, opts);
+      unitsConfirmed.push(...unitPlanned.map((p) => p.next.id));
+      const all = [...confirmed, ...unitsConfirmed];
+      await regenerateAfter(handle, `${all.join(', ')} ${all.length === 1 ? 'was' : 'were'} confirmed closed`, opts);
     });
   }
 
-  return { confirmed, ...stillAndStale(still, now) };
+  const out = { confirmed, ...stillAndStale(still, now) };
+  if (unitSide !== null) out.units = { confirmed: unitsConfirmed.sort(), ...stillAndStale(unitSide.still, now, byText) };
+  return out;
+}
+
+const byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+
+// `(candidates, still) => ok`: which candidates' proof commits are on the
+// default branch now; the others go to `still` with the reason. The ref is
+// resolved once, on the first call with a candidate, and shared by every call
+// — items and units are checked against the same ref.
+function ancestrySplit(baseDir, execFn) {
+  let target;
+  let isShallow;
+  return (candidates, still) => {
+    const ok = [];
+    if (candidates.length === 0) return ok;
+    target ??= defaultBranchRef(baseDir, execFn);
+    isShallow ??= shallowProbe(baseDir, execFn);
+    for (const c of candidates) {
+      const reason = target.reason ?? ancestryFailure(baseDir, c.req.proof, target.ref, execFn, isShallow);
+      if (reason === null) ok.push(c);
+      else still.set(c.id, { reason, req: c.req });
+    }
+    return ok;
+  };
 }
 
 // Every *closing* record, split by whether its proof commit is on the default
 // branch now: `ok` (it is) and `still` (id → {reason, req}, why not). Reads the
 // records and asks git; writes nothing. Shared by `confirmCloses` and
 // `probeCloses`, so the two can never disagree on what is confirmable.
-function classifyClosing(baseDir, execFn, { writing = true } = {}) {
+function classifyClosing(baseDir, execFn, { writing = true, onDefaultBranch = ancestrySplit(baseDir, execFn) } = {}) {
   const listed = listRecords(baseDir);
   refuseBroken(listed, { writing });
   const closing = listed.records.filter((r) => r.status === 'closing');
@@ -1627,17 +1984,52 @@ function classifyClosing(baseDir, execFn, { writing = true } = {}) {
     if (typeof req?.proof !== 'string' || !COMMIT_RE.test(req.proof)) still.set(r.id, { reason: 'invalid-proof', req });
     else candidates.push({ id: r.id, req });
   }
+  return { still, ok: onDefaultBranch(candidates, still), records: listed.records };
+}
 
-  const ok = [];
-  if (candidates.length > 0) {
-    const target = defaultBranchRef(baseDir, execFn);
-    const isShallow = shallowProbe(baseDir, execFn);
-    for (const c of candidates) {
-      const reason = target.reason ?? ancestryFailure(baseDir, c.req.proof, target.ref, execFn, isShallow);
-      if (reason === null) ok.push(c);
-      else still.set(c.id, { reason, req: c.req });
-    }
+// Why a unit stays *closing* although its commit may be on the default branch:
+// one of its items is not closed (REVIEW pass 1, C-I1, AC4.3).
+const OPEN_ITEMS_REASON = 'open-items';
+
+// `(unitId) => string[]`: the IDs of the unit's items that are not closed. An
+// item counts as closed when it reads C, or when `confirming` — the item
+// closes this same run confirms — names it. `closeEpicCheck`'s rule at the
+// close request, without the branch: at the confirm an item still *closing*
+// on a commit that is not on the default branch is not closed.
+function itemsNotClosed(records, confirming) {
+  const done = new Set(confirming.map((c) => c.id));
+  const byUnit = new Map();
+  for (const r of records) {
+    if (r.epic === null || r.epic === undefined || r.status === 'C' || done.has(r.id)) continue;
+    if (!byUnit.has(r.epic)) byUnit.set(r.epic, []);
+    byUnit.get(r.epic).push(r.id);
   }
+  return (unitId) => byUnit.get(unitId) ?? [];
+}
+
+// `classifyClosing` for unit records (M6.E16 t4.2): every unit reading
+// *closing*, split the same way, by the same rule and against the same ref.
+// A broken unit record refuses the run, as a broken item record does.
+//
+// A unit whose commit is on the default branch and that has an item not
+// closed stays closing, reason `open-items` (`items`: `itemsNotClosed`). The
+// commit is asked about first, so a unit whose commit has not landed says
+// that, as it did.
+function classifyClosingUnits(units, baseDir, onDefaultBranch, { writing = true, items } = {}) {
+  const listed = units.listUnits(baseDir);
+  refuseBroken(listed, { writing });
+  const still = new Map();
+  const candidates = [];
+  for (const u of listed.units.filter((x) => x.status === 'closing')) {
+    const req = latestRequest(u.record);
+    if (typeof req?.proof !== 'string' || !COMMIT_RE.test(req.proof)) still.set(u.id, { reason: 'invalid-proof', req });
+    else candidates.push({ id: u.id, req });
+  }
+  const ok = onDefaultBranch(candidates, still).filter((c) => {
+    if (items(c.id).length === 0) return true;
+    still.set(c.id, { reason: OPEN_ITEMS_REASON, req: c.req });
+    return false;
+  });
   return { still, ok };
 }
 
@@ -1650,15 +2042,15 @@ function classifyClosing(baseDir, execFn, { writing = true } = {}) {
 function refuseBroken({ broken }, { writing = true } = {}) {
   if (broken.length === 0) return;
   const err = new WorkStoreError('SCHEMA', `broken record(s)${writing ? ', so nothing was written' : ''}: `
-    + `${broken.map((b) => `${b.id ?? b.path} (${b.error})`).join('; ')} — restore each with git: \`git checkout -- <path>\` `
+    + `${broken.map((b) => `${b.id ?? shownName(b.path)} (${b.error})`).join('; ')} — restore each with git: \`git checkout -- <path>\` `
     + 'when HEAD holds a good copy; for a merge conflict in the record, take one side with '
     + '`git checkout --ours <path>` or `git checkout --theirs <path>` (Edit is blocked on records; git is not). Then re-run.');
   err.broken = broken.map((b) => b.id ?? b.path);
   throw err;
 }
 
-function stillAndStale(still, now) {
-  const ids = [...still.keys()].sort((a, b) => numberOf(a) - numberOf(b));
+function stillAndStale(still, now, order = (a, b) => numberOf(a) - numberOf(b)) {
+  const ids = [...still.keys()].sort(order);
   const stale = ids.filter((id) => {
     const t = Date.parse(still.get(id).req?.at);
     return Number.isFinite(t) && now.getTime() - t > STALE_CLOSING_MS;
@@ -1679,8 +2071,10 @@ function stillAndStale(still, now) {
  *
  * @param {string} baseDir
  * @param {{now?: Date|string, execFn?: Function}} [opts]
- * @returns {{confirmable: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}
- *   `confirmable` by ID number; the other two as `confirmCloses` returns them
+ * @returns {{confirmable: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[],
+ *   units?: {confirmable: string[], stillClosing: Array<{id: string, reason: string}>, stale: string[]}}}
+ *   `confirmable` by ID number; the other two as `confirmCloses` returns them;
+ *   `units`: the same three for unit records, by unit ID — present only on a project with unit records
  * @throws {WorkStoreError} CONFIG (store off, or v1), SCHEMA (`now` is not a date, or a broken record)
  */
 export function probeCloses(baseDir, opts = {}) {
@@ -1688,11 +2082,207 @@ export function probeCloses(baseDir, opts = {}) {
   const now = opts.now === undefined ? new Date() : new Date(opts.now);
   if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `probeCloses: now ${JSON.stringify(opts.now)} is not a date`);
   assertWritable(baseDir);
-  const { still, ok } = classifyClosing(baseDir, execFn, { writing: false });
-  return { confirmable: ok.map((c) => c.id).sort((a, b) => numberOf(a) - numberOf(b)), ...stillAndStale(still, now) };
+  const onDefaultBranch = ancestrySplit(baseDir, execFn);
+  const { still, ok, records: itemRecords } = classifyClosing(baseDir, execFn, { writing: false, onDefaultBranch });
+  const out = { confirmable: ok.map((c) => c.id).sort((a, b) => numberOf(a) - numberOf(b)), ...stillAndStale(still, now) };
+  // Unit closes, by the same rule and against the same ref (M6.E16 t5.0c).
+  if (unitRecordsOn(baseDir)) {
+    const unitSide = classifyClosingUnits(unitLib, baseDir, onDefaultBranch, { writing: false, items: itemsNotClosed(itemRecords, ok) });
+    out.units = { confirmable: unitSide.ok.map((c) => c.id).sort(byText), ...stillAndStale(unitSide.still, now, byText) };
+  }
+  return out;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+// One *closing* record — an item or a unit — as `listClosing` lists it.
+function closingRow(r, now) {
+  const req = latestRequest(r.record);
+  const t = Date.parse(req?.at);
+  const known = Number.isFinite(t);
+  return {
+    id: r.id,
+    path: r.path,
+    proof: typeof req?.proof === 'string' ? req.proof : null,
+    requestedAt: known ? req.at : null,
+    days: known ? Math.floor((now.getTime() - t) / DAY_MS) : null,
+    stale: known && now.getTime() - t > STALE_CLOSING_MS,
+  };
+}
+
+// ── Confirming a close by hand (M6.E16 r7) ──────────────────────────────────
+//
+// A project with no remote, with no remote named `origin`, or that is not a
+// git repository has no default branch, so `confirmCloses` can never confirm
+// its closes: they stay *closing* for ever. For those three reasons only, a
+// person may confirm one close by hand, with their own yes for that ID.
+
+/** The reasons `confirmCloses` gives that no git answer here can ever change. */
+export const BY_HAND_REASONS = Object.freeze(['no-remote', 'no-origin-remote', 'not-a-repo']);
+
+// What `git-failed` means and what to do (r7.1) — the confirm line, the sweep,
+// this refusal and the branch gate say it alike. Kept in `git-env.js`, which
+// imports none of them; re-exported here for `close-confirm.js`.
+export { GIT_FAILED };
+
+// What to do instead, for every other reason the automatic confirm gives.
+function notByHandWords(reason, proof) {
+  switch (reason) {
+    case null:
+      return `its commit ${proof} is on the default branch, so git can confirm it: run /sig:docs-sweep or /sig:ship, which confirm it`;
+    case 'not-on-default-branch':
+    case 'unknown-commit':
+      return `${reason}: its commit ${proof} is not on the default branch. Merge it, and the next /sig:docs-sweep or /sig:ship confirms the close`;
+    case 'open-items':
+      return 'open-items: close the items first';
+    case 'git-too-old':
+      return `git-too-old: ${gitUnusableReason() ?? 'the git installed here could not be used'}. Update git, and the automatic confirm can run`;
+    case 'no-default-branch':
+      return `no-default-branch: the remote's default branch is not recorded in this clone — ${RECORD_DEFAULT_BRANCH_HINT}, and the automatic confirm can run`;
+    case 'git-failed':
+      return `git-failed: ${GIT_FAILED}`;
+    default:
+      return `${reason}: the automatic confirm could not confirm it, and that is not a reason git can never answer`;
+  }
+}
+
+// The automatic confirm's reason for this one close now, read the way
+// `confirmCloses` reads it (`classifyClosing`, `classifyClosingUnits`) so the
+// two cannot disagree — or the refusal. → {reason, proof, request}.
+function byHandReason(baseDir, kind, id, execFn) {
+  const onDefaultBranch = ancestrySplit(baseDir, execFn);
+  const items = classifyClosing(baseDir, execFn, { onDefaultBranch });
+  let entry;
+  let split = items;
+  if (kind === 'item') {
+    entry = items.records.find((r) => r.id === id);
+    if (entry === undefined) throw new WorkStoreError('NOT_FOUND', `${echoed(id)}: no such item — nothing was written.`);
+  } else {
+    entry = listUnits(baseDir).units.find((u) => u.id === id);
+    if (entry === undefined) {
+      throw new WorkStoreError('NOT_FOUND', `${echoed(id)}: no such item or unit (no record of that name in ${UNITS_REL}/) — nothing was written.`);
+    }
+    split = classifyClosingUnits(unitLib, baseDir, onDefaultBranch, { items: itemsNotClosed(items.records, items.ok) });
+  }
+  if (entry.status !== 'closing') {
+    throw new WorkStoreError('CONFLICT', `${id} is not closing (it is ${entry.status === 'C' ? 'closed' : entry.status}) — nothing was written. `
+      + 'A close is confirmed by hand only while a close request waits on it.');
+  }
+  const request = latestRequest(entry.record);
+  const ok = split.ok.some((c) => c.id === id);
+  const reason = ok ? null : split.still.get(id).reason;
+  // A unit is not closed around open work, whatever git can say (AC4.3).
+  const open = kind === 'unit' ? itemsNotClosed(items.records, items.ok)(id) : [];
+  if (open.length > 0) {
+    const err = new WorkStoreError('OPEN_ITEMS', `${id} has ${open.length} item${open.length === 1 ? '' : 's'} that ${open.length === 1 ? 'is' : 'are'} not closed `
+      + `(${open.join(', ')}) — nothing was written. Close each, or move it out of the unit (/sig:item), then confirm the unit.`);
+    err.reason = OPEN_ITEMS_REASON;
+    throw err;
+  }
+  if (!BY_HAND_REASONS.includes(reason)) {
+    const err = new WorkStoreError('CONFLICT', `${id} cannot be confirmed by hand — ${notByHandWords(reason, request?.proof)}. Nothing was written. `
+      + 'A close is confirmed by hand only when the project has no remote, no remote named `origin`, or is not a git repository.');
+    err.reason = reason;
+    throw err;
+  }
+  return { reason, proof: request.proof, requestAt: request.at };
+}
+
+/**
+ * Confirm ONE close by hand, for a person who has said yes to it (M6.E16 r7).
+ *
+ * Allowed only while the item or unit `id` is *closing* and the reason
+ * `confirmCloses` gives for it now is one no git answer here can change:
+ * `no-remote`, `no-origin-remote` or `not-a-repo` (`BY_HAND_REASONS`). Checked
+ * before the store's lock and again under it. Every other reason refuses,
+ * nothing written, saying what to do — merge it (`not-on-default-branch`),
+ * update git (`git-too-old`), record the default branch (`no-default-branch`),
+ * or let git confirm it (its commit is on the default branch); `err.reason`
+ * carries the reason. A unit with an item that is not closed refuses
+ * (OPEN_ITEMS) whatever the reason.
+ *
+ * The record gets the ordinary `closed` event the automatic confirm writes —
+ * an item's `fixed`, a unit's `shipped`, the request's proof (and a unit's
+ * `pr` and `release`) copied — with `by` the person, plus
+ * `confirmed_by: 'person'`, `git_reason` (the reason git could not confirm
+ * it) and, when given, `why`. Every view reads it as closed.
+ *
+ * `by` and `why` are stored as the unit writers store text (r7.1): one line,
+ * no control or invisible characters, `by` cut at 200 characters and `why` at
+ * 2000. A `why` that is not words (empty, blank, not text), and an `at` before
+ * the close request, are refused (SCHEMA) before anything is read.
+ *
+ * One ID, never a list: each close is confirmed on its own, with the person's
+ * yes for that ID. `id` is an item when it is this store's own `<key>-n` (a
+ * unit ID can never have that shape, `assertUnitId`); anything else is a unit.
+ *
+ * @param {string} baseDir
+ * @param {string} id
+ * @param {{by: string, at?: string, why?: string}} confirm — `by`: the person
+ * @param {{execFn?: Function, renameFn?: Function, acknowledgeSensitive?: boolean, regenerate?: Function}} [opts]
+ * @returns {Promise<{kind: 'item'|'unit', id: string, path: string, proof: string, confirmed_by: 'person',
+ *   git_reason: string}|{aborted: string, sensitiveHits: object[]}>} — the second when `why` holds sensitive data
+ * @throws {WorkStoreError} SCHEMA (not one ID, no `by`), NOT_FOUND, CONFLICT, OPEN_ITEMS, CONFIG, LOCKED, IO
+ */
+export async function confirmCloseByHand(baseDir, id, confirm = {}, opts = {}) {
+  if (typeof id !== 'string') {
+    throw new WorkStoreError('SCHEMA', 'confirmCloseByHand takes one ID: each close is confirmed by hand on its own, with the person\'s yes '
+      + 'for that ID — nothing was written.');
+  }
+  const { at = nowIso() } = confirm;
+  if (typeof confirm.by !== 'string' || confirm.by.trim() === '') {
+    throw new WorkStoreError('SCHEMA', `${echoed(id)}: a close confirmed by hand records who confirmed it — pass \`by\`. Nothing was written.`);
+  }
+  if (confirm.why !== undefined && (typeof confirm.why !== 'string' || confirm.why.trim() === '')) {
+    throw new WorkStoreError('SCHEMA', `${echoed(id)}: \`why\` is the person's words — leave it out, or say something. Nothing was written.`);
+  }
+  // Stored as a unit writer stores them (M6.E16 r7.1): one line, no control or
+  // invisible characters, cut at their limits; and scanned as stored.
+  const by = unitLib.storedBy(confirm.by);
+  const why = unitLib.storedWords(confirm.why);
+  if (why !== undefined && why.trim() === '') {
+    throw new WorkStoreError('SCHEMA', `${echoed(id)}: \`why\` is the person's words, and these are none once control characters are taken out. `
+      + 'Nothing was written.');
+  }
+  const execFn = opts.execFn ?? execFileSync;
+  const { key } = assertWritable(baseDir);
+  const kind = ITEM_ID_RE.test(id) && id.startsWith(`${key}-`) ? 'item' : 'unit';
+  if (kind === 'unit' && (await unitRecords(baseDir)) === null) {
+    throw new WorkStoreError('NOT_FOUND', `${echoed(id)}: no such item (an item ID here is ${key}-n), and this project has no unit records — `
+      + 'nothing was written.');
+  }
+  const pending = sensitivePending([why], opts);
+  if (pending) return pending;
+  // A confirm cannot come before the request it confirms (r7.1).
+  const notBefore = ({ requestAt }) => {
+    if (Date.parse(at) < Date.parse(requestAt)) {
+      throw new WorkStoreError('SCHEMA', `${id}: \`at\` (${echoed(at)}) is before the close was requested (${requestAt}). Nothing was written.`);
+    }
+  };
+  notBefore(byHandReason(baseDir, kind, id, execFn));
+  return withWorkLockV2(baseDir, WORK_LOCK_LABEL, opts, async (handle) => {
+    // Decided again under the lock: the record, its request and git's answer.
+    const decided = byHandReason(handle.baseDir, kind, id, execFn);
+    notBefore(decided);
+    const { reason, proof } = decided;
+    let planned;
+    if (kind === 'item') {
+      const { entry, text } = readForWrite(handle, id);
+      const next = withEvent(entry, pruneUndefined({
+        type: 'closed', at, by, reason: 'fixed', proof, confirmed_by: 'person', git_reason: reason, why,
+      }));
+      planned = [{ next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) }];
+    } else {
+      const openItems = itemsNotClosed(listRecords(handle.baseDir).records, []);
+      ({ planned } = unitLib.planUnitConfirms(handle, [{ id, proof }], { at, by, openItems, byHand: { git_reason: reason, why } }));
+      if (planned.length === 0) throw new WorkStoreError('CONFLICT', `${id} changed while it was being confirmed — nothing was written. Re-run.`);
+    }
+    await writePlanned(handle, planned, opts);
+    await regenerateAfter(handle, `${id} was confirmed closed by hand`, opts);
+    const path = kind === 'item' ? recordPath(id) : `${UNITS_REL}/${id}.json`;
+    return { kind, id, path, proof, confirmed_by: 'person', git_reason: reason };
+  });
+}
 
 /**
  * Every item deriving *closing*, with when its fix was requested and whether
@@ -1708,29 +2298,25 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * @param {string} baseDir
  * @param {{now?: Date|string, execFn?: Function}} [opts]
  * @returns {{version: 1|2, closing: Array<{id: string, path: string, proof: string|null,
- *   requestedAt: string|null, days: number|null, stale: boolean}>, broken: Array}}
+ *   requestedAt: string|null, days: number|null, stale: boolean}>, broken: Array,
+ *   units?: Array<{id: string, path: string, proof: string|null, requestedAt: string|null, days: number|null, stale: boolean}>}}
+ *   `units`: every unit record reading *closing*, in the same form — present only on a project with unit records
  * @throws {WorkStoreError} CONFIG (store off, or a broken WORK.md), SCHEMA (`now` is not a date)
  */
 export function listClosing(baseDir, opts = {}) {
   const now = opts.now === undefined ? new Date() : new Date(opts.now);
   if (Number.isNaN(now.getTime())) throw new WorkStoreError('SCHEMA', `listClosing: now ${JSON.stringify(opts.now)} is not a date`);
   const { version, records, broken } = listRecords(baseDir, opts.execFn ? { execFn: opts.execFn } : {});
-  const closing = records
-    .filter((r) => r.status === 'closing')
-    .map((r) => {
-      const req = latestRequest(r.record);
-      const t = Date.parse(req?.at);
-      const known = Number.isFinite(t);
-      return {
-        id: r.id,
-        path: r.path,
-        proof: typeof req?.proof === 'string' ? req.proof : null,
-        requestedAt: known ? req.at : null,
-        days: known ? Math.floor((now.getTime() - t) / DAY_MS) : null,
-        stale: known && now.getTime() - t > STALE_CLOSING_MS,
-      };
-    });
-  return { version, closing, broken };
+  const closing = records.filter((r) => r.status === 'closing').map((r) => closingRow(r, now));
+  const out = { version, closing, broken };
+  // Units too, on a project with unit records (M6.E16 t5.0c): the same
+  // fields, from the unit's latest close request. Without unit records the
+  // result has no `units` key. A broken unit record is not listed here;
+  // `checkUnits` reports it.
+  if (unitRecordsOn(baseDir)) {
+    out.units = listUnits(baseDir).units.filter((u) => u.status === 'closing').map((u) => closingRow(u, now));
+  }
+  return out;
 }
 
 // ── Triage proposals, read from records (M6.E13 t7.3 prep) ─────────────────
@@ -1875,7 +2461,10 @@ export function listThemes(baseDir, filter = {}) {
  *   exists but is broken is reported as broken, not missing);
  * - `duplicate-id` — `findDuplicateIds` (the relocated v1 folder is skipped);
  * - `view-stale` — a view differs from, or is missing against, its in-memory
- *   regeneration, or the regeneration failed; or a `work/history/*.md` file
+ *   regeneration, or the regeneration failed; with unit records the views
+ *   include `work/EPICS.md` as rendered from them, the current milestone
+ *   file's Epic table (M6.E16 t5.4, AC7.4), and the marked Epic table of any
+ *   other milestone file that does not match them; or a `work/history/*.md` file
  *   is on disk that no regeneration produces (a reopen, or one made by hand).
  *
  * `opts.regenerateToMemory(baseDir)` is the view generator, injected; by
@@ -1904,6 +2493,10 @@ export function checkRecords(baseDir, opts = {}) {
     listed = listV2(baseDir, store.key, { strict: true });
   } catch (err) {
     if (!(err instanceof WorkStoreError)) throw err;
+    // A `units/` folder that cannot be trusted (`unitRecordsOn`): the one
+    // finding, at the folder. No item record was read under it, and the views
+    // cannot be rendered to compare — saying that too would be the same fault twice.
+    if (err.unitsFolder === true) return [{ code: err.code === 'CONFLICT' ? 'link' : 'unreadable', id: null, path: UNITS_REL, message: err.message }];
     findings.push({ code: err.code === 'CONFLICT' ? 'link' : 'unreadable', id: null, path: ITEMS_REL, message: err.message });
   }
   for (const b of listed.broken) findings.push({ code: b.code ?? 'invalid', id: b.id, path: b.path, message: b.error });
@@ -1939,6 +2532,8 @@ export function checkRecords(baseDir, opts = {}) {
   });
 }
 
+const MILESTONE_VIEW_RE = /^\.planning\/MILESTONE-[^/]+\.md$/;
+
 // Every view that differs from its in-memory regeneration, as findings.
 function staleViews(baseDir, regenerate) {
   const stale = (path, message) => ({ code: 'view-stale', id: null, path, message: `${path}: ${message}` });
@@ -1958,7 +2553,16 @@ function staleViews(baseDir, regenerate) {
       out.push(stale(rel, err.code === 'ENOENT' ? 'missing — regenerate the views' : `could not be read (${err.code ?? err.message})`));
       continue;
     }
-    if (disk !== text) out.push(stale(rel, 'differs from a regeneration of the records — edited by hand, or not regenerated'));
+    if (disk === text) continue;
+    // The milestone file is a person's document with one generated region
+    // (M6.E16 t5.4, AC7.4): the regeneration is built from the file as it is
+    // now, so only the Epic table between its markers can differ.
+    if (MILESTONE_VIEW_RE.test(rel)) {
+      out.push(stale(rel, 'its Epic table (between the signal:epics markers) differs from a regeneration of the unit records — '
+        + 'edited by hand, or not regenerated'));
+    } else {
+      out.push(stale(rel, 'differs from a regeneration of the records — edited by hand, or not regenerated'));
+    }
   }
   // A history file on disk that no regeneration produces (REVIEW pass 1):
   // regeneration never deletes one, so reopening the only item closed in an old

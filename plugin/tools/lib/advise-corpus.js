@@ -38,9 +38,11 @@ import { parseEpicStatusRows } from './milestones.js';
 import { readRegularFile, regularFileRefusal } from './path-confine.js';
 import { relative } from 'node:path';
 import { findWorkOnOtherBranches } from './branch-work.js';
+import { shownName } from './printable-text.js';
 import { readState } from './state.js';
 import { isStoreOn } from './work-store.js';
 import { listRecords } from './work-records.js';
+import { listUnits, unitRecordsOn } from './unit-records.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -154,6 +156,44 @@ export const ADVISOR_SOURCES = Object.freeze([
 // over-claim was a sentence; the fix for its cause is not reading the files.
 
 const MILESTONE_FILE_RE = /^MILESTONE-(\d+(?:\.\d+)?)\.md$/;
+
+/**
+ * Every unit record, as the advisor reads one: its ID, its record's path, its
+ * folded state, and the words it carries. `{units}` by ID, or `{error}` when
+ * any record does not read — never a shorter list (M6.E16 t5.3).
+ *
+ * @param {string} baseDir
+ * @returns {{units: Array<{id: string, path: string, status: 'open'|'closing'|'closed', held: boolean,
+ *   hold_reason: string|null, closing_proof: string|null, close: object|null, title: string|null,
+ *   summary: string|null}>} | {error: string}}
+ */
+export function readUnitSource(baseDir) {
+  let listed;
+  try {
+    listed = listUnits(baseDir);
+  } catch (err) {
+    return { error: `the unit records could not be read — ${err.message}` };
+  }
+  if (listed.broken.length > 0) {
+    return {
+      error: `${listed.broken.length} unit record(s) could not be read — ${listed.broken.map((b) => b.id ?? shownName(b.path)).join(', ')} — `
+        + 'so the units are not all known',
+    };
+  }
+  return {
+    units: listed.units.map((u) => ({
+      id: u.id,
+      path: u.path,
+      status: u.status,
+      held: u.held,
+      hold_reason: u.hold_reason,
+      closing_proof: u.closing_proof,
+      close: u.close,
+      title: u.record.title ?? null,
+      summary: u.record.summary ?? null,
+    })),
+  };
+}
 
 /**
  * Read every source the advisor reasons over.
@@ -303,7 +343,31 @@ if (stateRefusal) {
 //     failure modes (an unreadable file blinds the SOURCE) when it is built.
 // Today **no ranking input reads it**, and the rendered artifact says so in
 // the same words rather than letting "Read: … milestone rows" imply otherwise.
+//
+// WITH UNIT RECORDS (`unitRecordsOn`, M6.E16 t5.3, AC7.3) the source is the unit
+// records and no milestone file is opened: the Epic table is generated from
+// those records, and nothing reads generated rows back (`D-M6E16-4`). The
+// source keeps its name; `files` is empty and `units` carries each unit with
+// its folded state. A unit record that does not read blinds the source.
+// A `units/` folder that cannot be trusted blinds the source the same way; no
+// milestone file is opened in its place.
+let unitsOn;
+let unitsFault = null;
 try {
+  unitsOn = unitRecordsOn(baseDir);
+} catch (err) {
+  unitsOn = true;
+  unitsFault = err.message;
+}
+if (unitsOn) {
+  const read = unitsFault === null ? readUnitSource(baseDir) : { error: unitsFault };
+  if (read.error) {
+    fail('milestone rows', read.error);
+  } else {
+    sources.milestones = { files: [], units: read.units };
+    checked.push('milestone rows');
+  }
+} else try {
   const files = (await readdir(planningDir)).filter((f) => MILESTONE_FILE_RE.test(f)).sort();
   const read = [];
   const unreadable = [];

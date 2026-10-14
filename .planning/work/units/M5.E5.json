@@ -1,0 +1,18 @@
+{
+  "id": "M5.E5",
+  "legacy_row": [
+    "**E5**",
+    "✅ shipped as **v0.1.10** (2026-07-21)",
+    "**Carry-over bug squash** — B24/B25/B26 + B6 refinement; 1529→1561 tests; REVIEW PASS (3-specialist panel, 0 false-greens). Retro: [`M5.E5-RETROSPECTIVE.md`](M5.E5-RETROSPECTIVE.md). New carry-overs B27–B30 → M5.E6."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-5.md:34: “✅ shipped as **v0.1.10** (2026-07-21)”); its retrospective is complete (.planning/M5.E5-RETROSPECTIVE.md); today's closure check reads it closed (M5.E5-VERIFICATION.md records a PASS, and M5.E5 is not the current unit).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

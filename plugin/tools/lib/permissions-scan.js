@@ -164,6 +164,12 @@ export const CLASSIFICATION = Object.freeze({
   'git revert': VERDICT.NEVER_PROPOSE,
   'git checkout': VERDICT.NEVER_PROPOSE,
   'git clean': VERDICT.NEVER_PROPOSE,
+  // Each of these can run a command of the caller's choosing (M6.E16 r6.5):
+  // `git bisect run <cmd>`, `git clone --upload-pack=<cmd>` (and a clone's
+  // hooks and filters), `git config core.sshCommand <cmd>`. Without a row
+  // each fell through to the bare `git` row below and was proposed.
+  'git bisect': VERDICT.NEVER_PROPOSE,
+  'git clone': VERDICT.NEVER_PROPOSE,
   // NOTE: not reachable from the scan. Keys are binary + ONE token, so the scan
   // can only ever produce `git push`. Kept because `classify` is called directly
   // elsewhere and the intent should be readable — but the deny that actually
@@ -183,7 +189,7 @@ export const CLASSIFICATION = Object.freeze({
   'git branch': VERDICT.PROPOSE_ALLOW,
   'git remote': VERDICT.PROPOSE_ALLOW,
   'git init': VERDICT.PROPOSE_ALLOW,
-  'git config': VERDICT.PROPOSE_ALLOW,
+  'git config': VERDICT.NEVER_PROPOSE, // see `git bisect` above
   'git grep': VERDICT.PROPOSE_ALLOW,
   'git ls-files': VERDICT.PROPOSE_ALLOW,
   'git rev-list': VERDICT.PROPOSE_ALLOW,
@@ -238,7 +244,21 @@ export const CLASSIFICATION = Object.freeze({
   read: VERDICT.NEVER_PROPOSE,
 
   // ── GitHub CLI ────────────────────────────────────────────────────────────
-  gh: VERDICT.PROPOSE_ALLOW,
+  // ⚠ `gh` is NEVER proposed (M6.E16 r6.4). `Bash(gh:*)` grants `gh repo
+  // delete`, `gh pr merge`, `gh secret set` and `gh api -X DELETE …` — and a
+  // key here is the binary and ONE more word, so `gh pr view` and `gh pr merge`
+  // are both `gh pr`: no rule this scan can produce separates a read from a
+  // write. A read-only form may be offered the day the scan can name it
+  // (`gh pr view`) and a row here allows exactly that. The rows below say what
+  // must stay refused then. (Signal's own code runs `gh` itself, as a child
+  // process, which needs no Bash rule.)
+  'gh repo delete': VERDICT.NEVER_PROPOSE,
+  'gh pr merge': VERDICT.NEVER_PROPOSE,
+  'gh secret': VERDICT.NEVER_PROPOSE,
+  'gh auth': VERDICT.NEVER_PROPOSE,
+  'gh extension': VERDICT.NEVER_PROPOSE,
+  'gh api': VERDICT.NEVER_PROPOSE,
+  gh: VERDICT.NEVER_PROPOSE,
 
   // ── Claude Code's own CLI ─────────────────────────────────────────────────
   claude: VERDICT.PROPOSE_ALLOW,

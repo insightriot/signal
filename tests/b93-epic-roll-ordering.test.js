@@ -179,6 +179,12 @@ describe('B93 — the Epic roll precedes the tier read', () => {
         doc.includes('setCurrentEpic('),
         `${name}.md calls setCurrentEpic, so it rolls an Epic and needs the B93 carve-out.`,
       ).toBe(false);
+      // M6.E16 t3.1: `openEpic` (`work-ops.js`) wraps `setCurrentEpic`, and is
+      // what discuss.md and new-project.md now call — so it rolls an Epic too.
+      expect(
+        doc.includes('openEpic('),
+        `${name}.md calls openEpic, so it rolls an Epic and needs the B93 carve-out.`,
+      ).toBe(false);
     });
   });
 
@@ -189,6 +195,7 @@ describe('B93 — the Epic roll precedes the tier read', () => {
       // If this ever becomes false the fix below is the wrong fix, and the test
       // should fail so someone re-derives it rather than inheriting it.
       expect(doc).not.toMatch(/setCurrentEpic\(/);
+      expect(doc).not.toMatch(/openEpic\(/); // M6.E16 t3.1: the wrapper rolls an Epic too
     });
 
     it('instructs a profile re-read inside the loop, not only at step 1', () => {

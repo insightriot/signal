@@ -5,8 +5,9 @@
 // existed: `grep -rln 'git branch --show-current|rev-parse --abbrev-ref'
 // commands/ tools/lib/` returned NOTHING — not one of 20 commands and not one
 // library module read the current branch, and none created one. The single
-// `rev-parse --abbrev-ref` in `state.js` reads `origin/HEAD` (the remote's
-// default branch NAME) for the staleness baseline; it never asks where you are.
+// `rev-parse --abbrev-ref` in `state.js` read `origin/HEAD` (the remote's
+// default branch NAME) for the staleness baseline; it never asked where you
+// are. (Since M6.E16 r6 that read is `resolveDefaultBranch`, below.)
 //
 // So the discipline lived entirely in `CLAUDE.md` and in whoever was driving
 // remembering to read it. On a `eval-project-A` slice nobody did: five commits of real
@@ -52,6 +53,9 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { dotGitAtOrAbove, GIT_FAILED, gitEnv, gitUnusableReason } from './git-env.js';
+import { isPlainRefName, shownRef } from './printable-text.js';
+
 /**
  * Gate outcomes. Exactly one is returned; there is no default bucket.
  *
@@ -93,8 +97,52 @@ const DEFAULT_BRANCH_CANDIDATES = Object.freeze(['main', 'master']);
 
 function git(baseDir, args, execFn) {
   return String(
-    execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] })
+    execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) })
   ).trim();
+}
+
+/**
+ * Did git read this repository's own config (M6.E16 r7.1)? `git init` writes
+ * `core.repositoryformatversion` there, and `--local` reads only that file. A
+ * git that finds a repository it does not trust can answer the work-tree
+ * question and list no remotes, exit 0; an empty remote list is believed only
+ * with this. Used here and by `defaultBranchRef` (`work-write.js`).
+ *
+ * @param {string} baseDir
+ * @param {Function} [execFn]
+ * @returns {boolean} false on any failure
+ */
+export function readsOwnConfig(baseDir, execFn = execFileSync) {
+  try {
+    git(baseDir, ['config', '--local', '--get', 'core.repositoryformatversion'], execFn);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Why git found no work tree here, read from what git says (in English:
+// `LC_ALL=C`), on the one call: 'bare' — it refused a folder laid out like a
+// bare repository; 'none' — git's own "not a git repository" with no `.git`
+// entry at or above the folder (M6.E16 r7.1, `repoState`'s rule in
+// `work-write.js`); 'failed' — anything else (a folder git does not trust, a
+// `.git` pointing nowhere, a broken config).
+function whyNoWorkTree(baseDir, execFn) {
+  try {
+    execFn('git', ['rev-parse', '--is-inside-work-tree'], { cwd: baseDir, stdio: ['ignore', 'pipe', 'pipe'], env: { ...gitEnv(baseDir), LC_ALL: 'C' } });
+    return 'failed';
+  } catch (err) {
+    const said = String(err?.stderr ?? '');
+    if (/cannot use bare repository/.test(said)) return 'bare';
+    if (!/not a git repository/i.test(said)) return 'failed';
+    let dotGit;
+    try {
+      dotGit = dotGitAtOrAbove(baseDir);
+    } catch {
+      dotGit = true; // the folders above could not be read: the safe side
+    }
+    return dotGit ? 'failed' : 'none';
+  }
 }
 
 /**
@@ -105,6 +153,10 @@ function git(baseDir, args, execFn) {
  */
 export function isGitRepo(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
+  // One rule with `work-store.js`'s `isGitRepo` (r6.5): when git cannot be
+  // used the answer is false — "not known to be one" — and a caller that
+  // writes, or weakens a check, on false asks `gitCannotAsk` first.
+  if (gitUnusableReason() !== null) return false;
   if (!existsSync(join(baseDir, '.git'))) {
     // Not conclusive: baseDir may be a subdirectory of the work tree.
     try {
@@ -147,12 +199,52 @@ export function hasRemote(baseDir, opts = {}) {
 }
 
 /**
+ * The names of the repo's remotes. Signal reads the default branch of the one
+ * named `origin` only, so "has a remote" and "has `origin`" are two questions.
+ *
+ * @returns {string[]|null} null if the question itself could not be asked.
+ */
+export function remoteNames(baseDir, opts = {}) {
+  const execFn = opts.execFn ?? execFileSync;
+  try {
+    return git(baseDir, ['remote'], execFn).split('\n').map((name) => name.trim()).filter(Boolean);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * How the remote's default branch gets recorded in a clone that does not have
+ * it — the one place the commands are written (r6.1; two commands since
+ * r6.3). `git remote set-head origin -a` alone fails ("error: Not a valid
+ * ref: refs/remotes/origin/main") until the remote's default branch has been
+ * fetched — after `git init` and `git remote add origin …`, and still after
+ * pushing a feature branch, which is the usual way to get there. So the
+ * fetch is named first. When the remote holds no branch at all there is
+ * nothing to record, and git says so ("error: Cannot determine remote HEAD").
+ * Lower-case, to follow a dash or "or"; a sentence that opens with it
+ * capitalises the first letter (`capitalised`).
+ */
+export const RECORD_DEFAULT_BRANCH_HINT = 'run `git fetch origin`, then `git remote set-head origin -a`, to record the remote\'s default branch';
+
+/** `text` with its first letter in upper case. */
+export const capitalised = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+
+const ORIGIN_REFS = 'refs/remotes/origin/';
+const ORIGIN_HEAD_REF = `${ORIGIN_REFS}HEAD`;
+
+/**
  * The remote's default branch, resolved or NOT AT ALL.
  *
  * 1. `origin/HEAD` — authoritative. Set by `git clone`.
  * 2. Unset (common: `git remote add` never sets it) → disambiguate against the
  *    remote refs that actually exist. Exactly one of main/master present → that
  *    one. Both or neither → null, because picking either would be a guess.
+ *
+ * `opts.guess: false` stops after step 1: `origin/HEAD` or null. For a caller
+ * that takes the answer as proof (`defaultBranchRef`, `work-write.js`), where
+ * a pushed branch that happens to be called `main` must not stand in for the
+ * default.
  *
  * Offline throughout — `for-each-ref` reads local refs, no network.
  *
@@ -161,24 +253,35 @@ export function hasRemote(baseDir, opts = {}) {
 export function resolveDefaultBranch(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   try {
-    const ref = git(baseDir, ['rev-parse', '--abbrev-ref', 'origin/HEAD'], execFn);
-    // An unset origin/HEAD prints the literal string back and exits 128; some
-    // git versions print it and exit 0, so the literal is checked either way.
-    if (ref && ref !== 'origin/HEAD') {
-      return ref.startsWith('origin/') ? ref.slice('origin/'.length) : ref;
+    // The symbolic ref is read as it is stored, by its full name. A name
+    // lookup (`rev-parse --abbrev-ref origin/HEAD`) is not used: a tag called
+    // `origin/main` or `origin/HEAD` changes what that prints, and with it
+    // which ref a close would be confirmed against.
+    const ref = git(baseDir, ['symbolic-ref', '--quiet', ORIGIN_HEAD_REF], execFn);
+    // A stored target that is gone (the remote's default was renamed, then
+    // a pruning fetch) names no branch.
+    if (ref.startsWith(ORIGIN_REFS) && ref.length > ORIGIN_REFS.length && exactRefExists(baseDir, ref, execFn)) {
+      return ref.slice(ORIGIN_REFS.length);
     }
   } catch {
-    // fall through to disambiguation
+    // unset (exit 1) or not a symbolic ref: fall through to disambiguation
   }
+  if (opts.guess === false) return null;
 
-  const present = DEFAULT_BRANCH_CANDIDATES.filter((name) => {
-    try {
-      return git(baseDir, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${name}`], execFn) !== '';
-    } catch {
-      return false;
-    }
-  });
+  const present = DEFAULT_BRANCH_CANDIDATES.filter((name) => exactRefExists(baseDir, `${ORIGIN_REFS}${name}`, execFn));
   return present.length === 1 ? present[0] : null;
+}
+
+// Does exactly this ref exist? `show-ref --verify` asks for the ref by its
+// full name and exits non-zero without it; `rev-parse --verify` would also
+// accept a tag or a local branch that carries the same long name.
+export function exactRefExists(baseDir, ref, execFn) {
+  try {
+    git(baseDir, ['show-ref', '--verify', '--quiet', ref], execFn);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -205,17 +308,36 @@ export function checkBranchPosture(baseDir, opts = {}) {
     });
   }
 
+  // With a git Signal runs no check on (older than 2.38) the question was
+  // not asked: that is "could not check", with the reason — not "there is no
+  // repository here", which every git call would then seem to say.
+  const unusable = gitUnusableReason();
+  if (unusable !== null) return base(BRANCH_GATE.CANNOT_DETERMINE, { reason: unusable });
+
   if (!isGitRepo(baseDir, { execFn })) {
+    // Git also fails here when it STOPS at a folder laid out like a bare
+    // repository and refuses it (`safe.bareRepository=explicit`) — with the
+    // project's real repository further up. That is "could not ask" (r6.5).
+    const why = whyNoWorkTree(baseDir, execFn);
+    if (why === 'bare') {
+      return base(BRANCH_GATE.CANNOT_DETERMINE, {
+        reason: 'a folder at or above this one is laid out like a bare git repository, and git will not use it — so git could not be asked about this project',
+      });
+    }
+    // Git failing is not "no repository" (r7.1): the gate stays on, unable to say.
+    if (why === 'failed') return base(BRANCH_GATE.CANNOT_DETERMINE, { reason: GIT_FAILED });
     return base(BRANCH_GATE.NOT_APPLICABLE, { reason: 'not a git repository' });
   }
 
-  const remote = hasRemote(baseDir, { execFn });
-  if (remote === null) {
+  const remotes = remoteNames(baseDir, { execFn });
+  if (remotes === null) {
     return base(BRANCH_GATE.CANNOT_DETERMINE, {
       reason: 'could not list git remotes',
     });
   }
-  if (remote === false) {
+  if (remotes.length === 0) {
+    // Believed only when git read this repository's config (r7.1).
+    if (!readsOwnConfig(baseDir, execFn)) return base(BRANCH_GATE.CANNOT_DETERMINE, { reason: GIT_FAILED });
     return base(BRANCH_GATE.NOT_APPLICABLE, {
       reason: 'no git remote — there is no pull request to open',
     });
@@ -232,8 +354,11 @@ export function checkBranchPosture(baseDir, opts = {}) {
   if (defaultBranch === null) {
     return base(BRANCH_GATE.CANNOT_DETERMINE, {
       currentBranch,
-      reason:
-        'origin/HEAD is unset and neither origin/main nor origin/master is unambiguously present',
+      // Without `origin` the refs named below cannot be there: say which
+      // remote is read, and which ones this repository has.
+      reason: remotes.includes('origin')
+        ? 'origin/HEAD is unset and neither origin/main nor origin/master is unambiguously present'
+        : `no remote is named \`origin\` (this repository has: ${remotes.map((name) => shownRef(name, 'remote', { noCommandHere: true })).join(', ')}) — the default branch is read from the remote named \`origin\``,
     });
   }
 
@@ -244,7 +369,7 @@ export function checkBranchPosture(baseDir, opts = {}) {
   return base(override ? BRANCH_GATE.OVERRIDDEN : BRANCH_GATE.ON_DEFAULT, {
     currentBranch,
     defaultBranch,
-    reason: `HEAD is the default branch (${defaultBranch})`,
+    reason: `HEAD is the default branch (${shownRef(defaultBranch, 'branch', { noCommandHere: true })})`,
   });
 }
 
@@ -257,19 +382,24 @@ export function checkBranchPosture(baseDir, opts = {}) {
  * @returns {string}
  */
 export function formatBranchHalt(result, ctx) {
-  const suggested = ctx.suggestedBranch ?? 'feat/<short-name>';
+  // A suggested name goes into a command, so only a plain one is used.
+  const suggested = isPlainRefName(ctx.suggestedBranch) ? ctx.suggestedBranch : 'feat/<short-name>';
+  // The name as a message may print it (`shownRef`): a branch can be called
+  // almost anything, by whoever pushed it.
+  // No command here names it (the one given is for a NEW branch).
+  const branch = shownRef(result.defaultBranch, 'branch', { noCommandHere: true });
   return [
-    `HALT — you are on ${result.defaultBranch}, the default branch.`,
+    `HALT — you are on ${branch}, the default branch.`,
     '',
-    `Signal's rule is that every change reaches ${result.defaultBranch} through a branch and a`,
+    `Signal's rule is that every change reaches ${branch} through a branch and a`,
     'pull request with a green test check. Committing here bypasses both, and once the',
-    `commits have landed on ${result.defaultBranch} there is nothing left to open a PR from.`,
+    `commits have landed on ${branch} there is nothing left to open a PR from.`,
     '',
     'Fix — create a branch, then re-run:',
     `    git checkout -b ${suggested}`,
     `    ${ctx.command}`,
     '',
-    `Working directly on ${result.defaultBranch} on purpose? Re-run with ${OVERRIDE_FLAG}.`,
+    `Working directly on ${branch} on purpose? Re-run with ${OVERRIDE_FLAG}.`,
   ].join('\n');
 }
 
@@ -315,9 +445,16 @@ export function readPullRequestEvidence(baseDir, opts = {}) {
         stdio: ['ignore', 'pipe', 'ignore'],
         timeout: opts.timeoutMs ?? GH_TIMEOUT_MS,
         killSignal: 'SIGKILL',
-        env: { ...process.env, GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1' },
+        // `gh` runs git to learn which repository this is, so it gets git's
+        // environment (r6.1).
+        env: { ...gitEnv(baseDir), GH_PROMPT_DISABLED: '1', GH_NO_UPDATE_NOTIFIER: '1' },
       })
     ).trim();
+
+  // `gh`'s own git gets the environment above, so it refuses a folder that
+  // only looks like a repository. On a git too old for that, `gh` is not run.
+  const unusable = gitUnusableReason();
+  if (unusable !== null) return { status: 'cannot-determine', url: null, state: null, reason: unusable };
 
   try {
     run(['auth', 'status']);
@@ -344,7 +481,7 @@ export function readPullRequestEvidence(baseDir, opts = {}) {
         status: 'none',
         url: null,
         state: null,
-        reason: `HEAD is ${posture.defaultBranch}; a pull request cannot exist for the default branch`,
+        reason: `HEAD is ${shownRef(posture.defaultBranch, 'branch', { noCommandHere: true })}; a pull request cannot exist for the default branch`,
       };
     }
     return {
@@ -411,9 +548,9 @@ export function formatBranchLine(result) {
     case BRANCH_GATE.OK:
       return null;
     case BRANCH_GATE.ON_DEFAULT:
-      return `Branch: HALT — on ${result.defaultBranch} (the default branch).`;
+      return `Branch: HALT — on ${shownRef(result.defaultBranch, 'branch', { noCommandHere: true })} (the default branch).`;
     case BRANCH_GATE.OVERRIDDEN:
-      return `Branch: on ${result.defaultBranch} — allowed by ${OVERRIDE_FLAG}.`;
+      return `Branch: on ${shownRef(result.defaultBranch, 'branch', { noCommandHere: true })} — allowed by ${OVERRIDE_FLAG}.`;
     case BRANCH_GATE.NOT_APPLICABLE:
       return `Branch: not checked — ${result.reason}.`;
     case BRANCH_GATE.CANNOT_DETERMINE:

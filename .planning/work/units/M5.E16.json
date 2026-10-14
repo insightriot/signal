@@ -1,0 +1,18 @@
+{
+  "id": "M5.E16",
+  "legacy_row": [
+    "**E16**",
+    "✅ shipped as **v0.1.16** (2026-08-02)",
+    "**STATE-vs-world drift detection.** `/sig:sweep` gains six deterministic checks comparing what a project's `.planning/` **asserts** against what is on disk and in git; each declares whether it **needs a person** or **clears itself**, and the report distinguishes **\"checked and clean\"** from **\"could not check.\"** *That distinction is the release:* measured across **13 real projects**, the two checks aimed at the originating incident can evaluate **2 of them** — Signal's hand-maintained, Epic-mode, `schema_version: 1` shape is the **minority** shape (4 of 12 Epic-mode; 7 of 12 with a canonical `phase`; `readState` **throws** on one). Also shipped: **`INDEX.md` regenerates at every phase transition** (was: ship only) and **`/sig:update`** (installed vs. available **plus the CHANGELOG delta** — the half `/plugin` cannot show you); roster **18 → 19 commands**. 1836 → **1938 tests**. **Two defects found in the Epic's own work, both by reading documents against each other:** **`B59`** — `M5.E16-PROFILE.md` carried **two** out-of-enum values, so `readEffectiveProfile` threw and **the Epic declaring FEATURE ran its whole DISCUSS at the project's FULL**, caught at its own PLAN preamble the first time any code read the file; and at REVIEW, **check `(c)` reported \"clean\" on a project it could not see** (`eval-project-C`: 19 phase artifacts, 0 retrospectives). **REVIEW returned FAIL and the Epic looped back to EXECUTE** rather than take the small-diff exit `D-M5E17-1` warns about — and check `(a)` then fired in the field for the first time, *caused by that loop-back*. Decisions D-M5E16-1…5. Retro: [`M5.E16-RETROSPECTIVE.md`](M5.E16-RETROSPECTIVE.md)."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-5.md:41: “✅ shipped as **v0.1.16** (2026-08-02)”); its retrospective is complete (.planning/M5.E16-RETROSPECTIVE.md); today's closure check reads it closed (M5.E16-VERIFICATION.md records a PASS, and M5.E16 is not the current unit).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

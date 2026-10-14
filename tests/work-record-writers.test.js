@@ -12,12 +12,16 @@
 // skipped) both
 //   - names a record — `serializeRecord`, `recordPath(`, a `work/items` path,
 //     an `'items'` path segment, or (REVIEW pass 2) reaches records through
-//     `walkFiles(`, `listRecords(` or `getRecord(` — and
+//     `walkFiles(`, `listRecords(` or `getRecord(`; or names a unit record the
+//     same five ways (`unitPath(`, `work/units`, `'units'`, `listUnits(`,
+//     `getUnit(`) — and
 //   - calls a file-write primitive (`writeFile`, `writeSync`, `atomicWrite`,
 //     `rename`, `copyFile`, `cpSync`, `appendFile`, `createWriteStream`, their
 //     Sync forms, under any name an import or destructuring gives them, or an
 //     `open(…, 'w'|'a'|'r+')`).
-// Only `work-records.js` may be one, plus the reviewed exemptions below. An
+// Only the owner modules (`OWNERS`: `work-records.js` for items,
+// `unit-records.js` for units, and the write helpers both run,
+// `work-write.js`) may be one, plus the reviewed exemptions below. An
 // exemption is not a file pass: it lists every write line it was reviewed for
 // (a new one is a violation), may name ONE function whose writes are the
 // exempt ones (the migration's build), and may pin a line the review relied on
@@ -35,17 +39,25 @@ import { join } from 'node:path';
 const ROOT = process.cwd();
 const DIRS = ['plugin/tools/lib', 'plugin/hooks'];
 
-const OWNER = 'plugin/tools/lib/work-records.js';
+// The modules that may write record files (a list since M6.E16.S1, so a second
+// record kind's library can join it). `work-records.js` owns item records;
+// its exports are checked one by one in `tests/work-records-inventory.test.js`.
+// `work-write.js` holds the write helpers every kind shares (the lock, the
+// atomic record write, the put-back); it has no writer of its own, and only an
+// owner may import it — checked below.
+// `unit-records.js` owns unit records (M6.E16.S2); its exports are checked one
+// by one in `tests/unit-records-inventory.test.js`.
+const WRITE_HELPERS = 'plugin/tools/lib/work-write.js';
+const OWNERS = ['plugin/tools/lib/work-records.js', 'plugin/tools/lib/unit-records.js', WRITE_HELPERS];
 
-const RECORD_MARKERS = [
-  /\bserializeRecord\b/,
-  /\brecordPath\(/,
-  /work\/items/,
-  /(['"`])items\1/,
-  /\bwalkFiles\(/,
-  /\blistRecords\(/,
-  /\bgetRecord\(/,
+// How code names a record: the markers every kind shares, then each kind's own
+// (a list since M6.E16.S1 — a second record kind adds a row, not a second scan).
+const SHARED_MARKERS = [/\bserializeRecord\b/, /\bwalkFiles\(/];
+const KIND_MARKERS = [
+  { kind: 'item', markers: [/\brecordPath\(/, /work\/items/, /(['"`])items\1/, /\blistRecords\(/, /\bgetRecord\(/] },
+  { kind: 'unit', markers: [/\bunitPath\(/, /work\/units/, /(['"`])units\1/, /\blistUnits\(/, /\bgetUnit\(/] },
 ];
+const RECORD_MARKERS = [...SHARED_MARKERS, ...KIND_MARKERS.flatMap((k) => k.markers)];
 const PRIMITIVES = ['writeFile', 'writeFileSync', 'writeSync', 'atomicWrite', 'appendFile', 'appendFileSync', 'rename',
   'renameSync', 'copyFile', 'copyFileSync', 'cpSync', 'cp', 'createWriteStream'];
 const OPEN_FOR_WRITE = /\bopen(?:Sync)?\(.*(['"`])(?:w|a|r\+)[x+]*\1/;
@@ -127,8 +139,9 @@ const EXEMPTIONS = [
   },
   {
     file: 'plugin/tools/lib/work-views.js',
-    writes: ['atomicWrite(abs, views[rel], { generated: true })'],
-    reason: 'regenerates the views from the records it reads; it writes views, never a record',
+    writes: ['atomicWrite(abs, views[rel], { generated: true })', 'atomicWrite(join(baseDir, rel), next)'],
+    reason: 'regenerates the views from the records it reads; it writes views, never a record. The second write is the '
+      + 'current milestone file\'s Epic table, between its markers (M6.E16 t5.2) — `rel` is `.planning/MILESTONE-<n>.md`',
   },
 ];
 
@@ -166,9 +179,9 @@ function exemptionBroken(e, text) {
   return gone ? `no longer has the line its review relied on: ${gone}` : null;
 }
 
-/** The record writers in `found` (`{file, hit, text}`) that are neither the owner nor exempt, as messages. */
+/** The record writers in `found` (`{file, hit, text}`) that are neither an owner nor exempt, as messages. */
 function violations(found) {
-  return found.filter((m) => m.file !== OWNER).flatMap((m) => {
+  return found.filter((m) => !OWNERS.includes(m.file)).flatMap((m) => {
     const e = EXEMPTIONS.find((x) => x.file === m.file);
     const why = e ? exemptionBroken(e, m.text) : `names ${m.hit.markers.join(', ')} and writes: ${m.hit.writes[0]}`;
     return why ? [`${m.file}: ${why}`] : [];
@@ -189,13 +202,19 @@ describe('no module but work-records.js writes record files (AC2.2, REVIEW I5)',
     })
     .filter((m) => m.hit);
 
-  it('scans both directories, the owner among them', () => {
-    expect(modules()).toContain(OWNER);
+  it('scans both directories, every owner among them', () => {
+    for (const owner of OWNERS) expect(modules()).toContain(owner);
     expect(modules().some((f) => f.startsWith('plugin/hooks/'))).toBe(true);
   });
 
-  it('the owner is found as a writer (the scan sees the real thing)', () => {
-    expect(found.map((m) => m.file)).toContain(OWNER);
+  it('every owner is found as a writer (the scan sees the real thing)', () => {
+    for (const owner of OWNERS) expect(found.map((m) => m.file)).toContain(owner);
+  });
+
+  it('the shared write helpers are imported by owners only', () => {
+    const importers = modules().filter((file) => /from\s*['"][^'"]*work-write\.js['"]/.test(readFileSync(join(ROOT, file), 'utf-8')));
+    // Sorted on both sides (M6.E16.S2): with two importers the order a folder is listed in is not a fact about them.
+    expect(importers.sort()).toEqual(OWNERS.filter((f) => f !== WRITE_HELPERS).sort());
   });
 
   it('every other record writer is a reviewed exemption', () => {
@@ -214,6 +233,38 @@ describe('no module but work-records.js writes record files (AC2.2, REVIEW I5)',
 });
 
 describe('the record-writer scan bites (self-test)', () => {
+  // The unit kind's markers (M6.E16.S2) are beside these, not among them: the
+  // shared markers and the item kind's are still the seven.
+  it('no marker was lost when the list was split by kind: the seven it had are the seven it has', () => {
+    const sharedAndItem = [...SHARED_MARKERS, ...KIND_MARKERS.find((k) => k.kind === 'item').markers];
+    expect(sharedAndItem.map(String).sort()).toEqual([
+      /\bserializeRecord\b/, /\brecordPath\(/, /work\/items/, /(['"`])items\1/, /\bwalkFiles\(/, /\blistRecords\(/, /\bgetRecord\(/,
+    ].map(String).sort());
+    expect(RECORD_MARKERS).toHaveLength(12);
+    for (const re of sharedAndItem) expect(RECORD_MARKERS.map(String)).toContain(String(re));
+  });
+
+  it('a module that writes a unit record is found, by each way of naming one (M6.E16.S2)', () => {
+    for (const planted of [
+      "await atomicWrite(join(base, '.planning', 'work', 'units', 'M6.E1.json'), text);",
+      'await rename(tmp, `.planning/work/units/${id}.json`);',
+      'writeFileSync(join(base, unitPath(base, id)), text);',
+      'const { units } = listUnits(base);\nawait atomicWrite(p, text);',
+      'const u = getUnit(base, id);\nawait atomicWrite(p, text);',
+    ]) expect(recordWriter(planted), planted).not.toBeNull();
+    expect(recordWriter('const u = getUnit(base, id);\nreturn u.status;')).toBeNull();
+    expect(recordWriter("// writes .planning/work/units/ID.json\nwriteFileSync(other, 'x');")).toBeNull();
+  });
+
+  it('the unit library does not travel either: the same text in another file is a violation', () => {
+    const file = 'plugin/tools/lib/unit-records.js';
+    const text = readFileSync(join(ROOT, file), 'utf-8');
+    const hit = recordWriter(text);
+    expect(hit).not.toBeNull();
+    expect(violations([{ file, hit, text }])).toEqual([]);
+    expect(violations([{ file: 'plugin/tools/lib/closure.js', hit, text }])).toHaveLength(1);
+  });
+
   it('a module that serializes a record and writes it is found', () => {
     const planted = [
       "import { serializeRecord } from './work-record.js';",
@@ -240,6 +291,14 @@ describe('the record-writer scan bites (self-test)', () => {
 
   it('a record path quoted in a comment is not a marker', () => {
     expect(recordWriter("// writes .planning/work/items/NN/KEY-n.json\nwriteFileSync(other, 'x');")).toBeNull();
+  });
+
+  it('the write helpers do not travel either: the same text in another file is a violation', () => {
+    const text = readFileSync(join(ROOT, WRITE_HELPERS), 'utf-8');
+    const hit = recordWriter(text);
+    expect(hit).not.toBeNull();
+    expect(violations([{ file: WRITE_HELPERS, hit, text }])).toEqual([]);
+    expect(violations([{ file: 'plugin/tools/lib/sweep.js', hit, text }])).toHaveLength(1);
   });
 
   it('an exemption does not travel: the same text in another file is a violation', () => {

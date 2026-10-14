@@ -157,19 +157,33 @@ describe('scanPrescribedCommands — against the real payload', () => {
     }
   });
 
-  it('FINDING — `gh` is NOT prescribed anywhere in the payload, and that is correct', () => {
-    // The only `gh` in plugin/ is the bare word inside prose at ship.md:271
-    // ("no `gh`, no auth, no network"). The actual guidance — `gh pr create
-    // --fill`, `gh pr merge --squash` — lives in the repo-root CLAUDE.md, which
-    // is NOT part of the shipped payload and is therefore not scanned.
+  it('FINDING, revisited (M6.E16 r6.3) — `gh` IS run by the payload: by its own code, and by no command file', () => {
+    // This test used to pin that `gh` was prescribed nowhere, and said: "If
+    // someone later adds a gh invocation … this test goes red and the note
+    // gets revisited deliberately." It went red, and this is the revisit.
     //
-    // This is a real under-proposal and it is pinned rather than patched: the
-    // project's hand-cleaned settings carry three gh rules (gh auth/repo/api),
-    // and a flow-derived proposal would offer none of them. S5.t3's outcome
-    // metric exists to publish exactly this direction of miss. If someone later
-    // adds a gh invocation to a command file, this test goes red and the note
-    // gets revisited deliberately.
-    expect(live.binaries).not.toContain('gh');
+    // `tools/lib/pr-review-findings.js` now runs `gh` itself when its caller
+    // brings no `execFn` (r6.3: so that `gh` gets git's environment by
+    // default). That is a literal `execFileSync('gh', …)`, which the scan
+    // sees. It was already true that the payload ran `gh` —
+    // `branch-guard.js` `readPullRequestEvidence` does, through an injected
+    // `execFn` that defaults to `execFileSync` — but the scan reads only a
+    // literal call, so that one was never counted. So the direction of the
+    // old miss stands corrected, not reversed: the flow does use `gh`.
+    //
+    // Still true: no COMMAND FILE prescribes `gh` (`gh pr create`, `gh pr
+    // merge` live in the repo-root CLAUDE.md, outside the payload), so the
+    // only `gh` entry is in the deterministic layer, from `tools/`.
+    const gh = live.entries.filter((e) => e.binary === 'gh');
+    expect(gh.map((e) => [e.layer, e.source])).toEqual([[LAYER.DETERMINISTIC, 'tools/lib/pr-review-findings.js']]);
+    // r6.4: r6.3 pinned `gh` as propose-allow here, and the proposal then
+    // offered `Bash(gh:*)`. What Signal's own code spawns needs no Bash rule;
+    // and no key this scan can produce separates `gh pr view` from
+    // `gh pr merge`. `gh` is never proposed, and its writes are named.
+    expect(classify('gh')).toBe(VERDICT.NEVER_PROPOSE);
+    for (const key of ['gh repo delete', 'gh pr merge', 'gh secret set', 'gh auth token', 'gh extension install', 'gh api graphql', 'gh pr', 'gh pr view']) {
+      expect(classify(key), key).toBe(VERDICT.NEVER_PROPOSE);
+    }
   });
 
   it('AC1.1a — returns `rm`, which is the whole reason classification exists', () => {
@@ -191,11 +205,12 @@ describe('scanPrescribedCommands — against the real payload', () => {
     expect(onlyOutside.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('the deterministic layer resolves to git and ps, and nothing else', () => {
+  it('the deterministic layer resolves to gh, git and ps, and nothing else', () => {
+    // `gh` since M6.E16 r6.3 (see the FINDING above).
     const det = new Set(
       live.entries.filter((e) => e.layer === LAYER.DETERMINISTIC).map((e) => e.binary)
     );
-    expect([...det].sort()).toEqual(['git', 'ps']);
+    expect([...det].sort()).toEqual(['gh', 'git', 'ps']);
   });
 });
 

@@ -1,0 +1,13 @@
+{
+  "id": "SIG-314",
+  "type": "NEW",
+  "title": "unitToCloseAtShip accepts a current_epic that can never be a unit record",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-14T21:16:07.874Z",
+      "by": "Claude (M6.E16 r7.2)"
+    }
+  ]
+}

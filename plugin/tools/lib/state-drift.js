@@ -32,12 +32,14 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
+import { gitEnv, gitUnusableReason } from './git-env.js';
 import { readState, PHASES, EPIC_ID_STRICT_RE } from './state.js';
 import { readProfileIssues } from './profile.js';
 import { deriveUnits, WORKED_SUFFIXES } from './work-units.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
+import { readUnitRecords } from './closure.js';
 import { isReceipt, stripControl } from './receipt.js';
 
 const PLANNING_DIR = '.planning';
@@ -555,15 +557,21 @@ export const checkEpicWithoutRetro = defineCheck({
   // so it already evaluated. This is a latent gap that fails safe today by
   // INVENTORY, not by design — the Epic does not claim it fixed an observed
   // problem (RESEARCH §9.5).
-  applicability: ({ files }) =>
-    files.some((f) => f === 'RETROSPECTIVE.md' || f.endsWith('-RETROSPECTIVE.md'))
+  applicability: ({ files, planningDir }) => {
+    // A `work/units/` folder that cannot be trusted (REVIEW pass 1, C-I4):
+    // which units were worked, and which were dropped, is not known, and the
+    // files alone are not asked in its place. BLIND, with the fault.
+    const unitsProblem = typeof planningDir === 'string' ? readUnitRecords(dirname(planningDir))?.problem : undefined;
+    if (typeof unitsProblem === 'string') return { status: APPLICABILITY.BLIND, reason: unitsProblem };
+    return files.some((f) => f === 'RETROSPECTIVE.md' || f.endsWith('-RETROSPECTIVE.md'))
       ? APPLICABILITY.EVAL
       : {
           status: APPLICABILITY.NA,
           reason:
             'this project has no retrospectives at all — a different convention, not drift. ' +
             'The check has nothing to compare against.',
-        },
+        };
+  },
   run: async ({ files, state, planningDir }) => {
     // `deriveUnits` owns the whole rule now: the right-anchored suffix match,
     // the categorical seven-phase-name exclusion (a linear project legitimately
@@ -575,6 +583,29 @@ export const checkEpicWithoutRetro = defineCheck({
     // the Map itself yields [key, files] ENTRIES, which stringify into the
     // finding as "M5.E13,M5.E13-PLAN.md".
     const worked = new Set(deriveUnits(files, { suffixes: WORKED_SUFFIXES }).units.keys());
+    // With unit records (M6.E16 t6.3) which units were worked comes from the
+    // records: every unit that has one, with or without a file left in
+    // `.planning/` — except one closed as `dropped`, whose record says the
+    // work never ran here, and one closed as `legacy` (t7.0): that close says
+    // the unit was over before unit records existed and asserts nothing about
+    // a retrospective. A unit whose record does not read is passed over:
+    // `/sig:docs-sweep` reports the record. A unit with no record is still
+    // found from its files, as above.
+    const unitRecords = readUnitRecords(dirname(planningDir));
+    // Never reached with a `units/` folder that cannot be trusted
+    // (`applicability` answers BLIND first); said here too.
+    if (typeof unitRecords?.problem === 'string') return [];
+    const byRecord = new Map();
+    if (unitRecords !== null) {
+      for (const id of unitRecords.broken.keys()) worked.delete(id);
+      for (const [id, u] of unitRecords.byId) {
+        if (u.status === 'closed' && (u.close?.reason === 'dropped' || u.close?.reason === 'legacy')) worked.delete(id);
+        else {
+          worked.add(id);
+          byRecord.set(id, u.status);
+        }
+      }
+    }
     const findings = [];
     for (const unit of [...worked].sort()) {
       if (unit === state.current_epic) continue; // mid-flight, not abandoned
@@ -596,6 +627,21 @@ export const checkEpicWithoutRetro = defineCheck({
         }
       }
       if (status === RETRO_STATUS.COMPLETE) continue;
+
+      if (byRecord.has(unit)) {
+        const says = `${unit} has a unit record (${byRecord.get(unit)})`;
+        findings.push({
+          file: `${PLANNING_DIR}/${retroName}`,
+          message:
+            status === RETRO_STATUS.STUB
+              ? `${says} and a retrospective that is still a stub — the file exists but holds ` +
+                '`[FILL IN]` placeholders, so nothing records what happened. Fill it in, or ' +
+                'close the unit as dropped.'
+              : `${says} but no retrospective — it was either finished without one, or ` +
+                'abandoned. Only you know which.',
+        });
+        continue;
+      }
 
       findings.push({
         file: `${PLANNING_DIR}/${retroName}`,
@@ -641,6 +687,10 @@ export const checkBaselineCommitOffHistory = defineCheck({
     if (!existsSync(join(baseDir, '.git'))) {
       return { status: APPLICABILITY.NA, reason: 'not a git repository' };
     }
+    // Not asked at all with a git Signal runs no check on: every git call
+    // would fail, and that would read as "the commit is not in this repository".
+    const unusable = gitUnusableReason();
+    if (unusable !== null) return { status: APPLICABILITY.NA, reason: unusable };
     return APPLICABILITY.EVAL;
   },
   run: ({ baseDir, state }) => {
@@ -649,6 +699,7 @@ export const checkBaselineCommitOffHistory = defineCheck({
       execFileSync('git', ['merge-base', '--is-ancestor', commit, 'HEAD'], {
         cwd: baseDir,
         stdio: 'ignore',
+        env: gitEnv(baseDir),
       });
       return [];
     } catch {
@@ -656,7 +707,7 @@ export const checkBaselineCommitOffHistory = defineCheck({
       // they read very differently to someone deciding whether work was lost.
       let known = false;
       try {
-        execFileSync('git', ['cat-file', '-e', `${commit}^{commit}`], { cwd: baseDir, stdio: 'ignore' });
+        execFileSync('git', ['cat-file', '-e', `${commit}^{commit}`], { cwd: baseDir, stdio: 'ignore', env: gitEnv(baseDir) });
         known = true;
       } catch {
         known = false;

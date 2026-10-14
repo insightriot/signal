@@ -1,0 +1,381 @@
+// The write helpers every kind of work record shares (M6.E16.S1.t1.2).
+//
+// An INTERNAL module: it has no public writer. A record changes only through a
+// library that owns its kind (`work-records.js` owns items) and calls these
+// under the `work` lock. `tests/work-record-writers.test.js` lists the modules
+// that may import this one.
+//
+// Everything here was module-private to `work-records.js` and is moved, not
+// rewritten. What named an item thing is now passed in: the record kind
+// (`makeRecordKind`, `work-record.js`), the path resolver, the reader, the
+// store check and the view regeneration.
+//
+// It imports neither `work-records.js` nor `work-views.js`, so it adds nothing
+// to the cycle between those two.
+
+import { closeSync, fstatSync, lstatSync, openSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { atomicWrite } from './atomic-write.js';
+import { readsOwnConfig, remoteNames, resolveDefaultBranch } from './branch-guard.js';
+import { acquireLock } from './file-lock.js';
+import { dotGitAtOrAbove, gitEnv, gitUnusableReason } from './git-env.js';
+import { commitsStartingWith, runGit } from './git-objects.js';
+import { assertRealInsidePlanning } from './path-confine.js';
+import { scrubSensitive } from './scrub.js';
+import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
+import { WORK_LOCK_REL, WORK_LOCK_TTL_MS } from './work-store.js';
+
+// ── The lock, and the views after a write ───────────────────────────────────
+
+/**
+ * Run `fn` under the `work` lock (`.planning/work/.lock`, v1's file, so every
+ * writer of the store excludes every other). The store check runs before the
+ * lock is taken, so a project that may not be written never grows a lock
+ * file; `beforeWrite` runs under it, before `fn`.
+ *
+ * @param {string} baseDir
+ * @param {string} label — who holds the lock, for the message a waiter sees
+ * @param {{assertWritable: (baseDir: string) => {key: string}, beforeWrite: () => void}} store
+ * @param {(handle: {baseDir: string, key: string}) => Promise<any>} fn
+ * @returns {Promise<any>} what `fn` returns
+ */
+export async function withWorkLock(baseDir, label, { assertWritable, beforeWrite }, fn) {
+  const { key } = assertWritable(baseDir);
+  let lock;
+  try {
+    lock = await acquireLock(join(baseDir, WORK_LOCK_REL), { label, ttlMs: WORK_LOCK_TTL_MS });
+  } catch (err) {
+    throw lockFailure(err);
+  }
+  try {
+    beforeWrite();
+    return await fn({ baseDir, key });
+  } finally {
+    await lock.released();
+  }
+}
+
+/**
+ * Regenerate after a write that landed. A failure does not undo the change:
+ * the change is correct, and `notRegenerated(done, err)` builds the error that
+ * says so.
+ *
+ * @param {{baseDir: string}} handle
+ * @param {string} done — what landed, as a clause ("SIG-3 was written")
+ * @param {(baseDir: string) => Promise<void>} regenerate
+ * @param {(done: string, err: unknown) => Error} notRegenerated
+ */
+export async function regenerateAfter(handle, done, regenerate, notRegenerated) {
+  try {
+    await regenerate(handle.baseDir);
+  } catch (err) {
+    throw notRegenerated(done, err);
+  }
+}
+
+// ── Paths ───────────────────────────────────────────────────────────────────
+
+// `assertRealInsidePlanning`, as a WorkStoreError (v1 `confine`).
+export function confine(baseDir, abs) {
+  try {
+    assertRealInsidePlanning(baseDir, abs, 'work store write');
+  } catch (err) {
+    throw asWorkStoreError(err, typeof err?.code === 'string' ? 'IO' : 'CONFLICT');
+  }
+}
+
+export function existsNoFollow(abs) {
+  try {
+    lstatSync(abs);
+    return true;
+  } catch (err) {
+    if (err.code === 'ENOENT') return false;
+    throw asWorkStoreError(err, 'IO');
+  }
+}
+
+// ── Free text ───────────────────────────────────────────────────────────────
+
+// Every sensitive-data hit in `texts`, each field scanned on its own (v1
+// `work-ops.js` `scrubTexts`). Non-strings and empty strings are skipped.
+function scrubTexts(texts) {
+  const hits = [];
+  for (const text of texts) {
+    if (typeof text === 'string' && text !== '') hits.push(...scrubSensitive(text).hits);
+  }
+  return hits;
+}
+
+// The sensitive-data gate (v1 `sensitivePending`, unchanged): with a hit and no
+// `acknowledgeSensitive`, nothing is written and the caller must ask. Moved
+// here from `work-records.js` when units needed the same gate (M6.E16.S2).
+export function sensitivePending(texts, opts) {
+  const sensitiveHits = scrubTexts(texts);
+  if (sensitiveHits.length > 0 && !opts.acknowledgeSensitive) {
+    return { aborted: 'sensitive-data-pending', sensitiveHits };
+  }
+  return null;
+}
+
+// ── Records ─────────────────────────────────────────────────────────────────
+
+// Append one event (and apply `fields`) to the record `id` holds now.
+export function withEvent(current, event, fields = {}) {
+  const next = { ...current.record, ...fields, events: [...current.record.events, event] };
+  for (const k of Object.keys(fields)) if (fields[k] === undefined || fields[k] === null) delete next[k];
+  return next;
+}
+
+/**
+ * The write helpers for one kind of record, bound to that kind's pieces.
+ *
+ * @param {object} of
+ * @param {{serializeRecord: Function, checkEvents: Function}} of.kind — from `makeRecordKind`
+ * @param {(id: string) => string} of.pathOf — where the record lives, repo-root-relative
+ * @param {(record: object) => object} of.entryOf — the record as its library returns it
+ * @param {(id: string) => void} of.assertId — throws unless `id` is an ID of this kind
+ * @param {(baseDir: string, key: string, id: string) => null|{records: object[], broken: object[]}} of.readOne
+ * @param {string} of.noun — what one record is called in messages (`item`)
+ * @returns {{recordText: Function, readForWrite: Function, writeRecord: Function, writeRecords: Function}}
+ */
+export function recordWriter({ kind, pathOf, entryOf, assertId, readOne, noun }) {
+  // A record's bytes, validated and with a legal history — or a throw, before
+  // anything is written. Shape errors are SCHEMA; an event not legal where it
+  // stands (the transition table) is CONFLICT.
+  function recordText(record) {
+    const text = kind.serializeRecord(record);
+    const errors = kind.checkEvents(record);
+    if (errors.length > 0) {
+      throw new WorkStoreError('CONFLICT', `${record.id}: ${errors.map((e) => e.message).join('; ')} — nothing was written.`);
+    }
+    return text;
+  }
+
+  // A record as it is on disk now, under the lock: {entry, text}.
+  function readForWrite(handle, id) {
+    assertId(id);
+    const found = readOne(handle.baseDir, handle.key, id);
+    if (found === null) throw new WorkStoreError('NOT_FOUND', `${id}: no such ${noun}`);
+    if (found.broken.length > 0) throw new WorkStoreError('SCHEMA', found.broken.map((b) => b.error).join('; '));
+    const entry = found.records[0];
+    return { entry, text: readFileSync(join(handle.baseDir, entry.path), 'utf-8') };
+  }
+
+  // One existing record, changed: its new bytes written atomically over the old.
+  async function writeRecord(handle, next, opts) {
+    const text = recordText(next);
+    const abs = join(handle.baseDir, pathOf(next.id));
+    confine(handle.baseDir, abs);
+    try {
+      await atomicWrite(abs, text, { renameFn: opts.renameFn });
+    } catch (err) {
+      throw asWorkStoreError(err, 'IO');
+    }
+    return entryOf(next);
+  }
+
+  // Write several changed records, all or nothing (`writePlanned`).
+  async function writeRecords(handle, planned, opts) {
+    await writePlanned(handle, planned, opts);
+    return planned.map((p) => entryOf(p.next));
+  }
+
+  return { recordText, readForWrite, writeRecord, writeRecords };
+}
+
+/**
+ * Write several changed records, all or nothing: on a failure each record
+ * already written is put back to its old bytes. A put-back that fails is
+ * named. The records may be of different kinds (an item and a unit confirmed
+ * in one call, M6.E16 t4.2): each entry carries the bytes its own library
+ * built and checked.
+ *
+ * @param {{baseDir: string}} handle
+ * @param {Array<{next: {id: string}, text: string, oldText: string, abs: string}>} planned
+ * @param {{renameFn?: Function}} opts
+ */
+export async function writePlanned(handle, planned, opts) {
+  const done = [];
+  try {
+    for (const p of planned) {
+      confine(handle.baseDir, p.abs);
+      await atomicWrite(p.abs, p.text, { renameFn: opts.renameFn });
+      done.push(p);
+    }
+  } catch (err) {
+    const left = [];
+    for (const p of done.reverse()) {
+      try {
+        await atomicWrite(p.abs, p.oldText);
+      } catch {
+        left.push(p.next.id);
+      }
+    }
+    const wrapped = asWorkStoreError(err, 'IO', left.length
+      ? `the write failed and ${left.join(', ')} could not be put back: `
+      : '');
+    wrapped.leftChanged = left;
+    throw wrapped;
+  }
+}
+
+// ── Reading a record file ──────────────────────────────────────────────────
+
+/**
+ * The largest record file that is read: 4 MB (REVIEW pass 1, S-L1). The
+ * largest record in Signal's own store is under 4 kB, and a unit record with
+ * every text field at its limit is under 800 kB, so nothing a writer here
+ * produces comes near it. A larger file is reported as a broken record by
+ * name and is never read into memory.
+ */
+export const RECORD_BYTES_MAX = 4 * 1024 * 1024;
+
+/**
+ * A record file's text — or `{tooLarge}`, with its message, when the file is
+ * over `RECORD_BYTES_MAX`; it is not read then.
+ *
+ * @param {string} abs
+ * @returns {{text: string} | {tooLarge: string}}
+ * @throws as `fs` (a caller reports the code)
+ */
+export function readRecordFile(abs) {
+  const fd = openSync(abs, 'r');
+  try {
+    const { size } = fstatSync(fd);
+    if (size > RECORD_BYTES_MAX) return { tooLarge: `is ${size} bytes, over the ${RECORD_BYTES_MAX} a record file may be — it was not read` };
+    return { text: readFileSync(fd, 'utf-8') };
+  } finally {
+    closeSync(fd);
+  }
+}
+
+// ── Git: is a commit on the default branch ─────────────────────────────────
+
+// The environment of every git call here is `gitEnv()` (`git-env.js`, where
+// each setting is explained): replace refs and grafts are not honoured, and a
+// planted bare-repository layout is not taken for the repository.
+// `runGit` and `commitsStartingWith` are in `git-objects.js` (r6.1), so that
+// `work-ops.js` can use them; they are still exported from here.
+export { commitsStartingWith, gitEnv, runGit };
+
+// A lazy, memoised `git rev-parse --is-shallow-repository` (false on failure).
+export function shallowProbe(baseDir, execFn) {
+  let shallow;
+  return () => {
+    if (shallow === undefined) {
+      try {
+        shallow = runGit(baseDir, ['rev-parse', '--is-shallow-repository'], execFn).trim() === 'true';
+      } catch {
+        shallow = false;
+      }
+    }
+    return shallow;
+  };
+}
+
+// Is `baseDir` in a git work tree (M6.E16 r7.1)? 'repo'; 'not-a-repo' only
+// when git itself says "not a git repository" AND there is no `.git` entry at
+// or above the folder; 'git-failed' for every other failure — a broken
+// config, a `.git` file pointing nowhere, git refusing a folder it does not
+// trust (`safe.directory`). `isGitRepo` reads every failure as no repository,
+// which made "git could not read it" look like a reason no git answer can
+// change. Run with `LC_ALL=C`, so the words matched are git's English ones.
+function repoState(baseDir, execFn) {
+  try {
+    const out = String(execFn('git', ['rev-parse', '--is-inside-work-tree'], {
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...gitEnv(baseDir), LC_ALL: 'C' },
+    })).trim();
+    return out === 'true' ? 'repo' : 'git-failed';
+  } catch (err) {
+    const said = String(err?.stderr ?? '');
+    if (!/not a git repository/i.test(said)) return 'git-failed';
+    let dotGit;
+    try {
+      dotGit = dotGitAtOrAbove(baseDir);
+    } catch {
+      dotGit = true; // the folders above could not be read: the safe side
+    }
+    return dotGit ? 'git-failed' : 'not-a-repo';
+  }
+}
+
+// The ref a confirmed commit must be an ancestor of, or why there is none.
+// The REMOTE ref (`refs/remotes/origin/<branch>`), not the local branch: a
+// local `main` can hold commits nobody merged. The branch is the one
+// `origin/HEAD` names and is never guessed (`guess: false`): with `origin/HEAD`
+// unset the answer is `no-default-branch`, and `git remote set-head origin -a`
+// records it. The ref is built here from a fixed prefix, so it cannot begin
+// with `-`.
+export function defaultBranchRef(baseDir, execFn) {
+  // A git Signal runs no check on (older than 2.38): nothing was asked, which
+  // is not the same as "this is no repository".
+  if (gitUnusableReason() !== null) return { reason: 'git-too-old' };
+  const repo = repoState(baseDir, execFn);
+  if (repo !== 'repo') return { reason: repo };
+  const remotes = remoteNames(baseDir, { execFn });
+  if (remotes === null) return { reason: 'git-failed' };
+  // A list with no `origin` is believed only when git has shown it read this
+  // repository's own config (M6.E16 r7.1): a git that finds the repository
+  // and does not trust it can answer the work-tree question and list no
+  // remotes, and that must not read as a project with no remote.
+  if (!remotes.includes('origin') && !readsOwnConfig(baseDir, execFn)) return { reason: 'git-failed' };
+  if (remotes.length === 0) return { reason: 'no-remote' };
+  // Remotes, none of them `origin`: not `no-default-branch`, whose way out
+  // (`git remote set-head origin -a`) fails without a remote of that name.
+  if (!remotes.includes('origin')) return { reason: 'no-origin-remote' };
+  const branch = resolveDefaultBranch(baseDir, { execFn, guess: false });
+  if (branch === null) return { reason: 'no-default-branch' };
+  const ref = `refs/remotes/origin/${branch}`;
+  try {
+    // `show-ref --verify` asks for this exact ref. `rev-parse --verify` would
+    // also accept a tag or a local branch that carries the same long name.
+    runGit(baseDir, ['show-ref', '--verify', '--quiet', ref], execFn);
+  } catch {
+    return { reason: 'no-default-branch' };
+  }
+  return { ref };
+}
+
+// null when `sha` is an ancestor of `ref`; otherwise why not. `sha` has
+// already matched COMMIT_RE, so it is bare lowercase hex and never an option
+// (`--end-of-options` says so to git as well).
+//
+// The proof is resolved to a full SHA FIRST, and only that SHA is checked:
+// git resolves `<name>^{commit}` as a branch or tag before it tries an
+// abbreviated object id, so a ref named `deadbee` would otherwise stand in for
+// a commit (the M6.E13 VERIFY AC7.2 finding). A resolved SHA that does not
+// start with the proof means the proof named a ref → `proof-names-a-ref`.
+//
+// A short proof that more than one commit starts with → `ambiguous-proof`,
+// checked FIRST (SIG-276, M6.E14): a branch or tag named the shared prefix
+// makes `rev-parse` resolve the ref instead of failing, and the commit it
+// points at does start with the prefix — so without this check the proof
+// confirmed although it names two commits.
+export function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
+  if (sha.length < 40 && commitsStartingWith(baseDir, sha, execFn) > 1) return 'ambiguous-proof';
+  let full;
+  try {
+    full = runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${sha}^{commit}`], execFn)
+      .trim().toLowerCase();
+  } catch {
+    // In a shallow clone a cut-off commit is simply absent, so it cannot be known.
+    return isShallow() ? 'shallow' : 'unknown-commit';
+  }
+  if (!full.startsWith(sha.toLowerCase())) return 'proof-names-a-ref';
+  try {
+    execFn('git', ['merge-base', '--is-ancestor', full, ref], {
+      cwd: baseDir,
+      stdio: ['ignore', 'ignore', 'ignore'],
+      env: gitEnv(baseDir),
+    });
+    return null;
+  } catch (err) {
+    // In a shallow clone a missing commit and a cut-off history look the same
+    // as "not an ancestor", so the answer is that it cannot be known.
+    if (isShallow()) return 'shallow';
+    if (err?.status === 1) return 'not-on-default-branch';
+    if (err?.status === 128) return 'unknown-commit';
+    return 'git-failed';
+  }
+}

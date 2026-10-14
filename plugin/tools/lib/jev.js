@@ -22,6 +22,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+import { dotGitAtOrAbove, gitEnv, gitUnusableReason } from './git-env.js';
+
 export const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 
 // The model the M6.E3 measurement ran on (`D-M6E3-13`). Overridable with
@@ -113,11 +115,30 @@ function dotenvName(baseDir) {
  * `name` is ignored (exit 0 — tracked files never are), or this is no git repo.
  */
 export function dotenvRefusal(baseDir, name) {
-  const r = spawnSync('git', ['check-ignore', '-q', '--', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'pipe'], timeout: 2000, encoding: 'utf8' });
+  // With a git Signal does not run its checks on (older than 2.38), nothing
+  // can say the file is ignored: "no git repo" would then be `gitEnv`'s
+  // doing, not git's finding, and a committed key must not pass on it.
+  const unusable = gitUnusableReason();
+  if (unusable !== null) return `git could not confirm ${name} is ignored (${unusable})`;
+  const r = spawnSync('git', ['check-ignore', '-q', '--', name], {
+    cwd: baseDir, stdio: ['ignore', 'ignore', 'pipe'], timeout: 2000, encoding: 'utf8', env: { ...gitEnv(baseDir), LC_ALL: 'C' },
+  });
   if (r.status === 0) return null;
-  if (r.status === 128 && /not a git repository/i.test(r.stderr ?? '')) return null;
+  // "Not a git repository" is believed only with no `.git` entry at or above
+  // the folder (M6.E16 r7.1): git says the same for a `.git` file pointing
+  // nowhere, and a repository git fails on is not one with no rule about `.env`.
+  if (r.status === 128 && /not a git repository/i.test(r.stderr ?? '') && !dotGitSafe(baseDir)) return null;
   if (r.status === 1) return `${name} is not git-ignored (a committed key is the repository author's, not yours)`;
   return `git could not confirm ${name} is ignored`;
+}
+
+// `dotGitAtOrAbove`, with a folder that cannot be read taken as "there is one".
+function dotGitSafe(baseDir) {
+  try {
+    return dotGitAtOrAbove(baseDir);
+  } catch {
+    return true;
+  }
 }
 
 /** Why no key was found — for the "did not run" line (a skipped .env is not "not set"). */

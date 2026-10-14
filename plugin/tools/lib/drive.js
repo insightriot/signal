@@ -19,6 +19,7 @@ import { join, sep } from 'node:path';
 import { existsSync, lstatSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
+import { shownName } from './printable-text.js';
 import { attentionFor, CALIBRATION_ENUMS } from './profile.js';
 import { LOOP_BOUNDED_PHASES } from './loop-ceiling.js';
 import { atomicWrite } from './atomic-write.js';
@@ -26,8 +27,10 @@ import { parseBacklogRows } from './backlog.js';
 import { openQuestionsNaming } from './legacy-lists.js';
 import { leadingUnitId } from './leading-id.js';
 import { readState, partitionCompletedPhases, PHASES } from './state.js';
-import { findWorkOnOtherBranches, nextStepFor } from './branch-work.js';
+import { checkoutStep, findWorkOnOtherBranches, nextStepFor, shownBranches } from './branch-work.js';
+import { isPlainRefName, shownRef } from './printable-text.js';
 import { resolveArtifactPath } from './resume.js';
+import { getUnit, unitClosure, unitRecordsOn } from './unit-records.js';
 import { isStoreOn } from './work-store.js';
 import { listRecords } from './work-records.js';
 import { storeBacklogRows, storeQuestions } from './advise-corpus.js';
@@ -167,7 +170,7 @@ function readRecords(baseDir, { throwOnError = false } = {}) {
 
 /** The records `listRecords` could not read, as one line naming each by ID (or path). */
 function brokenReason(broken) {
-  return `${broken.length} work item(s) could not be read — ${broken.map((b) => b.id ?? b.path).join(', ')}`;
+  return `${broken.length} work item(s) could not be read — ${broken.map((b) => b.id ?? shownName(b.path)).join(', ')}`;
 }
 
 /**
@@ -497,10 +500,15 @@ export async function readQueue(baseDir) {
  * Resume beats start: an Epic already open with phases still to run is the work
  * in progress, and proposing a new one ahead of it is how two Epics end up half done.
  *
+ * On a project with unit records (M6.E16 t6.4) the current Epic's record, when
+ * it has one, says whether it is open: STATE.md's "no SHIP recorded" does not.
+ * An Epic whose close is requested and not yet confirmed is not a candidate;
+ * it is returned in `awaitingMerge` (a key present only when there is one).
+ *
  * @param {string} baseDir
  * @returns {Promise<{candidates: Array<{id: string|null, title: string, source: string,
  *   line: number|null, why: string, branch?: string}>, cannotCheck: Array<{source: string, reason: string}>,
- *   unclassifiedBranches: string[]}>}
+ *   unclassifiedBranches: string[], awaitingMerge?: Array<{id: string, proof: string, why: string}>}>}
  */
 /**
  * How much a backlog heading looks like a unit of WORK rather than a section of prose.
@@ -540,10 +548,33 @@ export async function proposeEpicCandidates(baseDir) {
     cannotCheck.push({ source: 'STATE.md', reason: err.message });
   }
 
+  // Closing Epics (unit records only): their close is requested and waits for
+  // its commit to reach the default branch. Not work to start or resume.
+  const awaitingMerge = [];
+
   if (state?.current_epic) {
+    // With unit records (M6.E16 t6.4) the Epic's record says whether it is
+    // open, when it has one: open is a candidate; *closing* is not — it is
+    // named in `awaitingMerge`; closed (held or not) is neither. An Epic with
+    // no record, or one whose record does not read (reported), is read from
+    // STATE.md as before.
+    // A `units/` folder that cannot be trusted is reported the same way
+    // (`unitRecordsOn` throws inside the `try`).
+    let unit = null;
+    try {
+      if (unitRecordsOn(baseDir) && unitClosure(baseDir, state.current_epic) !== 'no-record') unit = getUnit(baseDir, state.current_epic);
+    } catch (err) {
+      cannotCheck.push({ source: 'unit records', reason: err.message });
+    }
     const { valid } = partitionCompletedPhases(state.completed_phases ?? []);
     const shipped = valid.some((e) => e.startsWith('SHIP '));
-    if (!shipped) {
+    if (unit?.status === 'closing') {
+      awaitingMerge.push({
+        id: state.current_epic,
+        proof: unit.closing_proof,
+        why: `its close is requested with ${unit.closing_proof} — it closes when that commit is on the default branch`,
+      });
+    } else if (unit === null ? !shipped : unit.status === 'open') {
       candidates.push({
         id: state.current_epic,
         title: state.current_epic,
@@ -559,16 +590,29 @@ export async function proposeEpicCandidates(baseDir) {
   // local open Epic and ahead of every backlog row, and each carries `branch` so
   // `resolveStartPhase` refuses to resume it here — this run never switches branches.
   const otherBranches = await findWorkOnOtherBranches(baseDir, { localEpic: state?.current_epic ?? null });
+  // Two Epics whose names are not shown can read the same ("… not shown: 19
+  // characters"): an `id` shared by two candidates then gets its branch.
+  // The branch can be a length-only note too (r6.6): an id still shared then
+  // gets " (2)", " (3)" after the first, in the order the candidates are listed.
+  const shared = new Set(otherBranches.open.map((o) => o.epic).filter((e, i, all) => all.indexOf(e) !== i));
+  const seen = new Map();
   for (const o of otherBranches.open) {
+    const named = shared.has(o.epic) ? `${o.epic} on ${shownRef(o.checkout, 'branch', { noCommandHere: true })}` : o.epic;
+    const n = (seen.get(named) ?? 0) + 1;
+    seen.set(named, n);
     candidates.push({
-      id: o.epic,
+      id: n === 1 ? named : `${named} (${n})`,
       title: o.epic,
-      source: `${o.branches.join(', ')} (open Epic)`,
-      branch: o.checkout,
+      source: `${shownBranches(o.branches, { noCommandHere: true })} (open Epic)`,
+      // What the agent is told to switch to (`drive.md`). A name that is not
+      // plainly one is not handed over as it is: the exact name stays in
+      // `findWorkOnOtherBranches`' own result (`checkout`), which no
+      // instruction tells the agent to paste.
+      branch: shownRef(o.checkout),
       phase: o.phase,
       nextStep: nextStepFor(o),
       line: null,
-      why: `already open at ${o.phase ?? 'an unrecorded phase'} on ${o.branches.join(', ')} — finish it before starting new work`,
+      why: `already open at ${o.phase ?? 'an unrecorded phase'} on ${shownBranches(o.branches, { noCommandHere: true })} — finish it before starting new work`,
     });
   }
   cannotCheck.push(...otherBranches.cannotCheck);
@@ -644,7 +688,8 @@ export async function proposeEpicCandidates(baseDir) {
     }
   }
 
-  return { candidates, cannotCheck, unclassifiedBranches: otherBranches.unclassified };
+  const out = { candidates, cannotCheck, unclassifiedBranches: otherBranches.unclassified };
+  return awaitingMerge.length > 0 ? { ...out, awaitingMerge } : out;
 }
 
 /** Sources the pre-flight pass consults. Named so a report can say what it looked at. */
@@ -884,7 +929,12 @@ export function resolveStartPhase(state, candidate) {
   // against this branch's files and write this branch's STATE.md — the wrong
   // branch. Switching branches is the person's call, so the run stops and says how.
   if (candidate?.branch) {
-    const step = candidate.nextStep ?? `run \`git checkout ${candidate.branch}\` to continue it`;
+    // `proposeEpicCandidates` always sets `nextStep`. A candidate built
+    // without one has only `branch`, which is a SHOWN name (a plain name, or
+    // a note): a command is made from it only when it is plainly a name.
+    const step = candidate.nextStep ?? (isPlainRefName(candidate.branch)
+      ? checkoutStep(candidate.branch)
+      : 'its branch has a name that cannot be written safely in a command, so none is given — find it with `git branch -a` and check it out yourself to continue it');
     return {
       phase: candidate.phase ?? 'DISCUSS',
       why:

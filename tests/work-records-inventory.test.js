@@ -102,6 +102,12 @@ const READERS = {
   checkRecords: (base) => records.checkRecords(base),
   listClosing: (base) => records.listClosing(base, { now: AT }),
   probeCloses: (base) => records.probeCloses(base, { now: AT }),
+  probeClosedProofs: (base) => records.probeClosedProofs(base),
+  // Asks git two questions and reads nothing of the store (r1.2, C-I2).
+  headProvesNothing: (base) => records.headProvesNothing(base, '0123abc'),
+  refuseUncheckedProof: (base) => records.refuseUncheckedProof(base, 'SIG-1', '0123abc'),
+  // Asks git whether a commit is on the default branch and reads nothing of the store (r3.4).
+  onDefaultBranch: (base) => records.onDefaultBranch(base, '0123abc'),
   // t7.3 prep: v1 work-ops.js's triage readers, ported to records.
   triageNext: (base) => records.triageNext(base),
   listNeedsReview: (base) => records.listNeedsReview(base),
@@ -147,6 +153,23 @@ const WRITERS = {
   },
   reopenItem: { run: (base) => records.reopenItem(base, 'SIG-1006', { reason: 'back', by }) },
   editItem: { run: (base) => records.editItem(base, 'SIG-2', { changes: { title: 'edited' }, by }) },
+  // Real events in one write, all kept (r3.4): `reopened`, then the new `close_requested` —
+  // two here, because SIG-5 is in no Epic; an item in one gets a third between them, the
+  // `queued` or `started` that keeps it there (tests/unit-close-head-proof.test.js). Git is
+  // stubbed: the new proof is a commit, and SIG-5's outstanding proof (0123abc) is a commit
+  // that is not in HEAD's history.
+  rerequestCloses: {
+    run: (base) => records.rerequestCloses(base, [{ id: 'SIG-5', proof: 'c'.repeat(40), by }], {
+      execFn: (cmd, args) => {
+        if (args.includes('--is-inside-work-tree')) return 'true\n';
+        if (args[0] === 'merge-base') throw Object.assign(new Error('not an ancestor'), { status: 1 });
+        if (args.includes(`${'c'.repeat(40)}^{commit}`)) return `${'c'.repeat(40)}\n`;
+        if (args.includes('0123abc^{commit}')) return `0123abc${'0'.repeat(33)}\n`;
+        return '';
+      },
+    }),
+    appended: 2,
+  },
   // The store is not a git repo, so git is stubbed: origin/main resolves and
   // SIG-5's proof (0123abc) is an ancestor of it. SIG-5 gains one `closed`.
   // Real-git scenarios are in tests/work-records-confirm.test.js.
@@ -155,17 +178,24 @@ const WRITERS = {
       execFn: (cmd, args) => {
         if (args.includes('--is-inside-work-tree')) return 'true\n';
         if (args[0] === 'remote') return 'origin\n';
-        if (args.includes('origin/HEAD')) return 'origin/main\n';
+        if (args.includes('refs/remotes/origin/HEAD')) return 'refs/remotes/origin/main\n';
         // The proof resolves to a full SHA that starts with it (VERIFY loop 1, AC7.2).
         if (args.includes('0123abc^{commit}')) return `0123abc${'0'.repeat(33)}\n`;
         return '';
       },
     }),
   },
+  // M6.E16 r7: the store is not a git repository (`not-a-repo`), one of the three reasons a
+  // close may be confirmed by hand. SIG-5 gains one `closed`. Real-git scenarios are in
+  // tests/close-by-hand.test.js.
+  confirmCloseByHand: { run: (base) => records.confirmCloseByHand(base, 'SIG-5', { by }) },
 };
 
 const EXEMPT = {
   // name: 'reason, reviewed by …'
+  rerequestEpicClose: 'writes item records (three events each) and one unit record (one or two events) in ONE call, '
+    + 'and this check takes one event count per writer. The item half is `rerequestCloses`, checked above; the whole call, '
+    + 'event by event, is tests/unit-close-head-proof.test.js. Reviewed at M6.E16 r3.4.',
 };
 
 // Lock nesting outside this module, reviewed and out of scope (Decision 9):
@@ -386,12 +416,12 @@ export async function promote(b, id) { await triage(b, id); return queue(b, id);
     expect(injected).not.toBe(SOURCE);
     const { lockTaking, violations } = lockNesting(injected);
     const real = lockNesting(SOURCE).lockTaking; // the writers t2.2 added
-    // findByLegacyId (M6.E15 S5), closeEpicCheck, listClosing and probeCloses (through classifyClosing,
+    // findByLegacyId (M6.E15 S5), closeEpicCheck, probeClosedProofs, listClosing and probeCloses (through classifyClosing,
     // which confirmCloses shares) read through listRecords, so the injected take reaches them too;
-    // so do the t7.3-prep triage readers (through triageRows).
+    // so do the t7.3-prep triage readers (through triageRows), and byHandReason (M6.E16 r7, through classifyClosing).
     expect(lockTaking.filter((n) => !real.includes(n))).toEqual(
-      ['listRecords', 'getRecord', 'findByLegacyId', 'closeEpicCheck', 'classifyClosing', 'probeCloses', 'listClosing',
-        'triageRows', 'triageNext', 'listNeedsReview', 'listThemes'],
+      ['listRecords', 'getRecord', 'findByLegacyId', 'closeEpicCheck', 'probeClosedProofs', 'classifyClosing', 'probeCloses', 'byHandReason',
+        'listClosing', 'triageRows', 'triageNext', 'listNeedsReview', 'listThemes'],
     );
     // confirmCloses takes the lock AND reads through listRecords, so a take
     // injected into listRecords makes it a second entry point: caught too.
@@ -400,11 +430,41 @@ export async function promote(b, id) { await triage(b, id); return queue(b, id);
       // newItems reads through listRecords under its lock for `dedupeBy` (M6.E14 S3, SIG-277).
       expect.stringMatching(/^newItems .*listRecords/),
       expect.stringMatching(/^confirmCloses .*listRecords/),
+      // confirmCloseByHand (M6.E16 r7) reads through listRecords under its lock, as confirmCloses does.
+      expect.stringMatching(/^confirmCloseByHand .*listRecords/),
       // ...and the internal classifyClosing (t4.6) now reaches the injected take: caught as internal.
       expect.stringMatching(/^classifyClosing: an internal function that takes the lock/),
+      // ...and byHandReason (r7), which reads through classifyClosing.
+      expect.stringMatching(/^byHandReason: an internal function that takes the lock/),
       // ...and the internal triageRows (t7.3 prep), the same way.
       expect.stringMatching(/^triageRows: an internal function that takes the lock/),
     ]);
+  });
+
+  // M6.E16.S1: the take itself moved to `work-write.js` (`withWorkLock`), so a
+  // call to that helper is a take, exactly as a call to `acquireLock` is.
+  it('a take through the shared helper withWorkLock is seen: nesting and an internal take are flagged', () => {
+    const SHARED = BAD
+      .replace("import { acquireLock } from './file-lock.js';", "import { withWorkLock } from './work-write.js';")
+      .replace("const lock = await acquireLock(baseDir + '/.lock');\n  try { return await fn(lock); } finally { await lock.released(); }",
+        'return withWorkLock(baseDir, fn);');
+    expect(SHARED).not.toContain('acquireLock');
+    expect(SHARED).toContain('return withWorkLock(baseDir, fn);');
+    expect(lockNesting(SHARED)).toEqual(lockNesting(BAD));
+  });
+
+  it('work-write.js as a namespace, aliased, or imported with no take in sight is refused', () => {
+    const NS = "import * as w from './work-write.js';\nexport async function x() { await w.withWorkLock('l'); }\n";
+    expect(lockNesting(NS).violations).toEqual(expect.arrayContaining([expect.stringMatching(/work-write\.js is imported as a namespace/)]));
+    const ALIAS = "import { withWorkLock as take } from './work-write.js';\nexport async function x() { await take('l'); }\n";
+    expect(lockNesting(ALIAS).violations).toEqual([expect.stringMatching(/withWorkLock is imported under an alias/), expect.stringMatching(/no function/)]);
+    const BLIND = "import { withWorkLock } from './work-write.js';\nexport const x = async () => { const take = withWorkLock; await take('l'); };\n";
+    expect(lockNesting(BLIND).violations).toEqual([expect.stringMatching(/work-write\.js.*no function that calls withWorkLock\(/)]);
+  });
+
+  it('the real file takes the lock through the shared helper, in one place', () => {
+    expect(SOURCE.match(/(?<![\w$.])withWorkLock\(/g)).toHaveLength(1);
+    expect(lockNesting(SOURCE).lockTaking[0]).toBe('withWorkLockV2');
   });
 
   it('an aliased acquireLock import is refused, since the scan matches the name', () => {

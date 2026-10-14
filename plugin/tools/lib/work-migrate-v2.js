@@ -51,6 +51,7 @@ import { dirname, join, posix, relative, resolve, sep, isAbsolute } from 'node:p
 import { atomicWrite } from './atomic-write.js';
 import { acquireLock } from './file-lock.js';
 import { resolveDefaultBranch } from './branch-guard.js';
+import { gitCannotAsk, gitEnv } from './git-env.js';
 import { assertRealInsidePlanning, linkedComponent } from './path-confine.js';
 import { bodyDirFor, convertV1Item } from './work-convert.js';
 import { WorkStoreError, asWorkStoreError, lockFailure } from './work-errors.js';
@@ -127,7 +128,7 @@ function firstAddedDates(baseDir, key, execFn) {
       'git',
       ['log', '--all', '--no-renames', '--diff-filter=A', '--date=short', '--format=%x00%ad', '--name-only', '--',
         `:(glob).planning/**/${key}-*.md`],
-      { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024 },
+      { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024, env: gitEnv(baseDir) },
     ));
   } catch {
     return dates;
@@ -315,7 +316,8 @@ function v2WorkBody(key) {
 This file switches the work-item store on for this project. Every bug, backlog row, inbox capture and open question is one **record**, \`.planning/work/items/NN/${key}-n.json\` (NN is the item number divided by 1000, two digits), with its body beside it as \`${key}-n.md\`. **A record never moves.** Its status is not stored: it is derived from the record's own events — \`created\` → N, \`triaged\` → T, \`queued\` → Q, \`started\` → P, \`close_requested\` → *closing*, \`closed\` → C, \`reopened\` → T.
 
 - \`items/\` — every record and its body, by number
-- \`epics/<EpicID>/\` — an Epic's documents; its items are the records whose events name the Epic
+- \`units/\` — one record per Epic or unit, \`<ID>.json\`, when the project has unit records (this folder existing is what turns them on). A unit's status is derived from its own events too: open, *closing*, closed — and a closed unit can be held
+- \`epics/<EpicID>/\` — an Epic's documents, when a folder was made for it by hand; an Epic's items are the records whose events name it, folder or not
 - \`history/YYYY.md\` — closes from more than 30 days before the newest event (a view)
 
 \`key\` is the prefix of every item ID (\`${key}-412\`). The standing trigger watchlist lives next to this file in \`WATCHLIST.md\`.
@@ -481,7 +483,9 @@ function withRecovery(err) {
 
 // A run of git against the SOURCE repo, whatever cwd the caller passed — so
 // the aside copy (no `.git`) is probed against the real `origin/<default>`.
-const inRepo = (repo, execFn) => (cmd, args, o = {}) => execFn(cmd, args, { ...o, cwd: repo });
+// The environment is the SOURCE repo's too: `gitEnv` looks at the folder a
+// call runs in, and the one the caller built was for the folder it named.
+const inRepo = (repo, execFn) => (cmd, args, o = {}) => execFn(cmd, args, { ...o, cwd: repo, env: gitEnv(repo) });
 
 function originRef(baseDir, execFn) {
   if (!isGitRepo(baseDir, execFn)) return { ref: null, sha: null };
@@ -490,7 +494,7 @@ function originRef(baseDir, execFn) {
   const ref = `refs/remotes/origin/${branch}`;
   try {
     const sha = String(execFn('git', ['rev-parse', '--verify', '--quiet', ref], {
-      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+      cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir),
     })).trim();
     return { ref, sha };
   } catch {
@@ -500,7 +504,7 @@ function originRef(baseDir, execFn) {
 
 function headSha(baseDir, execFn) {
   try {
-    return String(execFn('git', ['rev-parse', 'HEAD'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })).trim();
+    return String(execFn('git', ['rev-parse', 'HEAD'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) })).trim();
   } catch {
     return null;
   }
@@ -567,9 +571,14 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
   if (version === null) throw new WorkStoreError('CONFIG', 'this project has no work store (.planning/work/WORK.md): nothing to migrate.');
   if (version === 2) throw new WorkStoreError('CONFIG', '.planning/work/WORK.md already reads schema_version: 2 — this store is already v2.');
 
+  // The dry run too (r6.6): it reads each item's first date from git.
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) {
+    throw new WorkStoreError('CONFIG', `${apply ? '--apply' : 'the dry run'} could not ask git about this project: ${cannotAsk}. Nothing was written.`);
+  }
   if (apply) {
     if (!isGitRepo(baseDir, execFn)) throw new WorkStoreError('CONFIG', '--apply needs a git repository (the cutover is one reviewable commit, and confirmCloses asks git).');
-    const dirty = String(execFn('git', ['status', '--porcelain'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })).trim();
+    const dirty = String(execFn('git', ['status', '--porcelain'], { cwd: baseDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) })).trim();
     if (dirty !== '') {
       throw new WorkStoreError('CONFIG', `--apply refuses a dirty working tree (uncommitted changes): commit or move them first.\n${dirty}`);
     }
@@ -672,7 +681,7 @@ export async function migrateWorkStoreV2(baseDir, opts = {}) {
     try {
       assertUnchanged(baseDir, results);
       // The recovery is git's: an ignored v1 file passes the clean-tree check, and git cannot restore it.
-      const tracked = new Set(String(execFn('git', ['--literal-pathspecs', 'ls-files', '-z', '--', '.planning'], { cwd: baseDir, encoding: 'utf8' })).split('\0'));
+      const tracked = new Set(String(execFn('git', ['--literal-pathspecs', 'ls-files', '-z', '--', '.planning'], { cwd: baseDir, encoding: 'utf8', env: gitEnv(baseDir) })).split('\0'));
       const untracked = ['work/WORK.md', ...results.map((r) => r.relPath)].map((p) => `.planning/${p}`).filter((p) => !tracked.has(p));
       if (untracked.length > 0) throw new WorkStoreError('CONFIG', `--apply needs every v1 file tracked by git; not tracked (ignored?): ${untracked.join(', ')}. Commit or remove them, then re-run.`);
       preflight(baseDir, results);

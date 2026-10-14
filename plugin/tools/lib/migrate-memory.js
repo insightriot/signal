@@ -27,6 +27,7 @@ import { join, dirname, resolve, relative, sep } from 'node:path';
 // archive-tree.js and work-generate.js — deterministic plan/moves order.
 import { PLANNING_DIR, withStateLock, EPIC_ID_STRICT_RE, compareEpicIds } from './state.js';
 import { atomicWrite } from './atomic-write.js';
+import { gitCannotAsk, gitEnv } from './git-env.js';
 import {
   extractEpicSection,
   verifyCardCoverage,
@@ -35,7 +36,7 @@ import {
   deriveEpicArchiveDir,
 } from './evict.js';
 import { enumerateRetros } from './retro-index.js';
-import { resolveClosures } from './closure.js';
+import { readUnitRecords, resolveClosures } from './closure.js';
 import { explainArchiveOutcome, renderMoveBreakdown } from './archive-report.js';
 import { checkStateFrontmatterShape } from './retrospective.js';
 import {
@@ -87,6 +88,21 @@ export function parseMigrateArgs(argv = []) {
         parsed.key = next;
         i++; // consume VALUE
       }
+    } else if (token === '--also') {
+      // `--also <ID>:dropped:<words>`, repeatable (M6.E16 t7.2): a unit no
+      // source names, declared closed as dropped. Split at the first two
+      // colons, so the words may hold one. A value with a part missing is
+      // passed on as it is: the run refuses it and says why.
+      const next = args[i + 1];
+      const value = typeof next === 'string' && !next.startsWith('--') ? next : undefined;
+      if (value !== undefined) i++; // consume VALUE
+      const one = value === undefined ? -1 : value.indexOf(':');
+      const two = one === -1 ? -1 : value.indexOf(':', one + 1);
+      (parsed.also ??= []).push({
+        id: one === -1 ? value : value.slice(0, one),
+        reason: one === -1 ? undefined : value.slice(one + 1, two === -1 ? undefined : two),
+        words: two === -1 ? undefined : value.slice(two + 1),
+      });
     }
   }
   return parsed;
@@ -1008,8 +1024,11 @@ export function planVector3(stateText, cards) {
  * `closures` is the same `resolveClosures` result the dry run's explanation uses,
  * so the move list and the "could not evaluate" lines cannot disagree (AC8.3).
  *
+ * On a project with unit records the result also carries `held`: each closed
+ * unit that is held, with its hold reason. Those are not in `closedUnits`.
+ *
  * @param {string} baseDir
- * @returns {Promise<{closedUnits: string[], closures: object|null}>}
+ * @returns {Promise<{closedUnits: string[], closures: object|null, held?: Array<{unit: string, reason: string}>}>}
  */
 export async function resolveMigrateClosedUnits(baseDir) {
   let closures;
@@ -1021,10 +1040,19 @@ export async function resolveMigrateClosedUnits(baseDir) {
   if (!closures.stateReadable) return { closedUnits: [], closures };
   const retros = await enumerateRetros(baseDir);
   const stubbed = new Set(retros.filter((r) => r.isStub).map((r) => r.epicId));
+  // With unit records (M6.E16 t6.3) a unit answered from its record
+  // (`source: 'record'`) is closed because the record says so: a stub
+  // retrospective does not veto it, and a held one is left out — its files and
+  // its narrative stay — and returned in `held` with the reason.
+  // Nor is a unit that is closed and still the current unit (`current`): its
+  // files and its narrative stay until another unit is current.
   const closedUnits = closures.units
-    .filter((u) => u.status === 'closed' && !stubbed.has(u.unit))
+    .filter((u) => u.status === 'closed' && (u.source === 'record' ? u.held !== true && u.current !== true : !stubbed.has(u.unit)))
     .map((u) => u.unit);
-  return { closedUnits, closures };
+  const held = closures.units
+    .filter((u) => u.source === 'record' && u.status === 'closed' && u.held === true)
+    .map((u) => ({ unit: u.unit, reason: u.hold_reason }));
+  return readUnitRecords(baseDir) === null ? { closedUnits, closures } : { closedUnits, closures, held };
 }
 
 /**
@@ -1070,12 +1098,23 @@ export async function senseVector3(baseDir, stateText, opts = {}) {
     cards.set(r.epicId, { path: r.path, content });
   }
   const plan = planVector3(stateText, cards);
+  // Why a unit with a retrospective is not closed. With unit records, and a
+  // record for it, the record is the reason (M6.E16 t6.3) — not a verdict.
+  const unitRecords = readUnitRecords(baseDir);
+  const whyNotClosed = (epicId) => {
+    const record = unitRecords?.byId.get(epicId);
+    if (typeof unitRecords?.problem === 'string') return `whose unit record could not be looked for (${unitRecords.problem})`;
+    if (unitRecords?.broken.has(epicId)) return 'whose unit record could not be read';
+    if (record?.status === 'closed' && record.held) return `whose unit record is closed and held (${record.hold_reason}), so its narrative stays`;
+    if (record !== undefined) return 'which has a retrospective, but its unit record is not closed (or it is the current unit)';
+    return `which has a retrospective but did not resolve as closed (closure needs a readable PASS verdict in ${PLANNING_DIR}/ and a unit that is not current)`;
+  };
   plan.flags = plan.flags.map((f) =>
     f.kind === 'no-retrospective' && retroNotClosed.has(f.epicId)
       ? {
           kind: 'not-closed',
           epicId: f.epicId,
-          reason: `live section for ${f.epicId}, which has a retrospective but did not resolve as closed (closure needs a readable PASS verdict in ${PLANNING_DIR}/ and a unit that is not current) — SKIPPED`,
+          reason: `live section for ${f.epicId}, ${whyNotClosed(f.epicId)} — SKIPPED`,
         }
       : f,
   );
@@ -1106,8 +1145,16 @@ export function probeGitState(baseDir, opts = {}) {
   const execFn = opts.execFn ?? execFileSync;
   const force = opts.force ?? false;
   const git = (args) =>
-    String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'] })).trim();
+    String(execFn('git', args, { cwd: baseDir, stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv(baseDir) })).trim();
   const warnings = [];
+
+  // 0. Could git be asked at all? "Could not ask" is not "not a repository"
+  //    (M6.E16 r6.5): read as one, a migration applied on a dirty tree of a
+  //    real repository and reported "not a git checkout". Refused instead.
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) {
+    return { mode: 'git', proceed: false, dirty: false, warnings, reason: `${cannotAsk}. Nothing was written.` };
+  }
 
   // 1. A git work tree at all? (non-repo → fs-backup)
   try {
@@ -1206,7 +1253,7 @@ export function probeGitState(baseDir, opts = {}) {
  */
 export function tagPreApply(baseDir, name, execFn = execFileSync) {
   try {
-    execFn('git', ['tag', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+    execFn('git', ['tag', name], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv(baseDir) });
     return name;
   } catch {
     return null;
@@ -1224,7 +1271,7 @@ export function tagPreApply(baseDir, name, execFn = execFileSync) {
  */
 export function stagePaths(baseDir, paths, execFn = execFileSync) {
   try {
-    execFn('git', ['add', '--', ...paths], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+    execFn('git', ['add', '--', ...paths], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv(baseDir) });
   } catch {
     /* staging is best-effort — the changes are on disk regardless */
   }
@@ -2113,6 +2160,9 @@ export async function renderDryRun(baseDir, opts = {}) {
       for (const line of explainArchiveOutcome({
         closures: closures.units,
         dropped: archive.dropped,
+        held: archive.held,
+        current: archive.current,
+        unitRecords: readUnitRecords(baseDir) !== null,
         moveCount: archive.moves.length,
         stateReadable: closures.stateReadable,
         stateReason: closures.reason,
@@ -2778,7 +2828,7 @@ export async function applyMigrate(baseDir, opts = {}) {
       // last-resort pointer. Best-effort: a failed `tag -d` must not mask the real error.
       if (tag) {
         try {
-          execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'] });
+          execFn('git', ['tag', '-d', tag], { cwd: baseDir, stdio: ['ignore', 'ignore', 'ignore'], env: gitEnv(baseDir) });
         } catch {
           /* best-effort — keep the original throw */
         }
@@ -2857,6 +2907,10 @@ export async function applyMigrate(baseDir, opts = {}) {
 export async function runMigrate(baseDir, opts = {}) {
   const apply = opts.apply ?? false;
   const sense = opts.sense ?? senseProject;
+  // Git could not be asked: the dry run proposes nothing and the apply is
+  // refused, with the reason first (r6.5; `probeGitState`).
+  const cannotAsk = gitCannotAsk(baseDir);
+  if (cannotAsk !== null) return { applied: false, refused: true, dryRun: !apply, plan: null, inputHash: null, reason: `${cannotAsk}. Nothing was written.` };
   const plan = await sense(baseDir);
 
   const statePath = join(baseDir, PLANNING_DIR, 'STATE.md');

@@ -40,8 +40,12 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
 - **stdin:** **ignored** (AD9). The lever is `process.cwd()`, not the payload.
 - **Reads:** `.planning/STATE.md` + the matching `.planning/MILESTONE-{N}.md`
   (derived from `current_epic`, e.g. `M4.5.E3` → `MILESTONE-4.5.md`) in the cwd.
+  **On a project with unit records** (`.planning/work/units/` exists, M6.E16) the
+  milestone file is not opened: it reads the current Epic's unit record
+  (`.planning/work/units/<EpicID>.json`) instead.
 - **What it does:** if the project is mid-`EXECUTE` for an Epic that the milestone
-  shows shipped but which has **no retro file**, it emits a high-visibility
+  shows shipped — with unit records, one whose record reads *closing* or closed —
+  but which has **no retro file** (or only a stub still holding `[FILL IN]`), it emits a high-visibility
   warning so the gap surfaces the moment the session opens (the D-E9-8 layer-3
   net for "context cleared between EXECUTE finishing and `/sig:ship`").
 - **stdout / exit:** on a dirty match, one line of JSON:
@@ -53,18 +57,19 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   `exit 0` is required for the `additionalContext` to be injected. On no match
   (or any missing/unreadable file), it writes nothing and exits 0.
 - **Fail-open:** no STATE.md / no frontmatter / no `current_epic` / no milestone
-  file → silent `exit 0`.
+  file → silent `exit 0`. With unit records: no record for the Epic, or one that
+  does not read → silent `exit 0`.
 - **Covered by:** `tests/hook-warn-dirty-execute.test.js` (spawn harness) proves
   the stdout/exit contract; `tests/hook-state-write.test.js` proves the
   `detectDirtyExecute` decision logic.
 
-### `PreToolUse(Edit|Write|MultiEdit)` → `check-state-write.js`
+### `PreToolUse(Edit|Write|MultiEdit|NotebookEdit)` → `check-state-write.js`
 
-- **Trigger:** before every `Edit`, `Write` or `MultiEdit` tool call (`matcher: "Edit|Write|MultiEdit"`).
+- **Trigger:** before every `Edit`, `Write`, `MultiEdit` or `NotebookEdit` tool call (`matcher: "Edit|Write|MultiEdit|NotebookEdit"`).
 - **stdin:** **required** — the Claude Code hook event JSON:
 
   ```json
-  {"tool_name":"Edit|Write|MultiEdit","cwd":"…","tool_input":{"file_path":"…","content":"…","old_string":"…","new_string":"…","replace_all":false}}
+  {"tool_name":"Edit|Write|MultiEdit|NotebookEdit","cwd":"…","tool_input":{"file_path":"…","content":"…","old_string":"…","new_string":"…","replace_all":false}}
   ```
 
 - **What it does:** ignores everything except a write whose `file_path` matches
@@ -79,36 +84,76 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   `.planning`, it lazy-loads `tools/lib/work-write-guard.js`. That **blocks** a
   hand edit of `.planning/work/items/**/*.json`, `BUGS.md`, `BACKLOG.md`,
   `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`, `work/EPICS.md`, `work/history/*.md`
+  and (M6.E16/t2.5) a unit record, `.planning/work/units/*.json`, every
+  other path under `.planning/work/units/` and that path itself, whether or not
+  the folder exists (nothing is written in the folder by hand; its `.keep` is
+  the library's, and writing a file there creates the folder and so turns unit
+  records on)
   — **only** when `.planning/work/WORK.md` reads `schema_version: 2` — naming
-  `/sig:item`. Item bodies (`items/**/*.md`) are allowed. On `work/WORK.md` itself
+  `/sig:item`; for a unit record the message adds that `/sig:item` does not
+  change one and that unit records change only through Signal's own commands
+  (`/sig:discuss --epic` and `/sig:new-project --epic` open one, and record a
+  reopen when a closed one is opened again on the person's say-so; `/sig:ship`
+  requests its close;
+  `/sig:ship` and `/sig:docs-sweep` confirm the close;
+  `/sig:docs-migrate --work-store` creates them for a project that had none),
+  and that a hold is placed and released with `holdUnit` and `releaseUnit`
+  (`tools/lib/unit-records.js`; see `/sig:docs-archive`), only when the user
+  asks. A path is matched without regard to case, and with each segment's
+  trailing dot or space and anything from a `:` in its last segment taken off —
+  the spellings Windows opens as the same file. Look-alike letters are folded first
+  (`unitſ` reads as `units`: NFKC, then lower, upper, lower case), a file that is
+  another name (a hard link) for a guarded file inside the project is refused
+  (so is one the guard could not finish checking in a very large store, and a macOS
+  `/.vol/<device>/<inode>` address of a guarded file or folder), and
+  the real path of the target is compared with the real path of `.planning` and
+  the store's folders, and each folder above the target is compared with them by
+  device and inode (on the written path and on the resolved one), so a symlinked
+  `.planning` is guarded by any address that reaches it. A record folder that is
+  itself a link is not followed: the store refuses such a folder, so nothing under
+  it is a record. A target that is a dangling link is read to where it points
+  and judged there, up to 40 links (at least as far as the system follows: 32 on
+  macOS, 40 on Linux); past that, or in a loop, it is refused in a project with
+  a v2 store. A `..` after a folder link in a link's target is read after the link, as the
+  system reads it. The path the tool is given is judged two ways — tidied as text
+  (what Claude Code writes) and with its `..` kept — and refused if either lands
+  on a guarded file.
+  `NotebookEdit` is read by its `notebook_path`. Item bodies
+  (`items/**/*.md`) are allowed. On `work/WORK.md` itself
   it blocks only an edit that would change or remove `schema_version: 2` or the
   `key:` line (the key prefixes every item ID, so changing it orphans every
   record; the proposed content is computed for Write, Edit and MultiEdit),
-  naming the migration tool; other text in WORK.md may be edited. `MultiEdit` reaches only this guard.
+  naming the migration tool; other text in WORK.md may be edited. `MultiEdit` and `NotebookEdit` reach only this guard.
 - **exit:** `2` + a `[signal:check-state-write]` stderr line to **block** the
   write (surfaces to the user); `0` to allow. `baseDir` is derived from the
-  file path (`resolve(file_path, '..', '..')`), NOT from cwd.
-- **Fail-open:** no stdin, malformed JSON, a tool other than Edit/Write/MultiEdit, a
+  file path (`resolve(file_path, '..', '..')`), NOT from cwd; the work-store
+  guard also looks for a store upward from the cwd, from the target's folder and
+  from where the write would land, and the hook loads the guard for any target
+  that is itself a link.
+- **Fail-open:** no stdin, malformed JSON, a tool other than Edit/Write/MultiEdit/NotebookEdit, a
   non-STATE path outside a v2 store's generated files, any error in the work-store guard,
   a missing Edit target, or a malformed Edit (no `old_string`) → `exit 0` (allow).
   A hook bug must never wedge normal editing.
 
 ### What the work-store guard cannot see (REVIEW I7)
 
-The guard is a `PreToolUse` hook on `Edit|Write|MultiEdit`, so it sees those
-three tools and nothing else. **An edit made through Bash** — `sed -i`, a shell
-redirect, a script, `git checkout` of an old file — reaches a record, a view or
-`WORK.md` without the hook running. That is the spirit of AC5.1 (*records
+The guard is a `PreToolUse` hook on `Edit|Write|MultiEdit|NotebookEdit`, so it sees those
+four tools and nothing else. A hard link, a `/.vol` address or a real path outside the project, edited
+with a cwd also outside it, is not seen; a path longer than 4096 bytes is let through unread. **An edit made through Bash** — `sed -i`, a shell
+redirect, a script, `git checkout` of an old file — reaches a record (an item's
+or a unit's), a view or `WORK.md` without the hook running. That is the spirit of AC5.1 (*records
 change only through `/sig:item`*) held by convention, not enforcement, on that
 route.
 
 The backstop is `checkRecords` (`work-records.js`), run by `/sig:docs-sweep`
 (`checkWorkStore`) and by the AC5.2 tests: it reports a record that is invalid,
 whose events do not fold, or a duplicate ID, and any view that differs from a
-regeneration. **Its limit:** a record rewritten by hand into another *valid*
+regeneration. Unit records have the same backstop in `checkUnits`
+(`unit-records.js`), which `checkWorkStore` reports beside it. **Its limit:** a record rewritten by hand into another *valid*
 record — a field changed with no event, its events still folding — passes it.
 Nothing in Signal can detect that edit after the fact; `git diff` of
-`.planning/work/items/` at review is the only place it shows.
+`.planning/work/items/` (and `.planning/work/units/`) at review is the only
+place it shows.
 
 ## The cwd-vs-stdin asymmetry (read this before editing a hook)
 
@@ -161,7 +206,9 @@ the hook scripts, or on a new Claude Code version:
 1. In a scratch project, plant a **dirty-EXECUTE** state: `.planning/STATE.md`
    with `phase: EXECUTE` + a `current_epic` (e.g. `M4.5.E3`); a
    `.planning/MILESTONE-4.5.md` row showing that Epic **shipped**; and **no**
-   `.planning/M4.5.E3-RETROSPECTIVE.md`.
+   `.planning/M4.5.E3-RETROSPECTIVE.md`. (That is a project without unit
+   records. With them, the row is not read: the Epic's unit record must read
+   *closing* or closed.)
 2. Open Claude Code in that project directory and **resume** a session (the
    `resume` source — not a fresh `startup`).
 3. **Expect:** the session's opening context contains the `[signal]` dirty-EXECUTE

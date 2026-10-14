@@ -37,6 +37,7 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 
+import { gitEnv } from './git-env.js';
 import { PLANNING_DIR, initState } from './state.js';
 
 export const FIXTURE_PREFIX = 'signal-adherence-fixture-';
@@ -271,11 +272,11 @@ export async function createFixtureProject({
   if (gitInit) {
     const opts = { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] };
     try {
-      execFileSync('git', ['init', '-q'], opts);
-      execFileSync('git', ['config', 'user.email', 'fixture@adherence.local'], opts);
-      execFileSync('git', ['config', 'user.name', 'Adherence Fixture'], opts);
-      execFileSync('git', ['add', '-A'], opts);
-      execFileSync('git', ['commit', '-q', '-m', 'fixture: initial'], opts);
+      execFileSync('git', ['init', '-q'], { ...opts, env: gitEnv() });
+      execFileSync('git', ['config', 'user.email', 'fixture@adherence.local'], { ...opts, env: gitEnv(root) });
+      execFileSync('git', ['config', 'user.name', 'Adherence Fixture'], { ...opts, env: gitEnv(root) });
+      execFileSync('git', ['add', '-A'], { ...opts, env: gitEnv(root) });
+      execFileSync('git', ['commit', '-q', '-m', 'fixture: initial'], { ...opts, env: gitEnv(root) });
     } catch {
       // A fixture without git still measures instructions that do not require a
       // commit; the run records what happened rather than pretending otherwise.
@@ -442,6 +443,7 @@ function readCommits(root) {
       cwd: root,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: gitEnv(root),
     })
       .split('\n')
       .filter(Boolean);

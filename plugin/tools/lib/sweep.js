@@ -6,7 +6,8 @@
 // severity ∈ 'structural' (the things the test-suite guard hard-fails on) |
 // 'advisory' (nudges — bloat, stale inbox). Nothing here writes, with ONE
 // exception (`D-M6E13-21`): `confirmClosesInSweep` confirms fixed closes on a
-// v2 work store — `closed` events and the regenerated views.
+// v2 work store — `closed` events and the regenerated views, and with unit
+// records the confirmed unit's narrative moved out of `STATE.md` (`SIG-295`).
 //
 // The portable checks live here (meaningful in any Signal-managed repo). The
 // stale-inbox check deliberately lives in THIS module, not doc-hygiene.js, so the
@@ -25,6 +26,8 @@ import {
 } from './planning-index.js';
 import { resolveInboxPath } from './inbox-path.js';
 import { listDrainCandidatesWithRecovery } from './drain.js';
+import { gitCannotAsk } from './git-env.js';
+import { shownName, shownRef } from './printable-text.js';
 import { listCommands } from './roster.js';
 import {
   parseFrontmatter,
@@ -46,8 +49,12 @@ import { runDriftChecks, renderDriftReport } from './state-drift.js';
 import { ALL_DRIFT_CHECKS, REACH } from './published-facts.js';
 import { backlogDischargeStatus, storeDischargeStatus, BACKLOG_DISCHARGE, REASON_NO_BACKLOG } from './backlog.js';
 import { isStoreOn } from './work-store.js';
-import { checkRecords, listClosing, listRecords, recordPath, storeVersion } from './work-records.js';
-import { runConfirmCloses } from './close-confirm.js';
+import { checkRecords, listClosing, listRecords, probeClosedProofs, recordPath, storeVersion } from './work-records.js';
+import { checkUnits, listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
+import { unitsWithoutRecord } from './work-migrate-units.js';
+import {
+  evictionWords, itemClosingTooLongWords, reportCloses, runConfirmCloses, uncheckedParts, unitClosingTooLongWords,
+} from './close-confirm.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -68,7 +75,7 @@ function readRecords(baseDir) {
   }
 }
 
-const brokenIds = (broken) => broken.map((b) => b.id ?? b.path).join(', ');
+const brokenIds = (broken) => broken.map((b) => b.id ?? shownName(b.path)).join(', ');
 
 // Stable finding order for deterministic reports (mirrors doc-hygiene.js's
 // findingCmp): by check, then file, then message.
@@ -399,7 +406,8 @@ export async function checkStaleInbox(baseDir) {
  * invalid record, a duplicate ID, a broken duplicate link, a stale view — or,
  * on a v1 store, that it must be migrated) becomes one advisory finding
  * carrying its path and message. Advisory in every case: the fix is
- * `/sig:item`, not this sweep.
+ * `/sig:item`, not this sweep. Each `checkUnits` finding (a broken unit record,
+ * M6.E16/t2.5, AC1.5) follows, in the same form.
  *
  * Store off → no findings, so a project without the store sees no change.
  * A broken WORK.md makes `isStoreOn` throw; that is reported as ONE advisory
@@ -417,29 +425,156 @@ export function checkWorkStore(baseDir) {
     // `storeVersion` throws on a broken WORK.md, as `isStoreOn` does.
     const version = storeVersion(baseDir);
     if (version === null) return [];
-    return checkRecords(baseDir).map((f) =>
-      mkFinding('work-store', 'advisory', f.path ?? f.paths?.[0] ?? rel, f.message));
+    // A `units/` folder that cannot be trusted is reported by both checks, at
+    // the folder; it is one fault, so it is one advisory (`checkRecords`').
+    const recordFindings = checkRecords(baseDir);
+    const atFolder = (f) => f.id === null && f.path === UNITS_REL;
+    const unitFindings = recordFindings.some(atFolder) ? checkUnits(baseDir).filter((f) => !atFolder(f)) : checkUnits(baseDir);
+    return [...recordFindings, ...unitFindings].map((f) =>
+      mkFinding('work-store', 'advisory', shownName(f.path ?? f.paths?.[0] ?? rel), f.message));
   } catch (err) {
     return [mkFinding('work-store', 'advisory', rel, `the work store could not be checked — ${err.message}`)];
   }
 }
 
 /**
- * Items left *closing* too long (portable, advisory — M6.E13 t4.4, PLAN risk 3).
+ * Units the project names that have no unit record (portable, advisory —
+ * M6.E16 REVIEW pass 1, T-I2; AC6.2 as amended).
+ *
+ * With unit records, a unit that HAS a record is decided by its record alone.
+ * One with no record is still judged from its files — a retrospective, a
+ * verdict — because nothing else is known about it. That is the old rule
+ * still in force for that unit, so it is said here, once per unit, with the
+ * fix: `/sig:docs-migrate --work-store` proposes a record for each
+ * (`unitsWithoutRecord`, `work-migrate-units.js` — the same list that run adds).
+ *
+ * No store, a v1 store, or no `work/units/` folder → nothing. A `units/`
+ * folder that cannot be trusted → nothing here: `checkWorkStore` reports it.
+ *
+ * @param {string} baseDir — project root
+ * @returns {Promise<Array<{check: string, severity: string, file: string, message: string}>>}
+ */
+export async function checkUnitsWithoutRecord(baseDir) {
+  let ids;
+  try {
+    if (storeVersion(baseDir) !== 2) return [];
+    ids = await unitsWithoutRecord(baseDir);
+  } catch (err) {
+    if (err?.unitsFolder === true) return [];
+    return [mkFinding('unit-without-record', 'advisory', UNITS_REL, `the units with no record could not be listed — ${err?.message ?? String(err)}`)];
+  }
+  return ids.map((id) => mkFinding('unit-without-record', 'advisory', UNITS_REL,
+    `${id} has no unit record, so whether it is closed is still judged from its files (a retrospective, a verdict) — `
+    + 'run /sig:docs-migrate --work-store, which proposes a record for each unit that has none'));
+}
+
+/**
+ * Closed units that hold an item that is not closed (portable, advisory).
+ *
+ * Every writer refuses a close while the unit has an open item, so this
+ * should find nothing. It is here for a record that did not come through a
+ * writer — a merge, a record written before the refusal existed — because a
+ * unit that reads closed with open work in it is archived and passed over.
+ * The fix is named: close the item, or move it out of the unit.
+ *
+ * No store, a v1 store, or no `work/units/` folder → nothing. A `units/`
+ * folder that cannot be trusted, or a broken record → nothing here:
+ * `checkWorkStore` reports those.
+ *
+ * @param {string} baseDir — project root
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export function checkClosedUnitsWithOpenItems(baseDir) {
+  let units;
+  let records;
+  try {
+    if (storeVersion(baseDir) !== 2 || !unitRecordsOn(baseDir)) return [];
+    ({ units } = listUnits(baseDir));
+    ({ records } = listRecords(baseDir));
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const u of units.filter((x) => x.status === 'closed')) {
+    const open = records.filter((r) => r.epic === u.id && r.status !== 'C').map((r) => r.id);
+    if (open.length === 0) continue;
+    const named = open.slice(0, 10).join(', ') + (open.length > 10 ? `, and ${open.length - 10} more` : '');
+    out.push(mkFinding('closed-unit-open-items', 'advisory', shownName(u.path),
+      `${u.id} is closed and has ${open.length} item${open.length === 1 ? '' : 's'} that ${open.length === 1 ? 'is' : 'are'} not closed (${named}) — `
+      + 'close each (`/sig:item close <id>`) or move it out of the unit (`/sig:item move <id> T`)'));
+  }
+  return out;
+}
+
+/**
+ * Closes whose commit is not on the default branch (portable, advisory).
+ *
+ * `confirmCloses` writes a `closed` event only after it has found the proof
+ * on the remote's default branch, so this should find nothing. It is here for
+ * a record that did not come through it — a hand edit, a merge — because
+ * nothing else asks again once a record says closed. Read through
+ * `probeClosedProofs` (`work-records.js`): local refs only, nothing written,
+ * and nothing said when git cannot answer.
+ *
+ * @param {string} baseDir — project root
+ * @param {{execFn?: Function}} [opts]
+ * @returns {Array<{check: string, severity: string, file: string, message: string}>}
+ */
+export function checkClosedProofs(baseDir, opts = {}) {
+  let probed;
+  try {
+    if (storeVersion(baseDir) !== 2) return [];
+    // Git could not be asked (r6.6): said, once — silence would read as
+    // "every recorded close is on the default branch".
+    const cannotAsk = gitCannotAsk(baseDir);
+    if (cannotAsk !== null) {
+      return [mkFinding('close-not-on-default-branch', 'advisory', '.planning/work',
+        `the closes recorded in this store were not checked against the default branch: ${cannotAsk}`)];
+    }
+    probed = probeClosedProofs(baseDir, opts);
+  } catch {
+    // a broken store or folder: `checkWorkStore` reports it
+    return [];
+  }
+  const branch = shownRef(probed.branch, 'branch', { noCommandHere: true });
+  // A close confirmed by hand (M6.E16 r7.1) is worded for what was recorded then.
+  const when = { 'no-remote': 'had no remote', 'no-origin-remote': 'had no remote named `origin`', 'not-a-repo': 'was not a git repository' };
+  const UNMERGED = 'bring the remote\'s branches up to date and sweep again; if it is still reported, the work was not merged: reopen it';
+  return probed.notThere.map((c) => mkFinding('close-not-on-default-branch', 'advisory', shownName(c.path),
+    c.byHand === 'not-a-repo' && c.failure === 'unknown-commit'
+      // The commit was typed in before there was a repository, and git has no
+      // commit of that name: nothing to merge (r7.1). Only then — a commit git
+      // does have and the default branch lacks is "not merged", whatever the
+      // record says was recorded (r7.2).
+      ? `${c.id} was confirmed closed by hand before this project was a git repository; its commit (${c.proof}) is not in this history — `
+        + 'nothing here can show it was merged; reopen it only if the work it names was not done'
+      : (c.byHand === undefined
+        ? `${c.id} is recorded closed with the commit ${c.proof}, and that commit is not on ${branch} in this clone — `
+        : `${c.id} was confirmed closed by hand when the project ${when[c.byHand] ?? 'could not be checked by git'}; it now has ${branch}, `
+          + `and the commit is not on it (${c.proof}) — `)
+        + UNMERGED));
+}
+
+/**
+ * Items — and, with unit records, units (M6.E16 t5.0c) — left *closing* too
+ * long (portable, advisory — M6.E13 t4.4, PLAN risk 3).
  *
  * A fixed close is requested with a commit and stays *closing* until
  * `confirmCloses` finds that commit on the default branch. One that has waited
  * more than 14 days is a fix that never merged, or a remote branch never
  * brought down — either way a person has to look. Read through `listClosing`,
- * the read-only form of `confirmCloses`' own stale test: nothing is written,
- * and git is not asked (the sweep is offline).
+ * the read-only form of `confirmCloses`' own stale test: nothing is written.
+ * Git is asked only when an item or a unit is stale, for the reason it is
+ * still closing (`reportCloses`, local refs only — the sweep stays offline),
+ * so each is told what would help: "merge it" only when its commit is not on
+ * the default branch.
  *
  * v2 only. On a v1 store every fixed close is read as *closing* through the
  * converter until the cutover confirms it, so reporting them would name every
  * fix ever made. Store off → nothing.
  *
  * @param {string} baseDir — project root
- * @param {{now?: Date|string}} [opts] — the clock (default: now)
+ * @param {{now?: Date|string, execFn?: Function}} [opts] — the clock (default: now); `execFn` as `reportCloses`'
  * @returns {Array<{check: string, severity: string, file: string, message: string}>}
  */
 export function checkClosingTooLong(baseDir, opts = {}) {
@@ -450,16 +585,36 @@ export function checkClosingTooLong(baseDir, opts = {}) {
   } catch (err) {
     return [mkFinding('closing-too-long', 'advisory', WORK_MD_REL, `closing items could not be checked — ${err.message}`)];
   }
-  return listed.closing
-    .filter((c) => c.stale)
-    .map((c) =>
-      mkFinding(
-        'closing-too-long',
-        'advisory',
-        c.path,
-        `${c.id} has been closing for ${c.days} days — its fix commit ${c.proof} is not confirmed on the default branch. ` +
-          `Merge it, or reopen the item (\`/sig:item reopen ${c.id} "<reason>"\`) if the fix did not land.`
-      ));
+  // What an item or a unit is told to do follows the reason it is still
+  // closing for (r6) — `reportCloses` gives it, read-only, from local refs;
+  // asked only when something is stale. With no reason to go on, the advice
+  // is the general one.
+  const staleItems = listed.closing.filter((c) => c.stale);
+  // A unit (an Epic) left closing (M6.E16 t5.0c): `listed.units` is there only
+  // on a project with unit records.
+  const staleUnits = (listed.units ?? []).filter((u) => u.stale);
+  const itemReasonOf = new Map();
+  const reasonOf = new Map();
+  if (staleItems.length + staleUnits.length > 0) {
+    const report = reportCloses(baseDir, { now: opts.now, execFn: opts.execFn });
+    for (const s of report.stillClosing ?? []) itemReasonOf.set(s.id, s.reason);
+    for (const s of report.units?.stillClosing ?? []) reasonOf.set(s.id, s.reason);
+  }
+  const items = staleItems.map((c) =>
+    mkFinding(
+      'closing-too-long',
+      'advisory',
+      c.path,
+      `${c.id} has been closing for ${c.days} days — ${itemClosingTooLongWords(itemReasonOf.get(c.id), c.proof, c.id)}`
+    ));
+  const units = staleUnits.map((u) =>
+    mkFinding(
+      'closing-too-long',
+      'advisory',
+      u.path,
+      `${u.id} has been closing for ${u.days} days — ${unitClosingTooLongWords(reasonOf.get(u.id), u.proof, u.id)}`
+    ));
+  return [...items, ...units];
 }
 
 /**
@@ -472,7 +627,11 @@ export function checkClosingTooLong(baseDir, opts = {}) {
  * for each *closing* item whose fix commit is already on the default branch
  * and regenerates the views. Each confirmed item is one advisory naming its
  * record, so the person running the sweep knows which files changed and to
- * commit them. This supersedes `D-M5E16-1` for this step only; every other
+ * commit them. With unit records, each unit confirmed here also has its
+ * narrative moved out of `STATE.md` into its archive file when
+ * `evictEpicNarrative`'s gate passes (M6.E16 t10.1, `SIG-295`); the unit's
+ * advisory says what happened to it, and a refusal there changes nothing
+ * about the confirmation. This supersedes `D-M5E16-1` for this step only; every other
  * check here stays read-only. Git is asked through local refs only (nothing
  * is downloaded), so the sweep stays offline.
  *
@@ -496,7 +655,7 @@ export async function confirmClosesInSweep(baseDir, opts = {}) {
     const what = out.ran ? 'closes not confirmed' : 'closes not checked';
     return [mkFinding('closes-confirmed', 'advisory', WORK_MD_REL, `${what} — ${out.error}`)];
   }
-  return out.confirmed.map((id) =>
+  const items = out.confirmed.map((id) =>
     mkFinding(
       'closes-confirmed',
       'advisory',
@@ -504,6 +663,30 @@ export async function confirmClosesInSweep(baseDir, opts = {}) {
       `${id} confirmed closed — its fix commit is on the default branch. The sweep wrote its closed event ` +
         'and regenerated the views; commit them.'
     ));
+  // A unit's close is confirmed by the same call (M6.E16 t4.2): the sweep
+  // wrote that record too, so it is named too. So is what happened to its
+  // narrative in STATE.md (t10.1, `SIG-295`): `runConfirmCloses` evicts it.
+  const evictionOf = new Map((out.evictions ?? []).map((e) => [e.id, e]));
+  const units = (out.units?.confirmed ?? []).map((id) => {
+    const e = evictionOf.get(id);
+    const narrative = e === undefined ? ''
+      : e.evicted ? `Its narrative was moved out of STATE.md to ${e.archivePath}; commit those two files as well. `
+        : `Its narrative: ${evictionWords(e)}. `;
+    return mkFinding(
+      'closes-confirmed',
+      'advisory',
+      `${UNITS_REL}/${id}.json`,
+      `${id} confirmed closed — the commit its close was requested with is on the default branch. ${narrative}` +
+        'The sweep wrote its closed event and regenerated the views; commit them.'
+    );
+  });
+  // Closes that could not be checked because this clone does not record the
+  // remote's default branch: said once, with the command that fixes it. And
+  // because the project has no remote, none named `origin`, or is not a git
+  // repository: each said once, with no command.
+  const unchecked = uncheckedParts(out)
+    .map((part) => mkFinding('closes-confirmed', 'advisory', WORK_MD_REL, `closes not checked — ${part}`));
+  return [...items, ...units, ...unchecked];
 }
 
 // CLAUDE.md bloat threshold (AD6). A COARSE advisory nudge — NOT the STATE size
@@ -727,11 +910,16 @@ export async function runSweep(baseDir = process.cwd()) {
   raw.push(...(await checkStaleInbox(baseDir)));
   raw.push(...(await checkBacklogDischarge(baseDir)));
   raw.push(...checkWorkStore(baseDir));
+  // Beside the unit-record findings: the units that have no record at all.
+  raw.push(...(await checkUnitsWithoutRecord(baseDir)));
+  // And the closed units that still hold an item that is not closed.
+  raw.push(...checkClosedUnitsWithOpenItems(baseDir));
   // The one step that writes (D-M6E13-21): confirmed closes, on a v2 store only.
   // It runs before the closing-too-long check, so an item it confirms is not
   // also reported as stuck closing in the same report (REVIEW pass 1).
   raw.push(...(await confirmClosesInSweep(baseDir)));
   raw.push(...checkClosingTooLong(baseDir));
+  raw.push(...checkClosedProofs(baseDir));
   raw.push(...checkClaudeMdBloat(baseDir));
   raw.push(...(await checkPhaseLog(baseDir)));
 

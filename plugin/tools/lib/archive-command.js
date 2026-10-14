@@ -43,18 +43,19 @@ import { deriveUnits } from './work-units.js';
  *   plan: Array<{unit: string, dir: string, files: string[]}>,
  *   moves: Array<{from: string, to: string}>,
  *   refusals: Array<{unit: string, status: string, reason: string}>,
+ *   settled: string[],
  *   ungrouped: string[],
  *   dropped: Array<{unit: string, reason: string}>,
  *   stateReadable: boolean,
  *   reason: string|null,
- *   counts: {units: number, archiving: number, refused: number, files: number},
+ *   counts: {units: number, archiving: number, refused: number, settled: number, files: number},
  * }>}
  */
 export async function buildArchiveReport(baseDir) {
   const empty = {
-    plan: [], moves: [], refusals: [], ungrouped: [], dropped: [],
+    plan: [], moves: [], refusals: [], settled: [], ungrouped: [], dropped: [],
     stateReadable: false, reason: null,
-    counts: { units: 0, archiving: 0, refused: 0, files: 0 },
+    counts: { units: 0, archiving: 0, refused: 0, settled: 0, files: 0 },
   };
 
   let names;
@@ -91,6 +92,7 @@ export async function buildArchiveReport(baseDir) {
     return {
       plan: [],
       moves: [],
+      settled: [],
       refusals: closures.units.map((u) => ({
         unit: u.unit,
         status: u.status,
@@ -100,7 +102,7 @@ export async function buildArchiveReport(baseDir) {
       dropped: sense.dropped ?? [],
       stateReadable: false,
       reason: closures.reason,
-      counts: { units: closures.units.length, archiving: 0, refused: closures.units.length, files: 0 },
+      counts: { units: closures.units.length, archiving: 0, refused: closures.units.length, settled: 0, files: 0 },
     };
   }
 
@@ -141,18 +143,41 @@ export async function buildArchiveReport(baseDir) {
   // EVERY unit the resolver knows about that is not archiving is a refusal with
   // its reason. This is the S1 finding: previously only `cannotDetermine` was
   // surfaced, so open and stub-vetoed units vanished from the output entirely.
+  //
+  // With unit records (M6.E16 t6.2) two more things can be true of a unit that
+  // is not archiving. It is HELD — closed, and its files stay: a refusal, with
+  // the hold reason (AC5.2). Or its record is closed and nothing of it is left
+  // in `.planning/` to move: that is not a refusal — nothing was declined — so
+  // it is listed in `settled`, a third bucket (`counts.settled`).
   const droppedReason = new Map((sense.dropped ?? []).map((d) => [d.unit, d.reason]));
+  const heldReason = new Map((sense.held ?? []).map((h) => [h.unit, h.reason]));
   const refusals = [];
+  const settled = [];
   for (const u of closures.units) {
     if (archiving.has(u.unit)) continue;
-    refusals.push({ unit: u.unit, status: u.status, reason: refusalReason(u, droppedReason) });
+    if (heldReason.has(u.unit) && u.source === 'record') {
+      refusals.push({
+        unit: u.unit,
+        status: 'held',
+        reason: `${u.unit} is closed and held, so nothing of it moves — ${heldReason.get(u.unit)}`,
+      });
+    } else if (u.current === true && u.status === CLOSURE.CLOSED) {
+      // Closed by its record and still the current unit: declined for now.
+      refusals.push({ unit: u.unit, status: 'current', reason: `${u.unit} is closed; still the current unit, so its files stay until the next Epic opens` });
+    } else if (u.source === 'record' && u.status === CLOSURE.CLOSED && !droppedReason.has(u.unit)) {
+      settled.push(u.unit);
+    } else {
+      refusals.push({ unit: u.unit, status: u.status, reason: refusalReason(u, droppedReason) });
+    }
   }
   refusals.sort((a, b) => a.unit.localeCompare(b.unit));
+  settled.sort((a, b) => a.localeCompare(b));
 
   return {
     plan,
     moves: sense.moves,
     refusals,
+    settled,
     ungrouped,
     dropped: sense.dropped ?? [],
     stateReadable: closures.stateReadable,
@@ -161,6 +186,7 @@ export async function buildArchiveReport(baseDir) {
       units: closures.units.length,
       archiving: plan.length,
       refused: refusals.length,
+      settled: settled.length,
       files: sense.moves.length,
     },
   };
@@ -180,7 +206,7 @@ function refusalReason(u, droppedReason) {
   if (droppedReason.has(u.unit)) {
     return `${u.reason} — but it is NOT archiving: ${droppedReason.get(u.unit)}`;
   }
-  if (u.status === CLOSURE.CLOSED) {
+  if (u.status === CLOSURE.CLOSED && u.source !== 'record') {
     return (
       `${u.reason} — but it is NOT archiving: its retrospective is a stub ` +
       '(a file existing is not the unit being finished)'
@@ -205,6 +231,7 @@ export function renderArchiveReport(report, opts = {}) {
   const applied = opts.apply === true;
   const L = [];
   const { plan, refusals, ungrouped, dropped, stateReadable, reason, counts } = report;
+  const settled = report.settled ?? [];
 
   L.push(applied ? '== Archive — applied ==' : '== Archive — dry run (nothing written) ==', '');
 
@@ -223,6 +250,14 @@ export function renderArchiveReport(report, opts = {}) {
     // FR6.1 — say WHICH kind of nothing this is.
     if (counts.units === 0) {
       L.push('No units found in .planning/ — there is nothing here to archive.', '');
+    } else if (settled.length === counts.units) {
+      L.push(`Nothing to archive: all ${counts.units} unit(s) were checked, and each is closed with nothing left to move.`, '');
+    } else if (settled.length > 0) {
+      L.push(
+        `Nothing to archive: all ${counts.units} unit(s) were checked — ${settled.length} closed with nothing left to move, the rest declined.`,
+        '(This is a clean result, not a failed check — see the refusals below.)',
+        ''
+      );
     } else {
       L.push(
         `Nothing to archive: all ${counts.units} unit(s) were checked and none is finished.`,
@@ -243,6 +278,11 @@ export function renderArchiveReport(report, opts = {}) {
     L.push(`Not archived (${refusals.length}) — each was checked and declined:`);
     for (const r of refusals) L.push(`  ${r.unit}  [${r.status}]  ${r.reason}`);
     L.push('');
+  }
+
+  // Unit records only: closed by its record, and no file of it left to move.
+  if (settled.length > 0) {
+    L.push(`Closed, with nothing left to move (${settled.length}): ${settled.join(', ')}`, '');
   }
 
   // FR5 — unconditional, including at zero, AND labelled. S1 found that the

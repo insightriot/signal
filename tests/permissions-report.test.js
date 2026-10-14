@@ -425,3 +425,114 @@ describe('PR #211 review — the npm-script caveat is in the REPORT, not just a 
     rmSync(w.root, { recursive: true, force: true });
   });
 });
+
+// M6.E16 r6.5 — a script NAME from the host's package.json went into a rule
+// and a report line as it was written. A name is whatever the manifest's
+// author typed: `build; rm -rf ~`, `*`, one holding an ESC or a line break.
+describe('a package.json script name becomes a rule only when it is plainly a name (r6.5)', () => {
+  const scripts = {
+    test: 'vitest', 'test:watch': 'vitest -w', 'build.prod_2': 'x', lint: 'eslint',
+    'build; rm -rf ~': 'x', '*': 'x', 'a b': 'x', 'esc\u001b[31m': 'x', 'two\nlines': 'x', '-rf': 'x', 'x)': 'x', [`l${'o'.repeat(64)}ng`]: 'x', '': 'x',
+    // r6.6: a trailing `:` made `Bash(npm run x::*)`
+    'x:': 'x',
+  };
+  const w = () => world({ 'repo/package.json': JSON.stringify({ scripts }) });
+
+  it('the plain names are proposed; the rest are not, and are counted in one line', () => {
+    const world1 = w();
+    const p = build(world1);
+    expect(p.stack.filter((r) => r.startsWith('Bash(npm run '))).toEqual([
+      'Bash(npm run build.prod_2:*)', 'Bash(npm run lint:*)', 'Bash(npm run test:*)', 'Bash(npm run test:watch:*)',
+    ]);
+    expect(p.stackInfo.npmScriptsSkipped).toBe(10);
+    const report = formatReport(p);
+    expect(report).toContain('  10 package.json scripts have names that are not plainly names, and no rule is proposed for them.');
+    for (const text of [report, renderArtifact(p), p.stack.join('\n')]) {
+      expect(text).not.toMatch(/rm -rf ~|npm run (\*|esc|two|-rf|x\)|a b|build;|lo{5})/);
+      // eslint-disable-next-line no-control-regex -- an ESC in the output is the defect
+      expect(text).not.toMatch(/\u001b/);
+    }
+    rmSync(world1.root, { recursive: true, force: true });
+  });
+
+  it('nothing skipped: no such line; one skipped: singular', () => {
+    const none = world({ 'repo/package.json': '{"scripts":{"test":"vitest"}}' });
+    expect(formatReport(build(none))).not.toMatch(/not plainly/);
+    const one = world({ 'repo/package.json': '{"scripts":{"test":"vitest","a;b":"x"}}' });
+    expect(formatReport(build(one))).toContain('  1 package.json script has a name that is not plainly a name, and no rule is proposed for it.');
+    for (const x of [none, one]) rmSync(x.root, { recursive: true, force: true });
+  });
+
+  it('no line of the report carries a control character, whatever the settings files hold', () => {
+    const hostile = world({
+      'repo/package.json': '{"scripts":{"test":"vitest"}}',
+      'repo/.claude/settings.json': JSON.stringify({ permissions: { allow: ['Bash(echo \u001b[2J‮gone:*)'] } }),
+    });
+    // eslint-disable-next-line no-control-regex -- control and bidi characters in the output are the defect
+    expect(formatReport(build(hostile))).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u007f‪-‮]/);
+    rmSync(hostile.root, { recursive: true, force: true });
+  });
+});
+
+// M6.E16 r6.5 — three git subcommands that can each run a command of the
+// caller's choosing: `git bisect run <cmd>`, `git clone --upload-pack=<cmd>`,
+// `git config core.sshCommand <cmd>` (and `-c` forms). None had a row, so
+// each fell through to the bare `git` row and was proposed.
+describe('git bisect, git clone and git config are never proposed (r6.5)', () => {
+  it('no such rule in the rendered proposal: an empty project, this repository, and a payload that names all three', () => {
+    const w = world({ 'plugin/commands/x.md': 'Run `git bisect run npm test`, `git clone --depth 1 x`, `git config user.name x` and `git log --oneline`.\n' }, { planning: false });
+    const named = buildProposal({ pluginRoot: join(w.root, 'plugin'), baseDir: w.base, homeDir: w.home });
+    expect(named.flow).toEqual(['Bash(git log:*)']);
+    for (const p of [named, build(w), buildProposal({ pluginRoot: PAYLOAD, baseDir: ROOT, homeDir: w.home })]) {
+      const text = [...p.flow, ...p.stack, formatReport(p), renderArtifact(p)].join('\n');
+      expect(text).not.toMatch(/Bash\(git (bisect|clone|config)[: )]/);
+      expect(text).not.toMatch(/Bash\(git[:)]/);
+    }
+    rmSync(w.root, { recursive: true, force: true });
+  });
+});
+
+// M6.E16 r6.4 — the proposal offered `Bash(gh:*)`. `gh` reached the scan from
+// one place: `tools/lib/pr-review-findings.js`, which runs it with
+// `execFileSync` — Signal's own code, in its own process, which needs no Bash
+// permission from anyone. A Bash rule is for what the AGENT types; what a tool
+// spawns is not that. And `Bash(gh:*)` grants `gh repo delete`, `gh pr merge`,
+// `gh secret set`, `gh api -X DELETE …`.
+describe('a Bash rule is proposed only for what a prompt file tells the agent to run (r6.4)', () => {
+  const GH_RULE = /Bash\(gh[: )]/;
+  const rules = (p) => p.flow.map((r) => r.rule ?? r);
+  const rendered = (p) => [...rules(p), ...p.stack.map((r) => r.rule ?? r), formatReport(p), renderArtifact(p)].join('\n');
+
+  it('no gh rule in the rendered proposal: an empty project, and this repository', () => {
+    const w = world({}, { planning: false });
+    for (const p of [build(w), buildProposal({ pluginRoot: PAYLOAD, baseDir: ROOT, homeDir: w.home })]) {
+      expect(p.scanStatus).toBe('ok');
+      expect(rendered(p)).not.toMatch(GH_RULE);
+      expect(p.flow.length).toBeGreaterThan(10); // the proposal is still there
+    }
+    rmSync(w.root, { recursive: true, force: true });
+  });
+
+  /** A payload of the test's own: one command file, one tool. */
+  function payload(command, tool) {
+    const w = world({ 'plugin/commands/x.md': command, 'plugin/tools/x.js': tool }, { planning: false });
+    return { w, p: buildProposal({ pluginRoot: join(w.root, 'plugin'), baseDir: w.base, homeDir: w.home }) };
+  }
+
+  it('a binary only a tool spawns produces no rule; the same binary in a command file does', () => {
+    const tool = "execFileSync('ps', ['-o', 'pid']);\nexecFileSync('git', ['merge-base', 'a', 'b']);\nspawnSync('gh', ['api', 'graphql']);\n";
+    const onlyTool = payload('Nothing to run.\n', tool);
+    expect(rules(onlyTool.p)).toEqual([]);
+    const both = payload('Run `ps -o pid` and `git merge-base a b`.\n', tool);
+    expect(rules(both.p)).toEqual(['Bash(git merge-base:*)', 'Bash(ps:*)']);
+    for (const { w } of [onlyTool, both]) rmSync(w.root, { recursive: true, force: true });
+  });
+
+  it('gh named in a command file still produces no rule — not bare, and not a prefix that reaches a write', () => {
+    // The scan's key is the binary and ONE more word: `gh pr view` and
+    // `gh pr merge` are both `gh pr`, and `Bash(gh pr:*)` grants the merge.
+    const { w, p } = payload('Run `gh pr view 12`, then `gh pr merge 12`, `gh api repos/x/y`, `gh auth token` and `gh --version`.\n', '');
+    expect(rendered(p)).not.toMatch(GH_RULE);
+    rmSync(w.root, { recursive: true, force: true });
+  });
+});

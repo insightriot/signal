@@ -86,9 +86,11 @@ describe('resolveDefaultBranch — never guesses', () => {
 
   it('B88 regression — a master-default repo resolves to master, not the literal "main"', async () => {
     const { work } = await plantClone(dir, 'master');
-    // state.js's isStaleVsOrigin would answer 'main' here by fallback. If this
-    // gate did the same, a project defaulting to master would be told it is on
-    // a feature branch while sitting on its default branch.
+    // A fallback to the literal 'main' would be wrong here. If this gate fell
+    // back that way, a project defaulting to master would be told it is on a
+    // feature branch while sitting on its default branch. (state.js's
+    // isStaleVsOrigin asks this function first, and uses 'main' only when it
+    // answers null — so it reads master here too.)
     expect(resolveDefaultBranch(work)).toBe('master');
     const posture = checkBranchPosture(work, { tier: 'FULL' });
     expect(posture.status).toBe(BRANCH_GATE.ON_DEFAULT);
@@ -111,10 +113,38 @@ describe('resolveDefaultBranch — never guesses', () => {
     expect(resolveDefaultBranch(work)).toBeNull();
   });
 
+  // The remote renamed its default (master → main) and a pruning fetch left
+  // origin/HEAD pointing at a branch that is gone. The stored name is not an
+  // answer then: as with origin/HEAD unset, the one candidate present is.
+  it('origin/HEAD points at a branch that is gone → the one candidate present, and null without the guess', async () => {
+    const { work } = await plantClone(dir, 'master');
+    g(work, 'update-ref', 'refs/remotes/origin/main', 'refs/remotes/origin/master');
+    g(work, 'update-ref', '-d', 'refs/remotes/origin/master');
+    expect(String(g(work, 'symbolic-ref', 'refs/remotes/origin/HEAD').stdout).trim()).toBe('refs/remotes/origin/master');
+    expect(resolveDefaultBranch(work)).toBe('main');
+    expect(resolveDefaultBranch(work, { guess: false })).toBeNull();
+    g(work, 'checkout', '-q', '-b', 'main');
+    expect(checkBranchPosture(work, { tier: 'FULL' }).status).toBe(BRANCH_GATE.ON_DEFAULT);
+  });
+
   it('origin/HEAD unset + neither candidate present → null', async () => {
     const { work } = await plantClone(dir, 'trunk');
     g(work, 'remote', 'set-head', 'origin', '--delete');
     expect(resolveDefaultBranch(work)).toBeNull();
+  });
+
+  // M6.E16 r6: a candidate is present only as that exact remote ref. A tag
+  // that carries the ref's long name (`refs/tags/refs/remotes/origin/main`)
+  // is not `origin/main`, and `rev-parse --verify` would accept it.
+  it('origin/HEAD unset + a tag carrying a candidate\'s long name → not that candidate', async () => {
+    const { work } = await plantClone(dir, 'trunk');
+    g(work, 'remote', 'set-head', 'origin', '--delete');
+    g(work, 'tag', 'refs/remotes/origin/main');
+    expect(g(work, 'rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main').status).toBe(0);
+    expect(resolveDefaultBranch(work)).toBeNull();
+    // and with the other candidate really there, the tag does not make it two
+    g(work, 'update-ref', 'refs/remotes/origin/master', 'HEAD');
+    expect(resolveDefaultBranch(work)).toBe('master');
   });
 });
 
@@ -204,7 +234,9 @@ describe('checkBranchPosture', () => {
       throw new Error('git exploded');
     };
     const r = checkBranchPosture(dir, { tier: 'FULL', execFn: boom });
-    expect(r.status).toBe(BRANCH_GATE.NOT_APPLICABLE);
+    // Since M6.E16 r7.1 a git that fails is "could not say", not "no
+    // repository": the gate stays on (tests/branch-gate-git-failed.test.js).
+    expect(r.status).toBe(BRANCH_GATE.CANNOT_DETERMINE);
     expect(() => checkBranchPosture(dir, { tier: 'FULL', execFn: boom })).not.toThrow();
   });
 

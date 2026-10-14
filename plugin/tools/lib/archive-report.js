@@ -41,6 +41,10 @@ const CANNOT = 'cannotDetermine';
  * nothing rendered it and an unused second copy is a drift source with no
  * upside. `/sig:docs-migrate`'s dry-run is the one consumer.
  *
+ * `args.unitRecords`: true when the project has unit records (the caller's
+ * `readUnitRecords` answer — this function reads no files). It selects the
+ * wording of the closed-but-not-moved sentence only.
+ *
  * @returns {string[]} lines, already indented, possibly empty
  */
 export function explainArchiveOutcome(args = {}) {
@@ -69,26 +73,54 @@ export function explainArchiveOutcome(args = {}) {
   } else {
     const cannot = closures.filter((c) => c.status === CANNOT);
     const open = closures.filter((c) => c.status === OPEN);
+    // With unit records (M6.E16 t6.3) a unit closed by its RECORD that has no
+    // move is not the retro-versus-verdict gap below: nothing of it is left in
+    // `.planning/` to move, or it is held. Only a unit closed from its files
+    // can be in that gap.
+    const closedFromFiles = closures.filter((c) => c.status === CLOSED && c.source !== 'record');
+    const closedByRecord = closures.filter((c) => c.status === CLOSED && c.source === 'record');
     if (moveCount === 0 && cannot.length > 0) {
       L.push(
         `${indent}↳ 0 does NOT mean "nothing to archive": ${cannot.length} of ${closures.length} unit(s) could not be`,
         `${indent}  evaluated at all. Each needs a person:`
       );
       for (const c of cannot) L.push(`${indent}    ${c.unit} — ${c.reason}`);
-    } else if (moveCount === 0 && closures.filter((c) => c.status === CLOSED).length > 0) {
-      // The two sources genuinely disagree here, and saying "nothing to do"
-      // would assert the weaker one. `senseArchiveTree`'s default closed-set is
-      // RETRO-derived; `resolveClosures` reads terminal artifact + verdict. A
-      // unit closed by verdict with no retrospective is invisible to the mover.
+    } else if (moveCount === 0 && closedFromFiles.length > 0) {
+      // A unit the resolver calls closed that this pass does not move, and
+      // saying "nothing to do" would hide it.
       //
       // Caught by running it: `eval-project-A` printed "none closed … genuinely
       // nothing to do" while the resolver had found 1 closed unit. That gap IS
       // this Epic's subject, so the report names it instead of papering it.
-      const n = closures.filter((c) => c.status === CLOSED).length;
+      //
+      // What the sentence says was corrected in M6.E16 t10.3 (`SIG-289`). It
+      // used to say the closed-set "comes from retrospectives" and that a unit
+      // closed by a verdict with no retrospective cannot be reached. Since
+      // `SIG-286` the one consumer (`/sig:docs-migrate`'s dry run) passes the
+      // resolver's own closed-set (`resolveMigrateClosedUnits`): a unit read
+      // from its files is closed by a passing verdict and moves, unless its
+      // retrospective still holds placeholders (`B64`) — the one case measured
+      // to reach this branch, with and without unit records. With unit records
+      // the units here are the ones that have no record (`args.unitRecords`).
+      const n = closedFromFiles.length;
       L.push(
         `${indent}↳ ${n} unit(s) resolve as CLOSED, but this pass proposes no move for them.`,
-        `${indent}  Its closed-set comes from retrospectives; a unit closed by a passing verdict`,
-        `${indent}  with no retrospective is not reachable here. This is a gap, not a clean bill.`
+        ...(args.unitRecords === true
+          ? [
+            `${indent}  They have no unit record, so each is read from its files:`,
+            `${indent}  closed by a passing verdict, and held back when its retrospective`,
+            `${indent}  still holds placeholders.`,
+          ]
+          : [
+            `${indent}  A unit is closed by a passing verdict here, and held back when its retrospective`,
+            `${indent}  still holds placeholders.`,
+          ]),
+        `${indent}  Check each one's retrospective. This is a gap, not a clean bill.`
+      );
+    } else if (moveCount === 0 && closedByRecord.length > 0) {
+      L.push(
+        `${indent}↳ Checked ${closures.length} unit(s): ${open.length} in flight, ${cannot.length} unreadable,`,
+        `${indent}  ${closedByRecord.length} closed by ${closedByRecord.length === 1 ? 'its' : 'their'} unit record with nothing to move. Nothing to do.`
       );
     } else if (moveCount === 0) {
       L.push(
@@ -112,6 +144,19 @@ export function explainArchiveOutcome(args = {}) {
   // VERIFY (2nd pass) found this half unreachable: it lived in a `renderDropped`
   // helper that only the deleted standalone report ever called, so no command
   // said it. Folded in here, on the wired path, and `renderDropped` deleted.
+  // AC5.2 (M6.E16) — a held unit is closed and nothing of it moves; say which, and why.
+  const held = args.held ?? [];
+  if (stateReadable && held.length > 0) {
+    L.push(`${indent}↳ ${held.length} closed unit(s) are held, so nothing of them moves:`);
+    for (const h of held) L.push(`${indent}    ${h.unit} — held: ${h.reason}`);
+  }
+
+  // A unit closed by its record that is still the current unit: closed, and its files stay for now.
+  const current = args.current ?? [];
+  if (stateReadable && current.length > 0) {
+    for (const unit of current) L.push(`${indent}↳ ${unit} is closed; still the current unit, so its files stay until the next Epic opens.`);
+  }
+
   if (dropped.length > 0) {
     L.push(`${indent}↳ ${dropped.length} unit(s) were skipped and not considered:`);
     for (const d of dropped) L.push(`${indent}    ${d.unit} — ${d.reason}`);

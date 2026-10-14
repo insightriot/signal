@@ -24,16 +24,31 @@
 //
 // IDs are SIG-n only (AC6.1): a record's `legacy_id` is never printed.
 //
+// With unit records (`.planning/work/units/` exists; M6.E16 S5) two views are
+// of the UNIT records: `work/EPICS.md` lists every unit with its folded state,
+// and the current milestone file's Epic table is written between its
+// `signal:epics` markers (`milestone-table.js`) — the one view that is a
+// region of a person's file, not a whole generated file. Without unit records
+// `EPICS.md` is the Epic-folder view it was and no milestone file is touched.
+//
 // Import graph (PLAN Decision 12): nothing here may reach a Markdown list
 // parser, so `work-generate.js`, `backlog.js` and `bugs-tally.js` are not
 // imported; the small text helpers below are this module's own.
 
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 
 import { atomicWrite } from './atomic-write.js';
+import {
+  epicMarkers, legacyFirstCells, linesBetweenMarkers, noComment, renderEpicTable, rowsNotReprinted, upsertEpicTable,
+} from './milestone-table.js';
 import { assertRealInsidePlanning, linkedComponent, readRegularFile, regularFileRefusal } from './path-confine.js';
+import { cut, printable } from './printable-text.js';
 import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, PLANNING_DIR, StateSchemaError } from './state.js';
+import { CLOSE_WORDS_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, compareUnitIds, epicIdParts } from './unit-record.js';
+// A cycle, by design: unit-records.js regenerates the views after a write.
+// Neither module uses the other's bindings while it is being evaluated.
+import { listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 import { asWorkStoreError, WorkStoreError } from './work-errors.js';
 import { bodyDirFor } from './work-convert.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -282,6 +297,99 @@ function renderEpics(items, epics) {
   return parts.join('\n');
 }
 
+// ── work/EPICS.md, from unit records (M6.E16 t5.1, AC7.1) ───────────────────
+
+// The most of an old row's status cell a heading prints. The longest real one
+// in this repository is 130 characters.
+const LEGACY_STATUS_MAX = 200;
+
+// Recorded text of a unit as a heading prints it (M6.E16 v2.3): one printable
+// line, cut at `max`, with a comment opener taken apart as the milestone table
+// does (`noComment`). A writer has cleaned it already; a record that came by a
+// merge or a shell command was cleaned by nothing, so it is not trusted here.
+// Line breaks become a space before the control characters go, so no two words run together.
+const unitText = (v, max) => noComment(cut(oneLine(printable(oneLine(v))), max));
+
+// What a legacy unit's old milestone row said in its status cell (the second
+// cell: Epic, Status, Summary), as one printable line cut at
+// `LEGACY_STATUS_MAX` — or null when there is no such text. The cell is text a
+// person wrote in another file, kept as recorded; it is not trusted here.
+function legacyStatus(record) {
+  const said = Array.isArray(record?.legacy_row) ? record.legacy_row[1] : null;
+  if (typeof said !== 'string') return null;
+  return unitText(said, LEGACY_STATUS_MAX) || null;
+}
+
+// A unit's close as its heading says it: the date and the reason, then the PR
+// and the release when recorded, then the words (a dropped close has them).
+//
+// A legacy close prints no date: the one it carries is the day the record was
+// written, not the day the unit shipped (as `milestone-table.js` `statusText`).
+// It prints the old row's status words instead, which carry the real date and
+// release, and the close's own words only when there is no old row.
+function unitCloseLine(close, record) {
+  const legacy = close.reason === 'legacy';
+  const parts = [legacy ? 'closed (legacy)' : `closed ${String(close.at).slice(0, 10)} (${close.reason})`];
+  if (close.pr) parts.push(`PR ${unitText(close.pr, UNIT_REF_MAX)}`);
+  if (close.release) parts.push(unitText(close.release, UNIT_REF_MAX));
+  const said = legacy ? legacyStatus(record) : null;
+  if (said !== null) return `${parts.join(' · ')} — old row: ${said}`;
+  // A close a person confirmed by hand says so (M6.E16 r7.1); no other line changes.
+  const byHand = close.confirmed_by === 'person' ? ' (confirmed by hand)' : '';
+  return parts.join(' · ') + byHand + (close.words ? ` — ${unitText(close.words, CLOSE_WORDS_MAX)}` : '');
+}
+
+function unitStateLine(unit) {
+  let state = 'open';
+  if (unit.status === 'closing') state = `closing · proof ${unitText(unit.closing_proof, 64)}`;
+  if (unit.status === 'closed') state = unitCloseLine(unit.close, unit.record);
+  return unit.held ? `${state} · held: ${unitText(unit.hold_reason, UNIT_REASON_MAX)}` : state;
+}
+
+// With unit records: EVERY unit record, with its folded state. Three sections
+// — open (a requested close reads closing, with its proof), held (closed, and
+// held), closed (newest first) — then any unit an item's events name that has
+// no record, said as that. Under each, its items. A section with nothing in
+// it is not printed. The Epic folders are not read on this path.
+function renderEpicsFromUnits(items, units) {
+  const byUnitId = (a, b) => compareUnitIds(a.id, b.id);
+  const open = units.filter((u) => u.status !== 'closed').sort(byUnitId);
+  const held = units.filter((u) => u.status === 'closed' && u.held).sort(byUnitId);
+  const closed = units
+    .filter((u) => u.status === 'closed' && !u.held)
+    .sort((a, b) => time(b.close.at) - time(a.close.at) || byUnitId(a, b));
+  const recorded = new Set(units.map((u) => u.id));
+  const unrecorded = [...new Set(items.map((it) => it.epic).filter((id) => id && !recorded.has(id)))].sort(compareUnitIds);
+
+  const parts = [GENERATED_MARKER, '# Epics', ''];
+  const itemsOf = (id) => {
+    const mine = items.filter((it) => it.epic === id);
+    if (mine.length === 0) parts.push('_no items_');
+    for (const it of mine) parts.push(`- ${it.id} · ${it.record.type} · ${it.status} — ${titleOf(it)}`);
+    parts.push('');
+  };
+  const section = (title, list) => {
+    if (list.length === 0) return;
+    parts.push(`## ${title}`, '');
+    for (const unit of list) {
+      parts.push(`### ${unit.id} — ${unitStateLine(unit)}`, '');
+      itemsOf(unit.id);
+    }
+  };
+  if (units.length === 0 && unrecorded.length === 0) parts.push('_no Epics_', '');
+  section('Open', open);
+  section('Held', held);
+  section('Closed', closed);
+  if (unrecorded.length > 0) {
+    parts.push('## No unit record', '', `Named by an item, with no record under \`${UNITS_REL}/\`.`, '');
+    for (const id of unrecorded) {
+      parts.push(`### ${id}`, '');
+      itemsOf(id);
+    }
+  }
+  return parts.join('\n');
+}
+
 // ── renderViews ─────────────────────────────────────────────────────────────
 
 /**
@@ -290,9 +398,12 @@ function renderEpics(items, epics) {
  *
  * @param {Array<{record: object, body?: string|null}>} records — `listRecords`
  *   entries (with `{bodies: true}` for bodies); status and Epic are folded here
- * @param {{watchlistText?: string|null, epics?: Array<{id: string, archived: boolean, close?: object|null}>}} [opts]
+ * @param {{watchlistText?: string|null, epics?: Array<{id: string, archived: boolean, close?: object|null}>,
+ *   units?: Array<{id: string, status: string, held: boolean, hold_reason: string|null, close: object|null, closing_proof: string|null}>}} [opts]
  *   `watchlistText`: `work/WATCHLIST.md`, printed first in the inbox;
- *   `epics`: the Epic folders, live and archived (`readEpicFolders`)
+ *   `epics`: the Epic folders, live and archived (`readEpicFolders`);
+ *   `units`: the unit records (`listUnits(...).units`) — when passed, even
+ *   empty, `EPICS.md` is rendered from them and `epics` is not used (M6.E16 t5.1)
  * @returns {Record<string, string>} repo-root-relative path → text: the five
  *   views, and `work/history/YYYY.md` for each year with a close outside the window
  * @throws {WorkStoreError} SCHEMA when a record's events do not fold
@@ -316,7 +427,7 @@ export function renderViews(records, opts = {}) {
     [VIEW_PATHS.backlog]: renderBacklog(lists.backlog),
     [VIEW_PATHS.inbox]: renderInbox(lists.inbox, opts.watchlistText ?? null),
     [VIEW_PATHS.questions]: renderQuestions(lists.questions),
-    [VIEW_PATHS.epics]: renderEpics(items, opts.epics ?? []),
+    [VIEW_PATHS.epics]: Array.isArray(opts.units) ? renderEpicsFromUnits(items, opts.units) : renderEpics(items, opts.epics ?? []),
   };
   for (const year of [...history.keys()].sort()) out[`${HISTORY_DIR}/${year}.md`] = renderHistory(year, history.get(year));
   return out;
@@ -361,7 +472,13 @@ function readEpicFolders(baseDir) {
   return out;
 }
 
-function renderStore(baseDir) {
+// Everything a regeneration renders: `views` (path → text), and on a project
+// with unit records `milestones` (the Epic table of each milestone file that
+// is written — the current one's when that file carries the markers, and any
+// other marked one whose table no longer matches the records; the whole text
+// of each is then one of the `views`) and `notes` (why a table was not
+// written; never a failure).
+function renderStore(baseDir, opts = {}) {
   const { records, broken } = listRecords(baseDir, { bodies: true });
   if (broken.length > 0) {
     const err = new WorkStoreError('SCHEMA', 'cannot generate the views — a view of part of the store would silently '
@@ -369,7 +486,187 @@ function renderStore(baseDir) {
     err.broken = broken.map((b) => b.id ?? b.path); // as `refuseBroken`'s, so a caller can name the remedy
     throw err;
   }
-  return renderViews(records, { watchlistText: readWatchlist(baseDir), epics: readEpicFolders(baseDir) });
+  const watchlistText = readWatchlist(baseDir);
+  // With unit records (`D-M6E16-16`: the folder exists) the Epic index is
+  // rendered from them, and the Epic folders are not read (M6.E16 t5.1). A
+  // `units/` folder that cannot be trusted throws here (`unitRecordsOn`): no
+  // view is generated, and so no store write lands (`assertViewsWritable`).
+  if (!unitRecordsOn(baseDir)) {
+    return { views: renderViews(records, { watchlistText, epics: readEpicFolders(baseDir) }), milestones: [], notes: [] };
+  }
+  const units = readUnits(baseDir);
+  const views = renderViews(records, { watchlistText, units });
+  const tables = milestoneTables(baseDir, units, opts);
+  for (const m of tables.milestones) views[m.rel] = m.text;
+  return { views, milestones: tables.milestones, notes: tables.notes };
+}
+
+// Every unit record, or a refusal naming each broken one — as for a broken
+// item record, a view of part of the store would silently drop them.
+function readUnits(baseDir) {
+  const { units, broken } = listUnits(baseDir);
+  if (broken.length > 0) {
+    const err = new WorkStoreError('SCHEMA', 'cannot generate the views — a view of part of the store would silently '
+      + `drop the broken unit records. Fix these first:\n${broken.map((b) => `  ${b.error}`).join('\n')}`);
+    err.broken = broken.map((b) => b.id ?? b.path);
+    throw err;
+  }
+  return units;
+}
+
+// ── The milestone files' Epic tables (M6.E16 t5.2, AC7.2) ───────────────────
+
+const STATE_REL = `${PLANNING_DIR}/STATE.md`;
+
+// The milestone file of the Epic `STATE.md` names as current, or null: no
+// STATE.md, no `current_epic`, or one that is not an Epic of a milestone file
+// (`MILESTONE-6.md`, `MILESTONE-4.5.md`). `milestones.js` `currentMilestone`'s
+// rule, read without `readState`: this runs inside every store write and in
+// the synchronous store check, and must neither wait nor migrate a STATE.md.
+// STATE.md is read only as a regular file; one that cannot be read or parsed
+// names no milestone.
+function currentMilestoneOf(baseDir) {
+  let state;
+  try {
+    if (regularFileRefusal(baseDir, STATE_REL) !== null) return null;
+    state = parseFrontmatter(readRegularFile(baseDir, STATE_REL)).data;
+  } catch {
+    return null;
+  }
+  const parts = epicIdParts(state?.current_epic);
+  if (parts === null || parts.parts.length > 2) return null;
+  return { milestone: parts.milestone, rel: `${PLANNING_DIR}/MILESTONE-${parts.milestone}.md` };
+}
+
+// How many hand-typed rows a refusal names; the rest are counted.
+const HAND_ROWS_SHOWN = 5;
+
+// A row a person typed between the markers is never deleted by a regeneration
+// (as a hand-kept view is never overwritten): refuse, naming the file, each
+// row, and the two ways out. `rows` is `rowsNotReprinted`'s.
+function refuseHandRows(rel, rows) {
+  if (rows.length === 0) return;
+  const one = rows.length === 1;
+  const named = rows.slice(0, HAND_ROWS_SHOWN).map((r) => {
+    const what = r.repeated === true ? `another row for ${r.id ?? 'the same thing'}; the table prints one`
+      : r.id === null ? 'its first cell is not an Epic\'s ID and nothing else' : `it names ${r.id}, which has no unit record`;
+    return `line ${r.line} (“${cut(printable(r.cell), 80)}” — ${what})`;
+  });
+  const more = rows.length > HAND_ROWS_SHOWN ? `, and ${rows.length - HAND_ROWS_SHOWN} more` : '';
+  const err = new WorkStoreError('CONFIG', `${rel}: ${one ? 'a row' : `${rows.length} rows`} between the Epic-table markers `
+    + `${one ? 'was' : 'were'} typed by hand and would be deleted by a regeneration — ${named.join('; ')}${more}. The rows between the markers are `
+    + `generated from the unit records, so nothing was written. Either give ${one ? 'it' : 'each'} a unit record (/sig:discuss --epic <ID> opens an Epic; `
+    + 'for any other unit, openUnit — see /sig:docs-archive, "Holding a unit"), or move the row outside the two marker lines, '
+    + 'where it stays yours.');
+  err.handRows = rows.map((r) => ({ line: r.line, id: r.id }));
+  throw err;
+}
+
+// The same for a line between the markers that is not a table row (a note, a
+// heading): the regeneration would delete it too.
+function refuseHandLines(rel, lines) {
+  if (lines.length === 0) return;
+  const one = lines.length === 1;
+  const named = lines.slice(0, HAND_ROWS_SHOWN).map((l) => `line ${l.line} (“${cut(printable(l.text), 80)}”)`);
+  const more = lines.length > HAND_ROWS_SHOWN ? `, and ${lines.length - HAND_ROWS_SHOWN} more` : '';
+  const err = new WorkStoreError('CONFIG', `${rel}: ${one ? 'a line' : `${lines.length} lines`} between the Epic-table markers `
+    + `${one ? 'is' : 'are'} not part of the table and would be deleted by a regeneration — ${named.join('; ')}${more}. Only the generated `
+    + `table belongs between the markers, so nothing was written. Move ${one ? 'the line' : 'the lines'} outside the two marker lines, where ${one ? 'it stays' : 'they stay'} yours.`);
+  err.handRows = lines.map((l) => ({ line: l.line, id: null }));
+  throw err;
+}
+
+// One milestone file with its Epic table rendered from `units`:
+// `{milestone: {rel, table, text, check}, notes}`, only when the file carries
+// the markers. Everything else is a note and no write — a project that has not
+// marked its table is unaffected: no file, a file that is a link or not a
+// regular file (never read through), no markers.
+//
+// `current`: the file is the current milestone's (`D-M6E16-12`). Markers that
+// are there but broken (one missing, one repeated, out of order) are then a
+// refusal: the person asked for a generated table and it cannot be written.
+// So is a row between the markers that the table would not print again
+// (`refuseHandRows`) — unless `opts.replaceHandRows`, for the one caller that
+// has shown the person those rows first (the migration's dry run).
+//
+// Any other milestone's file is written only when its table no longer matches
+// the records (a close confirmed, a reopen or a hold after the next
+// milestone's Epic was opened): a file that is absent, a link, unmarked, or
+// already right says nothing; broken markers there are a note, not a refusal.
+// A row or a line a person typed between its markers refuses as in the current
+// file — `opts.replaceHandRows` included: that caller showed the current
+// file's rows only.
+// `opts.adding`: unit IDs the write being checked is about to give a record.
+function milestoneTable(baseDir, units, { rel, milestone }, current, opts = {}) {
+  const none = (note) => ({ milestone: null, notes: note && current ? [note] : [] });
+  const NOT_WRITTEN = 'its Epic table was not written';
+  try {
+    lstatSync(join(baseDir, rel));
+  } catch (err) {
+    if (err.code === 'ENOENT' || err.code === 'ENOTDIR') return none(`${rel} does not exist — ${NOT_WRITTEN}.`);
+    return none(`${rel} could not be inspected (${err.code ?? err.message}) — ${NOT_WRITTEN}.`);
+  }
+  const refusal = regularFileRefusal(baseDir, rel);
+  if (refusal !== null) return none(`${refusal}; ${NOT_WRITTEN}.`);
+  let content;
+  try {
+    content = readRegularFile(baseDir, rel);
+  } catch (err) {
+    return none(`${rel} could not be read (${err.code ?? err.message}) — ${NOT_WRITTEN}.`);
+  }
+  const at = epicMarkers(content);
+  if (at.state === 'none') {
+    return none(`${rel} has no \`<!-- signal:epics:begin -->\` … \`<!-- signal:epics:end -->\` markers — ${NOT_WRITTEN}. `
+      + 'Put the two markers around its Epic table, once, and the rows are generated from the unit records.');
+  }
+  if (at.state === 'broken' && !current) {
+    return { milestone: null, notes: [`${rel}: ${at.problem} — ${NOT_WRITTEN}. Fix the markers and its rows are generated from the unit records again.`] };
+  }
+  const table = renderEpicTable(units, { milestone });
+  const ids = [...units.map((u) => u.id), ...(opts.adding ?? [])];
+  const legacy = legacyFirstCells(units, { milestone });
+  // Run on the text read here, and again on the text read just before the write.
+  const check = (text) => {
+    if (current && opts.replaceHandRows === true) return;
+    refuseHandRows(rel, rowsNotReprinted(text, table, { milestone, ids, legacy }));
+    refuseHandLines(rel, linesBetweenMarkers(text));
+  };
+  try {
+    const text = upsertEpicTable(content, table);
+    if (!current && text === content) return none(null);
+    check(content);
+    return { milestone: { rel, table, text, check }, notes: [] };
+  } catch (err) {
+    if (!(err instanceof WorkStoreError)) throw err;
+    if (err.handRows) throw err;
+    throw new WorkStoreError(err.code, `${rel}: ${err.message}`);
+  }
+}
+
+// Every milestone file a regeneration writes: the current milestone's, then
+// the file of each other milestone that has an Epic among `units`, by
+// milestone number. Only a milestone the records name is looked at, so a
+// milestone file with no unit record behind it is never opened here.
+function milestoneTables(baseDir, units, opts = {}) {
+  const current = currentMilestoneOf(baseDir);
+  const others = new Set();
+  for (const u of units) {
+    const parts = epicIdParts(u.id);
+    if (parts !== null && parts.parts.length <= 2 && parts.milestone !== current?.milestone) others.add(parts.milestone);
+  }
+  const files = [
+    ...(current === null ? [] : [[current, true]]),
+    ...[...others].sort((a, b) => parseFloat(a) - parseFloat(b) || (a < b ? -1 : 1))
+      .map((milestone) => [{ milestone, rel: `${PLANNING_DIR}/MILESTONE-${milestone}.md` }, false]),
+  ];
+  const milestones = [];
+  const notes = [];
+  for (const [file, isCurrent] of files) {
+    const one = milestoneTable(baseDir, units, file, isCurrent, opts);
+    if (one.milestone !== null) milestones.push(one.milestone);
+    notes.push(...one.notes);
+  }
+  return { milestones, notes };
 }
 
 // `work/WATCHLIST.md`, read only as a regular, unlinked file inside the
@@ -392,12 +689,17 @@ function readWatchlist(baseDir) {
  * (its default `regenerateToMemory`).
  *
  * @param {string} baseDir
- * @returns {Record<string, string>|null} null when the store is off
- * @throws {WorkStoreError} SCHEMA when any record is broken; CONFIG when WORK.md is
+ * @param {{replaceHandRows?: boolean}} [opts] — as `regenerateViews`'s
+ * @returns {Record<string, string>|null} null when the store is off. With unit records and a current
+ *   milestone file that carries the `signal:epics` markers, that file is one more entry: its whole
+ *   text with the Epic table set between the markers (so a stale table is a stale view, AC7.4). So is
+ *   any other marked milestone file whose table does not match the records
+ * @throws {WorkStoreError} SCHEMA when any record is broken; CONFIG when WORK.md is, the markers are
+ *   broken, or a row typed by hand between them would be deleted (`err.handRows`)
  */
-export function regenerateToMemory(baseDir) {
+export function regenerateToMemory(baseDir, opts = {}) {
   if (storeVersion(baseDir) === null) return null;
-  return renderStore(baseDir);
+  return renderStore(baseDir, { replaceHandRows: opts.replaceHandRows }).views;
 }
 
 // A view is written only to a real file in real folders inside `.planning/`
@@ -430,9 +732,10 @@ function handKept(baseDir, rels) {
 
 // Everything `regenerateViews` checks before its first write: the store's
 // version, every record reading (`renderStore`), WATCHLIST.md and the archived
-// Epic READMEs, no link on any view's path, no hand-kept view. Returns the
-// rendered views, or null with the store off. Writes nothing.
-function prepareViews(baseDir) {
+// Epic READMEs (or, with unit records, every unit record and the markers of
+// each milestone file written), no link on any view's path, no hand-kept view.
+// Returns `renderStore`'s result, or null with the store off. Writes nothing.
+function prepareViews(baseDir, opts = {}) {
   const version = storeVersion(baseDir);
   if (version === null) return null;
   if (version !== 2) {
@@ -440,10 +743,13 @@ function prepareViews(baseDir) {
     err.version = version;
     throw err;
   }
-  const views = renderStore(baseDir);
+  const rendered = renderStore(baseDir, opts);
+  const { views } = rendered;
   const rels = Object.keys(views);
   for (const rel of rels) confineView(baseDir, rel);
-  const kept = handKept(baseDir, rels);
+  // A milestone file is a person's document with one generated region: it
+  // carries no generated marker, and is not a hand-kept view.
+  const kept = handKept(baseDir, rels.filter((rel) => !rendered.milestones.some((m) => m.rel === rel)));
   if (kept.length > 0) {
     throw new WorkStoreError('CONFIG', `${kept.join(', ')} ${kept.length === 1 ? 'is' : 'are'} hand-kept, not generated `
       + '(the first line is not the generated marker). Regenerating would overwrite '
@@ -452,7 +758,7 @@ function prepareViews(baseDir) {
       + '`/sig:docs-migrate --work-store`, which moves the lists into records. If it was edited by hand, restore '
       + 'it from git (`git checkout -- <file>`) and make the change with /sig:item.');
   }
-  return views;
+  return rendered;
 }
 
 /**
@@ -466,10 +772,12 @@ function prepareViews(baseDir) {
  * write itself creates (a new history year); `regenerateAfter` reports that.
  *
  * @param {string} baseDir
+ * @param {{adding?: string[]}} [opts] — `adding`: unit IDs the write is about to give a record, so a row
+ *   typed by hand for one of them between the Epic-table markers does not refuse the write that gives it one
  * @throws {WorkStoreError}
  */
-export function checkViewsWritable(baseDir) {
-  prepareViews(baseDir);
+export function checkViewsWritable(baseDir, opts = {}) {
+  prepareViews(baseDir, { adding: opts.adding });
 }
 
 // A message ends in a full stop before the next sentence is appended to it.
@@ -486,12 +794,13 @@ const BROKEN_REMEDY = ' A broken record is restored with git: `git checkout -- <
  * M6.E14 REVIEW).
  *
  * @param {string} baseDir
- * @param {{verb?: string}} [opts] — what the caller did not do: 'written' (default), 'moved'
+ * @param {{verb?: string, adding?: string[]}} [opts] — `verb`: what the caller did not do: 'written'
+ *   (default), 'moved'; `adding`: as `checkViewsWritable`'s
  * @throws {WorkStoreError} the cause's code
  */
-export function assertViewsWritable(baseDir, { verb = 'written' } = {}) {
+export function assertViewsWritable(baseDir, { verb = 'written', adding } = {}) {
   try {
-    checkViewsWritable(baseDir);
+    checkViewsWritable(baseDir, { adding });
   } catch (err) {
     const code = err instanceof WorkStoreError ? err.code : 'IO';
     const inner = endSentence(String(err?.message ?? err)
@@ -549,23 +858,78 @@ export function viewsNotRegenerated(done, err) {
  * - A history file whose year no longer has a close outside the window is
  *   left as it is, never deleted.
  *
+ * **With unit records** (M6.E16 t5.2) the current milestone's file —
+ * `MILESTONE-<n>.md` for the Epic `STATE.md` names — gets its Epic table
+ * written between its `signal:epics` markers (`milestone-table.js`); no other
+ * byte of it changes, and it is not rewritten when nothing would change. A
+ * file without the markers (or absent, or a link) is left alone: that is a
+ * line in `notes`, not a failure. Markers that are there but broken refuse
+ * the whole regeneration (CONFIG, naming the file), before anything is written.
+ * So does a table row between the markers that the new table would not print
+ * again — one typed by hand, for an ID with no unit record or for nothing the
+ * records hold (CONFIG, naming the file, each row and the two remedies;
+ * `err.handRows`): it is never deleted. A row for a unit that has a record —
+ * its first cell is that Epic's ID and nothing else, or the first cell of its
+ * recorded old row — is regenerated whatever its other cells say; a second
+ * row for the same Epic is a row typed by hand.
+ *
+ * The file of any OTHER milestone that has an Epic among the unit records is
+ * written the same way when it carries the markers and its table no longer
+ * matches the records — a close confirmed, a reopen or a hold after the next
+ * milestone's Epic was opened. A row or a line typed between its markers
+ * refuses the regeneration as in the current file (`replaceHandRows` does not
+ * cover it); broken markers there are a note. A milestone file without the
+ * markers is never written.
+ *
  * @param {string} baseDir
- * @returns {Promise<{written: string[]}>} repo-root-relative paths
+ * @param {{replaceHandRows?: boolean}} [opts] — `replaceHandRows`: write the table over such rows. Only for
+ *   a caller that has shown the person each row it removes first (the migration, after its dry run)
+ * @returns {Promise<{written: string[], notes?: string[]}>} `written`: repo-root-relative paths;
+ *   `notes`: present only when there is something to say — why a milestone's Epic table was not written
  * @throws {WorkStoreError}
  */
-export async function regenerateViews(baseDir) {
-  const views = prepareViews(baseDir);
-  if (views === null) return { written: [] };
-  const rels = Object.keys(views);
-  for (const rel of rels) {
+export async function regenerateViews(baseDir, opts = {}) {
+  const rendered = prepareViews(baseDir, { replaceHandRows: opts.replaceHandRows });
+  if (rendered === null) return { written: [] };
+  const { views, milestones, notes } = rendered;
+  const written = [];
+  for (const rel of Object.keys(views)) {
     const abs = join(baseDir, rel);
     confineView(baseDir, rel); // again before the mkdir: a link made after the check is still refused
+    const milestone = milestones.find((m) => m.rel === rel);
+    if (milestone !== undefined) {
+      if (await writeMilestoneTable(baseDir, milestone)) written.push(rel);
+      continue;
+    }
     mkdirSync(dirname(abs), { recursive: true });
     // Re-checked per file: a list hand-written after the check is still not overwritten.
     if (handKept(baseDir, [rel]).length > 0) {
       throw new WorkStoreError('CONFIG', `${rel} is hand-kept, not generated — it was not overwritten.`);
     }
     await atomicWrite(abs, views[rel], { generated: true });
+    written.push(rel);
   }
-  return { written: rels };
+  return notes.length > 0 ? { written, notes } : { written };
+}
+
+// Write the milestone file's Epic table. The file is read AGAIN here and the
+// table set into what it holds now, so text a person changed outside the
+// markers since the check is kept, not written over with what was read then
+// — and the hand-typed-row check is run on it again.
+// Nothing is written when the bytes would be the same. Returns whether it wrote.
+async function writeMilestoneTable(baseDir, { rel, table, check }) {
+  let now;
+  let next;
+  try {
+    now = readRegularFile(baseDir, rel);
+    next = upsertEpicTable(now, table);
+    check(now); // a row typed since the first read is not deleted either
+  } catch (err) {
+    if (err?.handRows) throw err;
+    const why = err instanceof WorkStoreError ? err.message : `it could not be read (${err.code ?? err.message})`;
+    throw new WorkStoreError('CONFIG', `${rel}: ${why} It changed while the views were being regenerated; its Epic table was not written.`);
+  }
+  if (next === now) return false;
+  await atomicWrite(join(baseDir, rel), next);
+  return true;
 }

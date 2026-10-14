@@ -15,6 +15,7 @@ import { join } from 'node:path';
 
 import { EPIC_ID_STRICT_RE, PHASES, detectMode } from './state.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
+import { getUnit, unitClosure, unitRecordsOn } from './unit-records.js';
 
 // Pre-SHIP work phases in canonical order — everything in PHASES between
 // CALIBRATE and SHIP (both exclusive). Derived from PHASES (state.js:16) so the
@@ -176,6 +177,22 @@ export function deriveRetroPath(epicId) {
  * directions by AC5.4 and AC5.6, because a newly-unconditional guard that
  * makes a documented mode unusable is `B42`'s failure mode.
  *
+ * **On a project with unit records** (`unitRecordsOn`; M6.E16 t6.1) the unit's
+ * record is asked first, whatever the unit is called: `done` when it is closed
+ * (a held unit is closed), `not-done` when it is open,
+ * `cannot-evaluate` when the record does not read. The retrospective is not
+ * read. A unit with no record is answered as above.
+ *
+ * A unit that is *closing* — its close requested at SHIP and not yet
+ * confirmed on the default branch — answers `done` as well, and the reason
+ * says so with the commit. This answer is for the guard that keeps DISCUSS
+ * out of a finished Epic, and the Epic has shipped: only its merge is waited
+ * for. It is not a statement that the unit is closed — closure is read from
+ * the record (`unitClosure`, `resolveClosures`), where *closing* is open. A `units/` folder that
+ * cannot be trusted (a link, a file, one that cannot be listed) is
+ * `cannot-evaluate` too, with the fault as the reason — never an answer from
+ * the retrospective (REVIEW pass 1, C-I4).
+ *
  * Never throws.
  *
  * @param {string} baseDir
@@ -186,6 +203,38 @@ export function isEpicDone(baseDir, epicId) {
   if (typeof epicId !== 'string' || epicId.length === 0) {
     return { status: 'cannot-evaluate', reason: 'no unit id to evaluate' };
   }
+  // With unit records (M6.E16 t6.1, `D-M6E16-2`) the unit's record is asked
+  // first: done when it is closed (a held unit is closed) or *closing*,
+  // not-done when it is open. A unit with no record takes the path below.
+  let unitsOn;
+  try {
+    unitsOn = unitRecordsOn(baseDir);
+  } catch (err) {
+    return { status: 'cannot-evaluate', reason: err.message };
+  }
+  if (unitsOn) {
+    let closure;
+    let closing = null;
+    try {
+      closure = unitClosure(baseDir, epicId);
+      if (closure === 'open') {
+        const unit = getUnit(baseDir, epicId);
+        if (unit.status === 'closing') closing = unit.closing_proof;
+      }
+    } catch (err) {
+      return { status: 'cannot-evaluate', reason: `${epicId}'s unit record could not be read — ${err.message}` };
+    }
+    if (closure === 'closed' || closure === 'held') {
+      return { status: 'done', reason: `${epicId}'s unit record is closed` };
+    }
+    if (closing !== null) {
+      return { status: 'done', reason: `${epicId}'s close is requested with commit ${closing} and waits for the merge to be confirmed` };
+    }
+    if (closure === 'open') {
+      return { status: 'not-done', reason: `${epicId}'s unit record is not closed` };
+    }
+  }
+
   if (!EPIC_ID_STRICT_RE.test(epicId)) {
     return {
       status: 'cannot-evaluate',
@@ -734,22 +783,56 @@ export function checkStateFrontmatterShape(args) {
  * Returns a banner message to inject into additionalContext, or null when
  * the state is clean.
  *
+ * On a project with unit records (`unitRecordsOn`) "looks like it should have
+ * shipped" is read from the current unit's record — closing or closed — and
+ * the milestone file is not read (M6.E16 t4.3). Never throws there.
+ *
  * @param {object} args
  * @param {{current_epic?: string|null, phase?: string}} args.state
- * @param {string} args.milestoneContent
+ * @param {string} args.milestoneContent — read only on a project with no unit records
  * @param {string} args.baseDir
  * @param {(p: string) => boolean} [args.fileExistsFn] — DI for testing
  * @returns {string | null}
  */
 export function detectDirtyExecute(args) {
-  const { state, milestoneContent, baseDir, fileExistsFn } = args;
+  const { state, baseDir, fileExistsFn } = args;
   if (!state || state.phase !== 'EXECUTE') return null;
   if (!state.current_epic) return null;
-  // Only warn when MILESTONE.md shows the Epic IS at close (per
-  // isEpicCloseShip) but STATE.md still says EXECUTE — that's the gap the
-  // hook exists to surface.
-  if (!isEpicCloseShip(state, milestoneContent)) return null;
-  const retroPath = expectedRetroPath(state);
+  // With unit records (M6.E16 t4.3, `D-M6E16-10`) the trigger is the unit's
+  // record, not the milestone row: it reads closing or closed while STATE.md
+  // still says EXECUTE. `args.milestoneContent` is not read on this path.
+  // This runs inside a hook, so nothing here may throw: a missing or broken
+  // record is no trigger, and neither is a `units/` folder that cannot be
+  // trusted — that is not "no unit records", so the milestone row is not read
+  // for it either; the hook itself says why it could not check
+  // (`warn-dirty-execute.js`).
+  let byRecord;
+  try {
+    byRecord = unitRecordsOn(baseDir);
+  } catch {
+    return null;
+  }
+  let unitStatus = null;
+  if (byRecord) {
+    try {
+      unitStatus = getUnit(baseDir, state.current_epic).status;
+    } catch {
+      return null;
+    }
+    if (unitStatus !== 'closing' && unitStatus !== 'closed') return null;
+  } else if (!isEpicCloseShip(state, args.milestoneContent)) {
+    // Only warn when MILESTONE.md shows the Epic IS at close (per
+    // isEpicCloseShip) but STATE.md still says EXECUTE — that's the gap the
+    // hook exists to surface.
+    return null;
+  }
+  let retroPath;
+  try {
+    retroPath = expectedRetroPath(state);
+  } catch (err) {
+    if (byRecord) return null;
+    throw err;
+  }
   if (!retroPath) return null;
   const abs = join(baseDir, retroPath);
   const exists = fileExistsFn ? fileExistsFn(abs) : defaultFileExists(abs);
@@ -777,9 +860,12 @@ export function detectDirtyExecute(args) {
       ? `the retro at \`${retroPath}\` is still a stub (it holds \`[FILL IN]\` placeholders)`
       : `no retro file exists at \`${retroPath}\``;
 
+  const looksClosed = byRecord
+    ? `reads ${unitStatus} in its unit record`
+    : 'looks closed in MILESTONE.md';
   return (
     `[signal] M4.5.E9 enforcement reminder: Epic ${state.current_epic} ` +
-    `looks closed in MILESTONE.md but STATE.md still says EXECUTE, and ` +
+    `${looksClosed} but STATE.md still says EXECUTE, and ` +
     `${problem}. Before \`/sig:ship\` can ` +
     `close this Epic, ${status === RETRO_STATUS.STUB ? 'fill it in' : 'create the retro from the tier-appropriate template'} ` +
     `(see \`references/retrospective-template.md\`). The SHIP command will ` +
@@ -808,6 +894,7 @@ function defaultFileExists(path) {
  *   - { halt: true, code: 'NO_CURRENT_EPIC', message }              — A2 empty
  *   - { halt: true, code: 'NO_RETRO_FILE', retroPath, message }     — AC1
  *   - { halt: true, code: 'INVALID_RETRO', retroPath, message }     — content fails validator
+ *   - { halt: true, code: 'UNITS_FOLDER', message }                 — `work/units/` is there and cannot be trusted
  *
  * The function has NO bypass parameter — D-E9-3's "no bypass" applies. Extra
  * args passed by the caller are ignored.
@@ -815,11 +902,13 @@ function defaultFileExists(path) {
  * @param {object} args
  * @param {{current_epic?: string|null} | null} args.state
  * @param {{tier: string}} args.profile
- * @param {string} args.milestoneContent — full content of MILESTONE-{N}.md
+ * @param {string} args.milestoneContent — full content of MILESTONE-{N}.md; not read on a
+ *   project with unit records, where `isEpicCloseByState` is the only signal
+ *   and `stale-milestone-row` cannot be returned (M6.E16 t4.3)
  * @param {string} args.baseDir
  */
 export async function shipFR1Check(args) {
-  const { state, profile, milestoneContent, baseDir } = args;
+  const { state, profile, baseDir } = args;
 
   // (1) No STATE at all is a broken project, not a linear one — still halts.
   if (!state) {
@@ -869,6 +958,22 @@ export async function shipFR1Check(args) {
   // isEpicCloseShip is false — the gate silently skipped. Fall back to STATE,
   // but ONLY when the row is ABSENT, so a maintained "pending"/"in flight" row
   // still wins for a legit per-slice ship (not a pure OR).
+  //
+  // With unit records (M6.E16 t4.3, AC4.6, `D-M6E16-10`) STATE.md alone says
+  // whether this SHIP closes the Epic: no milestone row is read —
+  // `args.milestoneContent` is not touched — so the row can neither win nor
+  // be stale. `rowStatus` is null there, which is the row-absent case below.
+  //
+  // A `units/` folder that cannot be trusted halts: whether this SHIP closes
+  // the Epic cannot be read from a row the records may have replaced, and
+  // §6.8's close would refuse on the same fault after the SHIP commit's work.
+  let byRecords;
+  try {
+    byRecords = unitRecordsOn(baseDir);
+  } catch (err) {
+    return { halt: true, code: 'UNITS_FOLDER', message: `${err.message} /sig:ship did not run its retrospective check, and stopped.` };
+  }
+  const milestoneContent = byRecords ? null : args.milestoneContent;
   const rowStatus = milestoneContent
     ? findEpicStatusRow(milestoneContent, state.current_epic)
     : null;
@@ -913,7 +1018,7 @@ export async function shipFR1Check(args) {
   const synthState = aboutToClose ? synthIfClosing : null;
 
   const isEpicClose =
-    isEpicCloseShip(state, milestoneContent) ||
+    (!byRecords && isEpicCloseShip(state, milestoneContent)) ||
     (rowStatus === null && isEpicCloseByState(state, profile)) ||
     (aboutToClose && isEpicCloseByState(synthState, profile));
   if (!isEpicClose) {

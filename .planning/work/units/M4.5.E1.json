@@ -1,0 +1,18 @@
+{
+  "id": "M4.5.E1",
+  "legacy_row": [
+    "E1 — Stranger-install path bulletproof",
+    "S1 shipped 2026-05-15 (v0.1.1); **S2 Phase A shipped 2026-05-19 (outcome a — Phase B not needed)**; **S3–S5 ⏸ shelved 2026-05-24**",
+    "F2 resolved as outcome (a); R1 row of install-verification matrix complete. S3–S5 (R2/R3/R5 + versioning policy + validator hardening) paused pending Linux/WSL tester volunteers — see M4.5.E3-REQUIREMENTS.md § D-E3-12 for unshelf trigger."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-4.5.md:35: “S1 shipped 2026-05-15 (v0.1.1); **S2 Phase A shipped 2026-05-19 (outcome a — Phase B not needed)**; **S3–S5 ⏸ shelved 2…”). Also found: its retrospective is a stub (.planning/M4.5.E1-RETROSPECTIVE.md).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

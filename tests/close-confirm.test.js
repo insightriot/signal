@@ -221,7 +221,10 @@ describe('runConfirmCloses — the SHIP and sweep entry (fail-open)', () => {
     await v2Store(plain, [rec('SIG-1', [created, request('0123abc')])]);
     const out = await runConfirmCloses(plain, { now: NOW });
     expect(out.confirmed).toEqual([]);
-    expect(out.line).toBe('Closes: 1 still closing (SIG-1: not-a-repo)');
+    // and, since M6.E16 r6, the line says what `not-a-repo` means for the close — and, since r7, the hand-confirm
+    expect(out.line).toBe('Closes: 1 still closing (SIG-1: not-a-repo) · not-a-repo: this project is not a git repository. '
+      + 'Signal confirms a close only against a remote\'s default branch, so these closes stay closing'
+      + ' — or ask the person whether to confirm each by hand, one ID at a time (`/sig:item confirm <ID>`)');
   });
 });
 
@@ -246,6 +249,95 @@ describe('formatConfirmClosesLine', () => {
   it('nothing to say → null', () => {
     expect(formatConfirmClosesLine({ confirmed: [], stillClosing: [], stale: [] })).toBeNull();
     expect(formatConfirmClosesLine(null)).toBeNull();
+  });
+});
+
+// REVIEW r6: every unit closing over 14 days was said to wait on a commit that
+// "is not on the default branch". That is one reason of several, and for
+// `open-items` the commit IS on it.
+describe('a unit closing over 14 days: the line says why, by that unit\'s own reason', () => {
+  const NOT_ON = 'is not on the default branch';
+  const SET_HEAD = 'git remote set-head origin -a';
+  const unitsOf = (pairs) => ({ confirmed: [], stillClosing: pairs.map(([id, reason]) => ({ id, reason })), stale: pairs.map(([id]) => id) });
+  const lineOf = (pairs) => formatConfirmClosesLine({ confirmed: [], stillClosing: [], stale: [], units: unitsOf(pairs) });
+  // What follows "closing over 14 days (…) — ", up to the next part of the line.
+  const staleWords = (line) => line.split('closing over 14 days (')[1].split(' — ').slice(1).join(' — ').split(' · ')[0];
+
+  it('not-on-default-branch, and a commit this clone does not hold: the commit is not on the default branch', () => {
+    for (const reason of ['not-on-default-branch', 'unknown-commit']) {
+      expect(staleWords(lineOf([['M7.E3', reason]]))).toBe('the commit each was requested with is not on the default branch');
+    }
+  });
+
+  it('open-items: the commit is on the default branch, and an item is not closed', () => {
+    const words = staleWords(lineOf([['M7.E3', 'open-items']]));
+    expect(words).toMatch(/is on the default branch/);
+    expect(words).toMatch(/item that is not closed/);
+    expect(words).not.toContain(NOT_ON);
+  });
+
+  it('no-default-branch: the default branch is not recorded', () => {
+    const words = staleWords(lineOf([['M7.E3', 'no-default-branch']]));
+    expect(words).toBe('the remote\'s default branch is not recorded in this clone');
+    expect(words).not.toContain(NOT_ON);
+  });
+
+  it('no-remote: the project has no remote', () => {
+    const words = staleWords(lineOf([['M7.E3', 'no-remote']]));
+    expect(words).toBe('this project has no remote');
+    expect(lineOf([['M7.E3', 'no-remote']])).not.toContain(NOT_ON);
+  });
+
+  it('any other reason is given as it is, and nothing is claimed about the branch', () => {
+    const words = staleWords(lineOf([['M7.E3', 'shallow']]));
+    expect(words).toBe('not confirmed (shallow)');
+    expect(words).not.toContain(NOT_ON);
+  });
+
+  it('two units waiting for different reasons: each is named with its own', () => {
+    const line = lineOf([['M7.E3', 'open-items'], ['M7.E4', 'not-on-default-branch'], ['M7.E5', 'open-items']]);
+    expect(line).toContain('3 closing over 14 days (M7.E3, M7.E4, M7.E5) — ');
+    const words = staleWords(line);
+    expect(words).toMatch(/^M7\.E3, M7\.E5: .*is on the default branch.*item that is not closed; M7\.E4: the commit each was requested with is not on the default branch$/);
+  });
+
+  it('an item\'s stale wait is worded as it was', () => {
+    expect(formatConfirmClosesLine({ confirmed: [], stillClosing: [{ id: 'SIG-4', reason: 'no-remote' }], stale: ['SIG-4'] }))
+      .toContain('1 closing over 14 days (SIG-4) — see /sig:docs-sweep');
+  });
+
+  // A project with no remote cannot confirm a close at all (REVIEW r6).
+  describe('no remote at all', () => {
+    const results = {
+      'a unit only': { confirmed: [], stillClosing: [], stale: [], units: unitsOf([['M7.E3', 'no-remote']]) },
+      'an item only': { confirmed: [], stillClosing: [{ id: 'SIG-4', reason: 'no-remote' }], stale: [] },
+      'an item and a unit': { confirmed: [], stillClosing: [{ id: 'SIG-4', reason: 'no-remote' }], stale: ['SIG-4'], units: unitsOf([['M7.E3', 'no-remote']]) },
+    };
+    // Since M6.E16 r7 the sentence ends naming the hand-confirm (tests/close-by-hand.test.js).
+    const SAYS = 'no-remote: this project has no remote. Signal confirms a close only against a remote\'s default branch, '
+      + 'so these closes stay closing until it has one'
+      + ' — or ask the person whether to confirm each by hand, one ID at a time (`/sig:item confirm <ID>`)';
+
+    it.each(Object.entries(results))('%s: the confirm line says so once, names no command that needs a remote, and claims nothing about a branch', (_label, result) => {
+      const line = formatConfirmClosesLine(result);
+      expect(line.split(SAYS)).toHaveLength(2);
+      expect(line.endsWith(SAYS)).toBe(true);
+      expect(line).not.toContain(SET_HEAD);
+      expect(line).not.toContain(NOT_ON);
+    });
+
+    it.each(Object.entries(results))('%s: the report line (/sig:resume) says the same', (_label, result) => {
+      const line = formatCloseReportLine({ ...result, ready: [], units: result.units && { ready: [], ...result.units } });
+      expect(line.split(SAYS)).toHaveLength(2);
+      expect(line).not.toContain(SET_HEAD);
+      expect(line).not.toContain(NOT_ON);
+    });
+
+    it('a remote whose default branch is not recorded is still told the command, and is not told it has no remote', () => {
+      const line = formatConfirmClosesLine({ confirmed: [], stillClosing: [], stale: [], units: unitsOf([['M7.E3', 'no-default-branch']]) });
+      expect(line.split(SET_HEAD)).toHaveLength(2);
+      expect(line).not.toContain('has no remote');
+    });
   });
 });
 
@@ -360,6 +452,19 @@ describe('the sweep confirms closes — its one writing step (confirmClosesInSwe
     const { findings } = await runSweep(work);
     expect(findings.filter((f) => f.check === 'closes-confirmed').map((f) => f.file)).toEqual([records.recordPath('SIG-1')]);
     expect(findings.filter((f) => f.check === 'closing-too-long')).toEqual([]);
+  });
+
+  it('origin/HEAD unset: one advisory says the closes were not checked and names the command, and nothing is written', async () => {
+    const { work, shas } = await plantClone();
+    await v2Store(work, [rec('SIG-1', [created, request(shas[0])]), rec('SIG-2', [created, request(shas[1])])]);
+    g(work, 'remote', 'set-head', 'origin', '--delete');
+    const before = snapshotTree(work);
+    const findings = await confirmClosesInSweep(work, { now: NOW });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ check: 'closes-confirmed', severity: 'advisory' });
+    expect(findings[0].message).toMatch(/^closes not checked — no-default-branch: /);
+    expect(findings[0].message).toContain('git remote set-head origin -a');
+    expect(snapshotTree(work)).toEqual(before);
   });
 
   it('v2, nothing confirmable: no finding and nothing written', async () => {

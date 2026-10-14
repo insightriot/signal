@@ -281,11 +281,16 @@ describe('t2.5 — one Epic-row reader, covering both published formats', () => 
     expect(rows[0].status).toBe('✅ shipped 2026-07-16');
   });
 
-  it('reads both live milestone files in this repo without inventing an id', async () => {
+  // Since this repo's own cutover (M6.E16 t8.3) the source is the unit records:
+  // `files` is empty and `units` carries each unit, the row parser unreached (AC7.3).
+  it('reads this repo\'s units from their records, and no milestone row', async () => {
     const corpus = await readCorpus(process.cwd());
-    const all = corpus.sources.milestones.files.flatMap((f) => f.rows);
-    expect(all.length).toBeGreaterThan(0);
-    for (const r of all) expect(r.id).toMatch(/^M\d+(\.\d+)?\.E\d+$/);
+    const { files, units } = corpus.sources.milestones;
+    expect(files).toEqual([]);
+    expect(units.length).toBeGreaterThan(0);
+    const epics = units.filter((u) => /\.E\d+$/.test(u.id));
+    expect(epics.length).toBeGreaterThan(0);
+    for (const u of epics) expect(u.id).toMatch(/^M\d+(\.\d+)?\.E\d+$/);
   });
 
   it('leaves the two existing private call sites alone — this is an export, not a re-point', () => {

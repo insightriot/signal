@@ -163,9 +163,10 @@ describe('confirmCloses — the proof never reaches git as an option', () => {
       calls.push(args);
       if (args[0] === 'rev-parse' && args.includes('--is-inside-work-tree')) return 'true\n';
       if (args[0] === 'remote') return 'origin\n';
-      if (args[0] === 'rev-parse' && args.includes('origin/HEAD')) return 'origin/main\n';
+      if (args[0] === 'symbolic-ref' && args.includes('refs/remotes/origin/HEAD')) return 'refs/remotes/origin/main\n';
       if (args[0] === 'rev-parse' && args.at(-1).endsWith('^{commit}')) return `${args.at(-1).slice(0, -9)}\n`;
       if (args[0] === 'rev-parse') return 'abc\n';
+      if (args[0] === 'show-ref') return '';
       if (args[0] === 'merge-base') return '';
       throw new Error(`unexpected git ${args.join(' ')} ${o?.cwd}`);
     };

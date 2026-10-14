@@ -1,0 +1,13 @@
+{
+  "id": "SIG-317",
+  "type": "NEW",
+  "title": "The closed-proof audit is silent when git fails",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-14T21:16:08.405Z",
+      "by": "Claude (M6.E16 r7.2)"
+    }
+  ]
+}

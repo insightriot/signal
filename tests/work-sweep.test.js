@@ -12,7 +12,7 @@
 // one finding naming the migration (pinned in sweep-store-on.test.js).
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, symlink } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -20,6 +20,8 @@ import { checkWorkStore, runSweep, renderSweepReport } from '../plugin/tools/lib
 import { checkRecords, recordPath } from '../plugin/tools/lib/work-records.js';
 import { serializeRecord } from '../plugin/tools/lib/work-record.js';
 import { regenerateViews } from '../plugin/tools/lib/work-views.js';
+import { checkUnits, UNITS_REL } from '../plugin/tools/lib/unit-records.js';
+import { UNIT_KIND } from '../plugin/tools/lib/unit-record.js';
 
 let base;
 const put = async (rel, text) => {
@@ -28,6 +30,7 @@ const put = async (rel, text) => {
 };
 const WORK_MD = '---\nkey: SIG\nschema_version: 2\n---\n# Work store\n';
 const AT = '2026-10-04T10:00:00.000Z';
+const unit = (id) => UNIT_KIND.serializeRecord({ id, events: [{ type: 'opened', at: AT, by: 't' }] });
 const rec = (id) => serializeRecord({ id, type: 'BUG', title: `t ${id}`, events: [{ type: 'created', at: AT, by: 't' }] });
 
 beforeEach(async () => {
@@ -106,5 +109,98 @@ describe('runSweep carries the work-store findings', () => {
     await put('.planning/work/WORK.md', 'no frontmatter at all\n');
     const res = await runSweep(base);
     expect(res.findings.filter((f) => f.check === 'work-store')).toHaveLength(1);
+  });
+});
+
+// M6.E16/t2.5 (AC1.5): a broken unit record is reported as a broken item
+// record is — one advisory `work-store` finding, by ID and path.
+describe('checkWorkStore carries the unit-record findings (AC1.5)', () => {
+  const cleanStore = async () => {
+    await put('.planning/work/WORK.md', WORK_MD);
+    await put(recordPath('SIG-1'), rec('SIG-1'));
+    await regenerateViews(base);
+  };
+
+  it('invalid JSON, a schema violation and a file name that is not the id: one advisory each, by ID and path', async () => {
+    await cleanStore();
+    await put(`${UNITS_REL}/M6.E30.json`, '{ not json\n');
+    await put(`${UNITS_REL}/M6.E31.json`, JSON.stringify({ id: 'M6.E31', status: 'open', events: [{ type: 'opened', at: AT, by: 't' }] }));
+    await put(`${UNITS_REL}/M6.E32.json`, unit('M6.E33'));
+    await put(`${UNITS_REL}/M6.E34.json`, unit('M6.E34')); // sound: adds nothing
+    const found = checkUnits(base);
+    expect(found.map((f) => [f.code, f.id])).toEqual([['invalid', 'M6.E30'], ['invalid', 'M6.E31'], ['path', 'M6.E32']]);
+
+    const got = checkWorkStore(base);
+    expect(got.every((f) => f.check === 'work-store' && f.severity === 'advisory')).toBe(true);
+    // Since S5 (t5.1) the views render the unit records, so `checkRecords` adds
+    // what it adds for a broken item record: one `view-stale` finding saying
+    // the views could not be regenerated to compare. The unit findings follow.
+    const views = checkRecords(base);
+    expect(views.map((f) => f.code)).toEqual(['view-stale']);
+    expect(views[0].message).toMatch(/could not be regenerated to compare.*M6\.E30/s);
+    expect(got.map((f) => [f.file, f.message])).toEqual([...views, ...found].map((f) => [f.path, f.message]));
+    for (const id of ['M6.E30', 'M6.E31', 'M6.E32']) {
+      const f = got.find((g) => g.file === `${UNITS_REL}/${id}.json`);
+      expect(f.message).toContain(`${UNITS_REL}/${id}.json`); // the ID and the path, in the message too
+    }
+  });
+
+  it('item findings and unit findings are both reported, items first', async () => {
+    await cleanStore();
+    await put(recordPath('SIG-2'), '{ not json\n');
+    await put(`${UNITS_REL}/M6.E30.json`, '{ not json\n');
+    const items = checkRecords(base);
+    expect(items.length).toBeGreaterThan(0);
+    expect(checkWorkStore(base).map((f) => f.message)).toEqual([...items, ...checkUnits(base)].map((f) => f.message));
+  });
+
+  it('runSweep prints it under Advisory, as a broken item record is printed', async () => {
+    await cleanStore();
+    await put(`${UNITS_REL}/M6.E30.json`, '{ not json\n');
+    const res = await runSweep(base);
+    // The unit's own finding; the `view-stale` one beside it (t5.1) is at `.planning/work`.
+    const ours = res.findings.filter((f) => f.check === 'work-store' && f.file.startsWith(UNITS_REL));
+    expect(ours).toHaveLength(1);
+    expect(ours[0].severity).toBe('advisory');
+    expect(renderSweepReport(res)).toContain(`- [work-store] ${UNITS_REL}/M6.E30.json — `);
+  });
+
+  it('a clean store with sound unit records, with an empty units/ folder, or with none adds nothing', async () => {
+    await cleanStore();
+    expect(checkWorkStore(base)).toEqual([]);
+    await mkdir(join(base, UNITS_REL));
+    expect(checkWorkStore(base)).toEqual([]);
+    await put(`${UNITS_REL}/M6.E34.json`, unit('M6.E34'));
+    // EPICS.md lists every unit record since S5 (t5.1): a record planted by
+    // hand leaves it stale until the views are regenerated (AC7.4).
+    await regenerateViews(base);
+    expect(checkWorkStore(base)).toEqual([]);
+  });
+
+  it('a units/ folder that is a symbolic link is one advisory, not a crash', async () => {
+    await cleanStore();
+    await mkdir(join(base, 'elsewhere'));
+    await symlink(join(base, 'elsewhere'), join(base, UNITS_REL));
+    let got;
+    expect(() => { got = checkWorkStore(base); }).not.toThrow();
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({ check: 'work-store', severity: 'advisory', file: UNITS_REL });
+    expect(got[0].message).toMatch(/symbolic link/);
+  });
+
+  it('store off: a broken unit record adds no finding and the report never mentions the store', async () => {
+    await put(`${UNITS_REL}/M6.E30.json`, '{ not json\n');
+    expect(checkWorkStore(base)).toEqual([]);
+    expect(renderSweepReport(await runSweep(base))).not.toContain('work-store');
+  });
+
+  it('a v1 store keeps its one migration advisory, and a broken unit record is reported after it', async () => {
+    await put('.planning/work/WORK.md', '---\nkey: SIG\n---\n');
+    const before = checkWorkStore(base);
+    expect(before).toHaveLength(1);
+    await put(`${UNITS_REL}/M6.E30.json`, '{ not json\n');
+    const got = checkWorkStore(base);
+    expect(got[0]).toEqual(before[0]);
+    expect(got.slice(1).map((f) => f.file)).toEqual([`${UNITS_REL}/M6.E30.json`]);
   });
 });

@@ -18,7 +18,7 @@
   },
   "$defs": {
     "item_id": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{1,9}-[1-9]\\d*$" },
-    "epic_id": { "type": "string", "pattern": "^M\\d+(\\.\\d+)*\\.E\\d+$" },
+    "epic_id": { "type": "string", "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._-]{0,99}$" },
     "commit": { "type": "string", "pattern": "^[0-9a-f]{7,64}$" },
     "at": {
       "type": "string",
@@ -116,7 +116,10 @@
         "reason": { "enum": ["fixed", "stale", "wontdo", "dup", "rejected"] },
         "proof": { "$ref": "#/$defs/text" },
         "dup_of": { "$ref": "#/$defs/item_id" },
-        "legacy": { "const": true }
+        "legacy": { "const": true },
+        "confirmed_by": { "const": "person" },
+        "git_reason": { "enum": ["no-remote", "no-origin-remote", "not-a-repo"] },
+        "why": { "type": "string", "pattern": "^(?=.*\\S)[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Variation_Selector}]{1,2000}$" }
       }
     },
     "reopened": {

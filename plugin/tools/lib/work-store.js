@@ -4,7 +4,9 @@
 //     WORK.md                  frontmatter `key:` — the opt-in switch (D-M6E11-3);
 //                              `schema_version: 2` for a store of records
 //     items/NN/SIG-n.json      the records (`work-records.js`, M6.E13)
-//     epics/<EpicID>/          an Epic's documents
+//     units/<ID>.json          one record per Epic or unit (`unit-records.js`, M6.E16);
+//                              the folder existing turns unit records on
+//     epics/<EpicID>/          an Epic's documents, when a folder was made by hand
 //
 // Until M6.E13 this module also allocated v1 item IDs (`nextId`), mapped a
 // status to its folder (`folderFor`) and checked that every item file sat in
@@ -31,6 +33,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { gitEnv } from './git-env.js';
 import { parseFrontmatter, StateSchemaError } from './state.js';
 import { WorkStoreError } from './work-errors.js';
 
@@ -108,6 +111,7 @@ function runGit(baseDir, args, execFn) {
       cwd: baseDir,
       stdio: ['ignore', 'pipe', 'ignore'],
       maxBuffer: GIT_MAX_BUFFER,
+      env: gitEnv(baseDir),
     })
   );
 }
@@ -131,6 +135,10 @@ export function walkFiles(dir, out = []) {
   return out;
 }
 
+// False also when git cannot be used at all — "not known to be one", the
+// same answer `branch-guard.js`'s `isGitRepo` gives then (r6.5). A caller
+// that WRITES, or weakens a check, on false asks `gitCannotAsk`
+// (`git-env.js`) first: "could not ask" is not "no repository".
 export function isGitRepo(baseDir, execFn = execFileSync) {
   try {
     return runGit(baseDir, ['rev-parse', '--is-inside-work-tree'], execFn).trim() === 'true';

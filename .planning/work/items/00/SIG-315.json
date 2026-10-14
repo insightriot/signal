@@ -1,0 +1,13 @@
+{
+  "id": "SIG-315",
+  "type": "NEW",
+  "title": "GIT_FAILED says \"run the confirm again\" where the branch gate uses it",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-14T21:16:08.064Z",
+      "by": "Claude (M6.E16 r7.2)"
+    }
+  ]
+}

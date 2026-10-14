@@ -1,0 +1,18 @@
+{
+  "id": "M5.E13",
+  "legacy_row": [
+    "**E13**",
+    "✅ shipped as **v0.1.14** (2026-07-30) — **ran ahead of E10–E12** (D-M5E13-1; ID-is-identity makes out-of-order legal)",
+    "**Guards that don't guard.** Four defects, one shape: *something was built to catch a mistake and does not catch it.* Closed `B48` (the phase-entry instruction was **unconditional**, and an agent **correctly refused it** — fixed in both the text and the code beneath it, D-M5E13-4), `B53` (a non-strict `current_epic` split artifact **write**-naming from **read**-resolution; the resolver's first candidate is now `artifactName`'s own output, making `epic-native-flow.md`'s guarantee true **by construction**), `B39` (a watchlist nothing walked — **run for the first time: 11 rows, all unevaluated, two already fired**), `B36` (the retro gate's stale-row skip is now loud), `B49`-remainder + `B51` + `I2`. **New `B54` found at PLAN:** `checkGateArtifacts` was the class's **fourth** instance and the only one **wrong if wired up** — executed against Signal it returned `missing:['REQUIREMENTS.md']`, so switching it on would have blocked PLAN for every Epic-mode project; **deleted**. 1736 → **1806 tests**; **CI added** (Signal had none — its first run caught a latent git-history dependency). VERIFY **20/21** — AC2.2 documented NOT MET, because `B46`'s premise does not survive measurement (**0 of 48** inbox candidates map to any disposition row). REVIEW **PASS-WITH-FIXES** — 1 Critical + 1 Important, **both re-creations of this Epic's own defect classes one layer down**: an unconditional guard replacing an unconditional instruction, and two implementations of one rule under a comment denying it. **Headline finding: the adherence control arm was never isolated across files** (`B55`) — v0.1.13's `OBEYED` was clean by luck, not construction; the re-run returned **INDETERMINATE** and was deliberately not re-rolled. Decisions D-M5E13-1…8. Retro: [`M5.E13-RETROSPECTIVE.md`](M5.E13-RETROSPECTIVE.md). Carry-overs → **M5.E15** (`B55`), **M5.E16** (the class's document- and data-shaped halves)."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-5.md:38: “✅ shipped as **v0.1.14** (2026-07-30) — **ran ahead of E10–E12** (D-M5E13-1; ID-is-identity makes out-of-order legal)”); its retrospective is complete (.planning/M5.E13-RETROSPECTIVE.md); today's closure check reads it closed (M5.E13-VERIFICATION.md records a PASS, and M5.E13 is not the current unit).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "M6.E7",
+  "legacy_row": [
+    "`M6.E7`",
+    "**shipped** — merged 2026-09-06 (PR #239, ⚠ squashed; anchors repaired by PR #240)",
+    "`/sig:advise`, the 23rd command: the Roadmap Advisor, with citations that mechanically resolve. 2979 → 3304 tests."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-6.md:29: “**shipped** — merged 2026-09-06 (PR #239, ⚠ squashed; anchors repaired by PR #240)”); its retrospective is complete (.planning/M6.E7-RETROSPECTIVE.md); today's closure check reads it closed (M6.E7-VERIFICATION.md records a PASS, and M6.E7 is not the current unit).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

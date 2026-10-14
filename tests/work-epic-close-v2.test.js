@@ -15,12 +15,13 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 
 import { closeEpic } from '../plugin/tools/lib/work-ops.js';
+import { testSeam } from '../plugin/tools/lib/git-env.js';
 import * as records from '../plugin/tools/lib/work-records.js';
 import { serializeRecord } from '../plugin/tools/lib/work-record.js';
 import { regenerateViews } from '../plugin/tools/lib/work-views.js';
@@ -86,6 +87,70 @@ describe('closeEpic on a v2 store', () => {
     expect(await readFile(join(root, '.planning/work/EPICS.md'), 'utf-8')).toMatch(new RegExp(`${EPIC.replace('.', '\\.')}.*closed`));
     expect(records.checkRecords(root)).toEqual([]);
     expect(records.isEpicArchived(root, EPIC)).toBe(true);
+  });
+
+  // r6.5: in a real repository, with a git Signal does not use, the files
+  // were moved as plain renames — the "no repository" branch — instead of
+  // with `git mv`. "Could not ask" refuses.
+  it('a git older than 2.38, in a repository: refused with the version, nothing moved', async () => {
+    await store([{ id: 'SIG-3', type: 'BUG', title: 'dropped from the Epic', events: [ev.created, ev.triaged, ev.queued, ev.wontdo] }]);
+    for (const args of [['init', '-q', '-b', 'feat'], ['add', '-A'], ['-c', 'user.email=t@t.co', '-c', 'user.name=T', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'c0']]) {
+      expect(spawnSync('git', args, { cwd: root, encoding: 'utf8' }).status).toBe(0);
+    }
+    const before = snapshotTree(root);
+    testSeam.gitVersion = 'git version 2.34.1';
+    let err;
+    try {
+      err = await closeEpic(root, EPIC, { by, at: AT }).catch((e) => e);
+    } finally {
+      testSeam.gitVersion = undefined;
+    }
+    expect(err).toMatchObject({ code: 'CONFIG' });
+    expect(err.message).toBe(`${EPIC}: the Epic was not closed — git could not be asked about this project, and its items and files are checked and moved with git: `
+      + 'Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1. Nothing was changed.');
+    expect(snapshotTree(root)).toEqual(before);
+    // r6.7: the same words with no Epic folder at all — "they were not moved" was about files that are not there
+    rmSync(join(root, `.planning/work/epics/${EPIC}`), { recursive: true, force: true });
+    testSeam.gitVersion = 'git version 2.34.1';
+    try {
+      const noFolder = await closeEpic(root, EPIC, { by, at: AT }).catch((e) => e);
+      expect(noFolder.message).toBe(err.message);
+      expect(noFolder.message).not.toMatch(/files it tracks|were not moved/);
+    } finally {
+      testSeam.gitVersion = undefined;
+    }
+    await store([{ id: 'SIG-3', type: 'BUG', title: 'dropped from the Epic', events: [ev.created, ev.triaged, ev.queued, ev.wontdo] }]);
+    // the control: the installed git moves it
+    expect(await closeEpic(root, EPIC, { by, at: AT })).toMatchObject({ status: 'closed' });
+  });
+
+  // r6.6: with an item closing on a commit that IS in HEAD, the check of the
+  // Epic's items ran first and said OPEN_ITEMS ("close each …") — git could
+  // not be asked where the commit is. The version is what is said.
+  it('a git older than 2.38, an item closing on a commit in HEAD: the version, not OPEN_ITEMS', async () => {
+    const run = (...args) => {
+      const r = spawnSync('git', ['-c', 'commit.gpgsign=false', '-c', 'user.email=t@t.co', '-c', 'user.name=T', ...args], { cwd: root, encoding: 'utf8' });
+      if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
+      return r.stdout.trim();
+    };
+    run('init', '-q', '-b', 'feat');
+    await put('fix.txt', 'fixed\n');
+    run('add', 'fix.txt');
+    run('commit', '-q', '-m', 'the fix');
+    const sha = run('rev-parse', 'HEAD');
+    await store([{ id: 'SIG-3', type: 'BUG', title: 'fixed on the branch', events: [ev.created, ev.triaged, ev.started, { ...ev.closing, proof: sha }] }]);
+    const before = snapshotTree(root);
+    testSeam.gitVersion = 'git version 2.34.1';
+    let err;
+    try {
+      err = await closeEpic(root, EPIC, { by, at: AT }).catch((e) => e);
+    } finally {
+      testSeam.gitVersion = undefined;
+    }
+    expect(err).toMatchObject({ code: 'CONFIG' });
+    expect(err.message).toContain('Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1');
+    expect(err.message).not.toMatch(/close each|OPEN_ITEMS/);
+    expect(snapshotTree(root)).toEqual(before);
   });
 
   it('a record of the Epic still open: OPEN_ITEMS naming it, nothing moved', async () => {

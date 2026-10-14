@@ -4,7 +4,8 @@
 // On session resume, if STATE.md shows the project is mid-EXECUTE for an
 // Epic that already looks shipped per MILESTONE.md but has no retro file,
 // emit a high-visibility additionalContext warning so the user sees the
-// gap as soon as the session opens.
+// gap as soon as the session opens. On a project with unit records "looks
+// shipped" is the unit's record reading closing or closed.
 //
 // This catches the original motivating failure mode for M4.5.E9: the
 // conversation context cleared between EXECUTE finishing and /sig:ship
@@ -14,7 +15,9 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { shownName } from '../tools/lib/printable-text.js';
 import { detectDirtyExecute } from '../tools/lib/retrospective.js';
+import { unitRecordsOn } from '../tools/lib/unit-records.js';
 
 const baseDir = process.cwd();
 
@@ -45,18 +48,40 @@ const state = { phase, current_epic: currentEpic };
 
 if (!state.current_epic) process.exit(0);
 
-// Load the matching milestone file (M4.5.E9 → MILESTONE-4.5.md).
-const milestoneNum = state.current_epic.replace(/^M/, '').replace(/\.E\d+$/, '');
-const milestonePath = resolve(
-  baseDir,
-  '.planning',
-  `MILESTONE-${milestoneNum}.md`,
-);
+// Load the matching milestone file (M4.5.E9 → MILESTONE-4.5.md) — only on a
+// project with no unit records. With unit records the trigger is the unit's
+// record (M6.E16 t4.3, D-M6E16-10) and the milestone file is not opened.
+//
+// A `work/units/` folder that cannot be trusted (a link, a file, one that
+// cannot be listed) is not "no unit records": the milestone row is not read
+// in its place. The hook stays fail-open, as hooks here do — it blocks
+// nothing — and says why it could not check.
 let milestoneContent = '';
+let unitsOn;
 try {
-  milestoneContent = readFileSync(milestonePath, 'utf-8');
-} catch {
+  unitsOn = unitRecordsOn(baseDir);
+} catch (err) {
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      // `current_epic` is text from a file a clone can ship: escaped and cut before it is printed.
+      additionalContext: `Signal could not check whether ${shownName(state.current_epic, 60)} was left mid-EXECUTE without a retrospective: ${err?.message ?? String(err)}`,
+    },
+  }) + '\n');
   process.exit(0);
+}
+if (!unitsOn) {
+  const milestoneNum = state.current_epic.replace(/^M/, '').replace(/\.E\d+$/, '');
+  const milestonePath = resolve(
+    baseDir,
+    '.planning',
+    `MILESTONE-${milestoneNum}.md`,
+  );
+  try {
+    milestoneContent = readFileSync(milestonePath, 'utf-8');
+  } catch {
+    process.exit(0);
+  }
 }
 
 const warning = detectDirtyExecute({

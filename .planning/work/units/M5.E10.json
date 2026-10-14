@@ -1,0 +1,18 @@
+{
+  "id": "M5.E10",
+  "legacy_row": [
+    "**E10**",
+    "✅ shipped as **v0.1.25** (2026-08-13) — **the Epic that closed this milestone**",
+    "**Claim integrity: the checks, and what they cannot see.** Seven deterministic checks for one defect class — **completeness claims written from the shape of the work rather than from the artifact**. **The count is not the honest summary; the reach is:** measured read-only across twelve real local projects, one check evaluates **12 of 12**, one **10 of 12**, and **five apply to between 1 and 5 of twelve** — `B94`'s detector cannot see the project the bug was filed from. **The Epic's own VERIFICATION failed the coverage check it was verifying** (asserted *\"56 of 56, none missing\"*; the check returned **six missing**, every one an id written only inside an en-dash range) and the refutation ships as a boxed note rather than being tidied away. ⚠ **The semantic half is deliberately NOT built** (`AC0.1`, `D-M5E10-1`): everything shipped compares **tokens**, so a report naming every requirement, carrying a denominator, and simply wrong about what its evidence asserts passes all seven — a live `BACKLOG.md` row and a test keep that absence visible. Closed `B94`–`B98` plus five defects from an independent `/code-review` pass; **`B97` was the serious one** — this repository is public and **8 of 13 eval-corpus projects were named in it** while the guard covered only 5 (113 replacements across 30 files; all 13 names denied in two match modes, all 13 labels pinned by hash via `B98`). 2410 → **2602 tests** at merge *(the retro records 2590, the count when it was written, before the last review fixes landed)*. Decisions `D-M5E10-1…5`. Retro: [`M5.E10-RETROSPECTIVE.md`](M5.E10-RETROSPECTIVE.md)."
+  ],
+  "migration_note": "Recorded as closed (legacy) when unit records were added: a person confirmed the list it was in. Found: its milestone row says shipped (MILESTONE-5.md:45: “✅ shipped as **v0.1.25** (2026-08-13) — **the Epic that closed this milestone**”); its retrospective is complete (.planning/M5.E10-RETROSPECTIVE.md). Also found: today's closure check reads it as one it cannot determine (M5.E10 has 1 terminal artifact(s) but none states a readable verdict (M5.E10-VERIFICATION.md)).",
+  "events": [
+    {
+      "type": "closed",
+      "at": "2026-10-12",
+      "by": "migration",
+      "reason": "legacy",
+      "words": "over before unit records existed; recorded when they were added"
+    }
+  ]
+}

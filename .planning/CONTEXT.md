@@ -4,7 +4,18 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-10-10) — M6.E15 at SHIP (PR #296)
+## Where things stand (2026-10-13) — M6.E16 at SHIP (`v0.1.51`)
+
+**`M6.E16` — *"Epics and units as records"*** — an Epic or unit is a JSON record
+(`.planning/work/units/<ID>.json`) that says it exists, which items belong to it, its close (with
+proof) and a hold. Phase progress stays in `STATE.md` (`D-M6E16-1`). A close is requested at SHIP and
+confirmed when its commit is on the remote's recorded default branch, which is never guessed
+(`D-M6E16-27`). Branch `feat/m6.e16-epics-units-as-records`. Requirements:
+[`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md); decisions `D-M6E16-1` … `-31`. Four full REVIEW
+passes and a narrow one; what was learned: [`M6.E16-RETROSPECTIVE.md`](M6.E16-RETROSPECTIVE.md).
+Filed and open after it: `SIG-303` … `SIG-311`.
+
+## Previously (2026-10-10) — M6.E15 shipped (`v0.1.50`, PR #296)
 
 **`M6.E15` — *"other projects onto the store"*** — `/sig:docs-migrate --work-store` turns the store on
 for a project and moves its hand-kept lists into records (`SIG-274`, design step 5), plus `SIG-286`.
@@ -154,72 +165,10 @@ undo, so the run that raised it did not decide it.
 
 ---
 
-## Where things stood (2026-08-28) — M6.E5 shipped
+## Where things stood (2026-08-28) — relocated
 
-**`/sig:permissions` is MERGED.** PR **#211** merged 2026-08-28, branch deleted. Suite **3006 →
-3107**. Commands **21 → 22**. Retro: [`M6.E5-RETROSPECTIVE.md`](M6.E5-RETROSPECTIVE.md).
-
-⚠ **The merge SQUASHED despite `--merge`, and the predicted damage happened immediately.** All 24
-commits are absent from `main`; `ADHERENCE-LOG.md` was left pinning `0e88e03`, a commit nobody can
-reach from `main` — verbatim the failure the Epic lane's `--merge` rule exists to prevent. Repaired
-by recomputing against `d0ac0c5`. Filed; root cause **not** established, and the next Epic merge is
-the experiment: pass `--merge`, then run `git rev-list --parents -n1 HEAD` before anything else.
-
-⚠ **The independent PR reviewer found 43 issues this Epic's own six phases did not** — including
-`Bash(node:*)` (unrestricted shell execution) in a permissions proposal, a fabricated decision id, a
-duplicate bug filing, and a headline claim that was false and had been propagated into five
-documents. All fixed. **This is the single most useful input to the loop analysis below.**
-
-**What it does, in one line:** proposes an allowlist (and a short deny list) for what the flow needs
-here, and **you** install it. It never writes a settings file — Signal cannot grant itself
-permission, and that is settled, not a limitation to be worked around.
-
-**⚠ A headline finding was published and then RETRACTED — read this before citing the Epic.** It
-claimed `git commit` appears zero times as a runnable command string in the payload. **False**, and
-caused by two defects in the Epic's own scanner (the code layer discarded captured subcommands; the
-prose layer could not see inside fenced blocks). Both fixed on PR #211 review; the scan now returns
-**200 entries** and `Bash(git commit:*)` **is** proposed. Measured against the 43 hand-cleaned rules
-after the fixes: **36 generated, 15 agree.** The surviving limits are real but smaller — `gh` is
-genuinely prescribed nowhere in the payload, and the generator only emits `Bash()` rules.
-
-**Three defects found by running code rather than reading it** — the pattern the plan was built
-around: `B112` (`detectProjectKind` calls every non-git directory `greenfield`), `Bash(git:*)` being
-proposed and re-granting what the classification withholds, and cross-ecosystem contamination in the
-flow half. The last two survived 25 green tests and were visible in the first render.
-
-**Filed and NOT fixed: `B112`.** ⚠ A second was filed as `B111` and **withdrawn as a duplicate of `B100`**, which had recorded it two weeks earlier — caught by the PR reviewer, not the filer. `B100` matters beyond this Epic — `AC_ID_RE` lacks the
-`[a-z]?` its two siblings carry, so sub-lettered acceptance criteria collapse on **both** sides of
-`requirement-coverage.js`'s diff. The tool built to catch completeness claims reported **5** criteria
-where **34** exist.
-
-**✅ DONE — the loop/goal analysis is written** (2026-09-01):
-[`../analysis/LOOP-GOAL-DIRECTION.md`](../analysis/LOOP-GOAL-DIRECTION.md). Brett's 2026-08-28 call,
-scoped strictly to loop / goal functionality, nothing else in it. It is the **goal** half —
-what the loop works on and how it knows the run is done — companion to
-[`LOOP-ENGINEERING-ANALYSIS.md`](../analysis/LOOP-ENGINEERING-ANALYSIS.md)'s **attention** half.
-
-**Its headline is that the goal half barely needs building — it needs the parts already built to be
-reached.** One of six loop components is built-and-enforced. `attention` is enforced nowhere
-(`B75`, open on purpose); the decision queue is called by tests and nothing else; and the loop
-ceiling is **mis-wired** — filed as **`B113`**, reproduced against the live module: `drive.md`
-documents a two-argument `canProceedUnattended`, so `VERIFY` and `REVIEW` can only ever return
-`loop-unknown`. Three unreached mechanisms in one area, from three releases.
-
-⚠ **Two things it recommends NOT building, on evidence:** an automatic trigger, and automatic Epic
-selection. The second was **measured, not argued** — the best honest rule over `BACKLOG.md`'s real
-rows runs **77% precision / ~37% recall** (10 of 13 flagged rows live; ≥17 live rows invisible).
-Two of the three false positives are structural: a closed row's closure lives in a *struck sibling
-heading* while the original is preserved unstruck for provenance, so **no row-local rule can tell
-them apart**. Measured on this project only; Signal's `.planning/` is the minority shape.
-
-**Build, in order:** fix `B113` → wire or delete the decision queue → memory read-forward at cycle
-start (the one purely additive gap) → size the cost ceiling (the missing third brake).
-
-✅ **`B112` is now actually filed** (2026-09-01, P3) — it had been cited as *filed* in six places
-across five documents since 2026-08-28 while absent from `BUGS.md`, which is `M6.E2`'s own
-published-facts class. Verified in code before filing: `add.js:192` returns `greenfield` on a missing
-`.git` **before** the `hasSource` scan runs. Filed, not fixed — the caller that prompted it now
-avoids the function.
+Moved verbatim to [`archive/M6/E16/CONTEXT-2026-08-28.md`](archive/M6/E16/CONTEXT-2026-08-28.md)
+on 2026-10-11 to make room for `M6.E16` under this file's byte ceiling. It records `M6.E5` shipping.
 
 ---
 
