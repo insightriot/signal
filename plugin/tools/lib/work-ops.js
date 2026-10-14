@@ -49,8 +49,10 @@ import { EPIC_ID_STRICT_RE, parseFrontmatter, setCurrentEpic, StateSchemaError, 
 import { deriveRetroPath } from './retrospective.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
 import {
-  assertUnitId, getUnit, openUnit, reopenUnit, requestUnitClose, rerequestUnitClose, storedRef, unitClosure, unitRecordsOn, UNITS_REL,
+  assertUnitId, getUnit, listUnits, openUnit, reopenUnit, requestUnitClose, rerequestUnitClose, storedRef, unitClosure, unitRecordsOn,
+  UNITS_REL,
 } from './unit-records.js';
+import { currentUnit } from './work-units.js';
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
 import { assertNoHandKeptLists, EPIC_README } from './work-generate.js';
 import { rewriteRelativeLinks } from './work-links.js';
@@ -1042,5 +1044,50 @@ export async function openEpic(baseDir, epicId, open = {}) {
     }
   }
   return { epic: epicId, unit: step.unit };
+}
+
+// ── Which unit this SHIP closes (M6.E16 r7.1) ───────────────────────────────
+
+/**
+ * Which unit `/sig:ship` §6.8 closes, decided in code so the command file
+ * acts on an answer rather than recalling a rule. Reads STATE (`state`, as
+ * `readState` returns it after §5) and the unit records; writes nothing.
+ *
+ * - `{kind: 'no-unit-records'}` — no `units/` folder: §6.8 is as before.
+ * - `{kind: 'epic', id}` — the current unit is an Epic ID: §6.8's Epic rule
+ *   (§0.5's `isEpicClose`) is unchanged.
+ * - `{kind: 'not-at-ship', phase}` — STATE is not at SHIP: nothing to close.
+ * - `{kind: 'unit', id, hasRecord, status}` — the current unit
+ *   (`currentUnit`, `work-units.js`, the raw `current_epic`) is not an Epic
+ *   ID. Such a project is linear (`detectMode`), and on a linear project
+ *   every SHIP ends the run (D-M5E9-6: the phase log trims at SHIP), so this
+ *   SHIP closes the unit: call `closeEpic` with `id` when `hasRecord`. No
+ *   phase log is read — `completePhase(SHIP)` has already moved it to
+ *   STATE-HISTORY.md, which is why r7's `isEpicCloseByState` never fired.
+ *   `status` is the record's (`open`, `closing`, `closed`) or null: a re-run
+ *   SHIP on a *closing* unit asks again with the new commit (`re-requested`).
+ * - `{kind: 'ask', units: [{id, status}]}` — no current unit
+ *   (`current_epic` null): every unit record that is not closed, by ID. The
+ *   person says which one, if any, this SHIP finishes; nothing is chosen
+ *   for them.
+ * - `{kind: 'none'}` — no current unit and no unit that is not closed.
+ *
+ * @param {string} baseDir
+ * @param {object|null} state — `readState(baseDir)`
+ * @returns {{kind: string, id?: string, hasRecord?: boolean, status?: string|null, phase?: string|null,
+ *   units?: Array<{id: string, status: string}>}}
+ * @throws {WorkStoreError} as `unitRecordsOn` (a `units/` folder that cannot be trusted) and `listUnits`
+ */
+export function unitToCloseAtShip(baseDir, state) {
+  if (!unitRecordsOn(baseDir)) return { kind: 'no-unit-records' };
+  const id = currentUnit(state);
+  if (id !== null && EPIC_ID_STRICT_RE.test(id)) return { kind: 'epic', id };
+  if (state?.phase !== 'SHIP') return { kind: 'not-at-ship', phase: state?.phase ?? null };
+  if (id !== null) {
+    if (unitClosure(baseDir, id) === 'no-record') return { kind: 'unit', id, hasRecord: false, status: null };
+    return { kind: 'unit', id, hasRecord: true, status: getUnit(baseDir, id).status };
+  }
+  const units = listUnits(baseDir).units.filter((u) => u.status !== 'closed').map((u) => ({ id: u.id, status: u.status }));
+  return units.length === 0 ? { kind: 'none' } : { kind: 'ask', units };
 }
 
