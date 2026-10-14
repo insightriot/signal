@@ -1746,7 +1746,10 @@ export function buildEvidenceIndex(baseDir, { execFn = execFileSync } = {}) {
 
   // With unit records (M6.E16 t4.4, `D-M6E16-15`, AC8.2) an Epic or unit is
   // evidence only when its record is closed as `shipped` — a close confirmed
-  // against the default branch. A `legacy` close (recorded as over, never
+  // against the default branch, or (M6.E16 r7.1) confirmed by a person's yes
+  // where git never can (`confirmed_by: 'person'`: no remote, no remote named
+  // `origin`, no repository), which is evidence on that person's word, not
+  // git's. A `legacy` close (recorded as over, never
   // checked) and a `dropped` one (it did not ship) are not, and neither is a
   // retrospective existing. Records that cannot be read are evidence of nothing.
   let unitsOn;

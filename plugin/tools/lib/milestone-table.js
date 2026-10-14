@@ -75,7 +75,8 @@ function statusText(unit) {
       text = `**closed** — ${['legacy', close.release ? cell(close.release, UNIT_REF_MAX) : null].filter(Boolean).join(', ')}${pr}`;
     } else {
       const what = [close.release ? cell(close.release, UNIT_REF_MAX) : null, String(close.at).slice(0, 10)].filter(Boolean).join(', ');
-      text = `**shipped** — ${what}${pr}`;
+      // A close a person confirmed by hand says so (M6.E16 r7.1); no other row changes.
+      text = `**shipped** — ${what}${pr}${close.confirmed_by === 'person' ? ' (confirmed by hand)' : ''}`;
     }
   }
   return unit.held ? `${text} · held: ${cell(unit.hold_reason ?? '', UNIT_REASON_MAX)}` : text;

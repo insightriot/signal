@@ -26,6 +26,7 @@ import { regenerateViews } from '../plugin/tools/lib/work-views.js';
 import { checkClosedProofs } from '../plugin/tools/lib/sweep.js';
 import { formatConfirmClosesLine, itemClosingTooLongWords, unitClosingTooLongWords } from '../plugin/tools/lib/close-confirm.js';
 import { BY_HAND_REASONS } from '../plugin/tools/lib/work-records.js';
+import { renderEpicTable } from '../plugin/tools/lib/milestone-table.js';
 import { snapshotTree } from './helpers/write-inventory.js';
 
 const AT = '2026-10-14T10:00:00.000Z';
@@ -171,6 +172,25 @@ describe('allowed: the three reasons no git answer can change', () => {
     closed.events[2] = { ...closed.events[2], confirmed_by: 'person', git_reason: 'no-remote' };
     await put(work, records.recordPath('SIG-1'), serializeRecord(closed));
     expect(checkClosedProofs(work).filter((f) => /SIG-1/.test(f.message))).toHaveLength(1);
+  });
+});
+
+// r7.1: the views say a close was confirmed by hand; every other row is as it was.
+describe('the views say "confirmed by hand", and only for such a close', () => {
+  const unitOf = (close) => ({ id: 'M7.E3', record: { id: 'M7.E3', events: [] }, status: 'closed', held: false, hold_reason: null, close, closing_proof: null });
+  const shipped = { reason: 'shipped', at: AT, by, proof: 'abc1234', pr: '7' };
+  it('the milestone table: a hand-confirmed shipped close says so; the same close confirmed by git is byte-identical to before', () => {
+    expect(renderEpicTable([unitOf(shipped)], { milestone: '7' })).toContain('| `M7.E3` | **shipped** — 2026-10-14 (PR 7) |');
+    expect(renderEpicTable([unitOf({ ...shipped, confirmed_by: 'person', git_reason: 'no-remote' })], { milestone: '7' }))
+      .toContain('| `M7.E3` | **shipped** — 2026-10-14 (PR 7) (confirmed by hand) |');
+  });
+  it('EPICS.md: a hand-confirmed unit says so', async () => {
+    const { work, head } = await repo();
+    await store(work, { unitProof: head });
+    const before = await readFile(join(work, '.planning/work/EPICS.md'), 'utf-8');
+    expect(before).not.toMatch(/confirmed by hand/);
+    await records.confirmCloseByHand(work, UNIT, { by: person, at: AT });
+    expect(await readFile(join(work, '.planning/work/EPICS.md'), 'utf-8')).toMatch(/phase-3.*closed 2026-10-14 \(shipped\) · PR 7 \(confirmed by hand\)/);
   });
 });
 

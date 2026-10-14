@@ -334,7 +334,9 @@ function unitCloseLine(close, record) {
   if (close.release) parts.push(unitText(close.release, UNIT_REF_MAX));
   const said = legacy ? legacyStatus(record) : null;
   if (said !== null) return `${parts.join(' · ')} — old row: ${said}`;
-  return parts.join(' · ') + (close.words ? ` — ${unitText(close.words, CLOSE_WORDS_MAX)}` : '');
+  // A close a person confirmed by hand says so (M6.E16 r7.1); no other line changes.
+  const byHand = close.confirmed_by === 'person' ? ' (confirmed by hand)' : '';
+  return parts.join(' · ') + byHand + (close.words ? ` — ${unitText(close.words, CLOSE_WORDS_MAX)}` : '');
 }
 
 function unitStateLine(unit) {
