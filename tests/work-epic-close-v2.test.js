@@ -15,7 +15,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
@@ -106,9 +106,20 @@ describe('closeEpic on a v2 store', () => {
       testSeam.gitVersion = undefined;
     }
     expect(err).toMatchObject({ code: 'CONFIG' });
-    expect(err.message).toBe(`${EPIC}: git could not be asked which of the Epic's files it tracks, so they were not moved: `
-      + 'Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1. Nothing was moved.');
+    expect(err.message).toBe(`${EPIC}: the Epic was not closed — git could not be asked about this project, and its items and files are checked and moved with git: `
+      + 'Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1. Nothing was changed.');
     expect(snapshotTree(root)).toEqual(before);
+    // r6.7: the same words with no Epic folder at all — "they were not moved" was about files that are not there
+    rmSync(join(root, `.planning/work/epics/${EPIC}`), { recursive: true, force: true });
+    testSeam.gitVersion = 'git version 2.34.1';
+    try {
+      const noFolder = await closeEpic(root, EPIC, { by, at: AT }).catch((e) => e);
+      expect(noFolder.message).toBe(err.message);
+      expect(noFolder.message).not.toMatch(/files it tracks|were not moved/);
+    } finally {
+      testSeam.gitVersion = undefined;
+    }
+    await store([{ id: 'SIG-3', type: 'BUG', title: 'dropped from the Epic', events: [ev.created, ev.triaged, ev.queued, ev.wontdo] }]);
     // the control: the installed git moves it
     expect(await closeEpic(root, EPIC, { by, at: AT })).toMatchObject({ status: 'closed' });
   });

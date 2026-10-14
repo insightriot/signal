@@ -408,8 +408,9 @@ export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
     // item's commit is, so it would say OPEN_ITEMS of an item that is done.
     const cannotAsk = gitCannotAsk(baseDir);
     if (cannotAsk !== null) {
-      throw new WorkStoreError('CONFIG', `${epicId}: git could not be asked which of the Epic's files it tracks, so they were not moved: `
-        + `${cannotAsk}. Nothing was moved.`);
+      // Worded for both cases: an Epic folder to move, or none (r6.7).
+      throw new WorkStoreError('CONFIG', `${epicId}: the Epic was not closed — git could not be asked about this project, and its items `
+        + `and files are checked and moved with git: ${cannotAsk}. Nothing was changed.`);
     }
     closeEpicCheck(baseDir, epicId, { execFn });
 
