@@ -22,32 +22,25 @@ last_updated: 2026-10-13T17:13:59.608Z
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-13)
+### ▶ WHERE THE WORK IS — read this first (2026-10-14)
 
-**`M6.E16` — *"Epics and units as records"* — at SHIP as `v0.1.51`, PR #301 open (2026-10-14). Its close is requested and waits for the merge.** Brett approved the pull request, the close request and the tag; **the merge waits for his word again**, because a whole-diff read he asked for found a Critical and a High after that approval. Fix rounds `r6` … `r6.10` followed, each checked by a reader who did not write it; the last read found nothing that blocks. Branch
-`feat/m6.e16-epics-units-as-records`. Suite: 371 files, 8165 passed, 1 skipped; lint clean; CI green. Report:
-[`M6.E16-REVIEW.md`](M6.E16-REVIEW.md) (the last sections). Retrospective:
+**`M6.E16` — *"Epics and units as records"* — SHIPPED as `v0.1.51` and CLOSED (2026-10-14).** PR #301
+merged with `--merge` (`d0df0ef5`) on Brett's word, after a fresh read of the last fix found nothing
+that blocks. Tag `v0.1.51` and the GitHub release are published. `/sig:docs-sweep` on `main` confirmed
+the close of `M6.E16` and of `SIG-132`, `-255`, `-288`, `-289`, `-295`, `-305`, `-310`.
+Report: [`M6.E16-REVIEW.md`](M6.E16-REVIEW.md). Retrospective:
 [`M6.E16-RETROSPECTIVE.md`](M6.E16-RETROSPECTIVE.md).
 
-- **After the merge:** run `/sig:docs-sweep` (or the next SHIP) on `main`. It confirms the close of
-  `M6.E16` and of `SIG-132`, `SIG-255`, `SIG-288`, `SIG-289`, `SIG-295`, and moves this Epic's narrative
-  out of this file. Then update the installed plugin and restart before using `/sig:` commands.
-- **Brett's four answers (2026-10-14):** build the non-Epic unit close and the hand-confirm now,
-  before the merge (`D-M6E16-37`, `-38`); keep git 2.38+ (`-39`); keep the table-row rule (`-40`).
-- **RESUME HERE (2026-10-14, after `r7.2` `c05063cc`; 371 files / 8165 passed, 1 skipped):** `r7`
-  built both features; `r7.1` fixed what two fresh reads found (a Critical: the non-Epic close never
-  fired on a linear project; a merge-blocker: a forged hand-confirm silenced the closed-proof audit;
-  `git-failed`; `readsOwnConfig`; the branch gate). A fresh read of `r7.1` found nothing Critical and
-  1 Important (a typed `not-a-repo` softened "not merged"), fixed in `r7.2`; its 5 Minors are
-  `SIG-314` … `SIG-318`. `r7`–`r7.2` are recorded in `M6.E16-REVIEW.md` (verdict PASS),
-  `M6.E16-PROGRESS.md` and the CHANGELOG. **Owed, in order:** (1) ask Brett for his word on the
-  merge — **never merge without it**; `gh pr merge 301 --repo insightriot/signal --merge`; (2) after
-  the merge: tag `v0.1.51` and `gh release create`, run `/sig:docs-sweep` on `main` to confirm
-  `M6.E16`, `SIG-132`, `-255`, `-288`, `-289`, `-295`, `-305`, `-310`; tell Brett to update the
-  plugin and restart.
+- **RESUME HERE:** update the installed plugin to `0.1.51` (`claude plugin update sig@signal`) and
+  restart the CLI before using `/sig:` commands (`B52`). Then pick the next work from
+  [`BACKLOG.md`](BACKLOG.md) (`/sig:advise`). The candidate this Epic left behind is a "harden unit
+  records" Epic over the items below, as `M6.E14` was for `M6.E13`.
+- **The sweep moved no narrative out of this file** ("nothing in STATE.md to move"). This Epic's
+  narrative sits under this resume pointer, not where `evictEpicNarrative` looks. The bullets below
+  are kept until the next Epic opens and replaces them.
 - **Put off on purpose, on record, to come back to:** `SIG-294`, `SIG-296` … `SIG-322` (in
   `BUGS.md`). From REVIEW: `SIG-303` … `SIG-313`. `SIG-305` and `SIG-310` were fixed in fix round 6
-  and are *closing*; parts of `SIG-309` and `SIG-311` were fixed there too. They are the
+  and are now closed; parts of `SIG-309` and `SIG-311` were fixed there too. They are the
   natural scope of a "harden unit records" Epic, as `M6.E14` was for `M6.E13`. `r5.9`, the last 28
   lines of fixes, was read first by the pull request's reviewer, not by a REVIEW pass.
 - **How REVIEW went:** four full passes failed, each in a different corner; pass 3 reached the loop

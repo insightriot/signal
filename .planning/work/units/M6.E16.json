@@ -14,6 +14,15 @@
       "proof": "57d39b09494c665b095269117fdeb77be7ea537f",
       "pr": "301",
       "release": "v0.1.51"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-14T22:47:50.281Z",
+      "by": "confirmCloses",
+      "reason": "shipped",
+      "proof": "57d39b09494c665b095269117fdeb77be7ea537f",
+      "pr": "301",
+      "release": "v0.1.51"
     }
   ]
 }

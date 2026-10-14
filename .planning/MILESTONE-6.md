@@ -36,7 +36,7 @@ The two candidate themes are recorded in `BACKLOG.md` and remain live for `E2` o
 | `M6.E13` | **shipped** — `v0.1.48`, 2026-10-05 (PR #280) | Work items are JSON records that never move; status comes from recorded events; one write library and a hook blocking hand edits. Signal's own store cut over. |
 | `M6.E14` | **shipped** — 2026-10-07, PR #292 | The work store hardened before other projects use it: eight defects (`SIG-251`, `-252`, `-276` … `-280`). First `/sig:drive` run from DISCUSS. 5362 → 5425 tests. |
 | `M6.E15` | **shipped** — `v0.1.50`, 2026-10-10 (PR #296) | Other projects move onto the work store with `/sig:docs-migrate --work-store`: old IDs kept, originals archived, nothing closed on its own — finished-looking entries are proposed and one yes closes them. 5426 → 5968 tests. |
-| `M6.E16` | **closing** — proof 57d39b0 | Epics and units become records: existence, membership, close with proof, and a hold. Phase progress stays in `STATE.md`. |
+| `M6.E16` | **shipped** — v0.1.51, 2026-10-14 (PR 301) | Epics and units become records: existence, membership, close with proof, and a hold. Phase progress stays in `STATE.md`. |
 <!-- signal:epics:end -->
 
 > ⚠ **This table sat two rows long while six Epics existed** — `M6.E3`, `M6.E4`, `M6.E5` and
