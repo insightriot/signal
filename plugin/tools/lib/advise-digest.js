@@ -300,7 +300,7 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
       }
       for (const o of other.open.slice(0, DIGEST_CAPS.openEpics)) {
         // And named as `shownRef` names a branch (r6.3, r6.4): the digest is read by a model.
-        const on = o.branches.map((b) => shownRef(b)).join(', ');
+        const on = o.branches.map((b) => shownRef(b, 'branch', { noCommandHere: true })).join(', ');
         // Clipped: another branch's STATE.md is anyone-who-can-push input (REVIEW pass 2:
         // a 100 KB `phase` produced a 100,942-char digest).
         entries['open Epics'].push({ branch: clip(on, DIGEST_CAPS.row), text: clip(`${o.epic} — open at ${o.phase ?? 'an unrecorded phase'} on ${on}`, DIGEST_CAPS.row) });

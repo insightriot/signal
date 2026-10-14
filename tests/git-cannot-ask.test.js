@@ -34,6 +34,7 @@ import * as branchGuard from '../plugin/tools/lib/branch-guard.js';
 import { isGitRepo as storeIsGitRepo } from '../plugin/tools/lib/work-store.js';
 import { regenerateViews } from '../plugin/tools/lib/work-views.js';
 import { checkGitVersion } from '../plugin/tools/lib/doctor.js';
+import { checkClosedProofs } from '../plugin/tools/lib/sweep.js';
 import { snapshotTree } from './helpers/write-inventory.js';
 
 const NEED = 'Signal needs git 2.38 or newer for its git-backed checks';
@@ -247,6 +248,20 @@ describe('writes that need git\'s answer refuse when it could not be asked', { t
     }
     expect(err).toMatchObject({ code: 'CONFIG' });
     expect(err.message).toBe(`${EPIC}: the close would record HEAD as its proof, and whether that commit says anything about this Epic could not be checked: ${OLD}. Nothing was written.`);
+  });
+});
+
+// r6.6: the sweep's check of recorded closes said nothing when git could
+// not be asked — and nothing reads as "every close is on the default branch".
+describe('the sweep\'s check of recorded closes: not checked is said', { timeout: 60_000 }, () => {
+  it('one advisory with the version; with the installed git, none here', async () => {
+    await repoWithStore();
+    expect(checkClosedProofs(work)).toEqual([]);
+    old();
+    expect(checkClosedProofs(work)).toEqual([{
+      check: 'close-not-on-default-branch', severity: 'advisory', file: '.planning/work',
+      message: `the closes recorded in this store were not checked against the default branch: ${OLD}`,
+    }]);
   });
 });
 

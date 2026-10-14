@@ -592,12 +592,18 @@ export async function proposeEpicCandidates(baseDir) {
   const otherBranches = await findWorkOnOtherBranches(baseDir, { localEpic: state?.current_epic ?? null });
   // Two Epics whose names are not shown can read the same ("… not shown: 19
   // characters"): an `id` shared by two candidates then gets its branch.
+  // The branch can be a length-only note too (r6.6): an id still shared then
+  // gets " (2)", " (3)" after the first, in the order the candidates are listed.
   const shared = new Set(otherBranches.open.map((o) => o.epic).filter((e, i, all) => all.indexOf(e) !== i));
+  const seen = new Map();
   for (const o of otherBranches.open) {
+    const named = shared.has(o.epic) ? `${o.epic} on ${shownRef(o.checkout, 'branch', { noCommandHere: true })}` : o.epic;
+    const n = (seen.get(named) ?? 0) + 1;
+    seen.set(named, n);
     candidates.push({
-      id: shared.has(o.epic) ? `${o.epic} on ${shownRef(o.checkout, 'branch', { noCommandHere: true })}` : o.epic,
+      id: n === 1 ? named : `${named} (${n})`,
       title: o.epic,
-      source: `${shownBranches(o.branches)} (open Epic)`,
+      source: `${shownBranches(o.branches, { noCommandHere: true })} (open Epic)`,
       // What the agent is told to switch to (`drive.md`). A name that is not
       // plainly one is not handed over as it is: the exact name stays in
       // `findWorkOnOtherBranches`' own result (`checkout`), which no
@@ -606,7 +612,7 @@ export async function proposeEpicCandidates(baseDir) {
       phase: o.phase,
       nextStep: nextStepFor(o),
       line: null,
-      why: `already open at ${o.phase ?? 'an unrecorded phase'} on ${shownBranches(o.branches)} — finish it before starting new work`,
+      why: `already open at ${o.phase ?? 'an unrecorded phase'} on ${shownBranches(o.branches, { noCommandHere: true })} — finish it before starting new work`,
     });
   }
   cannotCheck.push(...otherBranches.cannotCheck);

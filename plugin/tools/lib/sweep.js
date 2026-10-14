@@ -26,6 +26,7 @@ import {
 } from './planning-index.js';
 import { resolveInboxPath } from './inbox-path.js';
 import { listDrainCandidatesWithRecovery } from './drain.js';
+import { gitCannotAsk } from './git-env.js';
 import { shownName, shownRef } from './printable-text.js';
 import { listCommands } from './roster.js';
 import {
@@ -523,6 +524,13 @@ export function checkClosedProofs(baseDir, opts = {}) {
   let probed;
   try {
     if (storeVersion(baseDir) !== 2) return [];
+    // Git could not be asked (r6.6): said, once — silence would read as
+    // "every recorded close is on the default branch".
+    const cannotAsk = gitCannotAsk(baseDir);
+    if (cannotAsk !== null) {
+      return [mkFinding('close-not-on-default-branch', 'advisory', '.planning/work',
+        `the closes recorded in this store were not checked against the default branch: ${cannotAsk}`)];
+    }
     probed = probeClosedProofs(baseDir, opts);
   } catch {
     // a broken store or folder: `checkWorkStore` reports it

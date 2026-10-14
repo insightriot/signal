@@ -320,7 +320,7 @@ export function checkBranchPosture(baseDir, opts = {}) {
       // remote is read, and which ones this repository has.
       reason: remotes.includes('origin')
         ? 'origin/HEAD is unset and neither origin/main nor origin/master is unambiguously present'
-        : `no remote is named \`origin\` (this repository has: ${remotes.map((name) => shownRef(name, 'remote')).join(', ')}) — the default branch is read from the remote named \`origin\``,
+        : `no remote is named \`origin\` (this repository has: ${remotes.map((name) => shownRef(name, 'remote', { noCommandHere: true })).join(', ')}) — the default branch is read from the remote named \`origin\``,
     });
   }
 
@@ -348,7 +348,8 @@ export function formatBranchHalt(result, ctx) {
   const suggested = isPlainRefName(ctx.suggestedBranch) ? ctx.suggestedBranch : 'feat/<short-name>';
   // The name as a message may print it (`shownRef`): a branch can be called
   // almost anything, by whoever pushed it.
-  const branch = shownRef(result.defaultBranch);
+  // No command here names it (the one given is for a NEW branch).
+  const branch = shownRef(result.defaultBranch, 'branch', { noCommandHere: true });
   return [
     `HALT — you are on ${branch}, the default branch.`,
     '',
@@ -442,7 +443,7 @@ export function readPullRequestEvidence(baseDir, opts = {}) {
         status: 'none',
         url: null,
         state: null,
-        reason: `HEAD is ${shownRef(posture.defaultBranch)}; a pull request cannot exist for the default branch`,
+        reason: `HEAD is ${shownRef(posture.defaultBranch, 'branch', { noCommandHere: true })}; a pull request cannot exist for the default branch`,
       };
     }
     return {
@@ -509,9 +510,9 @@ export function formatBranchLine(result) {
     case BRANCH_GATE.OK:
       return null;
     case BRANCH_GATE.ON_DEFAULT:
-      return `Branch: HALT — on ${shownRef(result.defaultBranch)} (the default branch).`;
+      return `Branch: HALT — on ${shownRef(result.defaultBranch, 'branch', { noCommandHere: true })} (the default branch).`;
     case BRANCH_GATE.OVERRIDDEN:
-      return `Branch: on ${shownRef(result.defaultBranch)} — allowed by ${OVERRIDE_FLAG}.`;
+      return `Branch: on ${shownRef(result.defaultBranch, 'branch', { noCommandHere: true })} — allowed by ${OVERRIDE_FLAG}.`;
     case BRANCH_GATE.NOT_APPLICABLE:
       return `Branch: not checked — ${result.reason}.`;
     case BRANCH_GATE.CANNOT_DETERMINE:

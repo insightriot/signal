@@ -136,13 +136,19 @@ export function shownRef(name, what = 'branch', { noCommandHere = false } = {}) 
     : `(${what} \`${shown}\` — its name cannot be written safely in a command${noCommandHere ? '' : ', so none is given'})`;
 }
 
+// The middle form of an Epic name (r6.6): at most 24 characters, one to
+// three words with single spaces, each word letters of any script, digits,
+// `.`, `-` and `_`. Short enough that a sentence — an instruction — or a URL
+// (no `:` or `/`) is not put before the reader from another branch.
+const EPIC_SHOWN_MAX = 24;
+const EPIC_WORDS_RE = /^[\p{L}\p{N}._-]+(?: [\p{L}\p{N}._-]+){0,2}$/u;
+
 /**
  * An Epic's name read from ANOTHER branch's STATE.md (r6.5), in the same
  * three forms: `plain(name)` true — the caller's rule for a name a unit may
  * have — and it is shown as it is; otherwise shown, escaped, beside a note
- * when it is short and holds nothing from the set `oddRefNameShown` refuses,
- * single spaces between word characters apart (`Phase 11`: it is never put
- * in a command); otherwise only its length.
+ * when it fits `EPIC_WORDS_RE` within 24 characters (`Phase 11`, `café 2`);
+ * otherwise only its length.
  *
  * @param {string} name
  * @param {(name: string) => boolean} plain
@@ -150,7 +156,8 @@ export function shownRef(name, what = 'branch', { noCommandHere = false } = {}) 
  */
 export function shownEpicName(name, plain) {
   if (plain(name)) return name;
-  const shown = oddRefNameShown(String(name).replace(/(?<=\w) (?=\w)/g, '_')) === null ? null : ascii(name);
+  const s = String(name);
+  const shown = s.length <= EPIC_SHOWN_MAX && EPIC_WORDS_RE.test(s) ? ascii(s) : null;
   return shown === null
     ? `(an Epic whose name is not shown: ${String(name).length} characters)`
     : `(Epic \`${shown}\` — not a name a unit record can have)`;

@@ -153,7 +153,8 @@ export function detectStack(baseDir) {
 // the one thing this module takes from a manifest as TEXT (every other
 // manifest is only looked for), and it is whatever the manifest's author
 // typed — `build; rm -rf ~`, `*`, a name holding an ESC or a line break.
-const SCRIPT_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
+// …and not ending in `:` — `x:` would make `Bash(npm run x::*)` (r6.6).
+const SCRIPT_NAME_RE = /^[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,62}[A-Za-z0-9._-])?$/;
 export const isPlainScriptName = (name) => typeof name === 'string' && SCRIPT_NAME_RE.test(name);
 
 /**

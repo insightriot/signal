@@ -869,7 +869,7 @@ const masked = (m) => (m.length > 8 ? `${m.slice(0, 6)}…` : m);
 function evidenceSourceLine(evidence) {
   if (evidence.source !== 'git' || evidence.recorded !== false) return [];
   const local = evidence.ref !== 'HEAD';
-  const what = local ? `the local branch ${shownRef(evidence.ref)}` : 'HEAD — whatever is checked out; there is no local main or master';
+  const what = local ? `the local branch ${shownRef(evidence.ref, 'branch', { noCommandHere: true })}` : 'HEAD — whatever is checked out; there is no local main or master';
   if (!evidence.remote) {
     return [`The history read is ${what}: this repository has no remote, so there is no recorded default branch to check against.`];
   }

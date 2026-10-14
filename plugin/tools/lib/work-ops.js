@@ -675,7 +675,7 @@ export function refuseHeadThatProvesNothing(baseDir, epicId, head, execFn, words
       + `or commit ${words.advice}`);
   }
   throw new WorkStoreError('CONFLICT', `${words.what} would record HEAD (${head.slice(0, 12)}) as its proof, and that commit is `
-    + `already on the default branch (${shownRef(stale.ref.replace(/^refs\/remotes\//, ''))}) while this project has uncommitted or untracked changes — `
+    + `already on the default branch (${shownRef(stale.ref.replace(/^refs\/remotes\//, ''), 'branch', { noCommandHere: true })}) while this project has uncommitted or untracked changes — `
     + `so it says nothing about ${words.about}, and the next confirm step would ${words.wrongly}. Nothing was written. `
     + `Commit ${words.advice}`);
 }

@@ -433,6 +433,8 @@ describe('a package.json script name becomes a rule only when it is plainly a na
   const scripts = {
     test: 'vitest', 'test:watch': 'vitest -w', 'build.prod_2': 'x', lint: 'eslint',
     'build; rm -rf ~': 'x', '*': 'x', 'a b': 'x', 'esc\u001b[31m': 'x', 'two\nlines': 'x', '-rf': 'x', 'x)': 'x', [`l${'o'.repeat(64)}ng`]: 'x', '': 'x',
+    // r6.6: a trailing `:` made `Bash(npm run x::*)`
+    'x:': 'x',
   };
   const w = () => world({ 'repo/package.json': JSON.stringify({ scripts }) });
 
@@ -442,9 +444,9 @@ describe('a package.json script name becomes a rule only when it is plainly a na
     expect(p.stack.filter((r) => r.startsWith('Bash(npm run '))).toEqual([
       'Bash(npm run build.prod_2:*)', 'Bash(npm run lint:*)', 'Bash(npm run test:*)', 'Bash(npm run test:watch:*)',
     ]);
-    expect(p.stackInfo.npmScriptsSkipped).toBe(9);
+    expect(p.stackInfo.npmScriptsSkipped).toBe(10);
     const report = formatReport(p);
-    expect(report).toContain('  9 package.json scripts have names that are not plainly names, and no rule is proposed for them.');
+    expect(report).toContain('  10 package.json scripts have names that are not plainly names, and no rule is proposed for them.');
     for (const text of [report, renderArtifact(p), p.stack.join('\n')]) {
       expect(text).not.toMatch(/rm -rf ~|npm run (\*|esc|two|-rf|x\)|a b|build;|lo{5})/);
       // eslint-disable-next-line no-control-regex -- an ESC in the output is the defect

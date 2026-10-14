@@ -342,7 +342,7 @@ export async function findWorkOnOtherBranches(baseDir, { localEpic = null, git =
   if (unreadable.length > 0) {
     cannotCheck.push({
       source,
-      reason: `STATE.md on ${unreadable.length} branch(es) could not be parsed: ${shownBranches(unreadable)}`,
+      reason: `STATE.md on ${unreadable.length} branch(es) could not be parsed: ${shownBranches(unreadable, { noCommandHere: true })}`,
     });
   }
   for (const reason of new Set(recordProblems)) cannotCheck.push({ source: 'unit records', reason });
@@ -360,7 +360,7 @@ const UNNAMEABLE = false;
  * @param {string[]} branches
  * @returns {string}
  */
-export const shownBranches = (branches) => branches.map((b) => shownRef(b)).join(', ');
+export const shownBranches = (branches, { noCommandHere = false } = {}) => branches.map((b) => shownRef(b, 'branch', { noCommandHere })).join(', ');
 
 /**
  * The step that switches to `branch`, as a sentence: the command when the
@@ -389,7 +389,7 @@ export function nextStepFor(o) {
   }
   // The path is this machine's own (`git worktree list`): shown as it is
   // written, less what a terminal acts on — `/Users/josé/…` stays readable.
-  if (o.worktree) return `${shownRef(o.checkout)} is checked out in another worktree (${printable(o.worktree)}) — continue it there`;
+  if (o.worktree) return `${shownRef(o.checkout, 'branch', { noCommandHere: true })} is checked out in another worktree (${printable(o.worktree)}) — continue it there`;
   return checkoutStep(o.checkout);
 }
 
@@ -403,7 +403,7 @@ export function formatOtherBranchWork({ open = [], unclassified = [], unreadable
   for (const o of open) {
     lines.push(`⚠ ${o.epic} is open at ${o.phase ?? 'an unrecorded phase'} on ${shownBranches(o.branches)} — ${nextStepFor(o)}.`);
   }
-  const list = (xs) => `${shownBranches(xs.slice(0, 5))}${xs.length > 5 ? ', …' : ''}`;
+  const list = (xs) => `${shownBranches(xs.slice(0, 5), { noCommandHere: true })}${xs.length > 5 ? ', …' : ''}`;
   if (unclassified.length > 0) {
     lines.push(
       `ℹ ${unclassified.length} unmerged branch(es) carry a STATE.md with no Epic id, so they could not be compared: ${list(unclassified)}`
