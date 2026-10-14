@@ -45,7 +45,7 @@ last_updated: 2026-10-13T17:13:59.608Z
   the merge: tag `v0.1.51` and `gh release create`, run `/sig:docs-sweep` on `main` to confirm
   `M6.E16`, `SIG-132`, `-255`, `-288`, `-289`, `-295`, `-305`, `-310`; tell Brett to update the
   plugin and restart.
-- **Put off on purpose, on record, to come back to:** `SIG-294`, `SIG-296` … `SIG-318` (in
+- **Put off on purpose, on record, to come back to:** `SIG-294`, `SIG-296` … `SIG-319` (in
   `BUGS.md`). From REVIEW: `SIG-303` … `SIG-313`. `SIG-305` and `SIG-310` were fixed in fix round 6
   and are *closing*; parts of `SIG-309` and `SIG-311` were fixed there too. They are the
   natural scope of a "harden unit records" Epic, as `M6.E14` was for `M6.E13`. `r5.9`, the last 28

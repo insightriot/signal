@@ -71,3 +71,15 @@ The branch gate believes an empty remote list only after `git config --local` re
 Found by the fresh read of M6.E16 r7.1 (2026-10-14); filed, not fixed, before the v0.1.51 merge.
 
 ---
+
+## /sig:resume says "Next phase: done" at SHIP while the PR is unmerged and the close waits
+
+**Status:** untriaged (N) · SIG-319
+
+Seen 2026-10-14 on this project, M6.E16 at SHIP with PR #301 open and the Epic's close requested (*closing*). The briefing read `Phase: SHIP (6/7 phases done)` and `Work remaining — Next phase: done`.
+
+Triage (read, not run): `nextActionForPhase` (`plugin/tools/lib/status.js` ~48) walks forward from the current phase, and nothing follows SHIP, so it returns 'done' whatever SHIP's own state is. It does not look at whether the PR is merged or the unit is still *closing*. The count `6/7` is `countCompletedPhases` (`plugin/tools/lib/resume.js` ~322) counting distinct phase names; CALIBRATE is presumably the one missing, because an Epic run never logs it. That is an assumption, not checked. The two lines together read as "finished" at the moment the merge question is still owed. STATE.md's resume pointer had it right.
+
+Likely fix: at SHIP, when the current unit is *closing* (or no close is recorded yet), say what is owed — the merge, then the confirm — instead of 'done'. Filed on Brett's okay to fix after the v0.1.51 merge.
+
+---
