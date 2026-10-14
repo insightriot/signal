@@ -112,8 +112,8 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   `.planning` is guarded by any address that reaches it. A record folder that is
   itself a link is not followed: the store refuses such a folder, so nothing under
   it is a record. A target that is a dangling link is read to where it points
-  and judged there; past eight links, or in a loop, it is refused in a project
-  with a v2 store (the OS would follow further, so stopping short proves nothing).
+  and judged there, up to 40 links (as far as the OS follows); past that, or in
+  a loop, it is refused in a project with a v2 store.
   `NotebookEdit` is read by its `notebook_path`. Item bodies
   (`items/**/*.md`) are allowed. On `work/WORK.md` itself
   it blocks only an edit that would change or remove `schema_version: 2` or the
@@ -123,7 +123,9 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
 - **exit:** `2` + a `[signal:check-state-write]` stderr line to **block** the
   write (surfaces to the user); `0` to allow. `baseDir` is derived from the
   file path (`resolve(file_path, '..', '..')`), NOT from cwd; the work-store
-  guard also looks for a store upward from the cwd and from the target's folder.
+  guard also looks for a store upward from the cwd, from the target's folder and
+  from where the write would land, and the hook loads the guard for any target
+  that is itself a link.
 - **Fail-open:** no stdin, malformed JSON, a tool other than Edit/Write/MultiEdit/NotebookEdit, a
   non-STATE path outside a v2 store's generated files, any error in the work-store guard,
   a missing Edit target, or a malformed Edit (no `old_string`) → `exit 0` (allow).
