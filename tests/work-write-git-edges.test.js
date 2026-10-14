@@ -27,9 +27,12 @@ afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 describe('defaultBranchRef — why there is no ref to confirm against', () => {
   // A repository, by the first question; the answer to `git remote` is the case.
-  const exec = (remote) => (cmd, args) => {
+  // Since M6.E16 r7.1 a list with no `origin` is believed only when git read
+  // the repository's own config: the stub answers that question too.
+  const exec = (remote, config = () => '0\n') => (cmd, args) => {
     if (args[0] === 'rev-parse' && args[1] === '--is-inside-work-tree') return 'true\n';
     if (args.length === 1 && args[0] === 'remote') return remote();
+    if (args[0] === 'config' && args[1] === '--local') return config();
     throw new Error(`unexpected: git ${args.join(' ')}`);
   };
 
@@ -40,6 +43,12 @@ describe('defaultBranchRef — why there is no ref to confirm against', () => {
   it('git lists none: `no-remote`; some, none of them origin: `no-origin-remote`', () => {
     expect(defaultBranchRef(root, exec(() => ''))).toEqual({ reason: 'no-remote' });
     expect(defaultBranchRef(root, exec(() => 'fork\nupstream\n'))).toEqual({ reason: 'no-origin-remote' });
+  });
+
+  it('the same lists from a git that did not read the repository\'s config: `git-failed`', () => {
+    const unread = () => { throw new Error('fatal: --local can only be used inside a git repository'); };
+    expect(defaultBranchRef(root, exec(() => '', unread))).toEqual({ reason: 'git-failed' });
+    expect(defaultBranchRef(root, exec(() => 'fork\nupstream\n', unread))).toEqual({ reason: 'git-failed' });
   });
 });
 
