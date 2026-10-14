@@ -20,6 +20,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { dischargeBacklogRows, ROW_DISCHARGE } from '../plugin/tools/lib/backlog.js';
+import { testSeam } from '../plugin/tools/lib/git-env.js';
 import * as records from '../plugin/tools/lib/work-records.js';
 import { serializeRecord } from '../plugin/tools/lib/work-record.js';
 import { regenerateViews } from '../plugin/tools/lib/work-views.js';
@@ -116,6 +117,24 @@ describe('dischargeBacklogRows on a v2 store — outside a repository there is n
     expect(err.message).toContain('this is not a git repository with a commit');
     expect(err.message).not.toMatch(/pass `commit`/i);
     expect(err.message).toContain('Nothing was written.');
+    expect(snapshotTree(root)).toEqual(before);
+  });
+
+  // r6.4: in a real repository, with a git older than 2.38, no git call is
+  // made — the refusal says the version, not that there is no repository.
+  it('a git Signal does not use, in a repository with a commit: refused (CONFIG), and the reason is the version', async () => {
+    await store();
+    const before = snapshotTree(root);
+    testSeam.gitVersion = 'git version 2.34.1';
+    let err;
+    try {
+      err = await discharge().catch((e) => e);
+    } finally {
+      testSeam.gitVersion = undefined;
+    }
+    expect(err).toMatchObject({ code: 'CONFIG' });
+    expect(err.message).toContain('and none could be read: Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1. Nothing was written.');
+    expect(err.message).not.toContain('not a git repository');
     expect(snapshotTree(root)).toEqual(before);
   });
 

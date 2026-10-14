@@ -16,6 +16,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 import { closeEpic } from '../plugin/tools/lib/work-ops.js';
+import { testSeam } from '../plugin/tools/lib/git-env.js';
 import * as records from '../plugin/tools/lib/work-records.js';
 import { serializeRecord } from '../plugin/tools/lib/work-record.js';
 import { getUnit, hasUnits } from '../plugin/tools/lib/unit-records.js';
@@ -250,6 +251,26 @@ describe('closeEpic with unit records — refusals write nothing (AC4.3, NFR fai
     // `commit` is no way out here: it has to name a commit in a repository too.
     expect(err.message).not.toMatch(/pass `commit`/);
     await refused(() => closeEpic(root, EPIC, { by, at: AT, commit: 'a'.repeat(40) }, { execFn: noGit }), 'CONFIG', /does not name a commit/);
+  });
+
+  // r6.4: with a git older than 2.38 no git call is made, so no commit can be
+  // read — and the refusal says that, not that there is no repository.
+  it('a git Signal does not use: CONFIG, and the reason is the version', async () => {
+    await put('.planning/work/WORK.md', '---\nkey: SIG\nschema_version: 2\n---\n');
+    await put(`${UNITS}/.keep`, '');
+    await plantUnit(EPIC, [U.opened]);
+    await put(RETRO, COMPLETE_RETRO);
+    await regenerateViews(root);
+    const before = snapshotTree(root);
+    testSeam.gitVersion = 'git version 2.34.1';
+    try {
+      const err = await refused(() => closeEpic(root, EPIC, { by, at: AT }), 'CONFIG', /Nothing was written\./);
+      expect(err.message).toContain('no commit could be read: Signal needs git 2.38 or newer for its git-backed checks; this is git 2.34.1.');
+      expect(err.message).not.toContain('not a git repository');
+    } finally {
+      testSeam.gitVersion = undefined;
+    }
+    expect(snapshotTree(root)).toEqual(before);
   });
 
   // M6.E16 r6: an explicit `commit` is checked, not trusted — it must name a

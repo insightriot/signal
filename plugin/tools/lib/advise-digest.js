@@ -299,7 +299,7 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
         cut.push(`open Epics on other branches: ${DIGEST_CAPS.openEpics} of ${other.open.length} shown`);
       }
       for (const o of other.open.slice(0, DIGEST_CAPS.openEpics)) {
-        // And named only when plainly a name (r6.3): the digest is read by a model.
+        // And named as `shownRef` names a branch (r6.3, r6.4): the digest is read by a model.
         const on = o.branches.map((b) => shownRef(b)).join(', ');
         // Clipped: another branch's STATE.md is anyone-who-can-push input (REVIEW pass 2:
         // a 100 KB `phase` produced a 100,942-char digest).
