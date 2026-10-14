@@ -94,7 +94,7 @@ The same command gives every Epic or unit the project names one record under `.p
 - **What is proposed for each unit**, from its milestone table row, its retrospective, its files in
   `.planning/`, its archive folder, the items queued in it and `STATE.md`: **open** — the current unit,
   and any unit nothing says is over; **a legacy close** — its row's status cell begins with *shipped*
-  and goes on with nothing but a version, a date, a PR or issue number, a commit hash, *released*, *merged* and in/on/as/via/and, or its retrospective is complete, or today's
+  and goes on with nothing but a version, a date, a PR or issue number, a commit hash, *released*, *merged* and in/on/as/via/and (a `?`, or a symbol other than a check mark at either end, makes it unclear), or its retrospective is complete, or today's
   closure check reads it closed. A cell that says *shipped* further on (`S1 shipped; S2 in progress`), or leads with it and goes on in other words (`shipped — S2 remaining`),
   may be about a part of the unit: the unit is proposed open and flagged `row-unclear`, with the cell
   quoted; **refused, no record** — a name that cannot be a unit ID, or two names that differ only by
