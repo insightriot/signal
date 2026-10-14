@@ -220,7 +220,15 @@ export function classify(mod, tables) {
 // Lock files come and go with every locked call; they are not store content.
 const IGNORED = /\.lock(\.stale-[^/]*)?$/;
 
-/** Every file under `base` (symlinks by target), rel path → content. */
+/**
+ * Every file under `base` (symlinks by target), rel path → content.
+ *
+ * `.git` is walked like any other folder, objects included: a call that is
+ * said to write nothing must not write a ref, the index, `config`, `HEAD` —
+ * or an object. What made that comparison flaky was git's own background
+ * repack after a fixture's `git commit`; it is turned off for the whole suite
+ * (`tests/helpers/quiet-git.js`), not hidden here.
+ */
 export function snapshotTree(base) {
   const out = new Map();
   const walk = (dir) => {
