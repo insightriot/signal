@@ -49,7 +49,7 @@ import { EPIC_ID_STRICT_RE, parseFrontmatter, setCurrentEpic, StateSchemaError, 
 import { deriveRetroPath } from './retrospective.js';
 import { RETRO_STATUS, retroStatusFromContent } from './retro-index.js';
 import {
-  assertUnitId, getUnit, openUnit, reopenUnit, requestUnitClose, rerequestUnitClose, storedRef, unitClosure, unitRecordsOn,
+  assertUnitId, getUnit, openUnit, reopenUnit, requestUnitClose, rerequestUnitClose, storedRef, unitClosure, unitRecordsOn, UNITS_REL,
 } from './unit-records.js';
 import { asWorkStoreError, lockFailure, WorkStoreError } from './work-errors.js';
 import { assertNoHandKeptLists, EPIC_README } from './work-generate.js';
@@ -104,6 +104,20 @@ const isIsoDate = (at) => typeof at === 'string' && ISO_MONTH_PREFIX_RE.test(at)
 function assertEpicId(epic) {
   if (typeof epic !== 'string' || !EPIC_ID_STRICT_RE.test(epic)) {
     throw new WorkStoreError('SCHEMA', `Epic ID ${JSON.stringify(epic)} is not valid (expected e.g. M6.E11)`);
+  }
+}
+
+// Is `id` a unit that is not an Epic (`phase-11`) on a project with unit
+// records (M6.E16 r7)? Only there can such a unit be closed. Anywhere else
+// the answer is no, and the ID is refused as it always was — a `units/`
+// folder that cannot be trusted included: before r7 that ID was refused as
+// "not an Epic ID", and it still is.
+function isOtherUnit(baseDir, id) {
+  if (typeof id !== 'string' || EPIC_ID_STRICT_RE.test(id)) return false;
+  try {
+    return unitRecordsOn(baseDir);
+  } catch {
+    return false;
   }
 }
 
@@ -310,6 +324,14 @@ function removeEmptyTree(dir) {
  * record (unit records turned on while the Epic was open) gets one first,
  * after the same checks have passed once (`created: true`).
  *
+ * **A unit whose ID is not an Epic ID** (`phase-11`; M6.E16 r7) is closed
+ * this way too, on a project with unit records only, by the same rules but
+ * two: no retrospective is required — Signal names one for an Epic only
+ * (`deriveRetroPath`) — and the result says so (`retro: null`, `retroNote`);
+ * and a unit with no record is refused (NOT_FOUND, naming
+ * `/sig:docs-migrate --work-store`), never created here. Without unit records
+ * such an ID is refused as before (SCHEMA).
+ *
  * **After a squash or rebase merge** the branch commit recorded as proof never
  * reaches the default branch, for the unit or for the Epic's items. Run on the
  * default branch after the merge — the checkout's HEAD and the proof (HEAD, or
@@ -363,7 +385,9 @@ function removeEmptyTree(dir) {
  *   records: the retrospective is missing or a stub), LOCKED, IO
  */
 export async function closeEpic(baseDir, epicId, close = {}, opts = {}) {
-  assertEpicId(epicId);
+  const otherUnit = isOtherUnit(baseDir, epicId);
+  if (otherUnit) assertUnitId(baseDir, epicId);
+  else assertEpicId(epicId);
   const { by, pr, release, at = new Date().toISOString() } = close;
   if (typeof by !== 'string' || by.trim() === '') {
     throw new WorkStoreError('SCHEMA', `${epicId}: closing an Epic records who closed it — pass \`by\`.`);
@@ -659,6 +683,10 @@ function assertRetroComplete(baseDir, epicId) {
 const EPIC_CLOSE_WORDS = (epicId) => ({
   what: `${epicId}: the close`, about: 'this Epic', wrongly: 'call the Epic closed', advice: 'the Epic\'s work, then close.',
 });
+// The same words for a unit that is not an Epic (M6.E16 r7).
+const UNIT_CLOSE_WORDS = (unitId) => ({
+  what: `${unitId}: the close`, about: 'this unit', wrongly: 'call the unit closed', advice: 'the unit\'s work, then close.',
+});
 export function refuseHeadThatProvesNothing(baseDir, epicId, head, execFn, words = EPIC_CLOSE_WORDS(epicId)) {
   // Git could not be asked (r6.5): this check then cannot pass, and says so
   // itself rather than lean on its callers having refused first.
@@ -701,6 +729,15 @@ function createdButNotRequested(epicId, err) {
 }
 
 async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit, rerequest }, opts, execFn) {
+  // A unit that is not an Epic (M6.E16 r7) is closed by the same rules, but
+  // two: Signal names a retrospective for an Epic only (`deriveRetroPath`),
+  // so none is required; and its record is never created here, because only
+  // an Epic is opened by a command (`openEpic`).
+  const otherUnit = !EPIC_ID_STRICT_RE.test(epicId);
+  const retroNote = otherUnit
+    ? `${epicId} is not an Epic ID: Signal names a retrospective for an Epic only, so no retrospective was required`
+    : undefined;
+  const checkRetro = () => (otherUnit ? null : assertRetroComplete(baseDir, epicId));
   // A record's `pr` and `release` are text; a PR number is written as its digits.
   const text = (v) => (v === undefined || v === null ? undefined : String(v));
   const prText = text(pr);
@@ -714,7 +751,7 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit, rer
   let proof = commit ?? headCommit(baseDir, execFn);
   if (proof === null) {
     const unusable = gitUnusableReason();
-    throw new WorkStoreError('CONFIG', `${epicId}: the close records the Epic's commit as its proof, and `
+    throw new WorkStoreError('CONFIG', `${epicId}: the close records the ${otherUnit ? 'unit' : 'Epic'}'s commit as its proof, and `
       + `${unusable === null ? 'this is not a git repository with a commit' : `no commit could be read: ${unusable}`}. Nothing was written.`);
   }
   if (typeof proof !== 'string' || !COMMIT_SHAPE_RE.test(proof)) {
@@ -738,7 +775,7 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit, rer
   let retro;
   const gate = () => {
     checked = closeEpicCheck(baseDir, epicId, { execFn, unitRecords: true });
-    retro = assertRetroComplete(baseDir, epicId);
+    retro = checkRetro();
     if (named !== null && named.length > 0) {
       throw new WorkStoreError('CONFLICT', `${epicId}: an item's close is asked again only on the default branch after the merge, and no item is `
         + 'waiting to be here. Nothing was written.');
@@ -757,7 +794,7 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit, rer
     && (head === proof || (head !== null && onDefaultBranch(baseDir, head, { execFn })));
   const recoveryGate = (list) => {
     checked = closeEpicCheck(baseDir, epicId, { execFn, unitRecords: true, rerequest: list });
-    retro = assertRetroComplete(baseDir, epicId);
+    retro = checkRetro();
     return checked.rerequest;
   };
   // Before the lock: with no list from the caller, every candidate is shown
@@ -772,10 +809,16 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit, rer
   // below — and before the store's lock is taken: the lock is a file under the
   // project, and would itself read as an untracked change.
   const headProof = () => {
-    if (commit === undefined || commit === null) refuseHeadThatProvesNothing(baseDir, epicId, proof, execFn);
+    if (commit === undefined || commit === null) {
+      refuseHeadThatProvesNothing(baseDir, epicId, proof, execFn, (otherUnit ? UNIT_CLOSE_WORDS : EPIC_CLOSE_WORDS)(epicId));
+    }
   };
 
   let created = false;
+  if (otherUnit && unitClosure(baseDir, epicId) === 'no-record') {
+    throw new WorkStoreError('NOT_FOUND', `${epicId}: there is no unit ${epicId} (no record ${UNITS_REL}/${epicId}.json) — nothing was written. `
+      + 'A record is made for each unit this project\'s files name by /sig:docs-migrate --work-store; then ship again.');
+  }
   if (unitClosure(baseDir, epicId) === 'no-record') {
     // Unit records were turned on while this Epic was open: its record is
     // created here, after everything that can refuse has been checked once.
@@ -825,6 +868,7 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit, rer
         ...(out.previous === null ? {} : { previous: out.previous }),
         created,
         retro,
+        ...(retroNote === undefined ? {} : { retroNote }),
         items: checked.items,
         closingOnBranch: checked.closingOnBranch,
         rerequestedItems: out.items,
@@ -851,6 +895,7 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit, rer
         previous: again.previous_proof,
         created: false,
         retro,
+        ...(retroNote === undefined ? {} : { retroNote }),
         items: checked.items,
         closingOnBranch: checked.closingOnBranch,
         unit: unitView(again),
@@ -874,6 +919,7 @@ async function closeEpicUnit(baseDir, epicId, { by, pr, release, at, commit, rer
     commit: proof,
     created,
     retro,
+    ...(retroNote === undefined ? {} : { retroNote }),
     items: checked.items,
     closingOnBranch: checked.closingOnBranch,
     unit: unitView(out),

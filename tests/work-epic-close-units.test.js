@@ -367,9 +367,13 @@ describe('closeEpic with unit records — refusals write nothing (AC4.3, NFR fai
     await refused(() => closeEpic(root, EPIC, { by, at: AT }, { renameFn }), 'IO', /disk full/);
   });
 
-  it('not an Epic ID, or no `by`: SCHEMA', async () => {
+  // Since M6.E16 r7 a unit that is not an Epic closes too, so `phase-11` is
+  // refused only for having no record (tests/unit-close-non-epic.test.js);
+  // an ID that cannot be a unit ID is still SCHEMA.
+  it('not a unit ID, or no `by`: SCHEMA; a unit that is not an Epic and has no record: NOT_FOUND', async () => {
     await project();
-    await refused(() => closeEpic(root, 'phase-11', { by, at: AT }), 'SCHEMA');
+    await refused(() => closeEpic(root, 'a..b', { by, at: AT }), 'SCHEMA');
+    await refused(() => closeEpic(root, 'phase-11', { by, at: AT }), 'NOT_FOUND', /docs-migrate --work-store/);
     await refused(() => closeEpic(root, EPIC, { at: AT }), 'SCHEMA', /by/);
   });
 });

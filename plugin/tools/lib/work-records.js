@@ -1367,6 +1367,13 @@ function assertEpicId(epicId) {
   }
 }
 
+// With unit records any unit closes, not only an Epic (M6.E16 r7): the ID is
+// then checked against the unit-ID rule. An Epic ID passes both.
+function assertClosableId(epicId, unitRecords) {
+  if (unitRecords === true && typeof epicId === 'string' && UNIT_NAME_RE.test(epicId)) return;
+  assertEpicId(epicId);
+}
+
 /**
  * Whether an Epic is archived: `.planning/archive/epics/<Epic>/` exists (not
  * followed if it is a link). `reopenItem`, `queueItem` and `startItem` refuse
@@ -1404,7 +1411,9 @@ export function isEpicArchived(baseDir, epicId) {
  * differs from before:
  * - `unitRecords: true` words the refusal for a close that moves nothing
  *   ("Nothing was written"), and says how an item left *closing* by a squash
- *   or rebase merge gets listed;
+ *   or rebase merge gets listed; it also takes any unit ID, not only an Epic
+ *   ID (M6.E16 r7: a unit named `phase-11` closes too), and `archived` is
+ *   false for one that is not an Epic;
  * - `rerequest` is about an item that is *closing* on a commit that is
  *   certainly not in HEAD's history (`notInHead`) — a candidate to have its
  *   close asked again (`rerequestEpicClose`). An item git cannot answer for is
@@ -1431,7 +1440,7 @@ export function isEpicArchived(baseDir, epicId) {
  * @throws {WorkStoreError} SCHEMA (not an Epic ID, or a broken record), OPEN_ITEMS, CONFLICT (a named item), CONFIG
  */
 export function closeEpicCheck(baseDir, epicId, opts = {}) {
-  assertEpicId(epicId);
+  assertClosableId(epicId, opts.unitRecords);
   const { records, broken } = listRecords(baseDir, opts);
   if (broken.length) {
     throw new WorkStoreError('SCHEMA', `${epicId} cannot be checked — a broken record's Epic is unknown. `
@@ -1490,7 +1499,8 @@ export function closeEpicCheck(baseDir, epicId, opts = {}) {
       + `or triage it out of the Epic, then re-run.${squashed} Nothing was ${opts.unitRecords === true ? 'written' : 'moved'}:\n${lines.join('\n')}`);
   }
   return {
-    epic: epicId, items: mine.map((r) => r.id), closingOnBranch, archived: isEpicArchived(baseDir, epicId),
+    // A unit that is not an Epic has no archive folder (M6.E16 r7).
+    epic: epicId, items: mine.map((r) => r.id), closingOnBranch, archived: EPIC_ID_RE.test(epicId) && isEpicArchived(baseDir, epicId),
     ...(opts.rerequest === true ? { rerequest: candidates } : {}),
     ...(named !== null ? { rerequest: candidates.filter((c) => named.some((n) => n.id === c.id)) } : {}),
   };
@@ -1734,7 +1744,15 @@ export async function rerequestCloses(baseDir, requests, opts = {}) {
  * @throws {WorkStoreError} as `rerequestCloses`, the gate's own, and CONFIG when the project has no unit records
  */
 export async function rerequestEpicClose(baseDir, epicId, request = {}, opts = {}) {
-  assertEpicId(epicId);
+  // With unit records any unit ID is taken (M6.E16 r7); without, the ID is
+  // refused as before, ahead of the refusal for having none.
+  let on = false;
+  try {
+    on = unitRecordsOn(baseDir);
+  } catch {
+    // a `units/` folder that cannot be trusted: `unitRecords` below refuses it
+  }
+  assertClosableId(epicId, on);
   const execFn = opts.execFn ?? execFileSync;
   const { proof, by, at = nowIso() } = request;
   assertFullCommit(baseDir, epicId, proof, execFn);
