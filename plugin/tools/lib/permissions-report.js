@@ -29,6 +29,7 @@ import {
   readPermissionScopes, proposalDelta, denyDelta, formatScopeReport, APPROXIMATION_LIMIT,
 } from './permissions-state.js';
 import { detectStack, stackRules } from './stack-detect.js';
+import { printable } from './printable-text.js';
 
 /** Where the proposal is written, relative to the project root. */
 export const ARTIFACT_REL = '.planning/PERMISSIONS.md';
@@ -271,6 +272,12 @@ export function formatReport(p) {
     if (p.stackInfo.unreadable.length) {
       out.push(`  ⚠ cannot-check: ${p.stackInfo.unreadable.join(', ')} could not be parsed.`);
     }
+    const skipped = p.stackInfo.npmScriptsSkipped ?? 0;
+    if (skipped > 0) {
+      out.push(skipped === 1
+        ? '  1 package.json script has a name that is not plainly a name, and no rule is proposed for it.'
+        : `  ${skipped} package.json scripts have names that are not plainly names, and no rule is proposed for them.`);
+    }
   } else {
     out.push(`Host stack: none detected — ${p.stackInfo?.reason ?? 'no manifest'}. No stack rules proposed.`);
   }
@@ -334,7 +341,9 @@ export function formatReport(p) {
   out.push('Reach: this report runs in any repository. The tracked artifact is written only where a');
   out.push('`.planning/` directory already exists; this command does not create one.');
 
-  return out.join('\n');
+  // Every line through `printable` (r6.5): the report carries names read
+  // from the host's files, and a terminal acts on a control character.
+  return out.join('\n').split('\n').map((line) => printable(line)).join('\n');
 }
 
 /**

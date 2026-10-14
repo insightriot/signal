@@ -120,12 +120,16 @@ export function detectStack(baseDir) {
 
   const unreadable = [];
   let npmScripts = [];
+  let npmScriptsSkipped = 0;
 
   if (found.some((m) => m.file === 'package.json')) {
     try {
       const pkg = JSON.parse(readFileSync(join(baseDir, 'package.json'), 'utf-8'));
-      // AC3.1b — the scripts that EXIST, never a guessed set.
-      npmScripts = Object.keys(pkg?.scripts ?? {}).sort();
+      // AC3.1b — the scripts that EXIST, never a guessed set. And only those
+      // whose NAME is plainly a name (r6.5): the rest are counted, not kept.
+      const names = Object.keys(pkg?.scripts ?? {});
+      npmScripts = names.filter(isPlainScriptName).sort();
+      npmScriptsSkipped = names.length - npmScripts.length;
     } catch {
       // The manifest is there, so the ecosystem stands; we just cannot read its
       // scripts. Reported, not silently treated as "no scripts".
@@ -138,11 +142,19 @@ export function detectStack(baseDir) {
     ecosystems: [...new Set(found.map((m) => m.ecosystem))].sort(),
     manifests: found.map((m) => m.file).sort(),
     npmScripts,
+    npmScriptsSkipped,
     unreadable,
     origin: 'stack',
     reason: null,
   };
 }
+
+// A script name that may become a permission rule and a report line: it is
+// the one thing this module takes from a manifest as TEXT (every other
+// manifest is only looked for), and it is whatever the manifest's author
+// typed — `build; rm -rf ~`, `*`, a name holding an ESC or a line break.
+const SCRIPT_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
+export const isPlainScriptName = (name) => typeof name === 'string' && SCRIPT_NAME_RE.test(name);
 
 /**
  * The permission rules a detected stack implies (`AC3.1d` — these stay labelled
@@ -160,7 +172,9 @@ export function stackRules(stack) {
   // `scripts.test` can be any command at all. It is proposed because the user's
   // own manifest declares it, and the report says so; it is not derived the way
   // the flow half is.
-  for (const s of stack.npmScripts) out.add(`Bash(npm run ${s}:*)`);
+  // Asked again here: a `stack` may be built by a caller, and the name goes
+  // into a permission rule as it is.
+  for (const s of stack.npmScripts) if (isPlainScriptName(s)) out.add(`Bash(npm run ${s}:*)`);
 
   // ⚠ THE SAME GATE THE FLOW HALF USES. Without this, `ECOSYSTEM_RULES` strings
   // went straight into the proposal with no classification at all — so the

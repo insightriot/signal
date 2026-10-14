@@ -164,6 +164,12 @@ export const CLASSIFICATION = Object.freeze({
   'git revert': VERDICT.NEVER_PROPOSE,
   'git checkout': VERDICT.NEVER_PROPOSE,
   'git clean': VERDICT.NEVER_PROPOSE,
+  // Each of these can run a command of the caller's choosing (M6.E16 r6.5):
+  // `git bisect run <cmd>`, `git clone --upload-pack=<cmd>` (and a clone's
+  // hooks and filters), `git config core.sshCommand <cmd>`. Without a row
+  // each fell through to the bare `git` row below and was proposed.
+  'git bisect': VERDICT.NEVER_PROPOSE,
+  'git clone': VERDICT.NEVER_PROPOSE,
   // NOTE: not reachable from the scan. Keys are binary + ONE token, so the scan
   // can only ever produce `git push`. Kept because `classify` is called directly
   // elsewhere and the intent should be readable — but the deny that actually
@@ -183,7 +189,7 @@ export const CLASSIFICATION = Object.freeze({
   'git branch': VERDICT.PROPOSE_ALLOW,
   'git remote': VERDICT.PROPOSE_ALLOW,
   'git init': VERDICT.PROPOSE_ALLOW,
-  'git config': VERDICT.PROPOSE_ALLOW,
+  'git config': VERDICT.NEVER_PROPOSE, // see `git bisect` above
   'git grep': VERDICT.PROPOSE_ALLOW,
   'git ls-files': VERDICT.PROPOSE_ALLOW,
   'git rev-list': VERDICT.PROPOSE_ALLOW,
