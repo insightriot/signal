@@ -166,6 +166,47 @@ is how it stayed unwired for four months.
 the report under its own line, naming what was attempted. An unreviewed change that reads as reviewed
 is the failure this whole step exists to stop.
 
+### 4.6 Fix rounds — a fresh read of every round of fixes, until one reads clean (`D-M6E17-2`)
+
+**A fix round** is the set of commits made to close the findings of one read: the in-phase fixes
+PASS-WITH-FIXES absorbs, or the fixes made in EXECUTE after a FAIL loop-back. **Every round gets its
+own fresh read.** The § 4.5 pass found the issues; nobody has yet read the code that fixes them, and
+fixes to fixes are where M6.E14's worst defect and three of M6.E16's were.
+
+For each round:
+
+1. **Fix it under the fixer brief** ([`references/fixer-brief.md`](../references/fixer-brief.md)),
+   whether this session or a sub-agent writes the fix. Write the test first, commit, then run
+   `parent-run.js` (`tools/lib/parent-run.js`) with `--base` set to the HEAD at the pass that found
+   the issues. A sub-agent gets the brief's instructions in its dispatch prompt.
+2. **Dispatch one fresh-context reviewer** (`code-reviewer`, with the same dev-mode fallback as
+   § 4.5). Give it **only that round's diff** (`git diff <base>..<head>`, where the base is the HEAD at
+   the pass that found the issues) and the unit's `*-REQUIREMENTS.md`. It works under the **same
+   omissions as § 4.5**: no `CONTEXT.md`, no `DECISIONS.md`, no reasoning, no summary of intent.
+3. **Record the round** in the report, under its own heading, with exactly these two lines:
+
+   ```markdown
+   ### Fix round N
+   **Fresh read:** <base>..<head> — Critical N, Important N — stop: yes|no
+   **Parent run:** <the summary line parent-run.js printed, unchanged>
+   ```
+
+   If the parent run could not be done, the line reads `**Parent run:** gap — <why>`. A gap is stated,
+   never left blank, and is never counted as proof.
+
+**The stop rule.** The chain ends when a fresh read of a round finds **0 Critical and 0 Important**
+(`stop: yes`), or when the loop ceiling is reached (`loopStatusFor` from `tools/lib/loop-ceiling.js`
+returns `atCeiling`), **whichever comes first**. A read that finds issues starts the next round: fix
+them, read that round fresh, and so on. A chain that ends at the ceiling with findings still open is a
+FAIL, and the Loop Back below asks a person.
+
+**Before the verdict, run the check.** Call `checkFixRounds(reportContent, verdict)` from
+`tools/lib/review-rounds.js` with the verdict you are about to declare. A refusal means the verdict
+cannot stand. Its reasons are the cases: a round missing either line, a PASS-WITH-FIXES with no round,
+or a PASS / PASS-WITH-FIXES whose last round reads `stop: no`. Fix the report or the verdict. Do not
+write around the check. List its `gaps` in the report: rounds whose parent run is a stated gap, or did
+not fail on the base for every file.
+
 ### 5. Write Review Report
 
 Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic):
@@ -206,6 +247,14 @@ Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir
 | PASS-WITH-FIXES | Important issues **or a Critical** found AND closed in-phase AND total fix ≤ 50 LOC of non-test source AND tests still green AND new coverage written for the defect AND no design impact. |
 | FAIL | A Critical **not** fixed in-phase, OR any fix > 50 LOC of non-test source, OR a fix that needs new coverage and does not get it, OR tests can't stay green without re-planning. |
 
+### Record the pass — before the Loop Back ask (`D-M6E17-1`)
+
+**At the end of every pass, once the verdict is decided:** call
+`recordPass(baseDir, 'REVIEW', verdict)` from `tools/lib/state.js`, with `verdict` as one of `PASS` /
+`PASS-WITH-FIXES` / `FAIL`. Do this before the ask below and before the transition out of REVIEW, for
+every verdict. This is what lets the ceiling count a pass whose fixes never left REVIEW. M6.E16's
+REVIEW ran four full passes that way, and the count read 0 throughout.
+
 ### Loop Back (`B76`)
 
 **A FAIL is not a silent return to EXECUTE.** Ask the user with the
@@ -230,11 +279,16 @@ If none fit, describe what you'd prefer and capture the reasoning in `{phase}-RE
 **The ceiling is counted, not remembered.**
 
 Call `loopStatusFor(state, 'REVIEW')` from `tools/lib/loop-ceiling.js` to get the count.
-It derives that count from `completed_phases` — which is **append-only**
-and records the phase being *left* (`B44`), so the number of `REVIEW` entries **is** the number of
-completed REVIEW passes, per Epic (`setCurrentEpic` resets the log on a roll, `B9`). Two re-entries
-run; **the third stops for a person** — `verify.md`'s existing rule (*"A for the first 2 loops;
-reassess at loop 3"*), now enforceable rather than re-tuned.
+The count is **the larger of** two records:
+- the passes recorded in `phase_passes` by the step above;
+- the `REVIEW` exits in `completed_phases`, which is **append-only** and records the phase being
+  *left* (`B44`).
+
+It takes the larger, not the sum, because a pass that ends and then leaves REVIEW is in both. Exits
+alone missed every pass whose fixes stayed inside REVIEW. Both records are per Epic: `setCurrentEpic`
+resets them on a roll (`B9`). Two re-entries run; **the third stops for a person**. That is
+`verify.md`'s existing rule (*"A for the first 2 loops; reassess at loop 3"*), now enforceable rather
+than re-tuned.
 
 Render the halt with `formatLoopCeilingHalt(status)` so this file and `/sig:drive` cannot describe
 the same stop two ways.
@@ -278,5 +332,7 @@ If `markFresh` fails (lock contention, git unavailable):
 - [ ] Performance anti-patterns addressed
 - [ ] Simplification pass completed
 - [ ] **Fresh-context reviewer dispatched (§ 4.5) and its findings triaged into the taxonomy** — or a `cannot-dispatch` recorded in the report naming what was attempted. Not satisfiable by "the change looked fine to me": the point of the step is that the author is not the reader.
+- [ ] **Every fix round has its own fresh read and a parent run (§ 4.6)**, and `checkFixRounds` accepted the report for the declared verdict
+- [ ] The pass is recorded with `recordPass(baseDir, 'REVIEW', verdict)`
 - [ ] Review report written
 - [ ] User approves review results — **when `gates.confirm_review` is set** (`attention: attended`). Checkpointed and unattended: no ask; the transition is recorded, not approved (`B74`).
