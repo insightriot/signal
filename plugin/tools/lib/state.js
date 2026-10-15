@@ -1015,6 +1015,9 @@ export async function setCurrentEpic(baseDir, epicId) {
     payload.phase = null;
     payload.completed_phases = [];
     payload.last_completed_task = null;
+    // M6.E17: recorded passes are per Epic, like completed_phases — a new Epic
+    // must not start its loop count at the previous Epic's REVIEW passes.
+    payload.phase_passes = [];
     payload.last_updated = new Date().toISOString();
     await writeStateFrontmatter(baseDir, payload);
     return { archivedPhaseLog: archivedOut }; // surfaced, never silent (NFR1)
@@ -1770,6 +1773,69 @@ export async function touchDecisionTimestamp(baseDir, opts = {}) {
     payload.last_decision_at = opts.at ?? new Date().toISOString();
     payload.last_updated = new Date().toISOString();
     await writeStateFrontmatter(baseDir, payload);
+  });
+}
+
+// --- recordPass (M6.E17 S2, D-M6E17-1 / -5 / -6) ---
+
+/**
+ * Record that a VERIFY or REVIEW pass ended, with its verdict.
+ *
+ * Appends `"<PHASE> <VERDICT> (<YYYY-MM-DD>)"` to the optional `phase_passes`
+ * list. `loopStatusFor` counts the larger of these and the phase's exits in
+ * `completed_phases`, because exits alone missed every pass whose fixes stayed
+ * inside the phase — M6.E16's REVIEW ran four passes and read 0.
+ *
+ * Refuses a phase that does not loop, a verdict outside PASS /
+ * PASS-WITH-FIXES / FAIL, a date that is not `YYYY-MM-DD`, and a
+ * `phase_passes` that is already not a list (appending would hide the damage
+ * the reader stops on). The date defaults to today in the same form as
+ * `completed_phases` entries. `setCurrentEpic` clears the list on a roll.
+ *
+ * `loop-ceiling.js` is imported dynamically: it imports from this module, so a
+ * static import back would be a cycle (the `planning-index.js` rule above).
+ *
+ * @param {string} baseDir
+ * @param {string} phase
+ * @param {string} verdict
+ * @param {{date?: string}} [opts]
+ * @returns {Promise<{entry: string}>}
+ */
+export async function recordPass(baseDir, phase, verdict, opts = {}) {
+  const { LOOP_BOUNDED_PHASES, PASS_VERDICTS } = await import('./loop-ceiling.js');
+  if (!LOOP_BOUNDED_PHASES.includes(phase)) {
+    throw new StateWriteError(
+      `recordPass: ${JSON.stringify(phase)} is not a phase that loops (expected one of ${LOOP_BOUNDED_PHASES.join(', ')}).`
+    );
+  }
+  if (!PASS_VERDICTS.includes(verdict)) {
+    throw new StateWriteError(
+      `recordPass: ${JSON.stringify(verdict)} is not a verdict (expected one of ${PASS_VERDICTS.join(', ')}).`
+    );
+  }
+  const date = opts.date ?? new Date().toISOString().split('T')[0];
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    throw new StateWriteError(`recordPass: date ${JSON.stringify(date)} is not YYYY-MM-DD.`);
+  }
+  const entry = `${phase} ${verdict} (${date})`;
+  return withStateLock(baseDir, async () => {
+    const state = await readStateForMutation(baseDir);
+    if (!state || state._schema !== SCHEMA_VERSION) {
+      throw new StateWriteError(
+        'STATE.md must be at schema_version 1 before a pass can be recorded.'
+      );
+    }
+    const prior = state.phase_passes;
+    if (prior !== undefined && !Array.isArray(prior)) {
+      throw new StateWriteError(
+        'recordPass: phase_passes in STATE.md is not a list. Fix it by hand; appending would hide the damage.'
+      );
+    }
+    const payload = stripStateMeta(state);
+    payload.phase_passes = [...(prior ?? []), entry];
+    payload.last_updated = new Date().toISOString();
+    await writeStateFrontmatter(baseDir, payload);
+    return { entry };
   });
 }
 
