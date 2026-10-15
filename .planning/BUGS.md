@@ -205,5 +205,6 @@
 | SIG-319 | `confirmed` | P2 | **/sig:resume says "Next phase: done" at SHIP while the PR is unmerged and the close waits** |
 | SIG-320 | `confirmed` | P3 | **ancestryFailure reads a merge-base error as unknown-commit after rev-parse found the commit** |
 | SIG-321 | `confirmed` | P3 | **The closed-proof audit drops ambiguous-proof, proof-names-a-ref, shallow and git-failed without a word** |
+| SIG-326 | `confirmed` | P2 | **sweep-store-on test drifts with the calendar (runSweep reads the real clock)** |
 
-*0 needs-triage · 73 confirmed · 0 closing · 129 closed (202 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 74 confirmed · 0 closing · 129 closed (203 total) · closes more than 30 days before the newest event are in `work/history/`*
