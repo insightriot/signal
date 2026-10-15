@@ -20,6 +20,7 @@
 - [BACKLOG-REVIEW-2026-10-01.md](BACKLOG-REVIEW-2026-10-01.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-10-06.md](BACKLOG-REVIEW-2026-10-06.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-10-10.md](BACKLOG-REVIEW-2026-10-10.md) — `other` — _(note pending)_
+- [BACKLOG-REVIEW-2026-10-14.md](BACKLOG-REVIEW-2026-10-14.md) — `other` — _(note pending)_
 - [BACKLOG.md](BACKLOG.md) — `other` — The sequenced roadmap, promoted from `ISSUES-INBOX.md`; every entry tagged `roadmap` or `hygiene`. Supersedes the point-in-time `BACKLOG-REVIEW-2026-07-04` snapshot (folded in + archived under `archive/`).
 - [BUGS.md](BUGS.md) — `other` — Bugs & verified-findings catalog — where findings get logged (catalog → triage → confirm / dismiss / fixed). GitHub Issues deferred until Signal has live users.
 - [CONTEXT.md](CONTEXT.md) — `other` — Locked + deferred decisions for the *current* work — what DISCUSS settled for the active Epic.
@@ -497,7 +498,18 @@
 - [work/items/00/SIG-31.md](work/items/00/SIG-31.md) — `other` — _(note pending)_
 - [work/items/00/SIG-310.md](work/items/00/SIG-310.md) — `other` — _(note pending)_
 - [work/items/00/SIG-311.md](work/items/00/SIG-311.md) — `other` — _(note pending)_
+- [work/items/00/SIG-312.md](work/items/00/SIG-312.md) — `other` — _(note pending)_
+- [work/items/00/SIG-313.md](work/items/00/SIG-313.md) — `other` — _(note pending)_
+- [work/items/00/SIG-314.md](work/items/00/SIG-314.md) — `other` — _(note pending)_
+- [work/items/00/SIG-315.md](work/items/00/SIG-315.md) — `other` — _(note pending)_
+- [work/items/00/SIG-316.md](work/items/00/SIG-316.md) — `other` — _(note pending)_
+- [work/items/00/SIG-317.md](work/items/00/SIG-317.md) — `other` — _(note pending)_
+- [work/items/00/SIG-318.md](work/items/00/SIG-318.md) — `other` — _(note pending)_
+- [work/items/00/SIG-319.md](work/items/00/SIG-319.md) — `other` — _(note pending)_
 - [work/items/00/SIG-32.md](work/items/00/SIG-32.md) — `other` — _(note pending)_
+- [work/items/00/SIG-320.md](work/items/00/SIG-320.md) — `other` — _(note pending)_
+- [work/items/00/SIG-321.md](work/items/00/SIG-321.md) — `other` — _(note pending)_
+- [work/items/00/SIG-322.md](work/items/00/SIG-322.md) — `other` — _(note pending)_
 - [work/items/00/SIG-33.md](work/items/00/SIG-33.md) — `other` — _(note pending)_
 - [work/items/00/SIG-34.md](work/items/00/SIG-34.md) — `other` — _(note pending)_
 - [work/items/00/SIG-35.md](work/items/00/SIG-35.md) — `other` — _(note pending)_
@@ -720,6 +732,7 @@
 - [archive/M6/E14/STATE-NARRATIVE.md](archive/M6/E14/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E15/STATE-NARRATIVE.md](archive/M6/E15/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E16/CONTEXT-2026-08-28.md](archive/M6/E16/CONTEXT-2026-08-28.md) — `other` — _(note pending)_
+- [archive/M6/E16/STATE-NARRATIVE.md](archive/M6/E16/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E2/STATE-NARRATIVE.md](archive/M6/E2/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-PLAN.md](archive/M6/E3/AUGUST-PLAN.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-RESEARCH.md](archive/M6/E3/AUGUST-RESEARCH.md) — `other` — _(note pending)_
