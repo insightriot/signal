@@ -201,3 +201,11 @@ _no items_
 ### v0.1.6 — closed (legacy) — over before unit records existed; recorded when they were added
 
 _no items_
+
+## No unit record
+
+Named by an item, with no record under `.planning/work/units/`.
+
+### M6.E17
+
+- SIG-326 · BUG · Q — sweep-store-on test drifts with the calendar (runSweep reads the real clock)

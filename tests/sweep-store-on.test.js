@@ -15,7 +15,7 @@
 //
 // Store off is pinned, unchanged, by `tests/work-store-off.test.js`.
 
-import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 
 import {
   checkBacklogDischarge,
@@ -230,7 +230,17 @@ describe('t4.4 — runSweep carries the closing-too-long advisory', () => {
     const { runSweep } = await import('../plugin/tools/lib/sweep.js');
     // No ban lift: published-facts, which the sweep also runs, reads the store
     // since t4.5a, so the whole sweep runs under the file's ban.
-    const { findings } = await runSweep(storeProject(2));
-    expect(findings.filter((f) => f.check === 'closing-too-long').map((f) => f.file)).toEqual([recordPath('SIG-6')]);
+    //
+    // `runSweep` reads the real clock and the fixtures are dated around NOW,
+    // so pin the clock to NOW: unpinned, SIG-7 and SIG-14 turned stale on
+    // their own about ten days after the fixtures were written.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(NOW));
+    try {
+      const { findings } = await runSweep(storeProject(2));
+      expect(findings.filter((f) => f.check === 'closing-too-long').map((f) => f.file)).toEqual([recordPath('SIG-6')]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -1,0 +1,26 @@
+{
+  "id": "SIG-326",
+  "type": "BUG",
+  "title": "sweep-store-on test drifts with the calendar (runSweep reads the real clock)",
+  "theme": "testing",
+  "priority": "P2",
+  "source": "M6.E17 EXECUTE",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-15T18:35:05.828Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-15T18:35:05.828Z",
+      "by": "Claude"
+    },
+    {
+      "type": "queued",
+      "at": "2026-10-15T18:35:14.956Z",
+      "by": "Claude",
+      "epic": "M6.E17"
+    }
+  ]
+}
