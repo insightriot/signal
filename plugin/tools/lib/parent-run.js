@@ -118,7 +118,8 @@ function childEnv() {
 
 /** Does the dependency lock differ between `sha` and the working tree? `null` when git cannot say. */
 function dependenciesDiffer(baseDir, sha) {
-  const r = spawnSync('git', ['diff', '--quiet', sha, '--', 'package-lock.json', 'package.json'], {
+  // The lock, not package.json: a new script is not a dependency change.
+  const r = spawnSync('git', ['diff', '--quiet', sha, '--', 'package-lock.json'], {
     cwd: baseDir,
     env: gitEnv(baseDir),
     stdio: 'ignore',
