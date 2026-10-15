@@ -17,6 +17,12 @@
       "type": "triaged",
       "at": "2026-09-29",
       "by": "migration (v2)"
+    },
+    {
+      "type": "queued",
+      "at": "2026-10-15T12:21:26.727Z",
+      "by": "Brett",
+      "epic": "M6.E17"
     }
   ]
 }

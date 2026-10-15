@@ -150,9 +150,9 @@ already read.
 consults (`M6.E7-REVIEW.md` § Performance Findings). If this row is declined, delete that read
 rather than leaving it to look like it does something.
 
-### Since the snapshot — what shipped (reconciliation, 2026-07-19) · SIG-144
+### Since the snapshot — what shipped (reconciliation, 2026-07-19) · SIG-144 · closed (rejected)
 
-**Status:** triaged (T)
+**Status:** closed 2026-10-15 (rejected)
 
 The snapshot was captured 2026-07-04; four of its clusters have since closed or opened as real Epics. Condensed here so the living list below carries only still-open work (the full snapshot is archived, nothing lost).
 
@@ -1301,9 +1301,9 @@ both** — two mechanisms for one concept is what this row exists to avoid.
 *Done-when:* the drain reports standing entries separately from live candidates, and the count of live
 candidates excludes them.
 
-### Since the re-audit — what M5.E7 changed (reconciliation, 2026-07-26) · SIG-187
+### Since the re-audit — what M5.E7 changed (reconciliation, 2026-07-26) · SIG-187 · closed (rejected)
 
-**Status:** triaged (T)
+**Status:** closed 2026-10-15 (rejected)
 
 **The BR-8 re-audit ran and closed** (Epic **M5.E7**, 2026-07-25→26). Deliverable:
 [`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md). It gave **45 candidates a
@@ -2193,9 +2193,9 @@ Hook-driven context discipline (planning-with-files lineage). **2-Action Rule** 
 **Tag:** roadmap
 **Cursor → cut on demand-fit** — this file already said *"least evidence of demand."* The trap avoided: Brett works **in** Cursor but runs **Claude Code** inside it; that is not demand for Signal on Cursor's own agent runtime. **Codex → parked** at the corrected ~6/10 estimate (direct analogs now exist: `AGENTS.md`, skills with on-demand loading, subagents with tool allowlists, a hooks framework; real gaps are Custom Prompts being deprecated — 18 commands re-cast as skills — and no `AskUserQuestion` equivalent). *Trigger:* a user asks in writing, or Brett wants a second runtime.
 
-### Parked — the trigger watchlist *(not sprint material)* · SIG-230
+### Parked — the trigger watchlist *(not sprint material)* · SIG-230 · closed (rejected)
 
-**Status:** triaged (T)
+**Status:** closed 2026-10-15 (rejected)
 
 These stay trigger-gated; the standing **WATCHLIST** entry (A1) in `ISSUES-INBOX.md` checks their promote-back conditions at every `/sig:plan` drain. **Tag:** hygiene (except the PREPARE-phase item, which is roadmap).
 
@@ -2416,3 +2416,45 @@ Two tests keep the narrow shape and have passed on CI so far:
 - tests/work-migrate-hostile.test.js — "inbox segmentation is linear: 5 000 → 20 000 entries costs well under 8×" (old code measured 29.4×).
 
 Fix shape: the same 16× step / 64× limit, each re-checked against the pre-fix code so it still fails there.
+
+### GIT_FAILED says "run the confirm again" where the branch gate uses it · SIG-315
+
+**Status:** triaged (T)
+
+`GIT_FAILED`'s text ends "fix that and run the confirm again", but `checkBranchPosture` reuses it as the branch-gate reason (`plugin/tools/lib/branch-guard.js:328,340`), where no confirm is involved. Wrong words in that context.
+
+Found by the fresh read of M6.E16 r7.1 (2026-10-14); filed, not fixed, before the v0.1.51 merge.
+
+### git-env.js: GIT_FAILED JSDoc splits dotGitAtOrAbove from its comment · SIG-316
+
+**Status:** triaged (T)
+
+In `plugin/tools/lib/git-env.js:119-131` the `GIT_FAILED` JSDoc was inserted between `dotGitAtOrAbove`'s comment and the function, so the "Is there an entry named `.git`…" comment sits above the constant. That comment's "only ever used … when git cannot be run at all" was already stale: `whyNoWorkTree`, `repoState` and `jev.js` use it.
+
+Found by the fresh read of M6.E16 r7.1 (2026-10-14); filed, not fixed, before the v0.1.51 merge.
+
+### checkClosedProofs repeats a hand-confirm's typed git_reason as fact · SIG-322
+
+**Status:** triaged (T)
+
+`plugin/tools/lib/sweep.js` ~541: "confirmed closed by hand when the project was not a git repository" (and the `no-remote` form) states the recorded `git_reason` as fact, in exactly the case where git's answer casts doubt on it. Copy fix: "recorded as confirmed by hand when …".
+
+Found by the fresh read of M6.E16 r7.2 (`c05063cc`, 2026-10-14); filed, not fixed, before the v0.1.51 merge on Brett's okay.
+
+### REVIEW and VERIFY record each pass, so the loop ceiling counts what happened · SIG-323
+
+**Status:** queued for M6.E17 (Q)
+
+M6.E16 ran four REVIEW passes and loopStatusFor read 0: completed_phases records a phase when it is left, and REVIEW was never left. Each pass records its verdict in STATE; the ceiling counts the larger of passes and exits. M6.E17 FR1, D-M6E17-1.
+
+### review.md: a fresh read of every fix round, with a stated stop · SIG-324
+
+**Status:** queued for M6.E17 (Q)
+
+After any FAIL loop or in-phase fix, one fresh reviewer reads only that round's diff; the chain stops at 0 Critical and 0 Important, or at the ceiling. The REVIEW report records each read and a check refuses a pass verdict without it. M6.E17 FR2, D-M6E17-2.
+
+### A tool proves a new test fails on the base commit, for fix rounds and EXECUTE slices · SIG-325
+
+**Status:** queued for M6.E17 (Q)
+
+Runs named tests from HEAD against a base commit in a temporary worktree and reports failed / passed / could not run per file. Replaces the by-hand parent runs of M6.E14 and M6.E16 and the fixer reporting it on its own word. M6.E17 FR3, D-M6E17-3.

@@ -1,13 +1,34 @@
 {
   "id": "SIG-315",
-  "type": "NEW",
+  "type": "CHORE",
   "title": "GIT_FAILED says \"run the confirm again\" where the branch gate uses it",
+  "theme": "hygiene",
+  "priority": "P3",
   "source": "/sig:item",
   "events": [
     {
       "type": "created",
       "at": "2026-10-14T21:16:08.064Z",
       "by": "Claude (M6.E16 r7.2)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-15T12:21:19.567Z",
+      "by": "Brett",
+      "changes": {
+        "type": {
+          "from": "NEW",
+          "to": "CHORE"
+        },
+        "theme": {
+          "from": null,
+          "to": "hygiene"
+        },
+        "priority": {
+          "from": null,
+          "to": "P3"
+        }
+      }
     }
   ]
 }

@@ -16,6 +16,13 @@
       "type": "triaged",
       "at": "2026-09-29",
       "by": "migration (v2)"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-15T14:10:31.416Z",
+      "by": "Brett",
+      "reason": "rejected",
+      "proof": "Checked at M6.E17 PLAN: a dated reconciliation note (what shipped since a snapshot, 2026-07-19), not a unit of work."
     }
   ]
 }

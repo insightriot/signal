@@ -1,0 +1,26 @@
+{
+  "id": "SIG-325",
+  "type": "FEAT",
+  "title": "A tool proves a new test fails on the base commit, for fix rounds and EXECUTE slices",
+  "theme": "testing",
+  "priority": "P2",
+  "source": "M6.E17 DISCUSS",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-15T14:10:49.450Z",
+      "by": "Brett"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-15T14:10:49.450Z",
+      "by": "Brett"
+    },
+    {
+      "type": "queued",
+      "at": "2026-10-15T14:10:52.939Z",
+      "by": "Brett",
+      "epic": "M6.E17"
+    }
+  ]
+}

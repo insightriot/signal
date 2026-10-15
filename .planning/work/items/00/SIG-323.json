@@ -1,0 +1,26 @@
+{
+  "id": "SIG-323",
+  "type": "FEAT",
+  "title": "REVIEW and VERIFY record each pass, so the loop ceiling counts what happened",
+  "theme": "testing",
+  "priority": "P2",
+  "source": "M6.E17 DISCUSS",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-15T14:10:49.449Z",
+      "by": "Brett"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-15T14:10:49.449Z",
+      "by": "Brett"
+    },
+    {
+      "type": "queued",
+      "at": "2026-10-15T14:10:52.809Z",
+      "by": "Brett",
+      "epic": "M6.E17"
+    }
+  ]
+}

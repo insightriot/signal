@@ -199,5 +199,11 @@
 | SIG-311 | `confirmed` | P3 | **Suggestions from M6.E16 REVIEW pass 4 and the narrow review that no round took up** |
 | SIG-312 | `confirmed` | P2 | **/sig:permissions proposes any git subcommand a prompt file names, some of which run a command** |
 | SIG-313 | `confirmed` | P3 | **A project unpacked from an archive with a hostile .git/config runs its commands under any git call** |
+| SIG-314 | `confirmed` | P3 | **unitToCloseAtShip accepts a current_epic that can never be a unit record** |
+| SIG-317 | `confirmed` | P3 | **The closed-proof audit is silent when git fails** |
+| SIG-318 | `confirmed` | P3 | **readsOwnConfig depends on core.repositoryformatversion being present** |
+| SIG-319 | `confirmed` | P2 | **/sig:resume says "Next phase: done" at SHIP while the PR is unmerged and the close waits** |
+| SIG-320 | `confirmed` | P3 | **ancestryFailure reads a merge-base error as unknown-commit after rev-parse found the commit** |
+| SIG-321 | `confirmed` | P3 | **The closed-proof audit drops ambiguous-proof, proof-names-a-ref, shallow and git-failed without a word** |
 
-*0 needs-triage · 67 confirmed · 0 closing · 129 closed (196 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 73 confirmed · 0 closing · 129 closed (202 total) · closes more than 30 days before the newest event are in `work/history/`*

@@ -5,7 +5,11 @@
 
 ### M6.E17 — open
 
-_no items_
+- SIG-139 · BUG · Q — The suite is flaky under local parallel load — a different test times out each run
+- SIG-303 · BUG · Q — Three timing tests fail under machine load and pass alone
+- SIG-323 · FEAT · Q — REVIEW and VERIFY record each pass, so the loop ceiling counts what happened
+- SIG-324 · FEAT · Q — review.md: a fresh read of every fix round, with a stated stop
+- SIG-325 · FEAT · Q — A tool proves a new test fails on the base commit, for fix rounds and EXECUTE slices
 
 ## Closed
 
