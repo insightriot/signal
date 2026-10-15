@@ -1,13 +1,12 @@
 // Tests for the v2 work-records library, read side (M6.E13.S2.t2.1).
 // See .planning/M6.E13-PLAN.md (t2.1, Decision 1) and .planning/M6.E13-VALIDATION.md rows
-// AC1.1, AC4.2, NFR performance / integrity / security.
+// AC1.1, AC4.2, NFR integrity / security. (NFR performance: tests/work-records-perf.test.js,
+// which runs in `npm run test:perf`, not `npm test` — M6.E17 S3.)
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, symlink } from 'node:fs/promises';
-import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { performance } from 'node:perf_hooks';
 import { execFileSync } from 'node:child_process';
 
 import {
@@ -226,24 +225,6 @@ describe('listRecords / getRecord — v2 store', () => {
     expect(() => getRecord(base, 'SIG-4')).toThrow(expect.objectContaining({ code: 'SCHEMA' }));
     expect(() => getRecord(base, 'nope')).toThrow(expect.objectContaining({ code: 'SCHEMA' }));
   });
-
-  it('NFR performance: 10,000 records list and fold well inside the budget', () => {
-    const t0 = performance.now();
-    for (let n = 1; n <= 10_000; n += 1) {
-      const id = `SIG-${n}`;
-      const abs = join(base, recordPath(id));
-      if (n % 1000 === 0 || n === 1) mkdirSync(dirname(abs), { recursive: true });
-      writeFileSync(abs, serializeRecord(rec(id, n % 3 ? [created, triaged] : [created])));
-    }
-    const t1 = performance.now();
-    const { records, broken } = listRecords(base);
-    const t2 = performance.now();
-    console.log(`[NFR] 10,000 v2 records: generate ${Math.round(t1 - t0)} ms, list+fold ${Math.round(t2 - t1)} ms`);
-    expect(broken).toEqual([]);
-    expect(records).toHaveLength(10_000);
-    // The requirement is < 1 s; the assertion leaves CI headroom and the log carries the number.
-    expect(t2 - t1).toBeLessThan(2000);
-  }, 60_000);
 });
 
 describe('listRecords / getRecord — v1 store, read through the converter (Decision 1, AC4.2)', () => {
