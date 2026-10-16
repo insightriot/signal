@@ -199,5 +199,6 @@
 | SIG-311 | `confirmed` | P3 | **Suggestions from M6.E16 REVIEW pass 4 and the narrow review that no round took up** |
 | SIG-312 | `confirmed` | P2 | **/sig:permissions proposes any git subcommand a prompt file names, some of which run a command** |
 | SIG-313 | `confirmed` | P3 | **A project unpacked from an archive with a hostile .git/config runs its commands under any git call** |
+| SIG-326 | `confirmed` | P2 | **sweep-store-on test drifts with the calendar (runSweep reads the real clock)** |
 
-*0 needs-triage · 67 confirmed · 0 closing · 129 closed (196 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 68 confirmed · 0 closing · 129 closed (197 total) · closes more than 30 days before the newest event are in `work/history/`*
