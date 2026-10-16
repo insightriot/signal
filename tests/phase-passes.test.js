@@ -16,7 +16,7 @@ import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { readState, recordPass, setCurrentEpic } from '../plugin/tools/lib/state.js';
+import { readState, recordPass, setCurrentEpic, completePhase } from '../plugin/tools/lib/state.js';
 import { countPhasePasses, loopStatusFor } from '../plugin/tools/lib/loop-ceiling.js';
 import { canProceedUnattended } from '../plugin/tools/lib/drive.js';
 
@@ -196,6 +196,20 @@ describe('AC1.3 — the records are per Epic', () => {
     await setCurrentEpic(baseDir, 'M6.E16');
     const state = await readState(baseDir);
     expect(state.phase_passes).toEqual(['REVIEW FAIL (2026-10-12)']);
+  });
+
+  // VERIFY pass 1, D1: a linear project has no Epic roll. Its run ends at SHIP,
+  // where completed_phases is archived and cleared; the passes stayed, so the
+  // next run's first REVIEW read the last run's count and stopped the driver.
+  it('a linear SHIP clears them with the run, so the next run starts at 0', async () => {
+    await writeState(baseDir, { epic: 'null', phase: 'SHIP' });
+    await recordPass(baseDir, 'REVIEW', 'FAIL', { date: '2026-10-12' });
+    await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12' });
+    await completePhase(baseDir, 'SHIP');
+    const state = await readState(baseDir);
+    expect(state.completed_phases).toEqual([]);
+    expect(state.phase_passes).toEqual([]);
+    expect(loopStatusFor(state, 'REVIEW')).toMatchObject({ count: 0, atCeiling: false });
   });
 });
 

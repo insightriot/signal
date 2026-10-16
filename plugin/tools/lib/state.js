@@ -756,6 +756,10 @@ export async function completePhase(baseDir, phase) {
         if (archived === run.length) {
           const payload = stripStateMeta(after);
           payload.completed_phases = [];
+          // The run's pass records end with the run, as an Epic roll ends
+          // them (M6.E17 VERIFY D1); kept, the next run's first REVIEW
+          // would read this run's count. Archiving them is SIG-327.
+          if (payload.phase_passes !== undefined) payload.phase_passes = [];
           payload.last_updated = new Date().toISOString();
           await writeStateFrontmatter(baseDir, payload);
           trimmed = archived;
