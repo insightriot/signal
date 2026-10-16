@@ -193,6 +193,7 @@
 - [M6.E17-REQUIREMENTS.md](M6.E17-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E17-RESEARCH.md](M6.E17-RESEARCH.md) — `other` — _(note pending)_
 - [M6.E17-VALIDATION.md](M6.E17-VALIDATION.md) — `other` — _(note pending)_
+- [M6.E17-VERIFICATION.md](M6.E17-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E2-CORPUS-MEASUREMENT.md](M6.E2-CORPUS-MEASUREMENT.md) — `other` — _(note pending)_
 - [M6.E2-PLAN.md](M6.E2-PLAN.md) — `other` — _(note pending)_
 - [M6.E2-PROGRESS.md](M6.E2-PROGRESS.md) — `other` — _(note pending)_

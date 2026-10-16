@@ -204,9 +204,10 @@ FAIL, and the Loop Back below asks a person.
 from `tools/lib/review-rounds.js` with the verdict you are about to declare, and `phasePasses` set to
 `phase_passes` from STATE (`readState`). A refusal means the verdict cannot stand. Its reasons are the
 cases: a round missing either line, a PASS-WITH-FIXES with no round, a PASS / PASS-WITH-FIXES whose
-last round reads `stop: no`, or fewer rounds than recorded REVIEW FAILs (the fixes after each FAIL are a
-round, so a round that was never written down is seen). Fix the report or the verdict. Do not
-write around the check. List its `gaps` in the report: rounds whose parent run is a stated gap, or did
+last round reads `stop: no`, or fewer rounds than recorded REVIEW FAILs. That last one is a floor, not
+a match: it sees a report with too few rounds, and cannot tell which round belongs to which FAIL. So the
+REVIEW report keeps every earlier pass's rounds: append each pass, never rewrite the file. Fix the
+report or the verdict. Do not write around the check. List its `gaps` in the report: rounds whose parent run is a stated gap, or did
 not fail on the base for every file.
 
 ### 5. Write Review Report

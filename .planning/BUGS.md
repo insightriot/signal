@@ -206,5 +206,6 @@
 | SIG-320 | `confirmed` | P3 | **ancestryFailure reads a merge-base error as unknown-commit after rev-parse found the commit** |
 | SIG-321 | `confirmed` | P3 | **The closed-proof audit drops ambiguous-proof, proof-names-a-ref, shallow and git-failed without a word** |
 | SIG-326 | `confirmed` | P2 | **sweep-store-on test drifts with the calendar (runSweep reads the real clock)** |
+| SIG-330 | `confirmed` | P3 | **parent-run.js still exits 0 silently when its main-module check fails** |
 
-*0 needs-triage · 74 confirmed · 0 closing · 129 closed (203 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 75 confirmed · 0 closing · 129 closed (204 total) · closes more than 30 days before the newest event are in `work/history/`*
