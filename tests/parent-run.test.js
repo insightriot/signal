@@ -182,6 +182,24 @@ describe('AC3.1 — the command line', () => {
     expect(r.stderr).toMatch(/usage/i);
   });
 
+  // VERIFY pass 1, D3: the main-module check compared import.meta.url with a
+  // raw `file://${argv[1]}`, so through a symlinked plugin folder, or a path
+  // with a space, main() never ran and the tool exited 0 with no output —
+  // and exit 0 is this tool's "proof" answer.
+  it('runs through a symlinked folder whose name has a space, and still refuses a bad flag', () => {
+    const linkDir = mkdtempSync(join(tmpdir(), 'sig-parent-run-link-'));
+    try {
+      const link = join(linkDir, 'plug in');
+      symlinkSync(join(REPO_ROOT, 'plugin'), link);
+      const r = spawnSync(process.execPath, [join(link, 'tools', 'lib', 'parent-run.js'), '--bsae', base, 'tests/real.test.js'],
+        { cwd: dir, encoding: 'utf-8', env: childEnv() });
+      expect(r.stderr).toMatch(/usage/i);
+      expect(r.status).toBe(2);
+    } finally {
+      rmSync(linkDir, { recursive: true, force: true });
+    }
+  });
+
   it('both --base and --of, or neither, or no test files → exit 2', () => {
     expect(run(['--base', base, '--of', 'HEAD', 'tests/real.test.js']).status).toBe(2);
     expect(run(['tests/real.test.js']).status).toBe(2);

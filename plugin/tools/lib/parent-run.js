@@ -56,6 +56,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { gitEnv } from './git-env.js';
@@ -296,7 +297,18 @@ async function main(argv) {
   return exitCodeFor(result);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Compared as resolved file paths, not URLs: through a symlinked plugin folder
+// or a path with a space the raw strings differ, main() never ran, and the
+// tool exited 0 with no output, which is its "proof" answer (M6.E17 VERIFY D3).
+const isMain = (() => {
+  try {
+    return Boolean(process.argv[1]) && realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1]);
+  } catch {
+    return false;
+  }
+})();
+
+if (isMain) {
   try {
     process.exitCode = await main(process.argv);
   } catch (err) {
