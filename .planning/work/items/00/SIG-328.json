@@ -1,0 +1,20 @@
+{
+  "id": "SIG-328",
+  "type": "CHORE",
+  "title": "runSweep takes no clock, so any sweep test over dated fixtures drifts with the calendar",
+  "theme": "testing",
+  "priority": "P3",
+  "source": "M6.E17 EXECUTE",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-16T17:07:06.876Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-16T17:07:06.876Z",
+      "by": "Claude"
+    }
+  ]
+}

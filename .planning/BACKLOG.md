@@ -2458,3 +2458,15 @@ After any FAIL loop or in-phase fix, one fresh reviewer reads only that round's 
 **Status:** queued for M6.E17 (Q)
 
 Runs named tests from HEAD against a base commit in a temporary worktree and reports failed / passed / could not run per file. Replaces the by-hand parent runs of M6.E14 and M6.E16 and the fixer reporting it on its own word. M6.E17 FR3, D-M6E17-3.
+
+### runSweep takes no clock, so any sweep test over dated fixtures drifts with the calendar · SIG-328
+
+**Status:** triaged (T)
+
+Split out of SIG-326 so it is not buried when SIG-326 closes. SIG-326 fixed one test by pinning Date (fake timers). The cause is still there: `runSweep` calls `checkClosingTooLong(baseDir)` with no `now`, so the next sweep test written over dated fixtures will go red on its own as days pass, the same way. Fix: let `runSweep` take a `now` and pass it through, then drop the fake timers from `tests/sweep-store-on.test.js`.
+
+### Move two grandfathered scale tests from npm test to the perf run · SIG-329
+
+**Status:** triaged (T)
+
+M6.E17 S3 put wall-clock tests in their own serial run (`npm run test:perf`) and grandfathered 16 existing timing budgets in `tests/timing-budget-guard.test.js`. Two of those entries are marked "candidate to move to the perf run" because they are scale budgets, not backtracking guards: `tests/advise-review-fixes.test.js` (4,000 backlog rows in under 500 ms) and `tests/work-migrate-lists-apply.test.js` (400-row dry-run migration in under 5 s). Under load they can fail the same way SIG-303 did. Move each case to its own `*-perf.test.js`, add it to `PERF_TESTS` in `vitest.config.js`, and drop it from the grandfather list.
