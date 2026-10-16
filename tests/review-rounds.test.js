@@ -124,3 +124,38 @@ describe('FAIL and stated gaps', () => {
     expect(r.gaps).toEqual([expect.stringMatching(/Fix round 1: .*1 of 2 failed/)]);
   });
 });
+
+// VERIFY pass 1, D2: the check read only the report, so a PASS after a
+// recorded REVIEW FAIL whose fixes were never written down as a round read
+// ok — the case AC2.3 exists for. Every FAIL loop-back is followed by one
+// round of fixes, so the recorded REVIEW FAILs set a floor on the rounds.
+describe('D2 — the recorded passes set a floor on the rounds', () => {
+  const failed = ['VERIFY FAIL (2026-10-16)', 'REVIEW FAIL (2026-10-16)'];
+
+  it('a PASS after a recorded REVIEW FAIL, with no round written → refused', () => {
+    const r = checkFixRounds('# Review pass 2 after FAIL loop-back\nAll fixed.\n', 'PASS', { phasePasses: failed });
+    expect(r.ok).toBe(false);
+    expect(r.reasons.join(' ')).toMatch(/REVIEW FAIL/);
+  });
+
+  it('one round per recorded REVIEW FAIL → ok; VERIFY passes do not count', () => {
+    expect(checkFixRounds(report(round(1)), 'PASS', { phasePasses: failed }).ok).toBe(true);
+  });
+
+  it('two recorded REVIEW FAILs and one round → refused', () => {
+    const two = [...failed, 'REVIEW FAIL (2026-10-17)'];
+    expect(checkFixRounds(report(round(1)), 'PASS-WITH-FIXES', { phasePasses: two }).ok).toBe(false);
+    expect(checkFixRounds(report(round(1), round(2)), 'PASS-WITH-FIXES', { phasePasses: two }).ok).toBe(true);
+  });
+
+  it('a FAIL verdict is not held to the floor (the Loop Back asks)', () => {
+    expect(checkFixRounds('no rounds\n', 'FAIL', { phasePasses: failed }).ok).toBe(true);
+  });
+
+  it('a pass record that does not read is refused, never read as no FAILs', () => {
+    for (const bad of ['REVIEW FAIL', [{}], 'not a list']) {
+      const r = checkFixRounds(report(round(1)), 'PASS', { phasePasses: typeof bad === 'string' && bad !== 'not a list' ? [bad] : bad });
+      expect(r.ok).toBe(false);
+    }
+  });
+});

@@ -21,9 +21,15 @@
  * The verdict is passed in rather than read from the report: real reports run
  * to several passes with the verdict in prose, and the command declaring the
  * verdict already knows it.
+ *
+ * THE FLOOR (M6.E17 VERIFY D2). A report alone cannot show a round that was
+ * never written down. Every REVIEW FAIL loop-back is followed by one round of
+ * fixes, so `phase_passes` from STATE sets a floor: a PASS or PASS-WITH-FIXES
+ * needs at least one round per recorded REVIEW FAIL. A pass record that does
+ * not read refuses, the same rule as the loop ceiling's (D-M6E17-6).
  */
 
-import { PASS_VERDICTS } from './loop-ceiling.js';
+import { PASS_ENTRY_RE, PASS_VERDICTS } from './loop-ceiling.js';
 import { PARENT_RUN_SUMMARY_RE } from './parent-run.js';
 
 const ROUND_HEADING_RE = /^(#{2,4}) Fix round (\d+)\b.*$/gm;
@@ -49,11 +55,12 @@ function sections(content) {
  *
  * @param {string} content — the REVIEW report
  * @param {'PASS'|'PASS-WITH-FIXES'|'FAIL'} verdict
+ * @param {{phasePasses?: string[]}} [opts] — `phase_passes` from STATE.md
  * @returns {{ok: boolean, reasons: string[], gaps: string[],
  *   rounds: Array<{n: number, range: string|null, critical: number|null, important: number|null,
  *   stop: boolean|null, parentRun: string|null}>}}
  */
-export function checkFixRounds(content, verdict) {
+export function checkFixRounds(content, verdict, { phasePasses } = {}) {
   if (!PASS_VERDICTS.includes(verdict)) {
     throw new Error(`checkFixRounds: ${JSON.stringify(verdict)} is not a verdict (expected one of ${PASS_VERDICTS.join(', ')}).`);
   }
@@ -101,6 +108,20 @@ export function checkFixRounds(content, verdict) {
     rounds.push(round);
   }
 
+  if (phasePasses !== undefined && verdict !== 'FAIL') {
+    const entries = Array.isArray(phasePasses) ? phasePasses : null;
+    const parsed = entries?.map((e) => (typeof e === 'string' ? PASS_ENTRY_RE.exec(e) : null));
+    if (!parsed || parsed.some((m) => !m)) {
+      reasons.push('phase_passes in STATE.md does not read, so the recorded REVIEW FAILs cannot be counted. Fix the record; it is never read as none.');
+    } else {
+      const fails = parsed.filter((m) => m[1] === 'REVIEW' && m[2] === 'FAIL').length;
+      if (rounds.length < fails) {
+        reasons.push(
+          `${fails} REVIEW FAIL pass(es) recorded and ${rounds.length} fix round(s) in the report — the fixes after each FAIL are a round, read fresh (review.md § 4.6).`
+        );
+      }
+    }
+  }
   if (verdict === 'PASS-WITH-FIXES' && rounds.length === 0) {
     reasons.push('PASS-WITH-FIXES with no fix round — fixes made in REVIEW are recorded as rounds, each read fresh.');
   }

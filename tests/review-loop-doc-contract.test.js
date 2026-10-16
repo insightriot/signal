@@ -94,6 +94,8 @@ describe('AC2.1 / AC2.2 — the fix-round step', () => {
     expect(fixRoundStep).toContain('**Fresh read:**');
     expect(fixRoundStep).toContain('**Parent run:**');
     expect(fixRoundStep).toContain('checkFixRounds');
+    // VERIFY D2: the check is given the recorded passes, or an unwritten round is invisible to it.
+    expect(fixRoundStep).toContain('checkFixRounds(reportContent, verdict, { phasePasses })');
   });
 });
 

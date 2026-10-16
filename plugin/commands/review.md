@@ -200,10 +200,12 @@ returns `atCeiling`), **whichever comes first**. A read that finds issues starts
 them, read that round fresh, and so on. A chain that ends at the ceiling with findings still open is a
 FAIL, and the Loop Back below asks a person.
 
-**Before the verdict, run the check.** Call `checkFixRounds(reportContent, verdict)` from
-`tools/lib/review-rounds.js` with the verdict you are about to declare. A refusal means the verdict
-cannot stand. Its reasons are the cases: a round missing either line, a PASS-WITH-FIXES with no round,
-or a PASS / PASS-WITH-FIXES whose last round reads `stop: no`. Fix the report or the verdict. Do not
+**Before the verdict, run the check.** Call `checkFixRounds(reportContent, verdict, { phasePasses })`
+from `tools/lib/review-rounds.js` with the verdict you are about to declare, and `phasePasses` set to
+`phase_passes` from STATE (`readState`). A refusal means the verdict cannot stand. Its reasons are the
+cases: a round missing either line, a PASS-WITH-FIXES with no round, a PASS / PASS-WITH-FIXES whose
+last round reads `stop: no`, or fewer rounds than recorded REVIEW FAILs (the fixes after each FAIL are a
+round, so a round that was never written down is seen). Fix the report or the verdict. Do not
 write around the check. List its `gaps` in the report: rounds whose parent run is a stated gap, or did
 not fail on the base for every file.
 
