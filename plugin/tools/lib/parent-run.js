@@ -170,6 +170,13 @@ function alive(pid) {
   }
 }
 
+/** Is `pid` a vitest started for `temp`? Its command line names vitest and the folder's report path. */
+function isOurVitest(pid, temp) {
+  const r = spawnSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf-8' });
+  if (r.status !== 0 || typeof r.stdout !== 'string') return false;
+  return r.stdout.includes('vitest.mjs') && r.stdout.includes(join(temp, 'report-'));
+}
+
 /** Remove the worktree registrations and temp folders of runs whose owner is gone (a SIGKILL). */
 function sweepStale(root, tempRoot) {
   let names;
@@ -189,9 +196,11 @@ function sweepStale(root, tempRoot) {
     if (!Number.isInteger(pid) || pid <= 0 || alive(pid)) continue;
     // Its vitest outlives a SIGKILL and would write into the folder after it
     // is removed, so end that process group first.
+    // Only if that pid is still the vitest this folder started: a pid left for
+    // days may have been reused by an unrelated process.
     try {
       const child = Number(readFileSync(join(temp, CHILD_FILE), 'utf-8').trim());
-      if (Number.isInteger(child) && child > 0) process.kill(-child, 'SIGKILL');
+      if (Number.isInteger(child) && child > 0 && isOurVitest(child, temp)) process.kill(-child, 'SIGKILL');
     } catch {
       // no child recorded, or it is already gone
     }

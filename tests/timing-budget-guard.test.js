@@ -45,7 +45,9 @@ export function unlistedBudgets(files, { perf, grandfathered }) {
 // assertion in the file. `timers` is the file's count of timer reads, so a
 // listed file cannot gain a second budget unseen. Shrink freely; never grow:
 // the keys are checked against the list as committed at GRANDFATHER_PIN, so
-// growing it takes more than an edit to this file (M6.E17 REVIEW I9).
+// growing it takes more than an edit to this file (M6.E17 REVIEW I9). The
+// `timers` counts are not pinned: raising one is an edit here, seen only in
+// the diff.
 const GRANDFATHERED = {
   'tests/add.test.js': { timers: 1, why: 'false match: Date.now builds a stale-lock fixture; the bounds compare string positions' },
   'tests/append-decision-mark-fresh.test.js': { timers: 2, why: 'false match: Date.now brackets a recorded timestamp; the bound is ordering, not time' },

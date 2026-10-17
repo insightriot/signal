@@ -224,6 +224,8 @@ Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir
 ```markdown
 # Review Report — Phase {n}
 
+## Pass {n} — {date}, at {sha}
+
 ## Critical Issues (must fix before SHIP)
 {list with file:line references}
 

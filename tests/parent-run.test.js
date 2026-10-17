@@ -16,7 +16,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, realpathSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, realpathSync, symlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -302,9 +302,20 @@ describe('REVIEW I3 — a killed run leaves nothing behind', () => {
   };
   // Running = the worktree is registered AND vitest has started (child.pid written). Waiting for
   // the worktree alone races `git worktree add`: killed mid-add, git removes it itself.
-  const running = (before) => () =>
-    worktreeCount() === 2 &&
-    temps().some((n) => !before.includes(n) && existsSync(join(realpathSync(tmpdir()), n, 'child.pid')));
+  // Its own folder: the one whose owner.pid is the CLI just started, so other
+  // runs' folders in tmpdir cannot affect the check.
+  const ownFolder = (pid) =>
+    temps().find((n) => {
+      try {
+        return readFileSync(join(realpathSync(tmpdir()), n, 'owner.pid'), 'utf-8').trim() === String(pid);
+      } catch {
+        return false;
+      }
+    });
+  const running = (pid) => () => {
+    const n = ownFolder(pid);
+    return worktreeCount() === 2 && Boolean(n) && existsSync(join(realpathSync(tmpdir()), n, 'child.pid'));
+  };
   const start = () => {
     const child = spawn(process.execPath, [TOOL, '--base', base, 'tests/slow.test.js'], { cwd: dir, env: childEnv(), stdio: 'ignore' });
     const exited = new Promise((r) => child.on('exit', (code, signal) => r({ code, signal })));
@@ -312,24 +323,43 @@ describe('REVIEW I3 — a killed run leaves nothing behind', () => {
   };
 
   it('SIGTERM mid-run: the worktree and the temp folder are removed before it exits', async () => {
-    const before = temps();
     const { child, exited } = start();
-    expect(await waitFor(running(before))).toBe(true);
+    expect(await waitFor(running(child.pid))).toBe(true);
+    const mine = ownFolder(child.pid);
     child.kill('SIGTERM');
     await exited;
     expect(worktreeCount()).toBe(1);
-    expect(temps()).toEqual(before);
+    expect(temps()).not.toContain(mine);
   }, SLOW);
 
   it('SIGKILL cannot be caught; the next run sweeps what it left', async () => {
-    const before = temps();
     const { child, exited } = start();
-    expect(await waitFor(running(before))).toBe(true);
+    expect(await waitFor(running(child.pid))).toBe(true);
+    const mine = ownFolder(child.pid);
     child.kill('SIGKILL');
     await exited;
     expect(worktreeCount()).toBe(2);
     await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
     expect(worktreeCount()).toBe(1);
-    expect(temps()).toEqual(before);
+    expect(temps()).not.toContain(mine);
+  }, SLOW);
+});
+
+describe('REVIEW I3 — the sweep kills only the vitest it started', () => {
+  it('a stale folder whose recorded child pid is now some other process → that process is left alone', async () => {
+    const tempRoot = realpathSync(tmpdir());
+    const stale = mkdtempSync(join(tempRoot, 'sig-parent-run-'));
+    const bystander = spawn('sleep', ['30'], { detached: true, stdio: 'ignore' });
+    const dead = spawnSync(process.execPath, ['-e', 'process.pid'], { encoding: 'utf-8' }).pid;
+    try {
+      writeFileSync(join(stale, 'owner.pid'), String(dead));
+      writeFileSync(join(stale, 'child.pid'), String(bystander.pid));
+      await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
+      expect(() => process.kill(bystander.pid, 0)).not.toThrow();
+      expect(existsSync(stale)).toBe(false);
+    } finally {
+      try { process.kill(-bystander.pid, 'SIGKILL'); } catch { /* gone */ }
+      rmSync(stale, { recursive: true, force: true });
+    }
   }, SLOW);
 });
