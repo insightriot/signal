@@ -55,15 +55,21 @@ describe('every symbol the loop names is an export', () => {
 });
 
 describe('AC1.6 — a pass is recorded before the Loop Back ask', () => {
+  // Anchored on the step's own section, not the first mention: verify.md's
+  // Exit Criteria line names the same call before the Loop Back, so deleting
+  // the step passed the first form of this test (M6.E17 REVIEW I7).
   it.each([
-    ['review.md', review, "recordPass(baseDir, 'REVIEW'"],
-    ['verify.md', verify, "recordPass(baseDir, 'VERIFY'"],
-  ])('%s', (_name, text, call) => {
-    const at = text.indexOf(call);
+    ['review.md', review, /^### Record the pass\b.*$/m, "recordPass(baseDir, 'REVIEW'"],
+    ['verify.md', verify, /^### 5a\. Record the pass\b.*$/m, "recordPass(baseDir, 'VERIFY'"],
+  ])('%s', (_name, text, heading, call) => {
+    const start = text.search(heading);
+    expect(start, 'the recording step has its own heading').toBeGreaterThan(-1);
+    const rest = text.slice(text.indexOf('\n', start) + 1);
+    const step = rest.slice(0, rest.search(/^#{1,3} /m));
+    expect(step, `${call} is in the step`).toContain(call);
     const loopBack = text.search(/^### Loop Back/m);
-    expect(at, `${call} is named`).toBeGreaterThan(-1);
     expect(loopBack).toBeGreaterThan(-1);
-    expect(at).toBeLessThan(loopBack);
+    expect(start).toBeLessThan(loopBack);
   });
 
   it('review.md says the count is the larger of passes and exits', () => {
