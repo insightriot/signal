@@ -173,6 +173,11 @@ PASS-WITH-FIXES absorbs, or the fixes made in EXECUTE after a FAIL loop-back. **
 own fresh read.** The § 4.5 pass found the issues; nobody has yet read the code that fixes them, and
 fixes to fixes are where M6.E14's worst defect and three of M6.E16's were.
 
+**The pass's section is written first.** When the pass begins, before § 4.5 is dispatched, append its
+`## Pass N — {date}, at {sha}` heading to the report (the first pass creates the file, § 5). Every
+round of this pass is recorded under that heading, so `checkFixRounds` counts it for this pass and
+not the one before.
+
 For each round:
 
 1. **Fix it under the fixer brief** ([`references/fixer-brief.md`](../references/fixer-brief.md)),
@@ -205,12 +210,14 @@ because a chain runs inside one pass and the passes are counted across the unit:
 A read that finds issues starts the next round: fix them, read that round fresh, and so on. A chain
 that ends at the ceiling with findings still open is a FAIL, and the Loop Back below asks a person.
 
-**Before the verdict, run the check.** Call `checkFixRounds(reportContent, verdict, { phasePasses })`
+**Before the verdict, run the check** on the report as it is on disk, with this pass's section filled
+in (§ 5). Call `checkFixRounds(reportContent, verdict, { phasePasses })`
 from `tools/lib/review-rounds.js` with the verdict you are about to declare, and `phasePasses` set to
 `phase_passes` from STATE (`readState`), or `[]` when STATE has none. Leaving it out is itself a
 refusal for PASS and PASS-WITH-FIXES. A refusal means the verdict cannot stand. Its reasons are the
 cases: a round missing either line, a PASS-WITH-FIXES with no round, a PASS / PASS-WITH-FIXES whose
-last round reads `stop: no`, more than three rounds in one pass, or too few rounds for the recorded
+last round reads `stop: no`, more than three rounds in one pass, a count of `## Pass N` sections other than the recorded REVIEW
+passes plus this one, no round in this pass after a recorded REVIEW FAIL, or too few rounds for the recorded
 REVIEW FAILs (one per FAIL, plus one for a PASS-WITH-FIXES's own fixes). That last one is a floor, not
 a match: it sees a report with too few rounds, and cannot tell which round belongs to which FAIL. So the
 REVIEW report keeps every earlier pass's rounds, each pass under its own `## Pass N` heading: append
@@ -220,7 +227,7 @@ not fail on the base for every file.
 
 ### 5. Write Review Report
 
-Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic). The first pass creates it under a `## Pass 1` heading; every later pass appends a `## Pass N` section with this shape and leaves the earlier ones as they are (§ 4.6):
+Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic). The first pass creates it under a `## Pass 1` heading; every later pass appends a `## Pass N` section with this shape and leaves the earlier ones as they are. The heading is written when the pass begins (§ 4.6); this step fills the section in, and the check runs after it:
 ```markdown
 # Review Report — Phase {n}
 

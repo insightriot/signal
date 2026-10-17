@@ -24,6 +24,11 @@ const none = { phasePasses: [] };
 
 const report = (...rounds) => `# Review Report — M9.E1\n\n## Pass 1\n\nfindings\n\n${rounds.join('')}## Verdict\n\nsee above\n`;
 
+// A report with one `## Pass N` section per array, each holding its rounds: a pass
+// after k recorded REVIEW passes is section k+1 (REVIEW pass 2, P2-I4).
+const passes = (...each) =>
+  `# Review Report — M9.E1\n\n${each.map((rs, i) => `## Pass ${i + 1}\n\nfindings\n\n${rs.join('')}`).join('')}`;
+
 describe('AC2.3 — a clean report passes', () => {
   it('PASS-WITH-FIXES with one clean round → ok', () => {
     const r = checkFixRounds(report(round(1)), 'PASS-WITH-FIXES', none);
@@ -144,13 +149,13 @@ describe('D2 — the recorded passes set a floor on the rounds', () => {
   });
 
   it('one round per recorded REVIEW FAIL → ok; VERIFY passes do not count', () => {
-    expect(checkFixRounds(report(round(1)), 'PASS', { phasePasses: failed }).ok).toBe(true);
+    expect(checkFixRounds(passes([], [round(1)]), 'PASS', { phasePasses: failed }).ok).toBe(true);
   });
 
   it('two recorded REVIEW FAILs and one round → refused', () => {
     const two = [...failed, 'REVIEW FAIL (2026-10-17)'];
-    expect(checkFixRounds(report(round(1)), 'PASS-WITH-FIXES', { phasePasses: two }).ok).toBe(false);
-    expect(checkFixRounds(report(round(1), round(2)), 'PASS', { phasePasses: two }).ok).toBe(true);
+    expect(checkFixRounds(passes([], [], [round(1)]), 'PASS', { phasePasses: two }).ok).toBe(false);
+    expect(checkFixRounds(passes([], [round(1)], [round(2)]), 'PASS', { phasePasses: two }).ok).toBe(true);
   });
 
   it('a FAIL verdict is not held to the floor (the Loop Back asks)', () => {
@@ -181,8 +186,8 @@ describe('REVIEW I5/I6/I4 — the floor, the record, and the per-pass bound', ()
   });
 
   it('I5: a PASS-WITH-FIXES after a recorded FAIL needs a round for the loop-back fixes AND one for its own', () => {
-    expect(checkFixRounds(report(round(1)), 'PASS-WITH-FIXES', oneFail).ok).toBe(false);
-    expect(checkFixRounds(report(round(1), round(2)), 'PASS-WITH-FIXES', oneFail).ok).toBe(true);
+    expect(checkFixRounds(passes([], [round(1)]), 'PASS-WITH-FIXES', oneFail).ok).toBe(false);
+    expect(checkFixRounds(passes([], [round(1), round(2)]), 'PASS-WITH-FIXES', oneFail).ok).toBe(true);
   });
 
   it('S2: a Fix round inside a code fence is not a round', () => {
@@ -191,17 +196,46 @@ describe('REVIEW I5/I6/I4 — the floor, the record, and the per-pass bound', ()
     expect(checkFixRounds(fenced, 'PASS-WITH-FIXES', none).ok).toBe(false);
   });
 
-  it('I4: a pass holds at most three rounds (the loop ceiling); a fourth is refused whatever the verdict', () => {
+  it('I4: a pass holds at most three rounds (the loop ceiling); a fourth refuses a passing verdict', () => {
     const dirty = (n) => round(n, { fresh: 'aaa1111..bbb2222 — Critical 0, Important 1 — stop: no' });
-    const pass = (n, ...rs) => `## Pass ${n}\n\n${rs.join('')}`;
-    const four = `# Review\n\n${pass(1, dirty(1), dirty(2), dirty(3), round(4))}`;
-    for (const verdict of ['PASS-WITH-FIXES', 'FAIL']) {
-      const r = checkFixRounds(four, verdict, none);
-      expect(r.ok, verdict).toBe(false);
-      expect(r.reasons.join(' ')).toMatch(/Pass 1.*4 fix rounds.*at most 3/);
-    }
+    const four = passes([dirty(1), dirty(2), dirty(3), round(4)]);
+    const r = checkFixRounds(four, 'PASS-WITH-FIXES', none);
+    expect(r.ok).toBe(false);
+    expect(r.reasons.join(' ')).toMatch(/Pass 1.*4 fix rounds.*at most 3/);
     // Three in one pass and one in the next is within the bound.
-    const split = `# Review\n\n${pass(1, dirty(1), dirty(2), dirty(3))}${pass(2, round(4), round(5))}`;
+    const split = passes([dirty(1), dirty(2), dirty(3)], [round(4), round(5)]);
     expect(checkFixRounds(split, 'PASS-WITH-FIXES', oneFail).ok).toBe(true);
+  });
+});
+
+// REVIEW pass 2 (M6.E17): the pass-1 fixes left three ways through. Each case
+// below reads the wrong answer on 7aadb79a.
+describe('REVIEW P2-I4/I5/I6 — pass sections are tied to the record', () => {
+  const dirty = (n) => round(n, { fresh: 'aaa1111..bbb2222 — Critical 0, Important 1 — stop: no' });
+  const oneFail = { phasePasses: ['REVIEW FAIL (2026-10-16)'] };
+
+  it('P2-I4: a typed "## Pass 2" heading does not open a fresh bound of three rounds', () => {
+    const forged = passes([dirty(1), dirty(2), dirty(3)], [dirty(4), round(5)]);
+    const r = checkFixRounds(forged, 'PASS-WITH-FIXES', none);
+    expect(r.ok).toBe(false);
+    expect(r.reasons.join(' ')).toMatch(/2 "## Pass N" section\(s\).*0 REVIEW pass/);
+  });
+
+  it('P2-I4: a pass written under the previous pass\'s heading is refused too', () => {
+    const r = checkFixRounds(passes([round(1)]), 'PASS', oneFail);
+    expect(r.ok).toBe(false);
+    expect(r.reasons.join(' ')).toMatch(/this is pass 2/);
+  });
+
+  it('P2-I5: a fourth round in a pass does not block FAIL, the verdict the bound asks for', () => {
+    const four = passes([dirty(1), dirty(2), dirty(3), dirty(4)]);
+    expect(checkFixRounds(four, 'FAIL', none).ok).toBe(true);
+  });
+
+  it('P2-I6: after a recorded FAIL, a round from an earlier pass does not count for this one', () => {
+    const r = checkFixRounds(passes([round(1)], []), 'PASS', oneFail);
+    expect(r.ok).toBe(false);
+    expect(r.reasons.join(' ')).toMatch(/last recorded REVIEW pass is a FAIL and this pass has 0/);
+    expect(checkFixRounds(passes([round(1)], [round(2)]), 'PASS', oneFail).ok).toBe(true);
   });
 });

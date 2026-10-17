@@ -103,6 +103,16 @@ describe('AC2.1 / AC2.2 — the fix-round step', () => {
     // VERIFY D2: the check is given the recorded passes, or an unwritten round is invisible to it.
     expect(fixRoundStep).toContain('checkFixRounds(reportContent, verdict, { phasePasses })');
   });
+
+  // REVIEW pass 2, P2-I7: rounds were recorded "in the report" before § 5 wrote this
+  // pass's heading, so on pass 2+ they landed under the previous pass's section.
+  it('P2-I7: writes the pass heading before any round, and checks the report as written', () => {
+    const heading = fixRoundStep.search(/append its `## Pass N — \{date\}, at \{sha\}` heading/);
+    expect(heading).toBeGreaterThanOrEqual(0);
+    expect(fixRoundStep).toMatch(/before § 4\.5 is dispatched/);
+    expect(heading).toBeLessThan(fixRoundStep.indexOf('For each round'));
+    expect(fixRoundStep).toMatch(/run the check\*\* on the report as it is on disk/);
+  });
 });
 
 describe('AC3.3 / AC3.4 — the parent run and the fixer brief', () => {
