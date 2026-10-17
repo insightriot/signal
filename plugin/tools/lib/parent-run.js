@@ -332,7 +332,13 @@ function sweepStale(root, runs) {
     try {
       const recorded = readFileSync(join(temp, CHILD_FILE), 'utf-8').trim();
       const child = Number(recorded.split(' ')[0]);
-      if (Number.isInteger(child) && child > 0 && isSameProcess(child, recorded) && isNode(child)) process.kill(-child, 'SIGKILL');
+      if (Number.isInteger(child) && child > 0 && isSameProcess(child, recorded) && isNode(child)) {
+        process.kill(-child, 'SIGKILL');
+        // A process killed mid-write can still finish creating a file, which
+        // brings the folder back after the remove below: wait for the group to go.
+        const until = Date.now() + 2000;
+        while (pidExists(-child) && Date.now() < until) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+      }
     } catch {
       // no child recorded, or it is already gone
     }
