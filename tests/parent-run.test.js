@@ -45,6 +45,7 @@ const childEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k
 
 let dir;
 let base;
+let oldBase;
 
 beforeAll(() => {
   dir = realpathSync(mkdtempSync(join(tmpdir(), 'sig-parent-run-test-')));
@@ -61,6 +62,19 @@ beforeAll(() => {
   put(dir, 'src/fresh.js', 'export const fresh = () => 1;\n');
   git(dir, ['add', '-A']);
   git(dir, ['commit', '-q', '-m', 'fix']);
+  // A test file that exists on a later base, then gains a real and a hollow test.
+  put(dir, 'tests/old.test.js', "import { it, expect } from 'vitest';\nit('old stays', () => { expect(1).toBe(1); });\n");
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', 'an old test']);
+  oldBase = git(dir, ['rev-parse', 'HEAD']);
+  put(dir, 'src/add.js', 'export const add = (a, b) => a + b + 0;\n');
+  git(dir, ['add', '-A']);
+  git(dir, ['commit', '-q', '-m', 'touch add']);
+  put(dir, 'tests/old.test.js',
+    "import { it, expect } from 'vitest';\nimport { add } from '../src/add.js';\n" +
+    "it('old stays', () => { expect(1).toBe(1); });\n" +
+    "it('new real', () => { expect(String(add)).toContain('+ 0'); });\n" +
+    "it('new hollow', () => { expect(typeof add).toBe('function'); });\n");
   symlinkSync(join(REPO_ROOT, 'node_modules'), join(dir, 'node_modules'), 'dir');
 
   // New tests, in the working tree only (absent on the base by definition).
@@ -228,13 +242,21 @@ describe('REVIEW I2 — a failure is proof only when it is not a missing file', 
     expect(r.results[0].reason).toMatch(/fx\.json|ENOENT/);
   }, SLOW);
 
+  it('a file already on the base lists only its NEW tests that passed there', async () => {
+    // tests/old.test.js is committed with the base's history below; its old test passes on the
+    // base (expected), and only the new hollow one is named.
+    const r = await runOnBase(dir, { base: oldBase, tests: ['tests/old.test.js'] });
+    expect(r.results[0].outcome).toBe('failed');
+    expect(r.results[0].passed).toEqual(['new hollow']);
+  }, SLOW);
+
   it('a file with one real and one hollow test → failed, and the line names the test that passed on the base', async () => {
     const r = await runOnBase(dir, { base, tests: ['tests/mixed.test.js'] });
     expect(r.results[0].outcome).toBe('failed');
     expect(r.results[0].passed).toEqual(['hollow']);
     const line = formatParentRun(r).split('\n')[1];
     expect(line).toMatch(/1 of 2 tests failed/);
-    expect(line).toMatch(/passed on the base: hollow/);
+    expect(line).toMatch(/new tests that passed on the base: hollow/);
     expect(line).toMatch(/expected -1 to be 5|AssertionError/);
   }, SLOW);
 });

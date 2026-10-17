@@ -117,8 +117,9 @@ function checkTestPath(baseDir, file) {
  * @param {object|null} report — parsed `--reporter=json` output, or null when none was written
  * @param {string} absFile — the file's real path inside the worktree
  * @param {string} fallback — what to say when there is no report
+ * @param {string|null} [baseText] — the file as it is on the base, or null when it is new
  */
-export function classifyReport(report, absFile, fallback) {
+export function classifyReport(report, absFile, fallback, baseText = null) {
   if (!report || !Array.isArray(report.testResults)) {
     return { outcome: 'could-not-run', reason: fallback || 'vitest wrote no report' };
   }
@@ -137,7 +138,12 @@ export function classifyReport(report, absFile, fallback) {
       outcome: 'failed',
       failed: failing.map(name),
       total: assertions.length,
-      passed: assertions.filter((a) => a?.status === 'passed').map(name),
+      // Only tests new since the base: an old test passing there is expected.
+      // A title absent from the base's copy of the file is new (a heuristic:
+      // a renamed old test reads as new).
+      passed: assertions
+        .filter((a) => a?.status === 'passed' && !(baseText && baseText.includes(a.title)))
+        .map(name),
       why: why.find((w) => !MISSING_RE.test(w)) || '',
     };
   }
@@ -372,7 +378,13 @@ export async function runOnBase(baseDir, { base, tests }, hooks = {}) {
       const fallback = child.error
         ? `vitest did not finish: ${child.error.message}`
         : `vitest wrote no report (exit ${child.status}): ${String(child.stderr || '').trim().split('\n').slice(-1)[0] || 'no output'}`;
-      Object.assign(r, classifyReport(report, join(wt, normalize(r.file)), fallback));
+      let baseText = null;
+      try {
+        baseText = git(root, ['show', `${sha}:${r.file.split(sep).join('/')}`]);
+      } catch {
+        baseText = null; // the file is new since the base
+      }
+      Object.assign(r, classifyReport(report, join(wt, normalize(r.file)), fallback, baseText));
     }
     return { base: sha, depsDiffer, results };
   } finally {
@@ -415,7 +427,7 @@ export function formatParentRun(result) {
       r.outcome === 'failed'
         ? `${r.failed.length} of ${r.total ?? r.failed.length} tests failed: ${r.failed.slice(0, 3).join('; ')}${r.failed.length > 3 ? `; and ${r.failed.length - 3} more` : ''}` +
           (r.why ? ` (${r.why})` : '') +
-          (r.passed?.length ? `; passed on the base: ${r.passed.join('; ')}` : '')
+          (r.passed?.length ? `; new tests that passed on the base: ${r.passed.join('; ')}` : '')
         : r.outcome === 'passed'
           ? 'passes without the change — no proof'
           : r.reason;
