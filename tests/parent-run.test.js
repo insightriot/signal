@@ -112,6 +112,11 @@ afterAll(() => {
   if (dir) rmSync(dir, { recursive: true, force: true });
 });
 
+// This user's private folder for runs (REVIEW pass 2, P2-I1).
+const RUNS = () => join(realpathSync(tmpdir()), `sig-parent-runs-${process.getuid()}`);
+const runEntries = () => (existsSync(RUNS()) ? readdirSync(RUNS()).filter((n) => n.startsWith('run-')) : []);
+const startOf = (pid) => spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf-8' }).stdout.trim();
+
 const worktreeCount = () => git(dir, ['worktree', 'list', '--porcelain']).split('\n').filter((l) => l.startsWith('worktree ')).length;
 
 describe('AC3.1 — a new test that fails on the base is proof', () => {
@@ -124,6 +129,8 @@ describe('AC3.1 — a new test that fails on the base is proof', () => {
     expect(r.results[0].failed.join(' ')).toMatch(/adds/);
     expect(seen).toBeTruthy();
     expect(existsSync(seen)).toBe(false);
+    // S11: the run's folder around the worktree is gone too, not just the worktree.
+    expect(existsSync(join(seen, '..'))).toBe(false);
     expect(worktreeCount()).toBe(1);
   }, SLOW);
 
@@ -191,6 +198,8 @@ describe('AC3.2 — "passed" and "could not run" are never proof', () => {
     ).rejects.toThrow(/boom mid-run/);
     expect(seen).toBeTruthy();
     expect(existsSync(seen)).toBe(false);
+    // S11: the run's folder around the worktree is gone too, not just the worktree.
+    expect(existsSync(join(seen, '..'))).toBe(false);
     expect(worktreeCount()).toBe(1);
   }, SLOW);
 });
@@ -337,7 +346,7 @@ describe('REVIEW I1 — the copy never writes outside the worktree', () => {
 });
 
 describe('REVIEW I3 — a killed run leaves nothing behind', () => {
-  const temps = () => readdirSync(realpathSync(tmpdir())).filter((n) => /^sig-parent-run-(?!test-|link-|outside-)/.test(n));
+  const temps = runEntries;
   const waitFor = async (cond, ms = 30_000) => {
     const end = Date.now() + ms;
     while (Date.now() < end) {
@@ -353,14 +362,14 @@ describe('REVIEW I3 — a killed run leaves nothing behind', () => {
   const ownFolder = (pid) =>
     temps().find((n) => {
       try {
-        return readFileSync(join(realpathSync(tmpdir()), n, 'owner.pid'), 'utf-8').trim() === String(pid);
+        return readFileSync(join(RUNS(), n, 'owner.pid'), 'utf-8').trim().split(' ')[0] === String(pid);
       } catch {
         return false;
       }
     });
   const running = (pid) => () => {
     const n = ownFolder(pid);
-    return worktreeCount() === 2 && Boolean(n) && existsSync(join(realpathSync(tmpdir()), n, 'child.pid'));
+    return worktreeCount() === 2 && Boolean(n) && existsSync(join(RUNS(), n, 'child.pid'));
   };
   const start = () => {
     const child = spawn(process.execPath, [TOOL, '--base', base, 'tests/slow.test.js'], { cwd: dir, env: childEnv(), stdio: 'ignore' });
@@ -382,7 +391,7 @@ describe('REVIEW I3 — a killed run leaves nothing behind', () => {
     const { child, exited } = start();
     expect(await waitFor(running(child.pid))).toBe(true);
     const mine = ownFolder(child.pid);
-    const vitestPid = Number(readFileSync(join(realpathSync(tmpdir()), mine, 'child.pid'), 'utf-8').split(' ')[0]);
+    const vitestPid = Number(readFileSync(join(RUNS(), mine, 'child.pid'), 'utf-8').split(' ')[0]);
     child.kill('SIGKILL');
     await exited;
     expect(worktreeCount()).toBe(2);
@@ -398,12 +407,12 @@ describe('REVIEW I3 — a killed run leaves nothing behind', () => {
 
 describe('REVIEW I3 — the sweep kills only the vitest it started', () => {
   it('a stale folder whose recorded child pid is now some other process → that process is left alone', async () => {
-    const tempRoot = realpathSync(tmpdir());
-    const stale = mkdtempSync(join(tempRoot, 'sig-parent-run-'));
+    mkdirSync(RUNS(), { recursive: true, mode: 0o700 });
+    const stale = mkdtempSync(join(RUNS(), 'run-'));
     const bystander = spawn('sleep', ['30'], { detached: true, stdio: 'ignore' });
     const dead = spawnSync(process.execPath, ['-e', 'process.pid'], { encoding: 'utf-8' }).pid;
     try {
-      writeFileSync(join(stale, 'owner.pid'), String(dead));
+      writeFileSync(join(stale, 'owner.pid'), `${dead} gone`);
       // A pid with a start time that is not the bystander's: the pid was reused.
       writeFileSync(join(stale, 'child.pid'), `${bystander.pid} Thu Jan  1 00:00:00 1970`);
       await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
@@ -412,6 +421,91 @@ describe('REVIEW I3 — the sweep kills only the vitest it started', () => {
     } finally {
       try { process.kill(-bystander.pid, 'SIGKILL'); } catch { /* gone */ }
       rmSync(stale, { recursive: true, force: true });
+    }
+  }, SLOW);
+});
+
+// REVIEW pass 2 (M6.E17), P2-I1: the sweep trusted any folder with its prefix in
+// the shared temp folder. A planted one killed an unrelated process group and
+// force-removed another worktree through a `wt` link, uncommitted work and all.
+describe('REVIEW P2-I1 — the sweep trusts only what this tool made', () => {
+  // A planted run: a dead owner, a child record naming a bystander's real pid
+  // and start time, and `wt` linking to another worktree with uncommitted work.
+  const plant = (folder) => {
+    const other = realpathSync(mkdtempSync(join(tmpdir(), 'sig-parent-run-test-other-')));
+    rmSync(other, { recursive: true });
+    git(dir, ['worktree', 'add', '--detach', other, 'HEAD']);
+    writeFileSync(join(other, 'WORK.txt'), 'uncommitted\n');
+    const bystander = spawn('sleep', ['60'], { detached: true, stdio: 'ignore' });
+    const dead = spawnSync(process.execPath, ['-e', 'process.pid'], { encoding: 'utf-8' }).pid;
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, 'owner.pid'), `${dead}`);
+    writeFileSync(join(folder, 'child.pid'), `${bystander.pid} ${startOf(bystander.pid)}`);
+    symlinkSync(other, join(folder, 'wt'), 'dir');
+    const undo = () => {
+      try { process.kill(-bystander.pid, 'SIGKILL'); } catch { /* gone */ }
+      rmSync(folder, { recursive: true, force: true });
+      try { git(dir, ['worktree', 'remove', '--force', other]); } catch { /* gone */ }
+      rmSync(other, { recursive: true, force: true });
+    };
+    return { other, bystander, undo };
+  };
+  const intact = ({ other, bystander }) => {
+    expect(() => process.kill(bystander.pid, 0), 'the bystander is alive').not.toThrow();
+    expect(existsSync(join(other, 'WORK.txt')), 'the other worktree keeps its work').toBe(true);
+  };
+
+  it('a folder planted loose in the temp folder is not swept: nothing is killed or removed', async () => {
+    const p = plant(mkdtempSync(join(realpathSync(tmpdir()), 'sig-parent-run-')));
+    try {
+      await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
+      intact(p);
+    } finally {
+      p.undo();
+    }
+  }, SLOW);
+
+  it('a planted run inside the runs folder: its wt link and a non-node child are left alone', async () => {
+    mkdirSync(RUNS(), { recursive: true, mode: 0o700 });
+    const p = plant(join(RUNS(), 'run-planted'));
+    try {
+      await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
+      intact(p);
+      expect(existsSync(join(RUNS(), 'run-planted')), 'the planted folder itself is cleared').toBe(false);
+    } finally {
+      p.undo();
+    }
+  }, SLOW);
+
+  it('a run whose owner pid is alive but was reused (a later start) is swept', async () => {
+    mkdirSync(RUNS(), { recursive: true, mode: 0o700 });
+    const stale = join(RUNS(), 'run-reused');
+    mkdirSync(stale, { recursive: true });
+    writeFileSync(join(stale, 'owner.pid'), `${process.pid} Thu Jan  1 00:00:00 1970`);
+    try {
+      await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
+      expect(existsSync(stale)).toBe(false);
+    } finally {
+      rmSync(stale, { recursive: true, force: true });
+    }
+  }, SLOW);
+
+  it('a runs folder that is a link is not used, and nothing is written where it points', async () => {
+    const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'sig-parent-run-test-tmp-')));
+    const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), 'sig-parent-run-test-elsewhere-')));
+    const saved = process.env.TMPDIR;
+    try {
+      symlinkSync(elsewhere, join(scratch, `sig-parent-runs-${process.getuid()}`), 'dir');
+      process.env.TMPDIR = scratch;
+      const r = await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
+      expect(r.results[0].outcome).toBe('could-not-run');
+      expect(r.results[0].reason).toMatch(/run folder/);
+      expect(readdirSync(elsewhere)).toEqual([]);
+    } finally {
+      if (saved === undefined) delete process.env.TMPDIR;
+      else process.env.TMPDIR = saved;
+      rmSync(scratch, { recursive: true, force: true });
+      rmSync(elsewhere, { recursive: true, force: true });
     }
   }, SLOW);
 });

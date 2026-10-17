@@ -34,6 +34,15 @@
  * cannot be caught, so every run first sweeps the temp folders of runs whose
  * owner process is gone (M6.E17 REVIEW I3).
  *
+ * THE SWEEP TRUSTS ONLY WHAT THIS TOOL MADE (REVIEW pass 2, P2-I1). Runs live in
+ * one private folder per user (mode 0700, checked: not a link, owned by this
+ * user), not loose in the shared temp folder, where anyone could plant a run.
+ * The owner is recorded with its start time, so a reused pid is not "alive".
+ * A worktree is force-removed only when it is a real folder (not a link) that
+ * git lists for this project, and a child is killed only when it is still the
+ * node process recorded. The proof itself is an integrity check over the
+ * project's own files, not a security boundary: base code runs with your rights.
+ *
  * A FAILURE IS PROOF ONLY WHEN IT IS NOT A MISSING FILE (REVIEW I2). Only the
  * named tests are copied, so a test that reads a fixture or lazily imports a
  * helper new in the same change fails on the base for that reason alone. A
@@ -64,6 +73,7 @@
 
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
+  chmodSync,
   closeSync,
   copyFileSync,
   existsSync,
@@ -87,7 +97,7 @@ import { parseArgs } from 'node:util';
 
 import { gitEnv } from './git-env.js';
 
-const TEMP_PREFIX = 'sig-parent-run-';
+const RUN_PREFIX = 'run-';
 const PER_FILE_TIMEOUT_MS = 300_000;
 const OWNER_FILE = 'owner.pid';
 const CHILD_FILE = 'child.pid';
@@ -209,16 +219,6 @@ function childEnv() {
   return Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST')));
 }
 
-/** Is the process `pid` still running? */
-function alive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (err) {
-    return err.code === 'EPERM';
-  }
-}
-
 /** When `pid` started, as `ps` prints it; '' when there is no such process. */
 function startedAt(pid) {
   const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf-8' });
@@ -235,23 +235,55 @@ function isSameProcess(pid, recorded) {
   return at !== '' && recorded === `${pid} ${at}`;
 }
 
+/** Is `pid` a node process? vitest retitles itself, but its command name stays node. */
+function isNode(pid) {
+  const r = spawnSync('ps', ['-o', 'comm=', '-p', String(pid)], { encoding: 'utf-8' });
+  return r.status === 0 && /(^|\/)node(\.exe)?$/.test(String(r.stdout).trim());
+}
+
+/**
+ * This user's private folder for runs, made if absent. Returns null when the
+ * path is a link, not a folder, or not this user's: then nothing in it is trusted.
+ */
+function runsFolder() {
+  const uid = process.getuid?.();
+  const path = join(realpathSync(tmpdir()), `sig-parent-runs-${uid ?? 'user'}`);
+  try {
+    mkdirSync(path, { mode: 0o700 });
+  } catch (err) {
+    if (err.code !== 'EEXIST') return null;
+  }
+  const st = lstatSync(path);
+  if (!st.isDirectory() || st.isSymbolicLink() || (uid !== undefined && st.uid !== uid)) return null;
+  if ((st.mode & 0o077) !== 0) chmodSync(path, 0o700);
+  return path;
+}
+
 /** Remove the worktree registrations and temp folders of runs whose owner is gone (a SIGKILL). */
-function sweepStale(root, tempRoot) {
+function sweepStale(root, runs) {
   let names;
   try {
-    names = readdirSync(tempRoot).filter((n) => n.startsWith(TEMP_PREFIX));
+    names = readdirSync(runs).filter((n) => n.startsWith(RUN_PREFIX));
   } catch {
     return;
   }
+  let listed = [];
+  try {
+    listed = git(root, ['worktree', 'list', '--porcelain']).split('\n').filter((l) => l.startsWith('worktree ')).map((l) => l.slice(9));
+  } catch {
+    // nothing is listed, so no worktree is force-removed
+  }
   for (const n of names) {
-    const temp = join(tempRoot, n);
-    let pid;
+    const temp = join(runs, n);
+    if (!lstatSync(temp, { throwIfNoEntry: false })?.isDirectory()) continue;
+    let owner;
     try {
-      pid = Number(readFileSync(join(temp, OWNER_FILE), 'utf-8').trim());
+      owner = readFileSync(join(temp, OWNER_FILE), 'utf-8').trim();
     } catch {
       continue; // not ours to judge: no owner recorded
     }
-    if (!Number.isInteger(pid) || pid <= 0 || alive(pid)) continue;
+    const pid = Number(owner.split(' ')[0]);
+    if (!Number.isInteger(pid) || pid <= 0 || isSameProcess(pid, owner)) continue;
     // Its vitest outlives a SIGKILL and would write into the folder after it
     // is removed, so end that process group first.
     // Only if that pid is still the vitest this folder started: a pid left for
@@ -259,16 +291,19 @@ function sweepStale(root, tempRoot) {
     try {
       const recorded = readFileSync(join(temp, CHILD_FILE), 'utf-8').trim();
       const child = Number(recorded.split(' ')[0]);
-      if (Number.isInteger(child) && child > 0 && isSameProcess(child, recorded)) process.kill(-child, 'SIGKILL');
+      if (Number.isInteger(child) && child > 0 && isSameProcess(child, recorded) && isNode(child)) process.kill(-child, 'SIGKILL');
     } catch {
       // no child recorded, or it is already gone
     }
-    try {
-      git(root, ['worktree', 'remove', '--force', join(temp, 'wt')]);
-    } catch {
-      // registered in another repository, or already gone
+    const wt = join(temp, 'wt');
+    if (lstatSync(wt, { throwIfNoEntry: false })?.isDirectory() && listed.includes(realpathSync(wt))) {
+      try {
+        git(root, ['worktree', 'remove', '--force', wt]);
+      } catch {
+        // already gone
+      }
     }
-    rmSync(temp, { recursive: true, force: true });
+    rmSync(temp, { recursive: true, force: true }); // removes a link, never what it points at
   }
   try {
     git(root, ['worktree', 'prune']);
@@ -376,10 +411,14 @@ export async function runOnBase(baseDir, { base, tests }, hooks = {}) {
     return { base: sha, depsDiffer, results };
   }
 
-  const tempRoot = realpathSync(tmpdir());
-  sweepStale(root, tempRoot);
-  const temp = mkdtempSync(join(tempRoot, TEMP_PREFIX));
-  writeFileSync(join(temp, OWNER_FILE), String(process.pid));
+  const runs = runsFolder();
+  if (!runs) {
+    for (const r of runnable) Object.assign(r, { outcome: 'could-not-run', reason: `the run folder in ${tmpdir()} is a link or not this user's; not used` });
+    return { base: sha, depsDiffer, results };
+  }
+  sweepStale(root, runs);
+  const temp = mkdtempSync(join(runs, RUN_PREFIX));
+  writeFileSync(join(temp, OWNER_FILE), `${process.pid} ${startedAt(process.pid)}`);
   const wt = join(temp, 'wt');
   const link = join(wt, 'node_modules');
   let worktreeMade = false;
