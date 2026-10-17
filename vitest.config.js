@@ -19,8 +19,8 @@ export default defineConfig({
     // M6.E17 S3 (SIG-139): on a developer machine the git-heavy files still
     // reached that 15 s ceiling with one worker per core, because the machine
     // is doing other work too. Cap local runs at half the cores. CI sets
-    // CI=true and keeps vitest's default.
-    maxWorkers: process.env.CI ? undefined : '50%',
+    // CI=true and keeps vitest's default; CI=false is a local run.
+    maxWorkers: /^(true|1)$/i.test(process.env.CI ?? '') ? undefined : '50%',
     // M6.E3 AC8.7: clear TYPESAFE_API_KEY before any test loads, so no test can
     // reach the Jev API by omission on a machine where the key is set.
     // M6.E16 r6.2: and no git process the suite starts repacks a fixture

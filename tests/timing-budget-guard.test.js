@@ -20,7 +20,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { parse as parseYaml } from 'yaml';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -120,9 +121,29 @@ describe('AC4.2 — CI runs the perf run as its own step', () => {
 });
 
 describe('AC4.3 — local runs cap their workers; CI does not', () => {
-  it('maxWorkers is capped when CI is unset', async () => {
-    const src = readFileSync(join(ROOT, 'vitest.config.js'), 'utf-8');
-    expect(src).toMatch(/maxWorkers: process\.env\.CI \? undefined : '50%'/);
+  // REVIEW pass 2, P2-I9 (and pass 1's S14): this read the config's source text, so
+  // it passed with the line commented out. It now loads the config, as vitest does,
+  // under each CI value and reads the setting it produces.
+  const maxWorkersWith = (ci) => {
+    const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'CI' && !k.startsWith('VITEST')));
+    if (ci !== undefined) env.CI = ci;
+    const url = pathToFileURL(join(ROOT, 'vitest.config.js')).href;
+    const r = spawnSync(process.execPath,
+      ['--input-type=module', '-e', `const c = (await import(${JSON.stringify(url)})).default; console.log(JSON.stringify(c.test.maxWorkers ?? null));`],
+      { cwd: ROOT, env, encoding: 'utf-8' });
+    expect(r.status, r.stderr).toBe(0);
+    return JSON.parse(r.stdout.trim());
+  };
+
+  it('maxWorkers is capped when CI is unset, or set to something other than true', () => {
+    expect(maxWorkersWith(undefined)).toBe('50%');
+    expect(maxWorkersWith('false')).toBe('50%');
+    expect(maxWorkersWith('')).toBe('50%');
+  });
+
+  it('CI (true or 1) keeps vitest\'s default', () => {
+    expect(maxWorkersWith('true')).toBe(null);
+    expect(maxWorkersWith('1')).toBe(null);
   });
 });
 
