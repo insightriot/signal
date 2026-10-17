@@ -74,7 +74,9 @@ beforeAll(() => {
     "import { it, expect } from 'vitest';\nimport { add } from '../src/add.js';\n" +
     "it('old stays', () => { expect(1).toBe(1); });\n" +
     "it('new real', () => { expect(String(add)).toContain('+ 0'); });\n" +
-    "it('new hollow', () => { expect(typeof add).toBe('function'); });\n");
+    "it('new hollow', () => { expect(typeof add).toBe('function'); });\n" +
+    // REVIEW pass 2, P2-I2(b): a hollow title that is a substring of an old one.
+    "it('stays', () => { expect(typeof add).toBe('function'); });\n");
   symlinkSync(join(REPO_ROOT, 'node_modules'), join(dir, 'node_modules'), 'dir');
 
   // New tests, in the working tree only (absent on the base by definition).
@@ -93,6 +95,12 @@ beforeAll(() => {
   put(dir, 'tests/mixed.test.js',
     "import { it, expect } from 'vitest';\nimport { add } from '../src/add.js';\n" +
     "it('real', () => { expect(add(2, 3)).toBe(5); });\nit('hollow', () => { expect(typeof add).toBe('function'); });\n");
+  // REVIEW pass 2, P2-I8: failures that name ENOENT but are the code's (or the
+  // assertion's), not a fixture left out of the copy.
+  put(dir, 'tests/enoent.test.js',
+    "import { it, expect } from 'vitest';\nimport { readFileSync } from 'node:fs';\n" +
+    "it('reads its config', () => { readFileSync('/sig-parent-run-no-such-dir/config.json'); });\n" +
+    "it('names the code', () => { expect('EACCES').toBe('ENOENT'); });\n");
   put(dir, 'tests/slow.test.js',
     "import { it } from 'vitest';\nit('waits', async () => { await new Promise((r) => setTimeout(r, 30000)); }, 60000);\n");
   put(dir, 'tests/imports-new.test.js',
@@ -247,7 +255,7 @@ describe('REVIEW I2 — a failure is proof only when it is not a missing file', 
     // base (expected), and only the new hollow one is named.
     const r = await runOnBase(dir, { base: oldBase, tests: ['tests/old.test.js'] });
     expect(r.results[0].outcome).toBe('failed');
-    expect(r.results[0].passed).toEqual(['new hollow']);
+    expect(r.results[0].passed).toEqual(['new hollow', 'stays']);
   }, SLOW);
 
   it('a file with one real and one hollow test → failed, and the line names the test that passed on the base', async () => {
@@ -258,6 +266,44 @@ describe('REVIEW I2 — a failure is proof only when it is not a missing file', 
     expect(line).toMatch(/1 of 2 tests failed/);
     expect(line).toMatch(/new tests that passed on the base: hollow/);
     expect(line).toMatch(/expected -1 to be 5|AssertionError/);
+  }, SLOW);
+});
+
+// REVIEW pass 2 (M6.E17). Each case below read the wrong answer on 7aadb79a.
+describe('REVIEW P2-I2/I3/I8 — a hollow test is never proof, and a real ENOENT is', () => {
+  const run = (args) => spawnSync(process.execPath, [TOOL, ...args], { cwd: dir, encoding: 'utf-8', env: childEnv() });
+
+  it('P2-I2(a): a real and a hollow test in one file → the summary counts the hollow one, and exit 1', () => {
+    const r = run(['--base', base, 'tests/mixed.test.js']);
+    expect(r.stdout.split('\n')[0]).toBe(`parent-run ${base.slice(0, 7)}: 1 of 1 failed on the base, 1 new test passed on the base`);
+    expect(PARENT_RUN_SUMMARY_RE.exec(r.stdout.split('\n')[0])?.[6]).toBe('1');
+    expect(r.status).toBe(1);
+  }, SLOW);
+
+  it('P2-I3: one file that failed and one hollow file → exit 1', () => {
+    const r = run(['--base', base, 'tests/real.test.js', 'tests/hollow.test.js']);
+    expect(r.stdout).toMatch(/1 of 2 failed on the base, 1 passed/);
+    expect(r.status).toBe(1);
+  }, SLOW);
+
+  it('P2-I2(b): base titles match exactly, with escapes and template placeholders', async () => {
+    const { baseTitles } = await import('../plugin/tools/lib/parent-run.js');
+    const known = baseTitles(
+      "it('old stays', f);\nit('the tool\\'s summary', f);\nit(`${name} in ${mod}`, f);\ntest.each([1])('case %s', f);\nit(`${x}`, f);\n"
+    );
+    expect(known('old stays')).toBe(true);
+    expect(known('stays')).toBe(false);
+    expect(known("the tool's summary")).toBe(true);
+    expect(known('recordPass in state.js')).toBe(true);
+    expect(known('case 1')).toBe(true);
+    // A template with no literal text would match anything: it matches nothing.
+    expect(known('anything at all')).toBe(false);
+  });
+
+  it('P2-I8: an ENOENT the code raised, or an assertion naming ENOENT, is a real failure', async () => {
+    const r = await runOnBase(dir, { base, tests: ['tests/enoent.test.js'] });
+    expect(r.results[0].outcome).toBe('failed');
+    expect(r.results[0].failed).toHaveLength(2);
   }, SLOW);
 });
 

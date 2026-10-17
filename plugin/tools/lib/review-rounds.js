@@ -122,7 +122,7 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
       const summary = parent.replace(/^`|`$/g, '');
       const pm = PARENT_RUN_SUMMARY_RE.exec(summary);
       if (pm) {
-        if (pm[2] !== pm[3] || Number(pm[3]) === 0) gaps.push(`${label}: ${summary}`);
+        if (pm[2] !== pm[3] || Number(pm[3]) === 0 || Number(pm[6] ?? 0) > 0) gaps.push(`${label}: ${summary}`);
       } else if (GAP_RE.test(parent)) {
         gaps.push(`${label}: ${parent}`);
       } else {

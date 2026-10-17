@@ -37,15 +37,22 @@
  * A FAILURE IS PROOF ONLY WHEN IT IS NOT A MISSING FILE (REVIEW I2). Only the
  * named tests are copied, so a test that reads a fixture or lazily imports a
  * helper new in the same change fails on the base for that reason alone. A
- * file whose every failure is a missing file or module is could-not-run. The
- * per-file line names the first failure and every test that passed on the
- * base, so a hollow test beside a real one in the same file is visible.
+ * file whose every failure is a missing module, or a missing file that is in
+ * the project but was not copied, is could-not-run. Any other missing-file
+ * error is what the code under test did, so it counts (REVIEW pass 2, P2-I8).
+ *
+ * A HOLLOW TEST BESIDE A REAL ONE IS NOT PROOF (P2-I2). A new test that passed
+ * on the base, in a file that failed there, is counted in the summary line
+ * ("k new tests passed on the base"), the line a round keeps as its record,
+ * and the run exits 1. "New" means the base's copy does not define that
+ * exact title.
  *
  * THE COPY STAYS INSIDE THE WORKTREE (REVIEW I1). A symlink on the base commit
  * along a test's path would send the copy, and a file that survives cleanup,
  * wherever it points. Such a file is could-not-run.
  *
- * Command line (exit 0 only when every file failed on the base; 1 otherwise;
+ * Command line (exit 0 only when every file failed on the base and no new test
+ * passed there; 1 otherwise;
  * 2 for a usage error):
  *
  *   node parent-run.js (--base <commit> | --of <commit>) <test file>...
@@ -86,8 +93,14 @@ const OWNER_FILE = 'owner.pid';
 const CHILD_FILE = 'child.pid';
 const SIGNALS = ['SIGINT', 'SIGTERM'];
 
-/** A failure message that says a file or module was absent, not that an assertion failed. */
-const MISSING_RE = /ENOENT|Cannot find module|Cannot find package|Failed to (?:resolve|load) (?:import|url)|ERR_MODULE_NOT_FOUND/;
+/**
+ * A failure that says a module was absent, not that an assertion failed.
+ * Anchored at the error's start: an assertion that merely mentions one of
+ * these words is a real failure (REVIEW pass 2, P2-I8).
+ */
+const MISSING_MODULE_RE = /^(?:\w*Error: )?(?:Cannot find (?:module|package)|Failed to (?:resolve|load) (?:import|url)|.*\bERR_MODULE_NOT_FOUND\b)/;
+/** A missing-file error, with the path it names. */
+const ENOENT_RE = /^(?:\w*Error: )?ENOENT\b[^']*'([^']+)'/;
 
 /**
  * The summary line `formatParentRun` writes, which a REVIEW fix round or an
@@ -95,7 +108,7 @@ const MISSING_RE = /ENOENT|Cannot find module|Cannot find package|Failed to (?:r
  * rather than re-deriving the grammar.
  */
 export const PARENT_RUN_SUMMARY_RE =
-  /^parent-run ([0-9a-f]{7,40}|\S+): (\d+) of (\d+) failed on the base(?:, (\d+) passed)?(?:, (\d+) could not run)?(?: \(dependencies differ from the base\))?$/;
+  /^parent-run ([0-9a-f]{7,40}|\S+): (\d+) of (\d+) failed on the base(?:, (\d+) passed)?(?:, (\d+) could not run)?(?:, (\d+) new tests? passed on the base)?(?: \(dependencies differ from the base\))?$/;
 
 const git = (cwd, args) =>
   execFileSync('git', args, { cwd, env: gitEnv(cwd), encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -121,19 +134,29 @@ function checkTestPath(baseDir, file) {
  * @param {string} fallback — what to say when there is no report
  * @param {string|null} [baseText] — the file as it is on the base, or null when it is new
  */
-export function classifyReport(report, absFile, fallback, baseText = null) {
+export function classifyReport(report, absFile, fallback, baseText = null, { worktrees = [], project = null } = {}) {
   if (!report || !Array.isArray(report.testResults)) {
     return { outcome: 'could-not-run', reason: fallback || 'vitest wrote no report' };
   }
   const entry = report.testResults.find((r) => typeof r?.name === 'string' && resolve(r.name) === absFile);
   if (!entry) return { outcome: 'could-not-run', reason: 'vitest reported no result for this file' };
   const assertions = Array.isArray(entry.assertionResults) ? entry.assertionResults : [];
+  const isBaseTitle = baseTitles(baseText);
   const name = (a) => a.fullName || a.title || '(unnamed)';
   const failing = assertions.filter((a) => a?.status === 'failed');
   if (failing.length > 0) {
     const firstLine = (a) => String((Array.isArray(a.failureMessages) && a.failureMessages[0]) || '').trim().split('\n')[0];
     const why = failing.map(firstLine);
-    if (why.every((w) => MISSING_RE.test(w))) {
+    // A missing file counts as "not copied" only when it is a path in the worktree
+    // that exists in the project: a fixture new in the change. Any other ENOENT is
+    // what the code under test did, which is the failure being proved (P2-I8).
+    const notCopied = (w) => {
+      const path = ENOENT_RE.exec(w)?.[1];
+      const wt = path && worktrees.find((t) => path.startsWith(t + sep));
+      return Boolean(wt && project && existsSync(join(project, path.slice(wt.length + 1))));
+    };
+    const missing = (w) => MISSING_MODULE_RE.test(w) || notCopied(w);
+    if (why.every(missing)) {
       return { outcome: 'could-not-run', reason: `failed on the base only on a missing file or module: ${why[0]}` };
     }
     return {
@@ -141,12 +164,13 @@ export function classifyReport(report, absFile, fallback, baseText = null) {
       failed: failing.map(name),
       total: assertions.length,
       // Only tests new since the base: an old test passing there is expected.
-      // A title absent from the base's copy of the file is new (a heuristic:
-      // a renamed old test reads as new).
+      // A test is old when the base's copy of the file defines its exact title
+      // (P2-I2: a substring search hid a new test titled "stays" behind "old stays").
+      // A renamed old test reads as new, which is the safe direction.
       passed: assertions
-        .filter((a) => a?.status === 'passed' && !(baseText && baseText.includes(a.title)))
+        .filter((a) => a?.status === 'passed' && !isBaseTitle(a.title))
         .map(name),
-      why: why.find((w) => !MISSING_RE.test(w)) || '',
+      why: why.find((w) => !missing(w)) || '',
     };
   }
   const message = typeof entry.message === 'string' ? entry.message.trim() : '';
@@ -155,6 +179,29 @@ export function classifyReport(report, absFile, fallback, baseText = null) {
     return { outcome: 'could-not-run', reason: 'no test in this file ran' };
   }
   return { outcome: 'passed' };
+}
+
+/**
+ * The test titles a base file defines, as a predicate. A quoted title must
+ * match exactly; a template title matches with each `${…}` (or `%s`-style
+ * placeholder) standing for any text, provided it has literal text too.
+ */
+export function baseTitles(baseText) {
+  if (typeof baseText !== 'string') return () => false;
+  const exact = new Set();
+  const patterns = [];
+  const CALL_RE = /\b(?:it|test)(?:\.\w+)*(?:\([^)]*\))?\(\s*(['"`])((?:\\[\s\S]|(?!\1)[^\\])*)\1/g;
+  for (const [, quote, raw] of baseText.matchAll(CALL_RE)) {
+    const text = raw.replace(/\\([\s\S])/g, '$1');
+    const parts = (quote === '`' ? raw.split(/\$\{[^}]*\}/) : [raw]).flatMap((p) => p.split(/%[sdifjo#%]/));
+    if (parts.length === 1) {
+      exact.add(text);
+    } else if (parts.join('').trim() !== '') {
+      const esc = (p) => p.replace(/\\([\s\S])/g, '$1').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      patterns.push(new RegExp(`^${parts.map(esc).join('.*')}$`));
+    }
+  }
+  return (title) => exact.has(title) || patterns.some((re) => re.test(title));
 }
 
 /** The environment for the child vitest: never a worker of a vitest that may be running us. */
@@ -413,7 +460,10 @@ export async function runOnBase(baseDir, { base, tests }, hooks = {}) {
       } catch {
         baseText = null; // the file is new since the base
       }
-      Object.assign(r, classifyReport(report, join(wt, normalize(r.file)), fallback, baseText));
+      Object.assign(
+        r,
+        classifyReport(report, join(wt, normalize(r.file)), fallback, baseText, { worktrees: [realWt, wt], project: root })
+      );
     }
     return { base: sha, depsDiffer, results };
   } finally {
@@ -449,6 +499,10 @@ export function formatParentRun(result) {
   let head = `parent-run ${short}: ${count('failed')} of ${total} failed on the base`;
   if (count('passed')) head += `, ${count('passed')} passed`;
   if (count('could-not-run')) head += `, ${count('could-not-run')} could not run`;
+  // A new test that passed on the base is hollow even in a file that failed:
+  // it is in the summary line, the record a round keeps (P2-I2).
+  const hollow = result.results.reduce((n, r) => n + (r.outcome === 'failed' ? r.passed?.length ?? 0 : 0), 0);
+  if (hollow) head += `, ${hollow} new test${hollow === 1 ? '' : 's'} passed on the base`;
   if (result.depsDiffer === true) head += ' (dependencies differ from the base)';
   const lines = [head];
   for (const r of result.results) {
@@ -465,9 +519,10 @@ export function formatParentRun(result) {
   return lines.join('\n');
 }
 
-/** Exit 0 only when there was at least one file and every one failed on the base. */
+/** Exit 0 only when there was at least one file, every one failed on the base, and no new test passed there. */
 export function exitCodeFor(result) {
-  return result.results.length > 0 && result.results.every((r) => r.outcome === 'failed') ? 0 : 1;
+  const proven = (r) => r.outcome === 'failed' && !(r.passed?.length > 0);
+  return result.results.length > 0 && result.results.every(proven) ? 0 : 1;
 }
 
 const USAGE = 'usage: node parent-run.js (--base <commit> | --of <commit>) <test file>...';

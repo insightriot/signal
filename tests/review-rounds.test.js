@@ -139,6 +139,21 @@ describe('FAIL and stated gaps', () => {
 // recorded REVIEW FAIL whose fixes were never written down as a round read
 // ok — the case AC2.3 exists for. Every FAIL loop-back is followed by one
 // round of fixes, so the recorded REVIEW FAILs set a floor on the rounds.
+// REVIEW pass 2, P2-I2(a): a run whose files all failed but which counted a hollow
+// new test read as full proof, because the round keeps only the summary line.
+describe('P2-I2 — a hollow test in the summary line is a gap', () => {
+  it('"k new tests passed on the base" reads, and is listed as a gap, never as proof', () => {
+    const r = checkFixRounds(
+      report(round(1, { parent: 'parent-run abc1234: 1 of 1 failed on the base, 1 new test passed on the base' })),
+      'PASS-WITH-FIXES',
+      none
+    );
+    expect(r.ok).toBe(true);
+    expect(r.gaps).toHaveLength(1);
+    expect(r.gaps[0]).toMatch(/1 new test passed on the base/);
+  });
+});
+
 describe('D2 — the recorded passes set a floor on the rounds', () => {
   const failed = ['VERIFY FAIL (2026-10-16)', 'REVIEW FAIL (2026-10-16)'];
 
