@@ -245,6 +245,9 @@ describe('REVIEW P2-I4/I5/I6 — pass sections are tied to the record', () => {
   it('P2-I5: a fourth round in a pass does not block FAIL, the verdict the bound asks for', () => {
     const four = passes([dirty(1), dirty(2), dirty(3), dirty(4)]);
     expect(checkFixRounds(four, 'FAIL', none).ok).toBe(true);
+    // Nor does a section count out of step with the record, given or not.
+    expect(checkFixRounds(passes([round(1)], [round(2)]), 'FAIL', none).ok).toBe(true);
+    expect(checkFixRounds(passes([round(1)], [round(2)]), 'FAIL').ok).toBe(true);
   });
 
   it('P2-I6: after a recorded FAIL, a round from an earlier pass does not count for this one', () => {

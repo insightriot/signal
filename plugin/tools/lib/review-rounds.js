@@ -38,8 +38,8 @@
  * TIGHTENED AT M6.E17 REVIEW PASS 2. A pass section is tied to the record: the
  * report holds exactly one `## Pass N` section per recorded REVIEW pass plus
  * the one being written, so a typed heading cannot open a fresh bound of three
- * rounds. The bound refuses only a passing verdict, since a FAIL is what it
- * asks for. And after a recorded FAIL, the rounds must be in THIS pass: a
+ * rounds. Neither check on the report's structure refuses FAIL, since a FAIL
+ * is what they ask for. And after a recorded FAIL, the rounds must be in THIS pass: a
  * round from an earlier pass does not read the loop-back fixes.
  */
 
@@ -148,7 +148,8 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
     reasons.push('phase_passes in STATE.md does not read, so the recorded REVIEW FAILs cannot be counted. Fix the record; it is never read as none.');
   } else if (readable) {
     const review = parsed.filter((m) => m[1] === 'REVIEW');
-    if (passes.length > 0 && passes.length !== review.length + 1) {
+    // Like the per-pass bound, never held against FAIL: the Loop Back asks a person.
+    if (verdict !== 'FAIL' && passes.length > 0 && passes.length !== review.length + 1) {
       reasons.push(
         `the report has ${passes.length} "## Pass N" section(s) and STATE records ${review.length} REVIEW pass(es): this is pass ${review.length + 1}, one section per pass, appended (review.md § 5).`
       );

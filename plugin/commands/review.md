@@ -222,8 +222,8 @@ REVIEW FAILs (one per FAIL, plus one for a PASS-WITH-FIXES's own fixes). That la
 a match: it sees a report with too few rounds, and cannot tell which round belongs to which FAIL. So the
 REVIEW report keeps every earlier pass's rounds, each pass under its own `## Pass N` heading: append
 each pass, never rewrite the file. A `### Fix round` inside a code fence is not counted. Fix the
-report or the verdict. Do not write around the check. List its `gaps` in the report: rounds whose parent run is a stated gap, or did
-not fail on the base for every file.
+report or the verdict. Do not write around the check. List its `gaps` in the report: rounds whose parent run is a stated gap, did
+not fail on the base for every file, or counted new tests that passed on the base.
 
 ### 5. Write Review Report
 

@@ -53,8 +53,10 @@
  * A HOLLOW TEST BESIDE A REAL ONE IS NOT PROOF (P2-I2). A new test that passed
  * on the base, in a file that failed there, is counted in the summary line
  * ("k new tests passed on the base"), the line a round keeps as its record,
- * and the run exits 1. "New" means the base's copy does not define that
- * exact title.
+ * and the run exits 1. "New" means the base's copy does not define that title:
+ * a quoted title must match exactly, and a template title matches with its
+ * placeholders standing for any text. So a new hollow test whose title fits an
+ * old template (`${x} in ${y}` and "stays in place") still reads as old.
  *
  * THE COPY STAYS INSIDE THE WORKTREE (REVIEW I1). A symlink on the base commit
  * along a test's path would send the copy, and a file that survives cleanup,
@@ -174,8 +176,9 @@ export function classifyReport(report, absFile, fallback, baseText = null, { wor
       failed: failing.map(name),
       total: assertions.length,
       // Only tests new since the base: an old test passing there is expected.
-      // A test is old when the base's copy of the file defines its exact title
-      // (P2-I2: a substring search hid a new test titled "stays" behind "old stays").
+      // A test is old when the base's copy of the file defines its title (P2-I2: a
+      // substring search hid a new test titled "stays" behind "old stays"). Exact for
+      // quoted titles; a template title can still hide a new test that fits it.
       // A renamed old test reads as new, which is the safe direction.
       passed: assertions
         .filter((a) => a?.status === 'passed' && !isBaseTitle(a.title))
