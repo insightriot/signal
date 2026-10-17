@@ -740,6 +740,7 @@ export async function completePhase(baseDir, phase) {
     // command file is exactly the B41 failure mode — four commands have already
     // demonstrated they simply do not run what their file says.
     let trimmed = 0;
+    let runEnded = null;
     if (phase === 'SHIP' && detectMode(state) === 'linear') {
       const after = await readStateForMutation(baseDir);
       const run = after?.completed_phases ?? [];
@@ -757,12 +758,19 @@ export async function completePhase(baseDir, phase) {
           // The run's REVIEW report is one file for every linear run, appended
           // and never rewritten: mark where this run ends, so the next run's
           // checkFixRounds reads only its own passes (M6.E17 REVIEW P3-I5).
-          // Imported here: resume.js imports this module.
+          // Imported here: resume.js imports this module. A failed append is
+          // returned, never thrown: the run still ends, and the next run's check
+          // then refuses a PASS (it reads this run's passes), never accepts one.
           const { artifactName } = await import('./resume.js');
           const report = join(baseDir, '.planning', artifactName('REVIEW', { currentEpic: null }));
           if (existsSync(report)) {
-            const text = await readFile(report, 'utf-8');
-            await atomicWrite(report, `${text}${text.endsWith('\n') ? '' : '\n'}\n## Run ended — ${today}\n`);
+            try {
+              const text = await readFile(report, 'utf-8');
+              await atomicWrite(report, `${text}${text.endsWith('\n') ? '' : '\n'}\n## Run ended — ${today}\n`);
+              runEnded = { ok: true, path: report };
+            } catch (err) {
+              runEnded = { ok: false, path: report, error: err.message };
+            }
           }
           const payload = stripStateMeta(after);
           payload.completed_phases = [];
@@ -776,7 +784,7 @@ export async function completePhase(baseDir, phase) {
         }
       }
     }
-    return { ...res, recorded: true, trimmed };
+    return { ...res, recorded: true, trimmed, runEnded };
   });
 }
 

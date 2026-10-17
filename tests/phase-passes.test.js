@@ -228,6 +228,18 @@ describe('AC1.3 — the records are per Epic', () => {
     expect((await readState(baseDir)).phase_passes).toEqual([]);
   });
 
+  it('a report that cannot be appended to does not leave SHIP half done: the run still ends, and the failure is returned', async () => {
+    await writeState(baseDir, { epic: 'null', phase: 'SHIP' });
+    await mkdir(join(baseDir, '.planning', '1-REVIEW.md')); // a folder where the report should be
+    await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12' });
+    const r = await completePhase(baseDir, 'SHIP');
+    expect(r.runEnded).toMatchObject({ ok: false });
+    expect(r.runEnded.error).toMatch(/EISDIR|directory/i);
+    const state = await readState(baseDir);
+    expect(state.completed_phases).toEqual([]);
+    expect(state.phase_passes).toEqual([]);
+  });
+
   it('an Epic SHIP does not touch the report', async () => {
     await writeState(baseDir, { epic: 'M6.E16', phase: 'SHIP' });
     const reportPath = join(baseDir, '.planning', 'M6.E16-REVIEW.md');
