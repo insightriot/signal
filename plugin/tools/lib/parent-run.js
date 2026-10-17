@@ -28,7 +28,22 @@
  *
  * The worktree, the link and the temp dir are removed on every exit path,
  * thrown errors included (`finally`); an unexpected error is re-thrown after
- * cleanup rather than turned into an outcome.
+ * cleanup rather than turned into an outcome. SIGINT and SIGTERM run the same
+ * cleanup before the process ends, which is why vitest is spawned async: a
+ * synchronous spawn holds the event loop, and the handler never runs. SIGKILL
+ * cannot be caught, so every run first sweeps the temp folders of runs whose
+ * owner process is gone (M6.E17 REVIEW I3).
+ *
+ * A FAILURE IS PROOF ONLY WHEN IT IS NOT A MISSING FILE (REVIEW I2). Only the
+ * named tests are copied, so a test that reads a fixture or lazily imports a
+ * helper new in the same change fails on the base for that reason alone. A
+ * file whose every failure is a missing file or module is could-not-run. The
+ * per-file line names the first failure and every test that passed on the
+ * base, so a hollow test beside a real one in the same file is visible.
+ *
+ * THE COPY STAYS INSIDE THE WORKTREE (REVIEW I1). A symlink on the base commit
+ * along a test's path would send the copy, and a file that survives cleanup,
+ * wherever it points. Such a file is could-not-run.
  *
  * Command line (exit 0 only when every file failed on the base; 1 otherwise;
  * 2 for a usage error):
@@ -40,19 +55,21 @@
  * that found the issues, so "the parent" alone is ambiguous.
  */
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
   statSync,
   symlinkSync,
   unlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
@@ -63,6 +80,12 @@ import { gitEnv } from './git-env.js';
 
 const TEMP_PREFIX = 'sig-parent-run-';
 const PER_FILE_TIMEOUT_MS = 300_000;
+const OWNER_FILE = 'owner.pid';
+const CHILD_FILE = 'child.pid';
+const SIGNALS = ['SIGINT', 'SIGTERM'];
+
+/** A failure message that says a file or module was absent, not that an assertion failed. */
+const MISSING_RE = /ENOENT|Cannot find module|Cannot find package|Failed to (?:resolve|load) (?:import|url)|ERR_MODULE_NOT_FOUND/;
 
 /**
  * The summary line `formatParentRun` writes, which a REVIEW fix round or an
@@ -102,8 +125,22 @@ export function classifyReport(report, absFile, fallback) {
   const entry = report.testResults.find((r) => typeof r?.name === 'string' && resolve(r.name) === absFile);
   if (!entry) return { outcome: 'could-not-run', reason: 'vitest reported no result for this file' };
   const assertions = Array.isArray(entry.assertionResults) ? entry.assertionResults : [];
-  const failed = assertions.filter((a) => a?.status === 'failed').map((a) => a.fullName || a.title || '(unnamed)');
-  if (failed.length > 0) return { outcome: 'failed', failed };
+  const name = (a) => a.fullName || a.title || '(unnamed)';
+  const failing = assertions.filter((a) => a?.status === 'failed');
+  if (failing.length > 0) {
+    const firstLine = (a) => String((Array.isArray(a.failureMessages) && a.failureMessages[0]) || '').trim().split('\n')[0];
+    const why = failing.map(firstLine);
+    if (why.every((w) => MISSING_RE.test(w))) {
+      return { outcome: 'could-not-run', reason: `failed on the base only on a missing file or module: ${why[0]}` };
+    }
+    return {
+      outcome: 'failed',
+      failed: failing.map(name),
+      total: assertions.length,
+      passed: assertions.filter((a) => a?.status === 'passed').map(name),
+      why: why.find((w) => !MISSING_RE.test(w)) || '',
+    };
+  }
   const message = typeof entry.message === 'string' ? entry.message.trim() : '';
   if (message) return { outcome: 'could-not-run', reason: message.split('\n')[0] };
   if (!assertions.some((a) => a?.status === 'passed')) {
@@ -115,6 +152,88 @@ export function classifyReport(report, absFile, fallback) {
 /** The environment for the child vitest: never a worker of a vitest that may be running us. */
 function childEnv() {
   return Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST')));
+}
+
+/** Is the process `pid` still running? */
+function alive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err.code === 'EPERM';
+  }
+}
+
+/** Remove the worktree registrations and temp folders of runs whose owner is gone (a SIGKILL). */
+function sweepStale(root, tempRoot) {
+  let names;
+  try {
+    names = readdirSync(tempRoot).filter((n) => n.startsWith(TEMP_PREFIX));
+  } catch {
+    return;
+  }
+  for (const n of names) {
+    const temp = join(tempRoot, n);
+    let pid;
+    try {
+      pid = Number(readFileSync(join(temp, OWNER_FILE), 'utf-8').trim());
+    } catch {
+      continue; // not ours to judge: no owner recorded
+    }
+    if (!Number.isInteger(pid) || pid <= 0 || alive(pid)) continue;
+    // Its vitest outlives a SIGKILL and would write into the folder after it
+    // is removed, so end that process group first.
+    try {
+      const child = Number(readFileSync(join(temp, CHILD_FILE), 'utf-8').trim());
+      if (Number.isInteger(child) && child > 0) process.kill(-child, 'SIGKILL');
+    } catch {
+      // no child recorded, or it is already gone
+    }
+    try {
+      git(root, ['worktree', 'remove', '--force', join(temp, 'wt')]);
+    } catch {
+      // registered in another repository, or already gone
+    }
+    rmSync(temp, { recursive: true, force: true });
+  }
+  try {
+    git(root, ['worktree', 'prune']);
+  } catch {
+    // nothing more to do
+  }
+}
+
+/** Run one vitest child; resolve with its status, or an error on timeout. Kills the child's group on `abort`. */
+function runChild(args, opts, track, childFile) {
+  return new Promise((done) => {
+    const child = spawn(process.execPath, args, { ...opts, detached: true, stdio: ['ignore', 'ignore', 'pipe'] });
+    if (child.pid) writeFileSync(childFile, String(child.pid));
+    let stderr = '';
+    child.stderr.on('data', (d) => {
+      stderr = (stderr + d).slice(-4000);
+    });
+    const kill = () => {
+      try {
+        process.kill(-child.pid, 'SIGKILL');
+      } catch {
+        // already gone
+      }
+    };
+    track.kill = kill;
+    const timer = setTimeout(() => {
+      kill();
+      done({ status: null, stderr, error: new Error(`timed out after ${PER_FILE_TIMEOUT_MS / 1000} s`) });
+    }, PER_FILE_TIMEOUT_MS);
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      done({ status: null, stderr, error });
+    });
+    child.on('exit', (status) => {
+      clearTimeout(timer);
+      track.kill = null;
+      done({ status, stderr, error: null });
+    });
+  });
 }
 
 /** Does the dependency lock differ between `sha` and the working tree? `null` when git cannot say. */
@@ -176,47 +295,16 @@ export async function runOnBase(baseDir, { base, tests }, hooks = {}) {
     return { base: sha, depsDiffer, results };
   }
 
-  const temp = mkdtempSync(join(realpathSync(tmpdir()), TEMP_PREFIX));
+  const tempRoot = realpathSync(tmpdir());
+  sweepStale(root, tempRoot);
+  const temp = mkdtempSync(join(tempRoot, TEMP_PREFIX));
+  writeFileSync(join(temp, OWNER_FILE), String(process.pid));
   const wt = join(temp, 'wt');
   const link = join(wt, 'node_modules');
   let worktreeMade = false;
-  try {
-    try {
-      git(root, ['worktree', 'add', '--detach', wt, sha]);
-      worktreeMade = true;
-    } catch (err) {
-      for (const r of runnable) Object.assign(r, { outcome: 'could-not-run', reason: `the worktree was not created: ${errText(err)}` });
-      return { base: sha, depsDiffer, results };
-    }
-    if (!existsSync(link)) symlinkSync(join(root, 'node_modules'), link, 'dir');
-    for (const r of runnable) {
-      const dest = join(wt, normalize(r.file));
-      mkdirSync(dirname(dest), { recursive: true });
-      copyFileSync(join(root, normalize(r.file)), dest);
-    }
-    hooks.onWorktree?.(wt);
+  const track = { kill: null };
 
-    for (const [i, r] of runnable.entries()) {
-      const out = join(temp, `report-${i}.json`);
-      const rel = relative(wt, join(wt, normalize(r.file))).split(sep).join('/');
-      const child = spawnSync(
-        process.execPath,
-        [vitestEntry, 'run', rel, '--root', wt, '--reporter=json', `--outputFile=${out}`],
-        { cwd: wt, env: childEnv(), encoding: 'utf-8', timeout: PER_FILE_TIMEOUT_MS }
-      );
-      let report = null;
-      try {
-        report = JSON.parse(readFileSync(out, 'utf-8'));
-      } catch {
-        report = null;
-      }
-      const fallback = child.error
-        ? `vitest did not finish: ${child.error.message}`
-        : `vitest wrote no report (exit ${child.status}): ${String(child.stderr || '').trim().split('\n').slice(-1)[0] || 'no output'}`;
-      Object.assign(r, classifyReport(report, join(wt, normalize(r.file)), fallback));
-    }
-    return { base: sha, depsDiffer, results };
-  } finally {
+  const cleanup = () => {
     try {
       if (lstatSync(link, { throwIfNoEntry: false })?.isSymbolicLink()) unlinkSync(link);
     } catch {
@@ -235,7 +323,75 @@ export async function runOnBase(baseDir, { base, tests }, hooks = {}) {
     } catch {
       // nothing more to do; the directory is already gone
     }
+  };
+  const onSignal = (signal) => {
+    track.kill?.();
+    cleanup();
+    for (const sig of SIGNALS) process.removeListener(sig, onSignal);
+    process.kill(process.pid, signal);
+  };
+  for (const sig of SIGNALS) process.once(sig, onSignal);
+
+  try {
+    try {
+      git(root, ['worktree', 'add', '--detach', wt, sha]);
+      worktreeMade = true;
+    } catch (err) {
+      for (const r of runnable) Object.assign(r, { outcome: 'could-not-run', reason: `the worktree was not created: ${errText(err)}` });
+      return { base: sha, depsDiffer, results };
+    }
+    if (!existsSync(link)) symlinkSync(join(root, 'node_modules'), link, 'dir');
+    const realWt = realpathSync(wt);
+    for (const r of runnable) {
+      const dest = join(wt, normalize(r.file));
+      if (!insideWorktree(realWt, dest)) {
+        Object.assign(r, { outcome: 'could-not-run', reason: `${r.file}: a symlink on the base commit leads outside the worktree; not copied` });
+        continue;
+      }
+      mkdirSync(dirname(dest), { recursive: true });
+      copyFileSync(join(root, normalize(r.file)), dest);
+    }
+    hooks.onWorktree?.(wt);
+
+    for (const [i, r] of runnable.entries()) {
+      if (r.outcome !== null) continue;
+      const out = join(temp, `report-${i}.json`);
+      const rel = relative(wt, join(wt, normalize(r.file))).split(sep).join('/');
+      const child = await runChild(
+        [vitestEntry, 'run', rel, '--root', wt, '--reporter=json', `--outputFile=${out}`],
+        { cwd: wt, env: childEnv() },
+        track,
+        join(temp, CHILD_FILE)
+      );
+      let report = null;
+      try {
+        report = JSON.parse(readFileSync(out, 'utf-8'));
+      } catch {
+        report = null;
+      }
+      const fallback = child.error
+        ? `vitest did not finish: ${child.error.message}`
+        : `vitest wrote no report (exit ${child.status}): ${String(child.stderr || '').trim().split('\n').slice(-1)[0] || 'no output'}`;
+      Object.assign(r, classifyReport(report, join(wt, normalize(r.file)), fallback));
+    }
+    return { base: sha, depsDiffer, results };
+  } finally {
+    for (const sig of SIGNALS) process.removeListener(sig, onSignal);
+    cleanup();
   }
+}
+
+/**
+ * Does `dest` stay inside the worktree, with no symlink on the way? Checks the
+ * deepest existing ancestor's real path, and refuses a destination that is
+ * itself a link. Directories made after this are plain folders inside it.
+ */
+function insideWorktree(realWt, dest) {
+  if (lstatSync(dest, { throwIfNoEntry: false })?.isSymbolicLink()) return false;
+  let dir = dirname(dest);
+  while (!existsSync(dir)) dir = dirname(dir);
+  const real = realpathSync(dir);
+  return real === realWt || real.startsWith(realWt + sep);
 }
 
 /**
@@ -257,7 +413,9 @@ export function formatParentRun(result) {
   for (const r of result.results) {
     const detail =
       r.outcome === 'failed'
-        ? `${r.failed.length} failing: ${r.failed.slice(0, 3).join('; ')}${r.failed.length > 3 ? `; and ${r.failed.length - 3} more` : ''}`
+        ? `${r.failed.length} of ${r.total ?? r.failed.length} tests failed: ${r.failed.slice(0, 3).join('; ')}${r.failed.length > 3 ? `; and ${r.failed.length - 3} more` : ''}` +
+          (r.why ? ` (${r.why})` : '') +
+          (r.passed?.length ? `; passed on the base: ${r.passed.join('; ')}` : '')
         : r.outcome === 'passed'
           ? 'passes without the change — no proof'
           : r.reason;

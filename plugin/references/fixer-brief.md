@@ -27,11 +27,13 @@ is not enough when the agent cannot read it.
 
 | Per file | Means | What you report |
 |---|---|---|
-| `failed` | The test fails on the base: it needs your change. | Proof. |
+| `failed` | At least one test in the file failed on the base, for a reason other than a missing file. | Proof for the tests that failed. **Read the line:** it names the first failure, and every test in the file that **passed on the base**. A new test in that list is hollow; fix it or say why. |
 | `passed` | The test passes on the base: it does not need your change. | **No proof.** The test is hollow, or it tests something else. Fix the test, or say why it cannot fail on the base. |
-| `could-not-run` | No result on the base: git failed, the test file is missing, or it did not load (often an import of a module that is new in your change). | **No proof, never reported as proof.** State the gap with the reason the tool gave. |
+| `could-not-run` | No result on the base: git failed, the test file is missing, it did not load (often an import of a module that is new in your change), every failure was a missing file or module (a fixture or helper new in your change: only the named tests are copied), or a symlink on the base led outside the worktree. | **No proof, never reported as proof.** State the gap with the reason the tool gave. |
 
-The command exits 0 only when every file failed on the base.
+The command exits 0 only when every file failed on the base. Run it from the project root. If it is
+stopped (Ctrl-C, a timeout), it removes its worktree first; a run that was killed outright is cleared
+by the next run.
 
 ## When you cannot run it
 

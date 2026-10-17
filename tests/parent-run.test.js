@@ -15,9 +15,10 @@
 // Proof-of-fail: every test here fails before S1 — the module does not exist.
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, realpathSync, symlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
 import { runOnBase, formatParentRun, PARENT_RUN_SUMMARY_RE } from '../plugin/tools/lib/parent-run.js';
@@ -69,6 +70,17 @@ beforeAll(() => {
   put(dir, 'tests/hollow.test.js',
     "import { it, expect } from 'vitest';\nimport { add } from '../src/add.js';\n" +
     "it('is a function', () => { expect(typeof add).toBe('function'); });\n");
+  // REVIEW I2: a hollow test that reads a fixture new in this change, and a
+  // file holding one real and one hollow test.
+  put(dir, 'tests/fx.json', '{}\n');
+  put(dir, 'tests/reads-new-fixture.test.js',
+    "import { it, expect } from 'vitest';\nimport { readFileSync } from 'node:fs';\n" +
+    "it('reads the fixture', () => { expect(typeof JSON.parse(readFileSync(new URL('./fx.json', import.meta.url), 'utf-8'))).toBe('object'); });\n");
+  put(dir, 'tests/mixed.test.js',
+    "import { it, expect } from 'vitest';\nimport { add } from '../src/add.js';\n" +
+    "it('real', () => { expect(add(2, 3)).toBe(5); });\nit('hollow', () => { expect(typeof add).toBe('function'); });\n");
+  put(dir, 'tests/slow.test.js',
+    "import { it } from 'vitest';\nit('waits', async () => { await new Promise((r) => setTimeout(r, 30000)); }, 60000);\n");
   put(dir, 'tests/imports-new.test.js',
     "import { it, expect } from 'vitest';\nimport { fresh } from '../src/fresh.js';\n" +
     "it('fresh', () => { expect(fresh()).toBe(1); });\n");
@@ -205,4 +217,92 @@ describe('AC3.1 — the command line', () => {
     expect(run(['tests/real.test.js']).status).toBe(2);
     expect(run(['--base', base]).status).toBe(2);
   });
+});
+
+// REVIEW pass 1 (M6.E17). Each case below failed on 2a0c56fe.
+describe('REVIEW I2 — a failure is proof only when it is not a missing file', () => {
+  it('a test that fails only because a new fixture is absent on the base → could-not-run, with the reason', async () => {
+    const r = await runOnBase(dir, { base, tests: ['tests/reads-new-fixture.test.js'] });
+    expect(r.results[0].outcome).toBe('could-not-run');
+    expect(r.results[0].reason).toMatch(/missing file or module/);
+    expect(r.results[0].reason).toMatch(/fx\.json|ENOENT/);
+  }, SLOW);
+
+  it('a file with one real and one hollow test → failed, and the line names the test that passed on the base', async () => {
+    const r = await runOnBase(dir, { base, tests: ['tests/mixed.test.js'] });
+    expect(r.results[0].outcome).toBe('failed');
+    expect(r.results[0].passed).toEqual(['hollow']);
+    const line = formatParentRun(r).split('\n')[1];
+    expect(line).toMatch(/1 of 2 tests failed/);
+    expect(line).toMatch(/passed on the base: hollow/);
+    expect(line).toMatch(/expected -1 to be 5|AssertionError/);
+  }, SLOW);
+});
+
+describe('REVIEW I1 — the copy never writes outside the worktree', () => {
+  it('a symlinked directory on the base commit → could-not-run, and nothing is written where it points', async () => {
+    const repo = realpathSync(mkdtempSync(join(tmpdir(), 'sig-parent-run-link-repo-')));
+    const outside = realpathSync(mkdtempSync(join(tmpdir(), 'sig-parent-run-outside-')));
+    try {
+      git(repo, ['init', '-q', '-b', 'main']);
+      put(repo, 'package.json', '{ "type": "module" }\n');
+      put(repo, '.gitignore', 'node_modules\n');
+      symlinkSync(outside, join(repo, 'tests'), 'dir');
+      git(repo, ['add', '-A']);
+      git(repo, ['commit', '-q', '-m', 'base: tests is a link']);
+      const linkBase = git(repo, ['rev-parse', 'HEAD']);
+      git(repo, ['rm', '-q', 'tests']);
+      put(repo, 'tests/x.test.js', "import { it } from 'vitest';\nit('x', () => { throw new Error('x'); });\n");
+      git(repo, ['add', '-A']);
+      git(repo, ['commit', '-q', '-m', 'tests is a folder']);
+      symlinkSync(join(REPO_ROOT, 'node_modules'), join(repo, 'node_modules'), 'dir');
+
+      const r = await runOnBase(repo, { base: linkBase, tests: ['tests/x.test.js'] });
+      expect(r.results[0].outcome).toBe('could-not-run');
+      expect(r.results[0].reason).toMatch(/outside the worktree/);
+      expect(readdirSync(outside)).toEqual([]);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  }, SLOW);
+});
+
+describe('REVIEW I3 — a killed run leaves nothing behind', () => {
+  const temps = () => readdirSync(realpathSync(tmpdir())).filter((n) => /^sig-parent-run-(?!test-|link-|outside-)/.test(n));
+  const waitFor = async (cond, ms = 30_000) => {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      if (cond()) return true;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return false;
+  };
+  const start = () => {
+    const child = spawn(process.execPath, [TOOL, '--base', base, 'tests/slow.test.js'], { cwd: dir, env: childEnv(), stdio: 'ignore' });
+    const exited = new Promise((r) => child.on('exit', (code, signal) => r({ code, signal })));
+    return { child, exited };
+  };
+
+  it('SIGTERM mid-run: the worktree and the temp folder are removed before it exits', async () => {
+    const before = temps();
+    const { child, exited } = start();
+    expect(await waitFor(() => worktreeCount() === 2)).toBe(true);
+    child.kill('SIGTERM');
+    await exited;
+    expect(worktreeCount()).toBe(1);
+    expect(temps()).toEqual(before);
+  }, SLOW);
+
+  it('SIGKILL cannot be caught; the next run sweeps what it left', async () => {
+    const before = temps();
+    const { child, exited } = start();
+    expect(await waitFor(() => worktreeCount() === 2)).toBe(true);
+    child.kill('SIGKILL');
+    await exited;
+    expect(worktreeCount()).toBe(2);
+    await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
+    expect(worktreeCount()).toBe(1);
+    expect(temps()).toEqual(before);
+  }, SLOW);
 });
