@@ -27,9 +27,16 @@
  * fixes, so `phase_passes` from STATE sets a floor: a PASS or PASS-WITH-FIXES
  * needs at least one round per recorded REVIEW FAIL. A pass record that does
  * not read refuses, the same rule as the loop ceiling's (D-M6E17-6).
+ *
+ * TIGHTENED AT M6.E17 REVIEW PASS 1. The record must be passed for a PASS or
+ * PASS-WITH-FIXES (left out, the floor was silently off: I6). A
+ * PASS-WITH-FIXES needs one round more than the FAILs, for its own fixes (I5).
+ * A round inside a code fence is a quoted template, not a round (S2). And a
+ * pass, a `## Pass N` section, holds at most DEFAULT_LOOP_CEILING rounds: the
+ * ceiling counts passes, so nothing else bounded a chain inside one (I4).
  */
 
-import { PASS_ENTRY_RE, PASS_VERDICTS } from './loop-ceiling.js';
+import { DEFAULT_LOOP_CEILING, PASS_ENTRY_RE, PASS_VERDICTS } from './loop-ceiling.js';
 import { PARENT_RUN_SUMMARY_RE } from './parent-run.js';
 
 const ROUND_HEADING_RE = /^(#{2,4}) Fix round (\d+)\b.*$/gm;
@@ -40,13 +47,18 @@ const FRESH_READ_RE = new RegExp(
 const FRESH_LINE_RE = /^\*\*Fresh read:\*\*.*$/m;
 const PARENT_LINE_RE = /^\*\*Parent run:\*\*\s*(.*)$/m;
 const GAP_RE = /^gap\b\s*[—–:-]\s*\S/i;
+const FENCE_RE = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$/gm;
+const PASS_HEADING_RE = /^## Pass (\d+)\b/gm;
+
+/** Blank out fenced blocks, keeping every offset, so a quoted template is not read as a round. */
+const unfence = (content) => content.replace(FENCE_RE, (m) => m.replace(/[^\n]/g, ' '));
 
 /** The body of each `Fix round N` section, up to the next heading of the same or a higher level. */
 function sections(content) {
   return [...content.matchAll(ROUND_HEADING_RE)].map((m) => {
     const rest = content.slice(m.index + m[0].length);
     const end = rest.search(new RegExp(`^#{1,${m[1].length}} `, 'm'));
-    return { n: Number(m[2]), body: end < 0 ? rest : rest.slice(0, end) };
+    return { n: Number(m[2]), at: m.index, body: end < 0 ? rest : rest.slice(0, end) };
   });
 }
 
@@ -68,7 +80,13 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
   const gaps = [];
   const rounds = [];
 
-  for (const { n, body } of sections(String(content ?? ''))) {
+  const text = unfence(String(content ?? ''));
+  const passes = [...text.matchAll(PASS_HEADING_RE)].map((m) => ({ n: m[1], at: m.index }));
+  const perPass = new Map();
+  for (const { n, at, body } of sections(text)) {
+    const pass = passes.filter((p) => p.at < at).pop();
+    const key = pass ? `Pass ${pass.n}` : 'the report';
+    perPass.set(key, (perPass.get(key) ?? 0) + 1);
     const label = `Fix round ${n}`;
     const round = { n, range: null, critical: null, important: null, stop: null, parentRun: null };
 
@@ -108,16 +126,26 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
     rounds.push(round);
   }
 
-  if (phasePasses !== undefined && verdict !== 'FAIL') {
+  for (const [key, count] of perPass) {
+    if (count > DEFAULT_LOOP_CEILING) {
+      reasons.push(
+        `${key} has ${count} fix rounds; a pass holds at most ${DEFAULT_LOOP_CEILING} (the loop ceiling). At the last unclean read, declare FAIL and take the Loop Back.`
+      );
+    }
+  }
+  if (phasePasses === undefined && verdict !== 'FAIL') {
+    reasons.push('no phasePasses given: pass phase_passes from STATE.md (or [] when none is recorded), so the recorded REVIEW FAILs can be counted.');
+  } else if (verdict !== 'FAIL') {
     const entries = Array.isArray(phasePasses) ? phasePasses : null;
     const parsed = entries?.map((e) => (typeof e === 'string' ? PASS_ENTRY_RE.exec(e) : null));
     if (!parsed || parsed.some((m) => !m)) {
       reasons.push('phase_passes in STATE.md does not read, so the recorded REVIEW FAILs cannot be counted. Fix the record; it is never read as none.');
     } else {
       const fails = parsed.filter((m) => m[1] === 'REVIEW' && m[2] === 'FAIL').length;
-      if (rounds.length < fails) {
+      const own = verdict === 'PASS-WITH-FIXES' ? 1 : 0;
+      if (fails > 0 && rounds.length < fails + own) {
         reasons.push(
-          `${fails} REVIEW FAIL pass(es) recorded and ${rounds.length} fix round(s) in the report — the fixes after each FAIL are a round, read fresh (review.md § 4.6).`
+          `${fails} REVIEW FAIL pass(es) recorded and ${rounds.length} fix round(s) in the report — the fixes after each FAIL are a round, read fresh${own ? ', and a PASS-WITH-FIXES needs one more for its own fixes' : ''} (review.md § 4.6).`
         );
       }
     }

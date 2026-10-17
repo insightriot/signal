@@ -195,24 +195,32 @@ For each round:
    never left blank, and is never counted as proof.
 
 **The stop rule.** The chain ends when a fresh read of a round finds **0 Critical and 0 Important**
-(`stop: yes`), or when the loop ceiling is reached (`loopStatusFor` from `tools/lib/loop-ceiling.js`
-returns `atCeiling`), **whichever comes first**. A read that finds issues starts the next round: fix
-them, read that round fresh, and so on. A chain that ends at the ceiling with findings still open is a
-FAIL, and the Loop Back below asks a person.
+(`stop: yes`), or at the loop ceiling, **whichever comes first**. The ceiling is counted two ways,
+because a chain runs inside one pass and the passes are counted across the unit:
+- **Inside a pass:** at most `DEFAULT_LOOP_CEILING` (3) rounds. Nothing is written to STATE between
+  rounds, so `loopStatusFor` cannot see them; `checkFixRounds` counts the rounds under each
+  `## Pass N` heading and refuses a fourth.
+- **Across passes:** `loopStatusFor` from `tools/lib/loop-ceiling.js`, as in the Loop Back below.
+
+A read that finds issues starts the next round: fix them, read that round fresh, and so on. A chain
+that ends at the ceiling with findings still open is a FAIL, and the Loop Back below asks a person.
 
 **Before the verdict, run the check.** Call `checkFixRounds(reportContent, verdict, { phasePasses })`
 from `tools/lib/review-rounds.js` with the verdict you are about to declare, and `phasePasses` set to
-`phase_passes` from STATE (`readState`). A refusal means the verdict cannot stand. Its reasons are the
+`phase_passes` from STATE (`readState`), or `[]` when STATE has none. Leaving it out is itself a
+refusal for PASS and PASS-WITH-FIXES. A refusal means the verdict cannot stand. Its reasons are the
 cases: a round missing either line, a PASS-WITH-FIXES with no round, a PASS / PASS-WITH-FIXES whose
-last round reads `stop: no`, or fewer rounds than recorded REVIEW FAILs. That last one is a floor, not
+last round reads `stop: no`, more than three rounds in one pass, or too few rounds for the recorded
+REVIEW FAILs (one per FAIL, plus one for a PASS-WITH-FIXES's own fixes). That last one is a floor, not
 a match: it sees a report with too few rounds, and cannot tell which round belongs to which FAIL. So the
-REVIEW report keeps every earlier pass's rounds: append each pass, never rewrite the file. Fix the
+REVIEW report keeps every earlier pass's rounds, each pass under its own `## Pass N` heading: append
+each pass, never rewrite the file. A `### Fix round` inside a code fence is not counted. Fix the
 report or the verdict. Do not write around the check. List its `gaps` in the report: rounds whose parent run is a stated gap, or did
 not fail on the base for every file.
 
 ### 5. Write Review Report
 
-Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic):
+Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic). The first pass creates it under a `## Pass 1` heading; every later pass appends a `## Pass N` section with this shape and leaves the earlier ones as they are (§ 4.6):
 ```markdown
 # Review Report — Phase {n}
 
@@ -233,6 +241,9 @@ Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir
 
 ## Simplification Opportunities
 {list}
+
+## Fix rounds
+{one `### Fix round N` per round, § 4.6 — or "None in this pass"}
 
 ## Verdict
 - [ ] PASS — ready for SHIP

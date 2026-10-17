@@ -23,7 +23,8 @@ decision and an autonomy layer that quietly overrode one would re-litigate that 
   destructive confirms, and the orphan prompt. Enumerated in `FLOORS` (`tools/lib/drive.js`), not
   re-listed here, so there is one roster rather than two.
 - **The loop ceiling** — a phase that fails and loops backwards stops for a person on the third pass
-  (`B76`). Counted from `completed_phases` by `loopStatusFor` (`tools/lib/loop-ceiling.js`) and
+  (`B76`). Counted by `loopStatusFor` (`tools/lib/loop-ceiling.js`) as the larger of the phase's exits
+  in `completed_phases` and its recorded passes in `phase_passes`, and
   enforced by `canProceedUnattended`, which also refuses when it **cannot read** the count.
 
 ## Gate Structure
