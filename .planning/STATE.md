@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 docs_layout_version: 3
-phase: REVIEW
+phase: EXECUTE
 current_epic: M6.E17
 current_wave: null
 current_tasks: []
@@ -16,6 +16,7 @@ completed_phases:
   - EXECUTE (2026-10-17)
   - REVIEW (2026-10-17)
   - EXECUTE (2026-10-17)
+  - REVIEW (2026-10-17)
 blockers: []
 last_completed_task:
   id: M6.E17.S3
@@ -24,7 +25,7 @@ last_completed_task:
   completedAt: 2026-10-15T19:01:26.668Z
 last_decision_at: 2026-10-15T19:01:26.668Z
 last_updated_commit: 3d464b19a21c80f9ad72c60c06329ef15718b22d
-last_updated: 2026-10-17T19:53:27.942Z
+last_updated: 2026-10-17T20:34:18.262Z
 phase_passes:
   - VERIFY FAIL (2026-10-16)
   - VERIFY PASS-WITH-FIXES (2026-10-16)
