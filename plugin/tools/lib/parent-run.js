@@ -57,11 +57,13 @@
 
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
+  closeSync,
   copyFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
   realpathSync,
@@ -170,11 +172,20 @@ function alive(pid) {
   }
 }
 
-/** Is `pid` a vitest started for `temp`? Its command line names vitest and the folder's report path. */
-function isOurVitest(pid, temp) {
-  const r = spawnSync('ps', ['-o', 'command=', '-p', String(pid)], { encoding: 'utf-8' });
-  if (r.status !== 0 || typeof r.stdout !== 'string') return false;
-  return r.stdout.includes('vitest.mjs') && r.stdout.includes(join(temp, 'report-'));
+/** When `pid` started, as `ps` prints it; '' when there is no such process. */
+function startedAt(pid) {
+  const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf-8' });
+  return r.status === 0 && typeof r.stdout === 'string' ? r.stdout.trim() : '';
+}
+
+/**
+ * Is `pid` still the process recorded as `recorded` ("<pid> <start time>")?
+ * A pid and its start time together name one process; a reused pid has a later
+ * start. (vitest retitles itself "node (vitest)", so its command line cannot say.)
+ */
+function isSameProcess(pid, recorded) {
+  const at = startedAt(pid);
+  return at !== '' && recorded === `${pid} ${at}`;
 }
 
 /** Remove the worktree registrations and temp folders of runs whose owner is gone (a SIGKILL). */
@@ -199,8 +210,9 @@ function sweepStale(root, tempRoot) {
     // Only if that pid is still the vitest this folder started: a pid left for
     // days may have been reused by an unrelated process.
     try {
-      const child = Number(readFileSync(join(temp, CHILD_FILE), 'utf-8').trim());
-      if (Number.isInteger(child) && child > 0 && isOurVitest(child, temp)) process.kill(-child, 'SIGKILL');
+      const recorded = readFileSync(join(temp, CHILD_FILE), 'utf-8').trim();
+      const child = Number(recorded.split(' ')[0]);
+      if (Number.isInteger(child) && child > 0 && isSameProcess(child, recorded)) process.kill(-child, 'SIGKILL');
     } catch {
       // no child recorded, or it is already gone
     }
@@ -219,14 +231,21 @@ function sweepStale(root, tempRoot) {
 }
 
 /** Run one vitest child; resolve with its status, or an error on timeout. Kills the child's group on `abort`. */
-function runChild(args, opts, track, childFile) {
+function runChild(args, opts, track, childFile, stderrFile) {
   return new Promise((done) => {
-    const child = spawn(process.execPath, args, { ...opts, detached: true, stdio: ['ignore', 'ignore', 'pipe'] });
-    if (child.pid) writeFileSync(childFile, String(child.pid));
-    let stderr = '';
-    child.stderr.on('data', (d) => {
-      stderr = (stderr + d).slice(-4000);
-    });
+    // stderr goes to a file, not a pipe: a pipe closes when this process is
+    // killed, and the orphaned vitest then exits on its own, racing the sweep.
+    const fd = openSync(stderrFile, 'w');
+    const child = spawn(process.execPath, args, { ...opts, detached: true, stdio: ['ignore', 'ignore', fd] });
+    closeSync(fd);
+    if (child.pid) writeFileSync(childFile, `${child.pid} ${startedAt(child.pid)}`);
+    const tail = () => {
+      try {
+        return readFileSync(stderrFile, 'utf-8').slice(-4000);
+      } catch {
+        return '';
+      }
+    };
     const kill = () => {
       try {
         process.kill(-child.pid, 'SIGKILL');
@@ -237,16 +256,16 @@ function runChild(args, opts, track, childFile) {
     track.kill = kill;
     const timer = setTimeout(() => {
       kill();
-      done({ status: null, stderr, error: new Error(`timed out after ${PER_FILE_TIMEOUT_MS / 1000} s`) });
+      done({ status: null, stderr: tail(), error: new Error(`timed out after ${PER_FILE_TIMEOUT_MS / 1000} s`) });
     }, PER_FILE_TIMEOUT_MS);
     child.on('error', (error) => {
       clearTimeout(timer);
-      done({ status: null, stderr, error });
+      done({ status: null, stderr: tail(), error });
     });
     child.on('exit', (status) => {
       clearTimeout(timer);
       track.kill = null;
-      done({ status, stderr, error: null });
+      done({ status, stderr: tail(), error: null });
     });
   });
 }
@@ -376,7 +395,8 @@ export async function runOnBase(baseDir, { base, tests }, hooks = {}) {
         [vitestEntry, 'run', rel, '--root', wt, '--reporter=json', `--outputFile=${out}`],
         { cwd: wt, env: childEnv() },
         track,
-        join(temp, CHILD_FILE)
+        join(temp, CHILD_FILE),
+        join(temp, `stderr-${i}.log`)
       );
       let report = null;
       try {

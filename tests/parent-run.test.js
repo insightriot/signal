@@ -336,11 +336,16 @@ describe('REVIEW I3 — a killed run leaves nothing behind', () => {
     const { child, exited } = start();
     expect(await waitFor(running(child.pid))).toBe(true);
     const mine = ownFolder(child.pid);
+    const vitestPid = Number(readFileSync(join(realpathSync(tmpdir()), mine, 'child.pid'), 'utf-8').split(' ')[0]);
     child.kill('SIGKILL');
     await exited;
     expect(worktreeCount()).toBe(2);
+    expect(() => process.kill(vitestPid, 0), 'the orphaned vitest outlives the SIGKILL').not.toThrow();
     await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
     expect(worktreeCount()).toBe(1);
+    // The sweep ended the orphan too; left running, it writes the folder back.
+    expect(await waitFor(() => { try { process.kill(vitestPid, 0); return false; } catch { return true; } }, 5000)).toBe(true);
+    await new Promise((r) => setTimeout(r, 500));
     expect(temps()).not.toContain(mine);
   }, SLOW);
 });
@@ -353,7 +358,8 @@ describe('REVIEW I3 — the sweep kills only the vitest it started', () => {
     const dead = spawnSync(process.execPath, ['-e', 'process.pid'], { encoding: 'utf-8' }).pid;
     try {
       writeFileSync(join(stale, 'owner.pid'), String(dead));
-      writeFileSync(join(stale, 'child.pid'), String(bystander.pid));
+      // A pid with a start time that is not the bystander's: the pid was reused.
+      writeFileSync(join(stale, 'child.pid'), `${bystander.pid} Thu Jan  1 00:00:00 1970`);
       await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
       expect(() => process.kill(bystander.pid, 0)).not.toThrow();
       expect(existsSync(stale)).toBe(false);
