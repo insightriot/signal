@@ -12,7 +12,7 @@
 // `countPhasePasses` do not exist, and `loopStatusFor` ignores `phase_passes`.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -210,6 +210,30 @@ describe('AC1.3 — the records are per Epic', () => {
     expect(state.completed_phases).toEqual([]);
     expect(state.phase_passes).toEqual([]);
     expect(loopStatusFor(state, 'REVIEW')).toMatchObject({ count: 0, atCeiling: false });
+  });
+
+  // REVIEW pass 3, P3-I5: a linear project's REVIEW report is one file for every
+  // run (1-REVIEW.md), appended and never rewritten. Clearing the record without
+  // marking the report left run 2's first REVIEW reading run 1's sections, and
+  // refusing a correct PASS. The run's end is appended to the report.
+  it('a linear SHIP appends "## Run ended" to the REVIEW report (the test above has no report, and still ships)', async () => {
+    await writeState(baseDir, { epic: 'null', phase: 'SHIP' });
+    const reportPath = join(baseDir, '.planning', '1-REVIEW.md');
+    await writeFile(reportPath, '# Review Report\n\n## Pass 1\n\nfindings\n', 'utf-8');
+    await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12' });
+    await completePhase(baseDir, 'SHIP');
+    const text = await readFile(reportPath, 'utf-8');
+    expect(text.startsWith('# Review Report\n\n## Pass 1\n\nfindings\n')).toBe(true);
+    expect(text).toMatch(/\n## Run ended — \d{4}-\d{2}-\d{2}\n$/);
+    expect((await readState(baseDir)).phase_passes).toEqual([]);
+  });
+
+  it('an Epic SHIP does not touch the report', async () => {
+    await writeState(baseDir, { epic: 'M6.E16', phase: 'SHIP' });
+    const reportPath = join(baseDir, '.planning', 'M6.E16-REVIEW.md');
+    await writeFile(reportPath, '# Review\n\n## Pass 1\n', 'utf-8');
+    await completePhase(baseDir, 'SHIP');
+    expect(await readFile(reportPath, 'utf-8')).toBe('# Review\n\n## Pass 1\n');
   });
 });
 

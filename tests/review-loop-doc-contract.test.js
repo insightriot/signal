@@ -136,3 +136,14 @@ describe('AC3.3 / AC3.4 — the parent run and the fixer brief', () => {
     expect(execute).toMatch(/stated gap/);
   });
 });
+
+// REVIEW pass 3, P3-I5: a linear SHIP appends "## Run ended" to the report and
+// checkFixRounds reads only what follows it; the command says so, so a person
+// reading a linear report knows where a run begins.
+describe('P3-I5 — the report format names the run boundary', () => {
+  it('review.md § 5 names the "## Run ended" line and that the check reads only what follows it', () => {
+    const step5 = review.slice(review.search(/^### 5\. Write Review Report/m)).replace(/\s+/g, ' ');
+    expect(step5).toMatch(/SHIP appends `## Run ended — \{date\}`/);
+    expect(step5).toMatch(/reads only what follows the last `## Run ended` line/);
+  });
+});

@@ -215,9 +215,10 @@ in (§ 5). Call `checkFixRounds(reportContent, verdict, { phasePasses })`
 from `tools/lib/review-rounds.js` with the verdict you are about to declare, and `phasePasses` set to
 `phase_passes` from STATE (`readState`), or `[]` when STATE has none. Leaving it out is itself a
 refusal for PASS and PASS-WITH-FIXES. A refusal means the verdict cannot stand. Its reasons are the
-cases: a round missing either line, a PASS-WITH-FIXES with no round, a PASS / PASS-WITH-FIXES whose
+cases: a round missing either line, a PASS-WITH-FIXES with no round in its own pass, a PASS / PASS-WITH-FIXES whose
 last round reads `stop: no`, more than three rounds in one pass, a count of `## Pass N` sections other than the recorded REVIEW
-passes plus this one, no round in this pass after a recorded REVIEW FAIL, or too few rounds for the recorded
+passes plus this one (a report with no such heading has none), a round above the first `## Pass` heading,
+no round in this pass after a recorded REVIEW FAIL, or too few rounds for the recorded
 REVIEW FAILs (one per FAIL, plus one for a PASS-WITH-FIXES's own fixes). That last one is a floor, not
 a match: it sees a report with too few rounds, and cannot tell which round belongs to which FAIL. So the
 REVIEW report keeps every earlier pass's rounds, each pass under its own `## Pass N` heading: append
@@ -227,7 +228,7 @@ not fail on the base for every file, or counted new tests that passed on the bas
 
 ### 5. Write Review Report
 
-Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic). The first pass creates it under a `## Pass 1` heading; every later pass appends a `## Pass N` section with this shape and leaves the earlier ones as they are. The heading is written when the pass begins (§ 4.6); this step fills the section in, and the check runs after it:
+Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic). The first pass creates it under a `## Pass 1` heading; every later pass appends a `## Pass N` section with this shape and leaves the earlier ones as they are. The heading is written when the pass begins (§ 4.6); this step fills the section in, and the check runs after it. A linear project keeps one report for every run: its SHIP appends `## Run ended — {date}`, the next run's first pass appends `## Pass 1` below it, and the check reads only what follows the last `## Run ended` line. Never write that line by hand:
 ```markdown
 # Review Report — Phase {n}
 

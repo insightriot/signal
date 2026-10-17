@@ -262,3 +262,52 @@ describe('REVIEW P2-I4/I5/I6 — pass sections are tied to the record', () => {
     expect(checkFixRounds(passes([round(1)], [round(2)]), 'PASS', oneFail).ok).toBe(true);
   });
 });
+
+// REVIEW pass 3 (M6.E17): the pass-2 fixes still let three reports through or
+// refused a correct one. Each case below reads the wrong answer on 53be4537.
+describe('REVIEW P3-I3/I4/I5 — the pass sections are always read, and a run is its own', () => {
+  const twoFails = { phasePasses: ['REVIEW FAIL (2026-10-16)', 'REVIEW FAIL (2026-10-17)'] };
+
+  it('P3-I3: with no "## Pass N" heading the section count still applies', () => {
+    // Earlier passes' rounds, and this pass written with no heading of its own.
+    const bare = `# Review\n\n${round(1)}${round(2)}## Verdict\n\nPASS\n`;
+    const r = checkFixRounds(bare, 'PASS', twoFails);
+    expect(r.ok).toBe(false);
+    expect(r.reasons.join(' ')).toMatch(/0 "## Pass N" section\(s\).*2 REVIEW pass/);
+    // The first pass, too, is written under "## Pass 1" (review.md § 5).
+    expect(checkFixRounds(`# Review\n\n${round(1)}`, 'PASS-WITH-FIXES', none).ok).toBe(false);
+  });
+
+  it('P3-I3: headings in another shape ("## Pass 3: …", "## Pass 3 (…)") are not pass sections', () => {
+    for (const shape of [(n) => `## Pass ${n}: 2026-10-17`, (n) => `## Pass ${n} (2026-10-17)`]) {
+      const text = passes([round(1)], [round(2)], []).replace(/^## Pass (\d)$/gm, (_, n) => shape(n));
+      expect(checkFixRounds(text, 'PASS', twoFails).ok).toBe(false);
+    }
+  });
+
+  it('P3-I3: rounds written above the first "## Pass" heading belong to no pass and are refused', () => {
+    const dirty = (n) => round(n, { fresh: 'aaa1111..bbb2222 — Critical 0, Important 1 — stop: no' });
+    const text = `# Review\n\n${dirty(1)}${dirty(2)}${dirty(3)}` + passes([round(4)]).replace('# Review Report — M9.E1\n\n', '');
+    const r = checkFixRounds(text, 'PASS', none);
+    expect(r.ok).toBe(false);
+    expect(r.reasons.join(' ')).toMatch(/above the first "## Pass" heading/);
+  });
+
+  it('P3-I4: a PASS-WITH-FIXES needs a round in its own pass, even with no FAIL recorded', () => {
+    const r = checkFixRounds(passes([round(1)], []), 'PASS-WITH-FIXES', { phasePasses: ['REVIEW PASS-WITH-FIXES (2026-10-16)'] });
+    expect(r.ok).toBe(false);
+    expect(r.reasons.join(' ')).toMatch(/PASS-WITH-FIXES with no fix round in this pass/);
+    expect(checkFixRounds(passes([round(1)], [round(2)]), 'PASS-WITH-FIXES', { phasePasses: ['REVIEW PASS-WITH-FIXES (2026-10-16)'] }).ok).toBe(true);
+  });
+
+  it('P3-I5: a linear project\'s report holds earlier runs; only the part after the last "## Run ended" is this run', () => {
+    // Run 1: two passes, shipped. Run 2: its first pass, nothing recorded yet (SHIP cleared the record).
+    const run1 = passes([round(1, { fresh: 'aaa1111..bbb2222 — Critical 0, Important 1 — stop: no' })], [round(2)]);
+    const text = `${run1}\n## Run ended — 2026-10-01\n\n## Pass 1 — 2026-10-17, at \`abc1234\`\n\nfindings\n\n${round(1)}`;
+    const r = checkFixRounds(text, 'PASS-WITH-FIXES', none);
+    expect(r.reasons).toEqual([]);
+    expect(r.rounds).toHaveLength(1);
+    // Without the marker, the same report is one run of three passes, and refused.
+    expect(checkFixRounds(text.replace('## Run ended — 2026-10-01', ''), 'PASS-WITH-FIXES', none).ok).toBe(false);
+  });
+});

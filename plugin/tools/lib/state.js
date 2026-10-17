@@ -754,6 +754,16 @@ export async function completePhase(baseDir, phase) {
         // Relocate-never-delete: the live list is cleared only after the
         // archive write resolves, and only for exactly what was archived.
         if (archived === run.length) {
+          // The run's REVIEW report is one file for every linear run, appended
+          // and never rewritten: mark where this run ends, so the next run's
+          // checkFixRounds reads only its own passes (M6.E17 REVIEW P3-I5).
+          // Imported here: resume.js imports this module.
+          const { artifactName } = await import('./resume.js');
+          const report = join(baseDir, '.planning', artifactName('REVIEW', { currentEpic: null }));
+          if (existsSync(report)) {
+            const text = await readFile(report, 'utf-8');
+            await atomicWrite(report, `${text}${text.endsWith('\n') ? '' : '\n'}\n## Run ended — ${today}\n`);
+          }
           const payload = stripStateMeta(after);
           payload.completed_phases = [];
           // The run's pass records end with the run, as an Epic roll ends

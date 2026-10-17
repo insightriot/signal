@@ -41,6 +41,15 @@
  * rounds. Neither check on the report's structure refuses FAIL, since a FAIL
  * is what they ask for. And after a recorded FAIL, the rounds must be in THIS pass: a
  * round from an earlier pass does not read the loop-back fixes.
+ *
+ * TIGHTENED AT M6.E17 REVIEW PASS 3. The section count always applies: a report
+ * with no `## Pass N` heading, or headings in another shape, no longer turns it
+ * off (P3-I3), and a round above the first heading belongs to no pass. A
+ * PASS-WITH-FIXES needs a round in its own pass, not anywhere in the report
+ * (P3-I4). And a linear project keeps one report for every run: a linear SHIP
+ * appends `## Run ended — <date>` (state.js), and only what follows the last
+ * such line is this run (P3-I5). Typing that line by hand would hide earlier
+ * passes from the check; like any line of the report, it is trusted as written.
  */
 
 import { DEFAULT_LOOP_CEILING, PASS_ENTRY_RE, PASS_VERDICTS } from './loop-ceiling.js';
@@ -58,6 +67,8 @@ const FENCE_RE = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$/gm;
 // A pass section's heading is "## Pass N" alone or "## Pass N — <date>, at <sha>":
 // a heading such as "## Pass 1's suggestions" is a section about a pass, not one.
 const PASS_HEADING_RE = /^## Pass (\d+)(?:[ \t]+[—–-][ \t].*)?[ \t]*$/gm;
+// Appended by a linear SHIP (state.js): everything above it is an earlier run.
+const RUN_ENDED_RE = /^## Run ended\b.*$/gm;
 
 /** Blank out fenced blocks, keeping every offset, so a quoted template is not read as a round. */
 const unfence = (content) => content.replace(FENCE_RE, (m) => m.replace(/[^\n]/g, ' '));
@@ -89,13 +100,18 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
   const gaps = [];
   const rounds = [];
 
-  const text = unfence(String(content ?? ''));
+  const whole = unfence(String(content ?? ''));
+  const runEnded = [...whole.matchAll(RUN_ENDED_RE)].pop();
+  const text = runEnded ? whole.slice(runEnded.index + runEnded[0].length) : whole;
   const passes = [...text.matchAll(PASS_HEADING_RE)].map((m) => ({ n: m[1], at: m.index }));
   const perPass = new Map();
   for (const { n, at, body } of sections(text)) {
     const pass = passes.filter((p) => p.at < at).pop();
     perPass.set(pass, (perPass.get(pass) ?? 0) + 1);
     const label = `Fix round ${n}`;
+    if (!pass && passes.length > 0 && verdict !== 'FAIL') {
+      reasons.push(`${label} is above the first "## Pass" heading, so it belongs to no pass (review.md § 5).`);
+    }
     const round = { n, range: null, critical: null, important: null, stop: null, parentRun: null };
 
     const freshLine = body.match(FRESH_LINE_RE)?.[0];
@@ -141,6 +157,8 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
       );
     }
   }
+  // The rounds of the pass being declared: its own section's, or all of them when the report has no section.
+  const current = passes.length > 0 ? perPass.get(passes[passes.length - 1]) ?? 0 : rounds.length;
   const entries = Array.isArray(phasePasses) ? phasePasses : null;
   const parsed = entries?.map((e) => (typeof e === 'string' ? PASS_ENTRY_RE.exec(e) : null));
   const readable = parsed && parsed.every(Boolean);
@@ -151,7 +169,7 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
   } else if (readable) {
     const review = parsed.filter((m) => m[1] === 'REVIEW');
     // Like the per-pass bound, never held against FAIL: the Loop Back asks a person.
-    if (verdict !== 'FAIL' && passes.length > 0 && passes.length !== review.length + 1) {
+    if (verdict !== 'FAIL' && passes.length !== review.length + 1) {
       reasons.push(
         `the report has ${passes.length} "## Pass N" section(s) and STATE records ${review.length} REVIEW pass(es): this is pass ${review.length + 1}, one section per pass, appended (review.md § 5).`
       );
@@ -163,15 +181,14 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
         `${fails} REVIEW FAIL pass(es) recorded and ${rounds.length} fix round(s) in the report — the fixes after each FAIL are a round, read fresh${own ? ', and a PASS-WITH-FIXES needs one more for its own fixes' : ''} (review.md § 4.6).`
       );
     }
-    const current = passes.length > 0 ? perPass.get(passes[passes.length - 1]) ?? 0 : rounds.length;
     if (verdict !== 'FAIL' && review.at(-1)?.[2] === 'FAIL' && current < 1 + own) {
       reasons.push(
         `the last recorded REVIEW pass is a FAIL and this pass has ${current} fix round(s): the loop-back fixes are a round of this pass, read fresh${own ? ', plus one for its own fixes' : ''} (review.md § 4.6).`
       );
     }
   }
-  if (verdict === 'PASS-WITH-FIXES' && rounds.length === 0) {
-    reasons.push('PASS-WITH-FIXES with no fix round — fixes made in REVIEW are recorded as rounds, each read fresh.');
+  if (verdict === 'PASS-WITH-FIXES' && current === 0) {
+    reasons.push('PASS-WITH-FIXES with no fix round in this pass — fixes made in REVIEW are recorded as rounds of the pass, each read fresh.');
   }
   if (verdict !== 'FAIL' && rounds.length > 0 && rounds[rounds.length - 1].stop === false) {
     reasons.push(
