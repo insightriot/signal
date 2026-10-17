@@ -46,8 +46,18 @@ const childEnv = () => Object.fromEntries(Object.entries(process.env).filter(([k
 let dir;
 let base;
 let oldBase;
+let fixSha;
+// REVIEW pass 3, P3-I9: the tool keeps its runs in a per-user folder under the
+// temp folder, shared by every run on the machine. This file plants and sweeps
+// runs there, so it gets a temp folder of its own: no run of another session or
+// suite can sweep this file's runs, nor this file another's.
+let savedTmp;
+let ownTmp;
 
 beforeAll(() => {
+  savedTmp = process.env.TMPDIR;
+  ownTmp = realpathSync(mkdtempSync(join(tmpdir(), 'sig-parent-run-tmp-')));
+  process.env.TMPDIR = ownTmp;
   dir = realpathSync(mkdtempSync(join(tmpdir(), 'sig-parent-run-test-')));
   git(dir, ['init', '-q', '-b', 'main']);
   // Base commit: `add` has the bug; `fresh.js` does not exist yet.
@@ -62,8 +72,15 @@ beforeAll(() => {
   put(dir, 'src/fresh.js', 'export const fresh = () => 1;\n');
   git(dir, ['add', '-A']);
   git(dir, ['commit', '-q', '-m', 'fix']);
+  fixSha = git(dir, ['rev-parse', 'HEAD']);
   // A test file that exists on a later base, then gains a real and a hollow test.
   put(dir, 'tests/old.test.js', "import { it, expect } from 'vitest';\nit('old stays', () => { expect(1).toBe(1); });\n");
+  // REVIEW pass 3, P3-I6: old tests whose titles the base's source does not spell out.
+  const IDS_OLD =
+    "const NAME = 'named by a constant';\nit(NAME, () => { expect(1).toBe(1); });\n" +
+    "describe('group', () => { for (const n of [1, 2]) it('case ' + n, () => { expect(n).toBeGreaterThan(0); }); });\n" +
+    "it.each([{ name: 'alpha' }])('each $name', () => { expect(1).toBe(1); });\n";
+  put(dir, 'tests/ids.test.js', "import { it, expect, describe } from 'vitest';\n" + IDS_OLD);
   git(dir, ['add', '-A']);
   git(dir, ['commit', '-q', '-m', 'an old test']);
   oldBase = git(dir, ['rev-parse', 'HEAD']);
@@ -77,6 +94,9 @@ beforeAll(() => {
     "it('new hollow', () => { expect(typeof add).toBe('function'); });\n" +
     // REVIEW pass 2, P2-I2(b): a hollow title that is a substring of an old one.
     "it('stays', () => { expect(typeof add).toBe('function'); });\n");
+  put(dir, 'tests/ids.test.js',
+    "import { it, expect, describe } from 'vitest';\nimport { add } from '../src/add.js';\n" + IDS_OLD +
+    "it('new real id', () => { expect(String(add)).toContain('+ 0'); });\n");
   symlinkSync(join(REPO_ROOT, 'node_modules'), join(dir, 'node_modules'), 'dir');
 
   // New tests, in the working tree only (absent on the base by definition).
@@ -96,11 +116,20 @@ beforeAll(() => {
     "import { it, expect } from 'vitest';\nimport { add } from '../src/add.js';\n" +
     "it('real', () => { expect(add(2, 3)).toBe(5); });\nit('hollow', () => { expect(typeof add).toBe('function'); });\n");
   // REVIEW pass 2, P2-I8: failures that name ENOENT but are the code's (or the
-  // assertion's), not a fixture left out of the copy.
-  put(dir, 'tests/enoent.test.js',
+  // assertion's), not a fixture left out of the copy. One test per file (REVIEW
+  // pass 3, P3-I1): a file is could-not-run only when EVERY failure in it is a
+  // missing file, so a second, ordinary failure would hide how the first is read.
+  put(dir, 'tests/enoent-code.test.js',
+    "import { it } from 'vitest';\nimport { readFileSync } from 'node:fs';\n" +
+    "it('reads its config', () => { readFileSync('/sig-parent-run-no-such-dir/config.json'); });\n");
+  put(dir, 'tests/enoent-assert.test.js',
+    "import { it, expect } from 'vitest';\nit('names the code', () => { expect('EACCES').toBe('ENOENT'); });\n");
+  // REVIEW pass 3, P3-I1: a fixture new in the change, read by a path relative to
+  // the working directory (vitest runs in the worktree), not by import.meta.url.
+  put(dir, 'tests/relfx.json', '{}\n');
+  put(dir, 'tests/reads-relative-fixture.test.js',
     "import { it, expect } from 'vitest';\nimport { readFileSync } from 'node:fs';\n" +
-    "it('reads its config', () => { readFileSync('/sig-parent-run-no-such-dir/config.json'); });\n" +
-    "it('names the code', () => { expect('EACCES').toBe('ENOENT'); });\n");
+    "it('reads the fixture', () => { expect(typeof JSON.parse(readFileSync('tests/relfx.json', 'utf-8'))).toBe('object'); });\n");
   put(dir, 'tests/slow.test.js',
     "import { it } from 'vitest';\nit('waits', async () => { await new Promise((r) => setTimeout(r, 30000)); }, 60000);\n");
   put(dir, 'tests/imports-new.test.js',
@@ -110,12 +139,17 @@ beforeAll(() => {
 
 afterAll(() => {
   if (dir) rmSync(dir, { recursive: true, force: true });
+  if (savedTmp === undefined) delete process.env.TMPDIR;
+  else process.env.TMPDIR = savedTmp;
+  if (ownTmp) rmSync(ownTmp, { recursive: true, force: true });
 });
 
 // This user's private folder for runs (REVIEW pass 2, P2-I1).
 const RUNS = () => join(realpathSync(tmpdir()), `sig-parent-runs-${process.getuid()}`);
 const runEntries = () => (existsSync(RUNS()) ? readdirSync(RUNS()).filter((n) => n.startsWith('run-')) : []);
-const startOf = (pid) => spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf-8' }).stdout.trim();
+// A start time as the tool records it: in the C locale and UTC (REVIEW pass 3, P3-I2).
+const PS_ENV = { ...process.env, LC_ALL: 'C', TZ: 'UTC' };
+const startOf = (pid) => spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf-8', env: PS_ENV }).stdout.trim();
 
 const worktreeCount = () => git(dir, ['worktree', 'list', '--porcelain']).split('\n').filter((l) => l.startsWith('worktree ')).length;
 
@@ -310,9 +344,9 @@ describe('REVIEW P2-I2/I3/I8 — a hollow test is never proof, and a real ENOENT
   });
 
   it('P2-I8: an ENOENT the code raised, or an assertion naming ENOENT, is a real failure', async () => {
-    const r = await runOnBase(dir, { base, tests: ['tests/enoent.test.js'] });
-    expect(r.results[0].outcome).toBe('failed');
-    expect(r.results[0].failed).toHaveLength(2);
+    const r = await runOnBase(dir, { base, tests: ['tests/enoent-code.test.js', 'tests/enoent-assert.test.js'] });
+    expect(r.results.map((x) => x.outcome)).toEqual(['failed', 'failed']);
+    expect(r.results[0].why).toMatch(/ENOENT.*sig-parent-run-no-such-dir/);
   }, SLOW);
 });
 
@@ -506,6 +540,109 @@ describe('REVIEW P2-I1 — the sweep trusts only what this tool made', () => {
       else process.env.TMPDIR = saved;
       rmSync(scratch, { recursive: true, force: true });
       rmSync(elsewhere, { recursive: true, force: true });
+    }
+  }, SLOW);
+});
+
+// REVIEW pass 3 (M6.E17). P3-I1, P3-I2 and P3-I6 read the wrong answer on
+// 53be4537. P3-I7 and P3-I8 are tests that could not fail; each is shown red by
+// a deliberate break of the code it guards (recorded in M6.E17-PROGRESS.md).
+describe('REVIEW P3 — proof, the sweep, and which tests are old', () => {
+  const run = (args, env = childEnv()) => spawnSync(process.execPath, [TOOL, ...args], { cwd: dir, encoding: 'utf-8', env });
+  // A live process to stand for a run's owner; killed in each test's finally.
+  const sleeper = () => spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { detached: true, stdio: 'ignore' });
+  const kill = (p) => { try { process.kill(-p.pid, 'SIGKILL'); } catch { /* gone */ } };
+  const plantRun = (name, owner) => {
+    mkdirSync(RUNS(), { recursive: true, mode: 0o700 });
+    const folder = join(RUNS(), name);
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(join(folder, 'owner.pid'), owner);
+    return folder;
+  };
+  const waitStarted = async (p) => {
+    for (let i = 0; i < 50 && !startOf(p.pid); i++) await new Promise((r) => setTimeout(r, 20));
+  };
+
+  it('P3-I1: a fixture new in the change, read by a relative path → could-not-run, never proof', async () => {
+    const r = await runOnBase(dir, { base, tests: ['tests/reads-relative-fixture.test.js'] });
+    expect(r.results[0].outcome).toBe('could-not-run');
+    expect(r.results[0].reason).toMatch(/missing file or module.*relfx\.json/);
+  }, SLOW);
+
+  it('P3-I6: old tests named by a constant, a loop or it.each are old, not new tests that passed', async () => {
+    const r = await runOnBase(dir, { base: oldBase, tests: ['tests/ids.test.js'] });
+    expect(r.results[0].outcome).toBe('failed');
+    expect(r.results[0].failed).toEqual(['new real id']);
+    expect(r.results[0].passed).toEqual([]);
+    const cli = run(['--base', oldBase, 'tests/ids.test.js']);
+    expect(cli.stdout.split('\n')[0]).toBe(`parent-run ${oldBase.slice(0, 7)}: 1 of 1 failed on the base`);
+    expect(cli.status).toBe(0);
+  }, SLOW);
+
+  it('P3-I7: --of <commit> runs on that commit\'s parent', () => {
+    // real.test.js fails on `base` (the bug) and passes on `fixSha`: only the parent gives exit 0.
+    const r = run(['--of', fixSha, 'tests/real.test.js']);
+    expect(r.stdout.split('\n')[0]).toBe(`parent-run ${base.slice(0, 7)}: 1 of 1 failed on the base`);
+    expect(r.status).toBe(0);
+  }, SLOW);
+
+  it('P3-I8: a recorded child pid now held by another NODE process (a later start) is not killed', async () => {
+    const bystander = sleeper();
+    const dead = spawnSync(process.execPath, ['-e', 'process.pid'], { encoding: 'utf-8' }).pid;
+    const stale = plantRun('run-node-reused', `${dead}`);
+    try {
+      await waitStarted(bystander);
+      writeFileSync(join(stale, 'child.pid'), `${bystander.pid} Thu Jan  1 00:00:00 1970`);
+      await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
+      expect(() => process.kill(bystander.pid, 0), 'a node process that is not the recorded one lives').not.toThrow();
+      expect(existsSync(stale)).toBe(false);
+    } finally {
+      kill(bystander);
+      rmSync(stale, { recursive: true, force: true });
+    }
+  }, SLOW);
+
+  it('P3-I2: an owner recorded with no start time, still alive → its run is left alone', async () => {
+    const owner = sleeper();
+    const live = plantRun('run-live-no-start', `${owner.pid}`);
+    try {
+      await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
+      expect(existsSync(live), 'cannot tell is not dead').toBe(true);
+    } finally {
+      kill(owner);
+      rmSync(live, { recursive: true, force: true });
+    }
+  }, SLOW);
+
+  it('P3-I2: with no `ps` on the PATH, a live run is left alone', async () => {
+    const owner = sleeper();
+    await waitStarted(owner);
+    const live = plantRun('run-live-no-ps', `${owner.pid} ${startOf(owner.pid)}`);
+    const bin = realpathSync(mkdtempSync(join(tmpdir(), 'sig-parent-run-bin-')));
+    try {
+      symlinkSync(join(execFileSync('git', ['--exec-path'], { encoding: 'utf-8' }).trim(), 'git'), join(bin, 'git'));
+      symlinkSync(process.execPath, join(bin, 'node'));
+      const r = run(['--base', base, 'tests/real.test.js'], { ...childEnv(), PATH: bin });
+      expect(r.stdout).toMatch(/1 of 1 failed on the base/);
+      expect(existsSync(live), 'a run whose owner cannot be checked is not swept').toBe(true);
+    } finally {
+      kill(owner);
+      rmSync(live, { recursive: true, force: true });
+      rmSync(bin, { recursive: true, force: true });
+    }
+  }, SLOW);
+
+  it('P3-I2: a run started under another time zone or locale is still recognised as live', async () => {
+    const owner = sleeper();
+    await waitStarted(owner);
+    const live = plantRun('run-live-other-tz', `${owner.pid} ${startOf(owner.pid)}`);
+    try {
+      const r = run(['--base', base, 'tests/real.test.js'], { ...childEnv(), TZ: 'Asia/Tokyo', LC_ALL: 'fr_FR.UTF-8' });
+      expect(r.stdout).toMatch(/1 of 1 failed on the base/);
+      expect(existsSync(live)).toBe(true);
+    } finally {
+      kill(owner);
+      rmSync(live, { recursive: true, force: true });
     }
   }, SLOW);
 });

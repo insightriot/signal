@@ -146,14 +146,20 @@ function checkTestPath(baseDir, file) {
  * @param {string} fallback — what to say when there is no report
  * @param {string|null} [baseText] — the file as it is on the base, or null when it is new
  */
-export function classifyReport(report, absFile, fallback, baseText = null, { worktrees = [], project = null } = {}) {
+export function classifyReport(report, absFile, fallback, baseText = null, { worktrees = [], project = null, baseNames = null } = {}) {
   if (!report || !Array.isArray(report.testResults)) {
     return { outcome: 'could-not-run', reason: fallback || 'vitest wrote no report' };
   }
   const entry = report.testResults.find((r) => typeof r?.name === 'string' && resolve(r.name) === absFile);
   if (!entry) return { outcome: 'could-not-run', reason: 'vitest reported no result for this file' };
   const assertions = Array.isArray(entry.assertionResults) ? entry.assertionResults : [];
+  // A test is old when the base's copy of the file has it. vitest's own list of the
+  // base file names it exactly, describe blocks and all (P3-I6); without that list,
+  // the titles the base's source spells out.
   const isBaseTitle = baseTitles(baseText);
+  const isOld = baseNames
+    ? (a) => baseNames.has([...(Array.isArray(a.ancestorTitles) ? a.ancestorTitles : []), a.title].join(' > '))
+    : (a) => isBaseTitle(a.title);
   const name = (a) => a.fullName || a.title || '(unnamed)';
   const failing = assertions.filter((a) => a?.status === 'failed');
   if (failing.length > 0) {
@@ -162,10 +168,14 @@ export function classifyReport(report, absFile, fallback, baseText = null, { wor
     // A missing file counts as "not copied" only when it is a path in the worktree
     // that exists in the project: a fixture new in the change. Any other ENOENT is
     // what the code under test did, which is the failure being proved (P2-I8).
+    // vitest runs in the worktree, so a relative path is a path in it (P3-I1).
     const notCopied = (w) => {
       const path = ENOENT_RE.exec(w)?.[1];
-      const wt = path && worktrees.find((t) => path.startsWith(t + sep));
-      return Boolean(wt && project && existsSync(join(project, path.slice(wt.length + 1))));
+      if (!path || !project) return false;
+      const wt = isAbsolute(path) ? worktrees.find((t) => path.startsWith(t + sep)) : null;
+      const rel = isAbsolute(path) ? (wt ? path.slice(wt.length + 1) : null) : normalize(path);
+      if (rel === null || isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`)) return false;
+      return existsSync(join(project, rel));
     };
     const missing = (w) => MISSING_MODULE_RE.test(w) || notCopied(w);
     if (why.every(missing)) {
@@ -176,12 +186,11 @@ export function classifyReport(report, absFile, fallback, baseText = null, { wor
       failed: failing.map(name),
       total: assertions.length,
       // Only tests new since the base: an old test passing there is expected.
-      // A test is old when the base's copy of the file defines its title (P2-I2: a
-      // substring search hid a new test titled "stays" behind "old stays"). Exact for
-      // quoted titles; a template title can still hide a new test that fits it.
-      // A renamed old test reads as new, which is the safe direction.
+      // A renamed old test reads as new, which is the safe direction. Without
+      // vitest's list (the base file did not collect), a template title in the
+      // base's source can still hide a new test that fits it (P2-I2).
       passed: assertions
-        .filter((a) => a?.status === 'passed' && !isBaseTitle(a.title))
+        .filter((a) => a?.status === 'passed' && !isOld(a))
         .map(name),
       why: why.find((w) => !missing(w)) || '',
     };
@@ -222,10 +231,39 @@ function childEnv() {
   return Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('VITEST')));
 }
 
-/** When `pid` started, as `ps` prints it; '' when there is no such process. */
+/**
+ * `ps` in one locale and time zone, so a start time recorded by one run reads the
+ * same in another run started from a different shell (P3-I2).
+ */
+const psEnv = () => ({ ...process.env, LC_ALL: 'C', TZ: 'UTC' });
+
+/** When `pid` started, as `ps` prints it; '' when there is no such process, or no `ps`. */
 function startedAt(pid) {
-  const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf-8' });
+  const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf-8', env: psEnv() });
   return r.status === 0 && typeof r.stdout === 'string' ? r.stdout.trim() : '';
+}
+
+/** Is there a process with this pid at all? EPERM means there is, and not ours. */
+function pidExists(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err.code === 'EPERM';
+  }
+}
+
+/**
+ * Is a run's owner, recorded as "<pid> <start time>", still running? When a start
+ * time cannot be read (no `ps`, or none recorded), only the pid can be checked,
+ * and a live pid keeps the run: cannot tell is not dead (P3-I2). The cost is a
+ * folder kept after a killed run whose pid was reused, never a live run deleted.
+ */
+function ownerAlive(pid, recorded) {
+  const at = startedAt(pid);
+  const recordedAt = recorded.slice(String(pid).length).trim();
+  if (at === '' || recordedAt === '') return pidExists(pid);
+  return recorded === `${pid} ${at}`;
 }
 
 /**
@@ -240,7 +278,7 @@ function isSameProcess(pid, recorded) {
 
 /** Is `pid` a node process? vitest retitles itself, but its command name stays node. */
 function isNode(pid) {
-  const r = spawnSync('ps', ['-o', 'comm=', '-p', String(pid)], { encoding: 'utf-8' });
+  const r = spawnSync('ps', ['-o', 'comm=', '-p', String(pid)], { encoding: 'utf-8', env: psEnv() });
   return r.status === 0 && /(^|\/)node(\.exe)?$/.test(String(r.stdout).trim());
 }
 
@@ -286,7 +324,7 @@ function sweepStale(root, runs) {
       continue; // not ours to judge: no owner recorded
     }
     const pid = Number(owner.split(' ')[0]);
-    if (!Number.isInteger(pid) || pid <= 0 || isSameProcess(pid, owner)) continue;
+    if (!Number.isInteger(pid) || pid <= 0 || ownerAlive(pid, owner)) continue;
     // Its vitest outlives a SIGKILL and would write into the folder after it
     // is removed, so end that process group first.
     // Only if that pid is still the vitest this folder started: a pid left for
@@ -306,7 +344,11 @@ function sweepStale(root, runs) {
         // already gone
       }
     }
-    rmSync(temp, { recursive: true, force: true }); // removes a link, never what it points at
+    try {
+      rmSync(temp, { recursive: true, force: true }); // removes a link, never what it points at
+    } catch {
+      // another run is sweeping it too; what is left is swept next time
+    }
   }
   try {
     git(root, ['worktree', 'prune']);
@@ -465,12 +507,14 @@ export async function runOnBase(baseDir, { base, tests }, hooks = {}) {
     }
     if (!existsSync(link)) symlinkSync(join(root, 'node_modules'), link, 'dir');
     const realWt = realpathSync(wt);
-    for (const r of runnable) {
+    for (const [i, r] of runnable.entries()) {
       const dest = join(wt, normalize(r.file));
       if (!insideWorktree(realWt, dest)) {
         Object.assign(r, { outcome: 'could-not-run', reason: `${r.file}: a symlink on the base commit leads outside the worktree; not copied` });
         continue;
       }
+      // Before the copy replaces it: which tests the base's file has, as vitest names them (P3-I6).
+      if (lstatSync(dest, { throwIfNoEntry: false })?.isFile()) r.baseNames = await listTests(vitestEntry, wt, dest, temp, i, track);
       mkdirSync(dirname(dest), { recursive: true });
       copyFileSync(join(root, normalize(r.file)), dest);
     }
@@ -502,15 +546,37 @@ export async function runOnBase(baseDir, { base, tests }, hooks = {}) {
       } catch {
         baseText = null; // the file is new since the base
       }
+      const { baseNames } = r;
+      delete r.baseNames;
       Object.assign(
         r,
-        classifyReport(report, join(wt, normalize(r.file)), fallback, baseText, { worktrees: [realWt, wt], project: root })
+        classifyReport(report, join(wt, normalize(r.file)), fallback, baseText, { worktrees: [realWt, wt], project: root, baseNames })
       );
     }
     return { base: sha, depsDiffer, results };
   } finally {
     for (const sig of SIGNALS) process.removeListener(sig, onSignal);
     cleanup();
+  }
+}
+
+/**
+ * The full names (`describe > title`) of the tests in one base file, from
+ * `vitest list`; null when vitest listed none for it (the file did not collect),
+ * and the caller falls back to the titles its source spells out.
+ */
+async function listTests(vitestEntry, wt, dest, temp, i, track) {
+  const out = join(temp, `list-${i}.json`);
+  const rel = relative(wt, dest).split(sep).join('/');
+  // `--json=<path>`, joined: given apart, the next argument is taken as the path and overwritten.
+  await runChild([vitestEntry, 'list', rel, '--root', wt, `--json=${out}`], { cwd: wt, env: childEnv() }, track,
+    join(temp, CHILD_FILE), join(temp, `list-stderr-${i}.log`));
+  try {
+    const listed = JSON.parse(readFileSync(out, 'utf-8'));
+    const names = listed.filter((e) => typeof e?.file === 'string' && resolve(e.file) === dest && typeof e.name === 'string').map((e) => e.name);
+    return names.length > 0 ? new Set(names) : null;
+  } catch {
+    return null;
   }
 }
 
