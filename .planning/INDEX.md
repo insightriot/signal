@@ -524,6 +524,7 @@
 - [work/items/00/SIG-328.md](work/items/00/SIG-328.md) — `other` — _(note pending)_
 - [work/items/00/SIG-329.md](work/items/00/SIG-329.md) — `other` — _(note pending)_
 - [work/items/00/SIG-33.md](work/items/00/SIG-33.md) — `other` — _(note pending)_
+- [work/items/00/SIG-330.md](work/items/00/SIG-330.md) — `other` — _(note pending)_
 - [work/items/00/SIG-34.md](work/items/00/SIG-34.md) — `other` — _(note pending)_
 - [work/items/00/SIG-35.md](work/items/00/SIG-35.md) — `other` — _(note pending)_
 - [work/items/00/SIG-36.md](work/items/00/SIG-36.md) — `other` — _(note pending)_
