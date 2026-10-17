@@ -236,6 +236,11 @@ describe('REVIEW P2-I4/I5/I6 — pass sections are tied to the record', () => {
     expect(r.reasons.join(' ')).toMatch(/2 "## Pass N" section\(s\).*0 REVIEW pass/);
   });
 
+  it('P2-I4: a heading about a pass ("## Pass 1\'s notes") is not a pass section', () => {
+    const report2 = passes([round(1)], [round(2)]).replace('## Pass 2', "## Pass 1's notes\n\ntriage\n\n## Pass 2 — 2026-10-17, at `abc1234`");
+    expect(checkFixRounds(report2, 'PASS', oneFail).ok).toBe(true);
+  });
+
   it('P2-I4: a pass written under the previous pass\'s heading is refused too', () => {
     const r = checkFixRounds(passes([round(1)]), 'PASS', oneFail);
     expect(r.ok).toBe(false);

@@ -55,7 +55,9 @@ const FRESH_LINE_RE = /^\*\*Fresh read:\*\*.*$/m;
 const PARENT_LINE_RE = /^\*\*Parent run:\*\*\s*(.*)$/m;
 const GAP_RE = /^gap\b\s*[—–:-]\s*\S/i;
 const FENCE_RE = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$/gm;
-const PASS_HEADING_RE = /^## Pass (\d+)\b/gm;
+// A pass section's heading is "## Pass N" alone or "## Pass N — <date>, at <sha>":
+// a heading such as "## Pass 1's suggestions" is a section about a pass, not one.
+const PASS_HEADING_RE = /^## Pass (\d+)(?:[ \t]+[—–-][ \t].*)?[ \t]*$/gm;
 
 /** Blank out fenced blocks, keeping every offset, so a quoted template is not read as a round. */
 const unfence = (content) => content.replace(FENCE_RE, (m) => m.replace(/[^\n]/g, ' '));
