@@ -300,6 +300,11 @@ describe('REVIEW I3 — a killed run leaves nothing behind', () => {
     }
     return false;
   };
+  // Running = the worktree is registered AND vitest has started (child.pid written). Waiting for
+  // the worktree alone races `git worktree add`: killed mid-add, git removes it itself.
+  const running = (before) => () =>
+    worktreeCount() === 2 &&
+    temps().some((n) => !before.includes(n) && existsSync(join(realpathSync(tmpdir()), n, 'child.pid')));
   const start = () => {
     const child = spawn(process.execPath, [TOOL, '--base', base, 'tests/slow.test.js'], { cwd: dir, env: childEnv(), stdio: 'ignore' });
     const exited = new Promise((r) => child.on('exit', (code, signal) => r({ code, signal })));
@@ -309,7 +314,7 @@ describe('REVIEW I3 — a killed run leaves nothing behind', () => {
   it('SIGTERM mid-run: the worktree and the temp folder are removed before it exits', async () => {
     const before = temps();
     const { child, exited } = start();
-    expect(await waitFor(() => worktreeCount() === 2)).toBe(true);
+    expect(await waitFor(running(before))).toBe(true);
     child.kill('SIGTERM');
     await exited;
     expect(worktreeCount()).toBe(1);
@@ -319,7 +324,7 @@ describe('REVIEW I3 — a killed run leaves nothing behind', () => {
   it('SIGKILL cannot be caught; the next run sweeps what it left', async () => {
     const before = temps();
     const { child, exited } = start();
-    expect(await waitFor(() => worktreeCount() === 2)).toBe(true);
+    expect(await waitFor(running(before))).toBe(true);
     child.kill('SIGKILL');
     await exited;
     expect(worktreeCount()).toBe(2);
