@@ -207,5 +207,6 @@
 | SIG-321 | `confirmed` | P3 | **The closed-proof audit drops ambiguous-proof, proof-names-a-ref, shallow and git-failed without a word** |
 | SIG-326 | `confirmed` | P2 | **sweep-store-on test drifts with the calendar (runSweep reads the real clock)** |
 | SIG-330 | `confirmed` | P3 | **parent-run.js still exits 0 silently when its main-module check fails** |
+| SIG-336 | `confirmed` | P3 | **review-rounds.js: parsing edges (empty Parent run line, placeholders, fences, duplicates)** |
 
-*0 needs-triage · 75 confirmed · 0 closing · 129 closed (204 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 76 confirmed · 0 closing · 129 closed (205 total) · closes more than 30 days before the newest event are in `work/history/`*

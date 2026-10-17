@@ -1,0 +1,21 @@
+{
+  "id": "SIG-337",
+  "type": "CHORE",
+  "title": "recordPass / phase_passes: check the phase matches STATE, and the date on read",
+  "theme": "state",
+  "priority": "P3",
+  "source": "M6.E17 REVIEW pass 2",
+  "source_ref": "M6.E17-REVIEW P2-S7 nits",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-17T13:40:36.245Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-17T13:40:36.245Z",
+      "by": "Claude"
+    }
+  ]
+}

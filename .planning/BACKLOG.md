@@ -2470,3 +2470,97 @@ Split out of SIG-326 so it is not buried when SIG-326 closes. SIG-326 fixed one 
 **Status:** triaged (T)
 
 M6.E17 S3 put wall-clock tests in their own serial run (`npm run test:perf`) and grandfathered 16 existing timing budgets in `tests/timing-budget-guard.test.js`. Two of those entries are marked "candidate to move to the perf run" because they are scale budgets, not backtracking guards: `tests/advise-review-fixes.test.js` (4,000 backlog rows in under 500 ms) and `tests/work-migrate-lists-apply.test.js` (400-row dry-run migration in under 5 s). Under load they can fail the same way SIG-303 did. Move each case to its own `*-perf.test.js`, add it to `PERF_TESTS` in `vitest.config.js`, and drop it from the grandfather list.
+
+### parent-run.js: harden against a hostile base commit or working tree · SIG-331
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md (pass 1 S8, S9, S10; pass 2 P2-S6, P2-S10, P2-S11 and nits). Not fixed in the pass 3 loop, which is kept to the nine Important issues.
+
+- A test path starting with `-` reaches vitest as an option (`--config=evil.js`). Reject a leading `-` in any segment in `checkTestPath`, and pass files after `--` or as `./<rel>`. Demonstrated by the security auditor.
+- `git worktree add` runs the working tree's `post-checkout` hook (husky). Pass `-c core.hooksPath=/dev/null`. Demonstrated.
+- The child vitest inherits `GIT_DIR` and the other variables `gitEnv` strips, and every secret (`TYPESAFE_API_KEY`, `GH_TOKEN`). Strip `REDIRECTS` in `childEnv`, and known token names.
+- The worktree isolates nothing: the base's config and setup files run with full rights, `node_modules` is a link to the main checkout, a linked worktree shares `.git/config` and hooks. Document it, or isolate further.
+- A copy error (dangling symlink on the base, EISDIR, ENOTDIR) aborts the whole run; make it that file's `could-not-run`.
+- A dangling `node_modules` link on the base throws instead of `could-not-run`.
+- vitest takes a file argument as a substring filter: a root file named `t` runs the whole base suite per file.
+
+### parent-run.js: vitest-only, PERF_TESTS files never provable, no green HEAD run · SIG-332
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md (pass 1 S5 and nits; pass 2 P2-S5).
+
+- The tool is vitest-only; every non-vitest project's executor gets `could-not-run` forever. Say so in fixer-brief.md's `could-not-run` row.
+- A file in `PERF_TESTS` can never be proven: the child runs with `--root wt`, the base's config excludes it, vitest finds no files. Every future timing test is a gap. Pass `--config` for perf files, or state the limit.
+- Exit 1 covers both "hollow" and "could not run".
+- The tool never runs the test on HEAD; the brief does not ask for a green HEAD run beside it.
+
+### review.md / verify.md: say what happens when recordPass throws, and at SKETCH · SIG-333
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 1 S4. verify.md § 5a and review.md's "Record the pass" step say nothing about SKETCH tier or about `recordPass` throwing (lock contention, a damaged `phase_passes`). Mirror the `markFresh` failure paragraph (§ 5b).
+
+### AC3.3 EXECUTE half: nothing reads a PROGRESS entry's parent-run line · SIG-334
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 1 S7 and pass 2 (code-reviewer S-9). REVIEW has `checkFixRounds`; EXECUTE has prose only (execute.md step 6). Nothing reads the parent-run line in a PROGRESS entry, so a hollow or missing result passes. AC3.3 also says "slice's record"; execute.md puts it on each task. Recorded as a limit at VERIFY.
+
+### checkFixRounds: tie each round's range and parent-run base together, and say the base for round 2+ · SIG-335
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 1 S13 and pass 2 P2-S1.
+
+- A round's parent-run commit is not tied to its fresh-read range, and the range accepts any `x..y`.
+- review.md § 4.6 says the base is always "the HEAD at the pass that found the issues"; in round 2 a round's read found them, not a pass. Read literally, round 2's diff includes round 1's commits.
+- Nothing checks that round N+1's range starts where round N's ended.
+
+### recordPass / phase_passes: check the phase matches STATE, and the date on read · SIG-337
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 2 P2-S7 and nits.
+
+- `recordPass(…, 'REVIEW', …)` while STATE says `phase: VERIFY` is accepted and raises REVIEW's count.
+- The date in a pass record is checked only when written; a hand-edited `REVIEW FAIL (yesterday)` is counted on read (`loop-ceiling.js:74`). `recordPass`'s default date is checked for format only.
+
+### Timing-budget guard: reach, the branch-commit pin, and no allowed fix for a false match · SIG-338
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 2 P2-S8, P2-S9 and a pass 1 nit.
+
+- `BOUND_RE` misses `not.toBeGreaterThan`, `assert(ms < n)`, `toBeTruthy()`. A reused timer read adds a budget without raising the per-file count.
+- A false match (`new Date()` for a fixture plus an unrelated `toBeLessThan`) has no allowed fix: the grandfather list cannot grow and `PERF_TESTS` is pinned.
+- `GRANDFATHER_PIN = '9477ffa7'` is a branch commit, reachable on main only through a merge commit; its comment dates the reasons, not the baseline.
+- The perf test ran at 1761 ms against its 2000 ms budget, run alone.
+
+### M6.E17 test gaps: rules that survive their own deletion · SIG-339
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 1 S15 and nits, pass 2 P2-S12. Each was shown by mutation (the rule deleted, the suite stays green):
+
+- a bare `gap` parent-run line refused (`GAP_RE`);
+- a round's section ending at the next heading (`body: rest`);
+- `checkTestPath`'s refusal of a path outside the project (the fixture file does not exist, so another check fires first);
+- `childEnv`'s `VITEST*` filter;
+- `0 of 0` as a gap;
+- three cleanup paths: `git worktree add` failing, vitest missing, the per-file timeout;
+- AC3.3's execute.md assertion `/PROGRESS/` already matched before the Epic: anchor on step 6;
+- AC1.4 tested on objects only, never through `readState` from disk;
+- the command-line tests' `spawnSync` has no timeout.
+
+### M6.E17 code nits: undefined finding IDs in comments, stale @returns, template H1 · SIG-340
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 2 nits.
+
+- Comments in parent-run.js and review-rounds.js, and test titles, cite `REVIEW I1`–`I9` and `S2`, defined only in the REVIEW report.
+- `runOnBase`'s `@returns` omits `total`, `passed`, `why`.
+- A second `node:fs` import in tests/parent-run.test.js.
+- review.md's template shows the H1 above `## Pass {n}`; whether it repeats, and whether round numbers run per pass or across the report, is unstated.
