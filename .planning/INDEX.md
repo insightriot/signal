@@ -526,7 +526,17 @@
 - [work/items/00/SIG-329.md](work/items/00/SIG-329.md) — `other` — _(note pending)_
 - [work/items/00/SIG-33.md](work/items/00/SIG-33.md) — `other` — _(note pending)_
 - [work/items/00/SIG-330.md](work/items/00/SIG-330.md) — `other` — _(note pending)_
+- [work/items/00/SIG-331.md](work/items/00/SIG-331.md) — `other` — _(note pending)_
+- [work/items/00/SIG-332.md](work/items/00/SIG-332.md) — `other` — _(note pending)_
+- [work/items/00/SIG-333.md](work/items/00/SIG-333.md) — `other` — _(note pending)_
+- [work/items/00/SIG-334.md](work/items/00/SIG-334.md) — `other` — _(note pending)_
+- [work/items/00/SIG-335.md](work/items/00/SIG-335.md) — `other` — _(note pending)_
+- [work/items/00/SIG-336.md](work/items/00/SIG-336.md) — `other` — _(note pending)_
+- [work/items/00/SIG-337.md](work/items/00/SIG-337.md) — `other` — _(note pending)_
+- [work/items/00/SIG-338.md](work/items/00/SIG-338.md) — `other` — _(note pending)_
+- [work/items/00/SIG-339.md](work/items/00/SIG-339.md) — `other` — _(note pending)_
 - [work/items/00/SIG-34.md](work/items/00/SIG-34.md) — `other` — _(note pending)_
+- [work/items/00/SIG-340.md](work/items/00/SIG-340.md) — `other` — _(note pending)_
 - [work/items/00/SIG-35.md](work/items/00/SIG-35.md) — `other` — _(note pending)_
 - [work/items/00/SIG-36.md](work/items/00/SIG-36.md) — `other` — _(note pending)_
 - [work/items/00/SIG-37.md](work/items/00/SIG-37.md) — `other` — _(note pending)_
