@@ -117,8 +117,8 @@ beforeAll(() => {
     "it('real', () => { expect(add(2, 3)).toBe(5); });\nit('hollow', () => { expect(typeof add).toBe('function'); });\n");
   // REVIEW pass 2, P2-I8: failures that name ENOENT but are the code's (or the
   // assertion's), not a fixture left out of the copy. One test per file (REVIEW
-  // pass 3, P3-I1): a file is could-not-run only when EVERY failure in it is a
-  // missing file, so a second, ordinary failure would hide how the first is read.
+  // pass 3, P3-I1), so each file's outcome shows how its one failure is read; a
+  // missing file beside a real failure is mixed-fixture.test.js (P4-I2).
   put(dir, 'tests/enoent-code.test.js',
     "import { it } from 'vitest';\nimport { readFileSync } from 'node:fs';\n" +
     "it('reads its config', () => { readFileSync('/sig-parent-run-no-such-dir/config.json'); });\n");

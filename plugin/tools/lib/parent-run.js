@@ -369,8 +369,9 @@ function sweepStale(root, runs) {
  * `git worktree prune` acts on every worktree of the project whose folder is
  * missing, the user's own included (an unmounted drive, a moved folder), and
  * there is no way to prune one entry. So prune only when every prunable entry
- * is a run of this tool; otherwise leave this tool's entry for a later run
- * (REVIEW pass 4, P4-I3).
+ * is a run of this tool. Otherwise this tool's entry stays registered until no
+ * other worktree of the project is missing: only on the failure path, since
+ * `remove --force` on a folder still there unregisters it (REVIEW pass 4, P4-I3).
  */
 function pruneOwn(root, runs) {
   try {
