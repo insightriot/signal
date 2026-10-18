@@ -164,6 +164,13 @@ describe('P4-I1 — a missing run boundary is reported and has a way out', () =>
     const step5 = flat.slice(flat.search(/### 5\. Write Review Report/));
     expect(step5).toMatch(/Never write that line by hand[^.]*markRunEnded/);
   });
+  // REVIEW pass 5, P5-I1: the recovery must work after the next run has begun.
+  it('both files say a re-invoked SHIP writes the line, and review.md names keep for a run already begun', () => {
+    const s5 = ship.slice(ship.search(/### 5\. Update State/));
+    expect(s5).toMatch(/re-invoked `\/sig:ship` writes it/);
+    const step5 = flat.slice(flat.search(/### 5\. Write Review Report/));
+    expect(step5).toMatch(/markRunEnded\(baseDir, \{ keep \}\)/);
+  });
   it('review.md § 4.6 says a pass heading with no verdict recorded is continued, not appended again', () => {
     const s46 = flat.slice(flat.search(/### 4\.6 Fix rounds/), flat.search(/### 5\. Write Review Report/));
     expect(s46).toMatch(/no verdict recorded[^.]*continue under it/i);

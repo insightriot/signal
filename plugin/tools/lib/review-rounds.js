@@ -73,6 +73,14 @@ const RUN_ENDED_RE = /^## Run ended\b.*$/gm;
 /** Blank out fenced blocks, keeping every offset, so a quoted template is not read as a round. */
 const unfence = (content) => content.replace(FENCE_RE, (m) => m.replace(/[^\n]/g, ' '));
 
+/** The `## Pass N` headings after the last `## Run ended` line — this run's — with offsets into `content`. */
+export function currentRunPasses(content) {
+  const whole = unfence(String(content ?? ''));
+  const runEnded = [...whole.matchAll(RUN_ENDED_RE)].pop();
+  const start = runEnded ? runEnded.index + runEnded[0].length : 0;
+  return [...whole.slice(start).matchAll(PASS_HEADING_RE)].map((m) => ({ n: m[1], at: start + m.index }));
+}
+
 /** The body of each `Fix round N` section, up to the next heading of the same or a higher level. */
 function sections(content) {
   return [...content.matchAll(ROUND_HEADING_RE)].map((m) => {
@@ -171,7 +179,10 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
     // Like the per-pass bound, never held against FAIL: the Loop Back asks a person.
     if (verdict !== 'FAIL' && passes.length !== review.length + 1) {
       reasons.push(
-        `the report has ${passes.length} "## Pass N" section(s) and STATE records ${review.length} REVIEW pass(es): this is pass ${review.length + 1}, one section per pass, appended (review.md § 5).`
+        `the report has ${passes.length} "## Pass N" section(s) and STATE records ${review.length} REVIEW pass(es): this is pass ${review.length + 1}, one section per pass, appended (review.md § 5).` +
+          (passes.length > review.length + 1
+            ? ` If the extra sections are an earlier run's, its "## Run ended" line is missing: call markRunEnded(baseDir, { keep: ${review.length + 1} }) from tools/lib/state.js.`
+            : '')
       );
     }
     const fails = review.filter((m) => m[2] === 'FAIL').length;

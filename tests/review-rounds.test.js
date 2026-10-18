@@ -323,3 +323,13 @@ describe('REVIEW P4-I2 — a test that failed only on a missing file is a gap', 
     expect(r.gaps).toHaveLength(1);
   });
 });
+
+// REVIEW pass 5, P5-I1: when a run's "## Run ended" line is missing, the refusal
+// reported only a count. It now names the call that puts the line back.
+describe('REVIEW P5-I1 — more pass sections than the record names the missing run boundary', () => {
+  it('the refusal names markRunEnded with the sections this run keeps', () => {
+    const r = checkFixRounds(passes([round(1)], [round(2)]), 'PASS', none);
+    expect(r.ok).toBe(false);
+    expect(r.reasons.join(' ')).toMatch(/markRunEnded\(baseDir, \{ keep: 1 \}\)/);
+  });
+});
