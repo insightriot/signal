@@ -27,11 +27,11 @@ is not enough when the agent cannot read it.
 
 | Per file | Means | What you report |
 |---|---|---|
-| `failed` | At least one test in the file failed on the base, for a reason other than a missing module or an uncopied file. | Proof for the tests that failed. **Read the line:** it names the first failure, and every new test in the file that **passed on the base**. Those are hollow: the summary line counts them ("k new tests passed on the base"), the run exits 1, and the round lists them as a gap. Fix them or say why. |
+| `failed` | At least one test in the file failed on the base, for a reason other than a missing module or an uncopied file. | Proof for the tests that failed. **Read the line:** it names the first failure, and every new test in the file that **passed on the base**. Those are hollow: the summary line counts them ("k new tests passed on the base"), the run exits 1, and the round lists them as a gap. Fix them or say why. A test in the file that failed **only on a missing file or module** is not proof either: the line names it, the summary counts it ("k tests failed only on a missing file"), and the run exits 1. |
 | `passed` | The test passes on the base: it does not need your change. | **No proof.** The test is hollow, or it tests something else. Fix the test, or say why it cannot fail on the base. |
 | `could-not-run` | No result on the base: git failed, the test file is missing, it did not load (often an import of a module that is new in your change), every failure was a missing module, or a missing file that is in the project but new in your change (a fixture or helper: only the named tests are copied), a symlink on the base led outside the worktree, or the tool's run folder in the temp directory is a link or not yours. | **No proof, never reported as proof.** State the gap with the reason the tool gave. |
 
-The command exits 0 only when every file failed on the base and no new test passed there. Run it from the project root. If it is
+The command exits 0 only when every file failed on the base, no new test passed there, and no test failed there only on a missing file. Run it from the project root. If it is
 stopped (Ctrl-C, a timeout), it removes its worktree first; a run that was killed outright is cleared
 by the next run.
 

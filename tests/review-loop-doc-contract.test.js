@@ -147,3 +147,25 @@ describe('P3-I5 — the report format names the run boundary', () => {
     expect(step5).toMatch(/reads only what follows the last `## Run ended` line/);
   });
 });
+
+// REVIEW pass 4, P4-I1: a "## Run ended" line SHIP could not write was returned and
+// read by nothing, and the only way out was the line review.md forbids writing by
+// hand. SHIP now says so, and both files name the recovery. A pass whose heading
+// was written and whose session ended before its verdict has a recovery too.
+describe('P4-I1 — a missing run boundary is reported and has a way out', () => {
+  const ship = read('plugin/commands/ship.md').replace(/\s+/g, ' ');
+  const flat = review.replace(/\s+/g, ' ');
+  it('ship.md § 5 surfaces a failed runEnded and names markRunEnded', () => {
+    const s5 = ship.slice(ship.search(/### 5\. Update State/));
+    expect(s5).toMatch(/runEnded\?\.ok === false/);
+    expect(s5).toMatch(/markRunEnded/);
+  });
+  it('review.md § 5 names markRunEnded as the one way to write the line SHIP could not', () => {
+    const step5 = flat.slice(flat.search(/### 5\. Write Review Report/));
+    expect(step5).toMatch(/Never write that line by hand[^.]*markRunEnded/);
+  });
+  it('review.md § 4.6 says a pass heading with no verdict recorded is continued, not appended again', () => {
+    const s46 = flat.slice(flat.search(/### 4\.6 Fix rounds/), flat.search(/### 5\. Write Review Report/));
+    expect(s46).toMatch(/no verdict recorded[^.]*continue under it/i);
+  });
+});

@@ -758,20 +758,10 @@ export async function completePhase(baseDir, phase) {
           // The run's REVIEW report is one file for every linear run, appended
           // and never rewritten: mark where this run ends, so the next run's
           // checkFixRounds reads only its own passes (M6.E17 REVIEW P3-I5).
-          // Imported here: resume.js imports this module. A failed append is
-          // returned, never thrown: the run still ends, and the next run's check
-          // then refuses a PASS (it reads this run's passes), never accepts one.
-          const { artifactName } = await import('./resume.js');
-          const report = join(baseDir, '.planning', artifactName('REVIEW', { currentEpic: null }));
-          if (existsSync(report)) {
-            try {
-              const text = await readFile(report, 'utf-8');
-              await atomicWrite(report, `${text}${text.endsWith('\n') ? '' : '\n'}\n## Run ended — ${today}\n`);
-              runEnded = { ok: true, path: report };
-            } catch (err) {
-              runEnded = { ok: false, path: report, error: err.message };
-            }
-          }
+          // A failed append is returned, never thrown: the run still ends, and
+          // ship.md reports it with markRunEnded as the way out (P4-I1).
+          const report = await linearReviewReport(baseDir);
+          if (existsSync(report)) runEnded = await markRunEnded(baseDir, { date: today });
           const payload = stripStateMeta(after);
           payload.completed_phases = [];
           // The run's pass records end with the run, as an Epic roll ends
@@ -786,6 +776,28 @@ export async function completePhase(baseDir, phase) {
     }
     return { ...res, recorded: true, trimmed, runEnded };
   });
+}
+
+/** The REVIEW report of a linear project. Imported here: resume.js imports this module. */
+async function linearReviewReport(baseDir) {
+  const { artifactName } = await import('./resume.js');
+  return join(baseDir, '.planning', artifactName('REVIEW', { currentEpic: null }));
+}
+
+/**
+ * Append `## Run ended — <date>` to a linear project's REVIEW report: what a
+ * linear SHIP does, and the way to write that line when SHIP reported it could
+ * not (`runEnded.ok === false`). Never thrown: returns `{ok, path, error?}`.
+ */
+export async function markRunEnded(baseDir, { date = new Date().toISOString().slice(0, 10) } = {}) {
+  const report = await linearReviewReport(baseDir);
+  try {
+    const text = await readFile(report, 'utf-8');
+    await atomicWrite(report, `${text}${text.endsWith('\n') ? '' : '\n'}\n## Run ended — ${date}\n`);
+    return { ok: true, path: report };
+  } catch (err) {
+    return { ok: false, path: report, error: err.message };
+  }
 }
 
 export { PHASES, PLANNING_DIR, SCHEMA_VERSION, EPIC_ID_STRICT_RE, compareEpicIds, PHASE_LOG_MARKER, withStateLock };

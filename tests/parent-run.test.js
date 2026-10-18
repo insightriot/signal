@@ -16,12 +16,12 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, realpathSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, realpathSync, symlinkSync, renameSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
-import { runOnBase, formatParentRun, PARENT_RUN_SUMMARY_RE } from '../plugin/tools/lib/parent-run.js';
+import { runOnBase, formatParentRun, exitCodeFor, PARENT_RUN_SUMMARY_RE } from '../plugin/tools/lib/parent-run.js';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..');
 const TOOL = join(REPO_ROOT, 'plugin', 'tools', 'lib', 'parent-run.js');
@@ -130,6 +130,17 @@ beforeAll(() => {
   put(dir, 'tests/reads-relative-fixture.test.js',
     "import { it, expect } from 'vitest';\nimport { readFileSync } from 'node:fs';\n" +
     "it('reads the fixture', () => { expect(typeof JSON.parse(readFileSync('tests/relfx.json', 'utf-8'))).toBe('object'); });\n");
+  // REVIEW pass 4, P4-I2: one real failure and one test whose only failure is a
+  // fixture new in the change, in one file. P4-I4: a module new in the change,
+  // imported lazily inside the test body (a static import fails at load instead).
+  put(dir, 'tests/mfx.json', '{}\n');
+  put(dir, 'tests/mixed-fixture.test.js',
+    "import { it, expect } from 'vitest';\nimport { readFileSync } from 'node:fs';\nimport { add } from '../src/add.js';\n" +
+    "it('real', () => { expect(add(2, 3)).toBe(5); });\n" +
+    "it('reads the fixture', () => { expect(typeof JSON.parse(readFileSync(new URL('./mfx.json', import.meta.url), 'utf-8'))).toBe('object'); });\n");
+  put(dir, 'tests/lazy-import.test.js',
+    "import { it, expect } from 'vitest';\n" +
+    "it('fresh, lazily', async () => { const { fresh } = await import('../src/fresh.js'); expect(fresh()).toBe(1); });\n");
   put(dir, 'tests/slow.test.js',
     "import { it } from 'vitest';\nit('waits', async () => { await new Promise((r) => setTimeout(r, 30000)); }, 60000);\n");
   put(dir, 'tests/imports-new.test.js',
@@ -644,5 +655,60 @@ describe('REVIEW P3 — proof, the sweep, and which tests are old', () => {
       kill(owner);
       rmSync(live, { recursive: true, force: true });
     }
+  }, SLOW);
+});
+
+describe('REVIEW P4 — a missing file is never proof, and the cleanup leaves your worktrees alone', () => {
+  const run = (args) => spawnSync(process.execPath, [TOOL, ...args], { cwd: dir, encoding: 'utf-8', env: childEnv() });
+  const listed = () => git(dir, ['worktree', 'list', '--porcelain']).split('\n').filter((l) => l.startsWith('worktree ')).map((l) => l.slice(9));
+
+  it('P4-I2: a test that failed only on a missing fixture, beside a real failure → counted, never proof, exit 1', async () => {
+    const r = await runOnBase(dir, { base, tests: ['tests/mixed-fixture.test.js'] });
+    expect(r.results[0].outcome).toBe('failed');
+    expect(r.results[0].failed.join(' ')).toMatch(/real/);
+    expect(r.results[0].failed.join(' ')).not.toMatch(/reads the fixture/);
+    expect(r.results[0].notRun.join(' ')).toMatch(/reads the fixture/);
+    expect(exitCodeFor(r)).toBe(1);
+    const head = formatParentRun(r).split('\n')[0];
+    expect(head).toBe(`parent-run ${base.slice(0, 7)}: 1 of 1 failed on the base, 1 test failed only on a missing file`);
+    expect(PARENT_RUN_SUMMARY_RE.exec(head)?.[7]).toBe('1');
+    expect(run(['--base', base, 'tests/mixed-fixture.test.js']).status).toBe(1);
+  }, SLOW);
+
+  it('P4-I4: a module new in the change, imported inside the test → could-not-run, never proof', async () => {
+    const r = await runOnBase(dir, { base, tests: ['tests/lazy-import.test.js'] });
+    expect(r.results[0].outcome).toBe('could-not-run');
+    expect(r.results[0].reason).toMatch(/fresh/);
+  }, SLOW);
+
+  it('P4-I3: a worktree of yours whose folder is missing (an unmounted drive) stays registered', async () => {
+    const mine = realpathSync(mkdtempSync(join(tmpdir(), 'sig-parent-run-test-mine-')));
+    rmSync(mine, { recursive: true });
+    git(dir, ['worktree', 'add', '--detach', mine, 'HEAD']);
+    const away = `${mine}-away`;
+    renameSync(mine, away);
+    try {
+      expect(listed()).toContain(mine);
+      await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
+      expect(listed()).toContain(mine);
+      renameSync(away, mine);
+      expect(() => git(mine, ['status', '--short'])).not.toThrow();
+    } finally {
+      if (existsSync(away)) renameSync(away, mine);
+      try { git(dir, ['worktree', 'remove', '--force', mine]); } catch { /* gone */ }
+      rmSync(mine, { recursive: true, force: true });
+    }
+  }, SLOW);
+
+  it('P4-I3: with no worktree of yours missing, a dead run\'s worktree entry is still pruned', async () => {
+    mkdirSync(RUNS(), { recursive: true, mode: 0o700 });
+    const folder = join(RUNS(), 'run-p4-stale');
+    git(dir, ['worktree', 'add', '--detach', join(folder, 'wt'), 'HEAD']);
+    const wt = realpathSync(join(folder, 'wt'));
+    rmSync(folder, { recursive: true, force: true });
+    expect(listed()).toContain(wt);
+    await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
+    expect(listed()).not.toContain(wt);
+    expect(worktreeCount()).toBe(1);
   }, SLOW);
 });

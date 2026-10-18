@@ -311,3 +311,15 @@ describe('REVIEW P3-I3/I4/I5 — the pass sections are always read, and a run is
     expect(checkFixRounds(text.replace('## Run ended — 2026-10-01', ''), 'PASS-WITH-FIXES', none).ok).toBe(false);
   });
 });
+
+// REVIEW pass 4, P4-I2: a test whose only failure on the base is a missing file is
+// not proof, even beside a real failure in the same file. parent-run.js counts it in
+// the summary line, and a round whose line carries that count is a gap.
+describe('REVIEW P4-I2 — a test that failed only on a missing file is a gap', () => {
+  it('the summary line with that count reads, and the round is a gap, not a refusal', () => {
+    const parent = '`parent-run abc1234: 1 of 1 failed on the base, 1 test failed only on a missing file`';
+    const r = checkFixRounds(report(round(1, { parent })), 'PASS-WITH-FIXES', none);
+    expect(r.reasons).toEqual([]);
+    expect(r.gaps).toHaveLength(1);
+  });
+});

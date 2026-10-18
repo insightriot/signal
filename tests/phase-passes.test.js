@@ -16,7 +16,7 @@ import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { readState, recordPass, setCurrentEpic, completePhase } from '../plugin/tools/lib/state.js';
+import { readState, recordPass, setCurrentEpic, completePhase, markRunEnded } from '../plugin/tools/lib/state.js';
 import { countPhasePasses, loopStatusFor } from '../plugin/tools/lib/loop-ceiling.js';
 import { canProceedUnattended } from '../plugin/tools/lib/drive.js';
 
@@ -238,6 +238,19 @@ describe('AC1.3 — the records are per Epic', () => {
     const state = await readState(baseDir);
     expect(state.completed_phases).toEqual([]);
     expect(state.phase_passes).toEqual([]);
+  });
+
+  // REVIEW pass 4, P4-I1: when SHIP could not write the line, the recovery is a
+  // named call, not a line typed by hand (review.md § 5 forbids that).
+  it('markRunEnded appends the line SHIP could not, and reports a report it cannot write', async () => {
+    await writeState(baseDir, { epic: 'null', phase: 'SHIP' });
+    const reportPath = join(baseDir, '.planning', '1-REVIEW.md');
+    await mkdir(reportPath);
+    expect(await markRunEnded(baseDir, { date: '2026-10-18' })).toMatchObject({ ok: false, path: reportPath });
+    await rm(reportPath, { recursive: true });
+    await writeFile(reportPath, '# Review Report\n\n## Pass 1\n', 'utf-8');
+    expect(await markRunEnded(baseDir, { date: '2026-10-18' })).toMatchObject({ ok: true, path: reportPath });
+    expect(await readFile(reportPath, 'utf-8')).toBe('# Review Report\n\n## Pass 1\n\n## Run ended — 2026-10-18\n');
   });
 
   it('an Epic SHIP does not touch the report', async () => {

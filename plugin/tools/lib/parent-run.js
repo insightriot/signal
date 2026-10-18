@@ -47,7 +47,9 @@
  * named tests are copied, so a test that reads a fixture or lazily imports a
  * helper new in the same change fails on the base for that reason alone. A
  * file whose every failure is a missing module, or a missing file that is in
- * the project but was not copied, is could-not-run. Any other missing-file
+ * the project but was not copied, is could-not-run. In a file that also failed
+ * for a real reason, such a test is counted in the summary line ("k tests failed
+ * only on a missing file") and the run exits 1 (P4-I2). Any other missing-file
  * error is what the code under test did, so it counts (REVIEW pass 2, P2-I8).
  *
  * A HOLLOW TEST BESIDE A REAL ONE IS NOT PROOF (P2-I2). A new test that passed
@@ -62,8 +64,8 @@
  * along a test's path would send the copy, and a file that survives cleanup,
  * wherever it points. Such a file is could-not-run.
  *
- * Command line (exit 0 only when every file failed on the base and no new test
- * passed there; 1 otherwise;
+ * Command line (exit 0 only when every file failed on the base and no test
+ * passed there new or failed there only on a missing file; 1 otherwise;
  * 2 for a usage error):
  *
  *   node parent-run.js (--base <commit> | --of <commit>) <test file>...
@@ -120,7 +122,7 @@ const ENOENT_RE = /^(?:\w*Error: )?ENOENT\b[^']*'([^']+)'/;
  * rather than re-deriving the grammar.
  */
 export const PARENT_RUN_SUMMARY_RE =
-  /^parent-run ([0-9a-f]{7,40}|\S+): (\d+) of (\d+) failed on the base(?:, (\d+) passed)?(?:, (\d+) could not run)?(?:, (\d+) new tests? passed on the base)?(?: \(dependencies differ from the base\))?$/;
+  /^parent-run ([0-9a-f]{7,40}|\S+): (\d+) of (\d+) failed on the base(?:, (\d+) passed)?(?:, (\d+) could not run)?(?:, (\d+) new tests? passed on the base)?(?:, (\d+) tests? failed only on a missing file)?(?: \(dependencies differ from the base\))?$/;
 
 const git = (cwd, args) =>
   execFileSync('git', args, { cwd, env: gitEnv(cwd), encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -181,9 +183,13 @@ export function classifyReport(report, absFile, fallback, baseText = null, { wor
     if (why.every(missing)) {
       return { outcome: 'could-not-run', reason: `failed on the base only on a missing file or module: ${why[0]}` };
     }
+    // Per test: one whose only failure is a missing file is not proof, even
+    // beside a real failure in the same file (P4-I2).
+    const notRun = failing.filter((a, i) => missing(why[i]));
     return {
       outcome: 'failed',
-      failed: failing.map(name),
+      failed: failing.filter((a, i) => !missing(why[i])).map(name),
+      notRun: notRun.map(name),
       total: assertions.length,
       // Only tests new since the base: an old test passing there is expected.
       // A renamed old test reads as new, which is the safe direction. Without
@@ -356,8 +362,24 @@ function sweepStale(root, runs) {
       // another run is sweeping it too; what is left is swept next time
     }
   }
+  pruneOwn(root, runs);
+}
+
+/**
+ * `git worktree prune` acts on every worktree of the project whose folder is
+ * missing, the user's own included (an unmounted drive, a moved folder), and
+ * there is no way to prune one entry. So prune only when every prunable entry
+ * is a run of this tool; otherwise leave this tool's entry for a later run
+ * (REVIEW pass 4, P4-I3).
+ */
+function pruneOwn(root, runs) {
   try {
-    git(root, ['worktree', 'prune']);
+    const own = `${realpathSync(runs)}${sep}`;
+    const prunable = git(root, ['worktree', 'list', '--porcelain'])
+      .split('\n\n')
+      .filter((b) => /^prunable\b/m.test(b))
+      .map((b) => /^worktree (.*)$/m.exec(b)?.[1] ?? '');
+    if (prunable.length > 0 && prunable.every((p) => p.startsWith(own))) git(root, ['worktree', 'prune']);
   } catch {
     // nothing more to do
   }
@@ -489,11 +511,7 @@ export async function runOnBase(baseDir, { base, tests }, hooks = {}) {
       }
     }
     rmSync(temp, { recursive: true, force: true });
-    try {
-      git(root, ['worktree', 'prune']);
-    } catch {
-      // nothing more to do; the directory is already gone
-    }
+    pruneOwn(root, runs);
   };
   const onSignal = (signal) => {
     track.kill?.();
@@ -604,7 +622,8 @@ function insideWorktree(realWt, dest) {
  *
  * The summary line is what a REVIEW fix round or an EXECUTE slice pastes as its
  * `**Parent run:**` record, so its shape is stable:
- * `parent-run <sha7>: <n> of <m> failed on the base[, <k> passed][, <j> could not run]`.
+ * `parent-run <sha7>: <n> of <m> failed on the base[, <k> passed][, <j> could not run]`,
+ * then `[, <h> new tests passed on the base][, <i> tests failed only on a missing file]`.
  */
 export function formatParentRun(result) {
   const count = (o) => result.results.filter((r) => r.outcome === o).length;
@@ -617,6 +636,8 @@ export function formatParentRun(result) {
   // it is in the summary line, the record a round keeps (P2-I2).
   const hollow = result.results.reduce((n, r) => n + (r.outcome === 'failed' ? r.passed?.length ?? 0 : 0), 0);
   if (hollow) head += `, ${hollow} new test${hollow === 1 ? '' : 's'} passed on the base`;
+  const notRun = result.results.reduce((n, r) => n + (r.outcome === 'failed' ? r.notRun?.length ?? 0 : 0), 0);
+  if (notRun) head += `, ${notRun} test${notRun === 1 ? '' : 's'} failed only on a missing file`;
   if (result.depsDiffer === true) head += ' (dependencies differ from the base)';
   const lines = [head];
   for (const r of result.results) {
@@ -624,7 +645,8 @@ export function formatParentRun(result) {
       r.outcome === 'failed'
         ? `${r.failed.length} of ${r.total ?? r.failed.length} tests failed: ${r.failed.slice(0, 3).join('; ')}${r.failed.length > 3 ? `; and ${r.failed.length - 3} more` : ''}` +
           (r.why ? ` (${r.why})` : '') +
-          (r.passed?.length ? `; new tests that passed on the base: ${r.passed.join('; ')}` : '')
+          (r.passed?.length ? `; new tests that passed on the base: ${r.passed.join('; ')}` : '') +
+          (r.notRun?.length ? `; failed only on a missing file: ${r.notRun.join('; ')}` : '')
         : r.outcome === 'passed'
           ? 'passes without the change — no proof'
           : r.reason;
@@ -633,9 +655,9 @@ export function formatParentRun(result) {
   return lines.join('\n');
 }
 
-/** Exit 0 only when there was at least one file, every one failed on the base, and no new test passed there. */
+/** Exit 0 only when there was at least one file, every one failed on the base, no new test passed there, and no test failed only on a missing file. */
 export function exitCodeFor(result) {
-  const proven = (r) => r.outcome === 'failed' && !(r.passed?.length > 0);
+  const proven = (r) => r.outcome === 'failed' && !(r.passed?.length > 0) && !(r.notRun?.length > 0);
   return result.results.length > 0 && result.results.every(proven) ? 0 : 1;
 }
 

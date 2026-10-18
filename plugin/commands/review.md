@@ -176,7 +176,10 @@ fixes to fixes are where M6.E14's worst defect and three of M6.E16's were.
 **The pass's section is written first.** When the pass begins, before § 4.5 is dispatched, append its
 `## Pass N — {date}, at {sha}` heading to the report (the first pass creates the file, § 5). Every
 round of this pass is recorded under that heading, so `checkFixRounds` counts it for this pass and
-not the one before.
+not the one before. If the report already ends with a pass
+heading that has no verdict recorded (the session that wrote it ended before `recordPass`), that
+heading is this pass: continue under it rather than appending another, since the check counts one
+section per recorded pass plus this one.
 
 For each round:
 
@@ -224,11 +227,12 @@ a match: it sees a report with too few rounds, and cannot tell which round belon
 REVIEW report keeps every earlier pass's rounds, each pass under its own `## Pass N` heading: append
 each pass, never rewrite the file. A `### Fix round` inside a code fence is not counted. Fix the
 report or the verdict. Do not write around the check. List its `gaps` in the report: rounds whose parent run is a stated gap, did
-not fail on the base for every file, or counted new tests that passed on the base.
+not fail on the base for every file, counted new tests that passed on the base, or counted tests that
+failed there only on a missing file.
 
 ### 5. Write Review Report
 
-Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic). The first pass creates it under a `## Pass 1` heading; every later pass appends a `## Pass N` section with this shape and leaves the earlier ones as they are. The heading is written when the pass begins (§ 4.6); this step fills the section in, and the check runs after it. A linear project keeps one report for every run: its SHIP appends `## Run ended — {date}`, the next run's first pass appends `## Pass 1` below it, and the check reads only what follows the last `## Run ended` line. Never write that line by hand:
+Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic). The first pass creates it under a `## Pass 1` heading; every later pass appends a `## Pass N` section with this shape and leaves the earlier ones as they are. The heading is written when the pass begins (§ 4.6); this step fills the section in, and the check runs after it. A linear project keeps one report for every run: its SHIP appends `## Run ended — {date}`, the next run's first pass appends `## Pass 1` below it, and the check reads only what follows the last `## Run ended` line. Never write that line by hand; call `markRunEnded(baseDir)` from `tools/lib/state.js` when SHIP reported it could not write it (`runEnded?.ok === false`), once the cause is fixed. The section's shape:
 ```markdown
 # Review Report — Phase {n}
 
