@@ -253,25 +253,9 @@ describe('AC1.3 — the records are per Epic', () => {
     expect(await readFile(reportPath, 'utf-8')).toBe('# Review Report\n\n## Pass 1\n\n## Run ended — 2026-10-18\n');
   });
 
-  // REVIEW pass 5, P5-I1: SHIP's failure missed, there was no working way back.
-  // A re-invoked /sig:ship hit the idempotence guard and never wrote the line, and
-  // markRunEnded appended it below the next run's "## Pass 1", where the check
-  // still read every pass as one run.
-  it('a re-invoked SHIP writes the line the first SHIP could not, and only once', async () => {
-    await writeState(baseDir, { epic: 'null', phase: 'SHIP' });
-    const reportPath = join(baseDir, '.planning', '1-REVIEW.md');
-    await mkdir(reportPath);
-    await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12' });
-    expect((await completePhase(baseDir, 'SHIP')).runEnded).toMatchObject({ ok: false });
-    await rm(reportPath, { recursive: true });
-    await writeFile(reportPath, '# Review Report\n\n## Pass 1\n', 'utf-8');
-    expect((await completePhase(baseDir, 'SHIP')).runEnded).toMatchObject({ ok: true, path: reportPath });
-    const text = await readFile(reportPath, 'utf-8');
-    expect(text).toMatch(/^# Review Report\n\n## Pass 1\n\n## Run ended — \d{4}-\d{2}-\d{2}\n$/);
-    await completePhase(baseDir, 'SHIP');
-    expect(await readFile(reportPath, 'utf-8')).toBe(text);
-  });
-
+  // REVIEW pass 5, P5-I1: SHIP's failure missed, markRunEnded appended the line
+  // below the next run's "## Pass 1", where the check still read every pass as
+  // one run. With keep, the line goes above the passes this run keeps.
   it('markRunEnded with keep puts the line above the new run\'s passes, not below them', async () => {
     await writeState(baseDir, { epic: 'null', phase: 'REVIEW' });
     const reportPath = join(baseDir, '.planning', '1-REVIEW.md');

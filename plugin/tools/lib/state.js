@@ -728,11 +728,7 @@ export async function completePhase(baseDir, phase) {
     // relocated. (A hand-edited STATE with that exact shape and no prior ship
     // would no-op here — accepted, and preferable to double-archiving.)
     if (phase === state.phase && prior.length === 0 && detectMode(state) === 'linear') {
-      // The run is shipped, so any pass section after the last "## Run ended"
-      // is its own: the line the first SHIP could not write (P5-I1).
-      const report = await linearReviewReport(baseDir);
-      const runEnded = existsSync(report) ? await markRunEnded(baseDir, { date: today, ifMissing: true }) : null;
-      return { quarantined: [], recorded: false, trimmed: 0, runEnded };
+      return { quarantined: [], recorded: false, trimmed: 0 };
     }
     const res = await recordPhase(baseDir, { leaving: phase, nextPhase: null });
 
@@ -794,16 +790,16 @@ async function linearReviewReport(baseDir) {
  * not (`runEnded.ok === false`). Never thrown: returns `{ok, path, error?}`.
  *
  * `keep`: when the next run has already opened its passes, the line goes above
- * its last `keep` pass sections rather than at the end (P5-I1). `ifMissing`:
- * write nothing when no pass section follows the last such line.
+ * its last `keep` pass sections rather than at the end, and a report with no
+ * more sections than that is refused, unchanged (P5-I1). A re-invoked SHIP does
+ * not write the line: on ship.md's path it returns at completePhase's first guard.
  */
-export async function markRunEnded(baseDir, { date = new Date().toISOString().slice(0, 10), keep = 0, ifMissing = false } = {}) {
+export async function markRunEnded(baseDir, { date = new Date().toISOString().slice(0, 10), keep = 0 } = {}) {
   const report = await linearReviewReport(baseDir);
   try {
     const text = await readFile(report, 'utf-8');
     const { currentRunPasses } = await import('./review-rounds.js');
     const passes = currentRunPasses(text);
-    if (ifMissing && passes.length === 0) return { ok: true, path: report, written: false };
     const line = `## Run ended — ${date}\n`;
     if (keep > 0) {
       if (passes.length <= keep) {
