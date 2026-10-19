@@ -84,11 +84,15 @@ that never move, status from recorded events; then the store hardened. Retros:
 **Previous: `v0.1.50` (2026-10-10) — `M6.E15`:** other projects move onto the work store
 (`/sig:docs-migrate --work-store`); nothing is closed on its own, closes are *proposed* for one yes.
 Retro: [`.planning/M6.E15-RETROSPECTIVE.md`](.planning/M6.E15-RETROSPECTIVE.md).
-**Latest: `v0.1.51` (2026-10-13) — `M6.E16` shipped: Epics and units are records**
+**Previous: `v0.1.51` (2026-10-13) — `M6.E16`: Epics and units are records**
 (`.planning/work/units/<ID>.json`). A close is requested at SHIP and confirmed only when its commit is
 on the remote's recorded default branch, which is never guessed. ⚠ Four full REVIEW passes each found
 real defects in a different corner, and three fix rounds each made a new one; it shipped after a narrow
 fresh read of the last fixes. Retro: [`.planning/M6.E16-RETROSPECTIVE.md`](.planning/M6.E16-RETROSPECTIVE.md).
+**Latest: `v0.1.52` (2026-10-19) — `M6.E17` shipped: the REVIEW fix loop is a mechanism.** Passes are
+recorded and counted (`recordPass`), each fix round carries a fresh read checked before a verdict
+(`checkFixRounds`), and `parent-run.js` proves a new test fails on the base. ⚠ It caught its own Epic:
+five passes, two past the ceiling by Brett's call. Retro: [`.planning/M6.E17-RETROSPECTIVE.md`](.planning/M6.E17-RETROSPECTIVE.md).
 
 ✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
 merged with the green button and collapsed 35 commits into one, orphaning two published anchors and
