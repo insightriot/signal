@@ -319,6 +319,28 @@ describe('AC1.7 — M6.E16 replay: passes that never left REVIEW stop the driver
       ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY']);
     expect(loopStatusFor(state, 'REVIEW')).toMatchObject({ count: 3, atCeiling: false });
   });
+  // The fix's fresh read: "this visit" read as "more records than exits", which
+  // stays true for good once a visit made fixes inside the phase. The rule is
+  // now the LAST record of all: the phase's own pass, just written.
+  it('an earlier visit that fixed inside VERIFY does not lift the ceiling when VERIFY is entered again', () => {
+    const state = visit('VERIFY', ['VERIFY FAIL (2026-10-01)', 'VERIFY PASS (2026-10-01)', 'REVIEW FAIL (2026-10-01)'],
+      ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'EXECUTE']);
+    expect(loopStatusFor(state, 'VERIFY')).toMatchObject({ count: 2, atCeiling: true });
+  });
+  it('a pass just recorded lifts the ceiling even when exits outnumber records (an Epic begun before the records)', () => {
+    const state = visit('VERIFY', ['REVIEW FAIL (2026-10-01)', 'VERIFY PASS (2026-10-02)'],
+      ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'EXECUTE', 'VERIFY', 'EXECUTE', 'VERIFY', 'REVIEW', 'EXECUTE']);
+    expect(loopStatusFor(state, 'VERIFY')).toMatchObject({ count: 3, atCeiling: false });
+  });
+  it('PASS-WITH-FIXES last lifts it; PASS then FAILs in one visit does not; no records keeps the exit count', () => {
+    expect(loopStatusFor(visit('REVIEW', ['REVIEW FAIL (2026-10-01)', 'REVIEW FAIL (2026-10-01)', 'REVIEW PASS-WITH-FIXES (2026-10-02)'],
+      ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY']), 'REVIEW')).toMatchObject({ atCeiling: false });
+    expect(loopStatusFor(visit('VERIFY', ['VERIFY PASS-WITH-FIXES (2026-10-01)', 'VERIFY FAIL (2026-10-01)', 'VERIFY FAIL (2026-10-02)'],
+      ['DISCUSS', 'PLAN', 'EXECUTE']), 'VERIFY')).toMatchObject({ count: 3, atCeiling: true });
+    const none = visit('VERIFY', [], ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'EXECUTE', 'VERIFY', 'EXECUTE']);
+    delete none.phase_passes;
+    expect(loopStatusFor(none, 'VERIFY')).toMatchObject({ count: 2, atCeiling: true });
+  });
   it('a PASS from an earlier visit does not lift the ceiling at the start of a new one', () => {
     // Entering VERIFY a third time: both earlier passes passed and were left.
     const state = visit('VERIFY', ['VERIFY PASS (2026-10-01)', 'REVIEW FAIL (2026-10-01)', 'VERIFY PASS (2026-10-02)', 'REVIEW FAIL (2026-10-02)'],

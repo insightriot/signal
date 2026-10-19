@@ -55,7 +55,9 @@ import { partitionCompletedPhases } from './state.js';
  *
  * So two unattended re-entries are allowed and the third stops. That is
  * `verify.md`'s existing rule, unchanged — this makes it enforceable rather
- * than re-tuning it.
+ * than re-tuning it. It holds a RETRY: a phase whose newest recorded pass is
+ * its own PASS or PASS-WITH-FIXES is moving on, and `loopStatusFor` does not
+ * hold it, whatever the count.
  */
 export const DEFAULT_LOOP_CEILING = 3;
 
@@ -128,6 +130,10 @@ export function countPhasePasses(state, phase) {
 /**
  * Where this phase stands against its ceiling.
  *
+ * `atCeiling` is false, whatever the count, while `phase` is the current phase
+ * and the newest entry of `phase_passes` is its own PASS or PASS-WITH-FIXES:
+ * the phase passed and is being left, not retried.
+ *
  * Returns `null` for a phase that does not loop, and for a state it cannot
  * read. Both mean "no opinion" and both must be treated as a stop by an actor —
  * see `canProceedUnattended`, which distinguishes them in its reason so the
@@ -150,13 +156,13 @@ export function loopStatusFor(state, phase, { ceiling = DEFAULT_LOOP_CEILING } =
   const count = Math.max(exits, passes);
 
   const nextAttempt = count + 1;
-  // The ceiling stops a retry. The records count the pass just ended, so a
-  // phase whose pass in this visit (more records than exits) PASSED is being
-  // left, not retried, and is not held (#304's whole-PR read).
-  const last = state?.phase === phase && passes > exits
-    ? state.phase_passes.map((e) => PASS_ENTRY_RE.exec(e)).filter((m) => m[1] === phase).pop()
-    : null;
-  const passed = last ? last[2] !== 'FAIL' : false;
+  // The ceiling stops a retry, not a step forward. The records count the pass
+  // just ended, so when the newest record of all is this phase's own PASS or
+  // PASS-WITH-FIXES, written while it is still the current phase, the phase is
+  // being left and is not held. Any later record (a REVIEW FAIL after a VERIFY
+  // pass) means a new visit, which the count holds as before (D-M6E17-1).
+  const newest = state?.phase === phase && passes > 0 ? PASS_ENTRY_RE.exec(state.phase_passes.at(-1)) : null;
+  const passed = newest !== null && newest[1] === phase && newest[2] !== 'FAIL';
   return { phase, count, ceiling, nextAttempt, atCeiling: !passed && nextAttempt >= ceiling };
 }
 

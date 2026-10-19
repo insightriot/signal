@@ -19,7 +19,8 @@ or checks.
 - **A VERIFY or REVIEW pass is recorded when it ends.** `recordPass` appends
   `"REVIEW FAIL (2026-10-18)"`-shaped entries to an optional `phase_passes` list in `STATE.md`, and
   the loop ceiling counts them, so a pass whose fixes never leave the phase still counts. The
-  ceiling stops a retry: a phase whose latest pass in this visit passed is not held. A record
+  ceiling stops a retry: a phase whose newest recorded pass is its own PASS or PASS-WITH-FIXES is not
+  held. A record
   that does not read stops `/sig:drive` (`loop-unknown`), the same rule as an unreadable phase log.
   The list is cleared on an Epic roll and at a linear project's SHIP. No `schema_version` change.
 - **Every round of fixes is read fresh, with a stated stop.** `review.md` § 4.6: each round in the
@@ -27,7 +28,8 @@ or checks.
   only when both are 0) and a `**Parent run:**` line. `checkFixRounds` checks the report before a
   verdict is declared: a PASS needs the last round clean, at least one round per recorded FAIL, one
   `## Pass N` section per recorded pass, and at most three rounds per pass. Those structural checks
-  never refuse FAIL; a round missing its two lines is refused whatever the verdict.
+  never refuse FAIL; a round whose two lines are missing, malformed or inconsistent is refused
+  whatever the verdict.
 - **"Fails without the fix" is proven by a tool.** `tools/lib/parent-run.js --base <commit> <test
   files>` runs the named tests on the base commit in a temporary worktree and prints one summary
   line: which files failed there, which new tests passed there, and which failed only because a file
