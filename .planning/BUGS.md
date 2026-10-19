@@ -211,5 +211,6 @@
 | SIG-343 | `confirmed` | P3 | **A re-invoked /sig:ship records SHIP as a phase left, leaving a stray SHIP entry in the live list** |
 | SIG-346 | `confirmed` | P3 | **Wall-clock budgets the timing detector does not see (r61 walk, inverted bounds, helpers)** |
 | SIG-347 | `confirmed` | P2 | **Generated views rewrite links differently depending on the folder node runs from** |
+| SIG-348 | `confirmed` | P2 | **The PR reviewer passed PR #304 without reviewing again (4 turns, $0.11 on 6861 lines)** |
 
-*0 needs-triage · 76 confirmed · 2 closing · 130 closed (208 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 77 confirmed · 2 closing · 130 closed (209 total) · closes more than 30 days before the newest event are in `work/history/`*
