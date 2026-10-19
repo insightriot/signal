@@ -21,6 +21,13 @@
       "at": "2026-10-15T14:10:52.939Z",
       "by": "Brett",
       "epic": "M6.E17"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-19",
+      "by": "M6.E17",
+      "reason": "fixed",
+      "proof": "e92032dea9ee4794c1c7e3747036cd86130f7dba"
     }
   ]
 }
