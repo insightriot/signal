@@ -18,7 +18,7 @@ Reference: `evals/helpers.ts` in that repo. Not a straight port — Signal has n
 **Status:** closed 2026-09-29 (fixed)
 
 > **Discharged.** All 26 carry a determination — 7 dispatched, 19 dormant with a reason and a
-> trigger, 0 cut — in [`../plugin/references/agent-reachability.md`](../plugin/references/agent-reachability.md),
+> trigger, 0 cut — in [`../plugin/references/agent-reachability.md`](references/agent-reachability.md),
 > and `tests/agent-reachability.test.js` fails on an agent with no determination, so the next one
 > cannot land undecided. **Scope was the *smallest honest version*:** the determinations, the
 > guards, `plan.md`'s fiction removed, and the two cheap wires — **not** the dispatch build, which
