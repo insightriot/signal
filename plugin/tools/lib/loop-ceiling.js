@@ -150,7 +150,14 @@ export function loopStatusFor(state, phase, { ceiling = DEFAULT_LOOP_CEILING } =
   const count = Math.max(exits, passes);
 
   const nextAttempt = count + 1;
-  return { phase, count, ceiling, nextAttempt, atCeiling: nextAttempt >= ceiling };
+  // The ceiling stops a retry. The records count the pass just ended, so a
+  // phase whose pass in this visit (more records than exits) PASSED is being
+  // left, not retried, and is not held (#304's whole-PR read).
+  const last = state?.phase === phase && passes > exits
+    ? state.phase_passes.map((e) => PASS_ENTRY_RE.exec(e)).filter((m) => m[1] === phase).pop()
+    : null;
+  const passed = last ? last[2] !== 'FAIL' : false;
+  return { phase, count, ceiling, nextAttempt, atCeiling: !passed && nextAttempt >= ceiling };
 }
 
 /**

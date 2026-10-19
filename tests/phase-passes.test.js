@@ -299,4 +299,30 @@ describe('AC1.7 — M6.E16 replay: passes that never left REVIEW stop the driver
     const verdict = canProceedUnattended('REVIEW', unattended, { loopStatus: status });
     expect(verdict).toMatchObject({ proceed: false, reason: 'loop-ceiling' });
   });
+
+  // Whole-PR read before merge (#304): the records count the pass just ended, so
+  // a phase that had just PASSED read as at the ceiling, and the driver stopped
+  // after a pass that needed nothing retried. The ceiling stops retries only.
+  const visit = (phase, passes, completed) => ({
+    phase, current_epic: 'M9.E1', phase_passes: passes,
+    completed_phases: completed.map((p) => `${p} (2026-10-01)`),
+  });
+  it('VERIFY passes again after a REVIEW loop-back: not at the ceiling, the driver goes on', () => {
+    const state = visit('VERIFY', ['VERIFY PASS (2026-10-01)', 'REVIEW FAIL (2026-10-01)', 'VERIFY PASS (2026-10-02)'],
+      ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'EXECUTE']);
+    const status = loopStatusFor(state, 'VERIFY');
+    expect(status).toMatchObject({ count: 2, atCeiling: false });
+    expect(canProceedUnattended('VERIFY', unattended, { loopStatus: status }).reason).not.toBe('loop-ceiling');
+  });
+  it('FAIL, FAIL, then PASS inside REVIEW: the phase passed, so the ceiling does not stop it', () => {
+    const state = visit('REVIEW', ['REVIEW FAIL (2026-10-01)', 'REVIEW FAIL (2026-10-01)', 'REVIEW PASS (2026-10-02)'],
+      ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY']);
+    expect(loopStatusFor(state, 'REVIEW')).toMatchObject({ count: 3, atCeiling: false });
+  });
+  it('a PASS from an earlier visit does not lift the ceiling at the start of a new one', () => {
+    // Entering VERIFY a third time: both earlier passes passed and were left.
+    const state = visit('VERIFY', ['VERIFY PASS (2026-10-01)', 'REVIEW FAIL (2026-10-01)', 'VERIFY PASS (2026-10-02)', 'REVIEW FAIL (2026-10-02)'],
+      ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'EXECUTE', 'VERIFY', 'REVIEW', 'EXECUTE']);
+    expect(loopStatusFor(state, 'VERIFY')).toMatchObject({ count: 2, atCeiling: true });
+  });
 });
