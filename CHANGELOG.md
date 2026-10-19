@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [0.1.52] — 2026-10-19 — The REVIEW fix loop is a mechanism
+## [Unreleased]
 
 ### M6.E17 — The REVIEW fix loop becomes a mechanism
 
