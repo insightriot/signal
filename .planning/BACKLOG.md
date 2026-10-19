@@ -2564,3 +2564,58 @@ From M6.E17-REVIEW.md pass 2 nits.
 - `runOnBase`'s `@returns` omits `total`, `passed`, `why`.
 - A second `node:fs` import in tests/parent-run.test.js.
 - review.md's template shows the H1 above `## Pass {n}`; whether it repeats, and whether round numbers run per pass or across the report, is unstated.
+
+### parent-run.js: worktree cleanup leaves its own entry while one of yours is missing, and other limits · SIG-341
+
+**Status:** triaged (T)
+
+From M6.E17 REVIEW passes 3–5 (see `.planning/M6.E17-REVIEW.md`).
+
+- **Known prune limit (P4-I3 fix):** `pruneOwn` prunes only when every prunable worktree is under the runs folder. While one of the user's worktrees is missing its folder, a killed run's entry, or one whose `worktree remove --force` failed, stays registered until that folder is back. Harmless (fresh mkdtemp path per run) but narrows AC3.1 "removes the worktree on every exit path"; record it as a stated exception (P5-S3).
+- P4-S3: a live run whose owner.pid was written by earlier branch code (local-time start) is swept as dead. Pre-merge only.
+- P4-S4: `listTests` costs one extra `vitest list` per existing file (~3 s each).
+- P5-S2: `notRun` also counts missing modules, while the summary says "missing file".
+- Nits: per-file line prints "1 of 2 tests failed" when the second failed only on a missing file; header sentence at parent-run.js:67-68; `git worktree add` runs post-checkout and does not set GIT_LFS_SKIP_SMUDGE; `git show` uses the raw path; `runsFolder` tightens then trusts; `childEnv` passes TYPESAFE_API_KEY to an older base; owner.pid write failure leaves an unjudged folder; `vitest list --json` drops skipped tests.
+
+### markRunEnded / linear run boundary: idempotence, Epic mode, symlinked report, staging · SIG-342
+
+**Status:** triaged (T)
+
+From M6.E17 REVIEW passes 4–5.
+
+- P5-R6-S1: `markRunEnded` without `keep` writes a second `## Run ended` line if called twice (harmless: last one wins).
+- P5-R5-S1: the `keep` hint in `checkFixRounds` shows in Epic projects too, where `markRunEnded` targets the linear report.
+- P5-R5-S2: the hint cannot tell a missing run boundary from a duplicated heading in one run.
+- P5-R5-S3/S4: `markRunEnded` returns `written` only on one path; stale JSDoc on `completePhase` (`@returns`) and a sentence about completePhase on `markRunEnded`.
+- P4-S1 (security, Medium): a linear SHIP follows a symlinked `1-REVIEW.md` and writes the linked contents into `.planning/`; `lstat` and refuse. ship.md never stages the appended report.
+- Nits: CRLF reports get `\n` lines; `keep` not validated; RUN_ENDED_RE matches any "## Run ended…" heading and in Epic mode; ship.md implies a refusal without `keep`; pin the re-run-SHIP behaviour with a test, widen the doc test's negative match (P5-R6-S2/S3).
+
+### checkFixRounds and recordPass: trust gaps and missing tests (passes 3–4) · SIG-344
+
+**Status:** triaged (T)
+
+From M6.E17 REVIEW passes 3–4.
+
+- P3-S3 / P4-S2: a **Parent run:** line is trusted as written; its sha is never resolved or tied to the fresh read's base.
+- P3-S4: a `### Fix round` inside an HTML comment is counted.
+- P3-S8: `recordPass` has no guard against being called twice for one pass.
+- P4-S5: the check runs only when the agent follows review.md (B41 class); `## Pass N, at {sha}` could bound later commits.
+- P4-S6: VERIFY's "PASS with documented limits" has no recordPass value; loop-ceiling.js comment wrong.
+- P4-S7: recordPass before checkFixRounds gives a refusal that does not name the cause.
+- P4-S8 / P4-S13: "(dependencies differ from the base)" is not a gap and never asserted.
+- P4-S9: review-rounds.js header reads as a changelog.
+- P4-S11/S12, P3-S11: no test that phase_passes survives a FAIL loop-back, for state-schema.md's row, or for a `0 of 0` summary.
+- P5-S1: § 4.6's orphaned-heading text should name the tool's check (one more section than STATE records).
+- Nits: PASS_HEADING_RE accepts "## Pass 1 — what it missed"; `Number(pm[3]) === 0` and recordPass's schema check untested; review.md says the check "refuses a fourth" round; GRANDFATHER_PIN is a short sha.
+
+### EXECUTE side of the parent run: brief wording, PROGRESS template, base commit, non-vitest projects · SIG-345
+
+**Status:** triaged (T)
+
+From M6.E17 REVIEW pass 3 (P3-S2, S5, S6, S7, S9).
+
+- fixer-brief.md says "new in your change"; the code checks only "exists in the project".
+- parent-run works only in vitest projects; other projects record a gap per task and the brief does not say so.
+- The PROGRESS template and EXECUTE exit criteria have no place for the parent-run line (AC3.3 partly met).
+- Nothing records an EXECUTE task's base commit.
+- review-loop-doc-contract.test.js checks three words anywhere in execute.md.

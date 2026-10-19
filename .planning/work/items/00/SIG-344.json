@@ -1,0 +1,21 @@
+{
+  "id": "SIG-344",
+  "type": "CHORE",
+  "title": "checkFixRounds and recordPass: trust gaps and missing tests (passes 3–4)",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E17 REVIEW passes 3-5",
+  "source_ref": "M6.E17-REVIEW check residue",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-19T17:33:06.741Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-19T17:33:06.741Z",
+      "by": "Claude"
+    }
+  ]
+}

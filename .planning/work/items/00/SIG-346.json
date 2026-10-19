@@ -1,0 +1,21 @@
+{
+  "id": "SIG-346",
+  "type": "BUG",
+  "title": "Wall-clock budgets the timing detector does not see (r61 walk, inverted bounds, helpers)",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E17 REVIEW loop 3 stress",
+  "source_ref": "M6.E17-PROGRESS r61 timing",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-19T17:33:06.741Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-19T17:33:06.741Z",
+      "by": "Claude"
+    }
+  ]
+}

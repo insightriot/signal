@@ -208,5 +208,7 @@
 | SIG-326 | `confirmed` | P2 | **sweep-store-on test drifts with the calendar (runSweep reads the real clock)** |
 | SIG-330 | `confirmed` | P3 | **parent-run.js still exits 0 silently when its main-module check fails** |
 | SIG-336 | `confirmed` | P3 | **review-rounds.js: parsing edges (empty Parent run line, placeholders, fences, duplicates)** |
+| SIG-343 | `confirmed` | P3 | **A re-invoked /sig:ship records SHIP as a phase left, leaving a stray SHIP entry in the live list** |
+| SIG-346 | `confirmed` | P3 | **Wall-clock budgets the timing detector does not see (r61 walk, inverted bounds, helpers)** |
 
-*0 needs-triage · 76 confirmed · 0 closing · 129 closed (205 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 78 confirmed · 0 closing · 129 closed (207 total) · closes more than 30 days before the newest event are in `work/history/`*
