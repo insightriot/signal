@@ -21,6 +21,7 @@
 - [BACKLOG-REVIEW-2026-10-06.md](BACKLOG-REVIEW-2026-10-06.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-10-10.md](BACKLOG-REVIEW-2026-10-10.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-10-14.md](BACKLOG-REVIEW-2026-10-14.md) — `other` — _(note pending)_
+- [BACKLOG-REVIEW-2026-10-20.md](BACKLOG-REVIEW-2026-10-20.md) — `other` — _(note pending)_
 - [BACKLOG.md](BACKLOG.md) — `other` — The sequenced roadmap, promoted from `ISSUES-INBOX.md`; every entry tagged `roadmap` or `hygiene`. Supersedes the point-in-time `BACKLOG-REVIEW-2026-07-04` snapshot (folded in + archived under `archive/`).
 - [BUGS.md](BUGS.md) — `other` — Bugs & verified-findings catalog — where findings get logged (catalog → triage → confirm / dismiss / fixed). GitHub Issues deferred until Signal has live users.
 - [CONTEXT.md](CONTEXT.md) — `other` — Locked + deferred decisions for the *current* work — what DISCUSS settled for the active Epic.
@@ -543,6 +544,9 @@
 - [work/items/00/SIG-344.md](work/items/00/SIG-344.md) — `other` — _(note pending)_
 - [work/items/00/SIG-345.md](work/items/00/SIG-345.md) — `other` — _(note pending)_
 - [work/items/00/SIG-346.md](work/items/00/SIG-346.md) — `other` — _(note pending)_
+- [work/items/00/SIG-347.md](work/items/00/SIG-347.md) — `other` — _(note pending)_
+- [work/items/00/SIG-348.md](work/items/00/SIG-348.md) — `other` — _(note pending)_
+- [work/items/00/SIG-349.md](work/items/00/SIG-349.md) — `other` — _(note pending)_
 - [work/items/00/SIG-35.md](work/items/00/SIG-35.md) — `other` — _(note pending)_
 - [work/items/00/SIG-36.md](work/items/00/SIG-36.md) — `other` — _(note pending)_
 - [work/items/00/SIG-37.md](work/items/00/SIG-37.md) — `other` — _(note pending)_
@@ -765,6 +769,7 @@
 - [archive/M6/E15/STATE-NARRATIVE.md](archive/M6/E15/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E16/CONTEXT-2026-08-28.md](archive/M6/E16/CONTEXT-2026-08-28.md) — `other` — _(note pending)_
 - [archive/M6/E16/STATE-NARRATIVE.md](archive/M6/E16/STATE-NARRATIVE.md) — `other` — _(note pending)_
+- [archive/M6/E17/STATE-NARRATIVE.md](archive/M6/E17/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E2/STATE-NARRATIVE.md](archive/M6/E2/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-PLAN.md](archive/M6/E3/AUGUST-PLAN.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-RESEARCH.md](archive/M6/E3/AUGUST-RESEARCH.md) — `other` — _(note pending)_

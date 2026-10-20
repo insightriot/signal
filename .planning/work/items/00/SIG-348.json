@@ -16,6 +16,12 @@
       "type": "triaged",
       "at": "2026-10-19T20:29:52.228Z",
       "by": "Claude"
+    },
+    {
+      "type": "started",
+      "at": "2026-10-20T22:16:29.030Z",
+      "by": "Claude (M6.E18 DISCUSS, scope agreed by Brett)",
+      "epic": "M6.E18"
     }
   ]
 }

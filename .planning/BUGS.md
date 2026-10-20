@@ -213,5 +213,6 @@
 | SIG-347 | `confirmed` | P2 | **Generated views rewrite links differently depending on the folder node runs from** |
 | SIG-348 | `confirmed` | P2 | **The PR reviewer passed PR #304 without reviewing again (4 turns, $0.11 on 6861 lines)** |
 | SIG-349 | `confirmed` | P2 | **Loop ceiling: an old PASS record lifts the ceiling when a later visit left no record (needs a visit marker)** |
+| SIG-350 | `confirmed` | P3 | **MILESTONE-6.md's M6.E17 row has an empty summary cell after its close** |
 
-*0 needs-triage · 78 confirmed · 0 closing · 132 closed (210 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 79 confirmed · 0 closing · 132 closed (211 total) · closes more than 30 days before the newest event are in `work/history/`*

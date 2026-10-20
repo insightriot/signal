@@ -29,6 +29,12 @@
           "to": "P3"
         }
       }
+    },
+    {
+      "type": "started",
+      "at": "2026-10-20T22:16:29.099Z",
+      "by": "Claude (M6.E18 DISCUSS, scope agreed by Brett)",
+      "epic": "M6.E18"
     }
   ]
 }

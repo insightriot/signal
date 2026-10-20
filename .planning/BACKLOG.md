@@ -2510,7 +2510,7 @@ From M6.E17-REVIEW.md pass 1 S7 and pass 2 (code-reviewer S-9). REVIEW has `chec
 
 ### checkFixRounds: tie each round's range and parent-run base together, and say the base for round 2+ · SIG-335
 
-**Status:** triaged (T)
+**Status:** in progress in M6.E18 (P)
 
 From M6.E17-REVIEW.md pass 1 S13 and pass 2 P2-S1.
 
@@ -2520,7 +2520,7 @@ From M6.E17-REVIEW.md pass 1 S13 and pass 2 P2-S1.
 
 ### recordPass / phase_passes: check the phase matches STATE, and the date on read · SIG-337
 
-**Status:** triaged (T)
+**Status:** in progress in M6.E18 (P)
 
 From M6.E17-REVIEW.md pass 2 P2-S7 and nits.
 
@@ -2579,7 +2579,7 @@ From M6.E17 REVIEW passes 3–5 (see `.planning/M6.E17-REVIEW.md`).
 
 ### markRunEnded / linear run boundary: idempotence, Epic mode, symlinked report, staging · SIG-342
 
-**Status:** triaged (T)
+**Status:** in progress in M6.E18 (P)
 
 From M6.E17 REVIEW passes 4–5.
 
@@ -2592,7 +2592,7 @@ From M6.E17 REVIEW passes 4–5.
 
 ### checkFixRounds and recordPass: trust gaps and missing tests (passes 3–4) · SIG-344
 
-**Status:** triaged (T)
+**Status:** in progress in M6.E18 (P)
 
 From M6.E17 REVIEW passes 3–4.
 
