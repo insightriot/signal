@@ -21,6 +21,7 @@ import {
   completePhase,
 } from '../plugin/tools/lib/state.js';
 import { seedPhaseArtifacts } from './helpers/phase-artifacts.js';
+import * as status from '../plugin/tools/lib/status.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIX_ROOT = join(__dirname, 'fixtures', 'resume');
@@ -588,5 +589,36 @@ describe('the phase count counts phases, not log lines (B124, B47)', () => {
       expect(out).toContain('(0/7 phases done)');
       expect(out).not.toContain('last run');
     });
+  });
+});
+
+// M6.E18 S5 (SIG-319, AC5.1): seen on M6.E16 at SHIP with PR #301 open and the
+// Epic's close requested — the briefing said "Next phase: done". Built the way
+// resume.md § 4 builds `nextAction`, from a unit record on disk, so a
+// hand-written string cannot stand in for the real path.
+describe('AC5.1 — the briefing at SHIP with a closing unit does not say "done"', () => {
+  let base;
+  beforeEach(async () => {
+    base = await mkdtemp(join(tmpdir(), 'sig-ship-owed-'));
+    await mkdir(join(base, '.planning', 'work', 'units'), { recursive: true });
+  });
+  afterEach(async () => {
+    await rm(base, { recursive: true, force: true });
+  });
+
+  it('names the merge of PR #301 and the close confirm', async () => {
+    await writeFile(join(base, '.planning', 'work', 'units', 'M6.E16.json'), JSON.stringify({
+      id: 'M6.E16',
+      events: [
+        { type: 'opened', at: '2026-10-11T00:00:00.000Z', by: 'Brett' },
+        { type: 'close_requested', at: '2026-10-14T22:00:00.000Z', by: 'Claude', proof: 'cc8db82aa76d1da845c565921fdda9634d7687cb', pr: '301', release: 'v0.1.51' },
+      ],
+    }));
+    const state = { phase: 'SHIP', current_epic: 'M6.E16', completed_phases: [], current_tasks: [] };
+    const unit = status.readCurrentUnitStatus(base, state.current_epic);
+    const nextAction = status.formatNextActionCopy(status.describeNextAction(state.phase, FULL_PROFILE.phases_skipped, unit ?? {}));
+    const out = renderResumeBriefing({ cwd: base, profile: FULL_PROFILE, state, nextAction });
+    expect(out).not.toContain('Next phase: done');
+    expect(out).toMatch(/merge PR #301, then confirm the close/);
   });
 });

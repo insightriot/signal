@@ -14,7 +14,7 @@ Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/profile.js` — `readProfile`, `readEffectiveProfile`, `ProfileSchemaError`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `isStateStale`, `isStaleVsOrigin`, `readSchemaDrift`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/resume.js` — `renderResumeBriefing`, `handleOrphansAtResume`, `resolveArtifactPath`, `readLastArchivedRun`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`, `readStateSizeForTier`, `readLayoutBanner`
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `describeNextAction`, `formatNextActionCopy`, `readCurrentUnitStatus`, `formatEscalationSummary`, `readOpenQuestions`, `readLandscapeMeta`, `readStateSizeForTier`, `readLayoutBanner`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/plugin-binding.js` — `readBindingBanner`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/landscape.js` — `extractSection` (used to pull "What this project is" from LANDSCAPE.md when PROJECT.md Vision is still `[INFERRED]` or `[FILL IN]`)
 
@@ -143,7 +143,8 @@ renderResumeBriefing({
   bindingBanner,                 // stale plugin binding string|null — from Step 3b(1f); renders ABOVE all others
   archivedRun,                   // last linear run string[]|null — from Step 3b(1g); only read after a linear ship
   jevResult,                     // Jev STATE.md check report|null — from Step 3b(1h); advisory, one line
-  nextAction: formatNextActionCopy(describeNextAction(state.phase, profile.phases_skipped)), // fail-open (B70)
+  nextAction: formatNextActionCopy(describeNextAction(state.phase, profile.phases_skipped,
+    readCurrentUnitStatus(baseDir, state.current_epic))), // fail-open (B70); the unit record at SHIP (SIG-319)
   retroSummary,                   // {total, complete, stub} — see Step 3c
 });
 ```
@@ -205,7 +206,10 @@ Landscape: captured {capturedOn or "date unknown"} (brownfield init)
 — Work remaining —
 {formatNextActionCopy result — "Next phase: /sig:{cmd}", or, when STATE.md's `phase`
  is not one of the seven canonical names (B70), three lines: that it is unrecognized,
- a one-line excerpt of what STATE.md actually holds, and the seven valid values}
+ a one-line excerpt of what STATE.md actually holds, and the seven valid values.
+ At SHIP with unit records, "done" only when the unit's record is closed; open or
+ closing → what is still owed: the merge of PR #N (when the close request names it),
+ then the close confirm (M6.E18, SIG-319)}
 
 Ready to continue with {next-command}? (Reply "yes" to proceed, or run any /sig:* command directly.)
 ```

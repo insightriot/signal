@@ -16,6 +16,7 @@ import { readProfile } from './profile.js';
 import { countOpenQuestions, extractTopOpenQuestions } from './legacy-lists.js';
 import { extractSection } from './landscape.js';
 import { isStoreOn } from './work-store.js';
+import { getUnit, unitRecordsOn } from './unit-records.js';
 import { listRecords } from './work-records.js';
 import { storeQuestions } from './advise-corpus.js';
 import { senseProject, CURRENT_LAYOUT_VERSION } from './migrate-memory.js';
@@ -80,11 +81,23 @@ export function nextActionForPhase(currentPhase, phasesSkipped = []) {
  * that want the guard still get it; the two read-only meta commands use this.
  * (`reachedDoneViaSkip` below already fails open the same way.)
  *
+ * **At SHIP, the unit's record (M6.E18, `SIG-319`).** Nothing follows SHIP, so
+ * `action` is `'done'` there whatever SHIP's own state is — and the briefing
+ * said "Next phase: done" while the PR was unmerged and the close waited. The
+ * optional third argument is the current unit's record status, which the
+ * caller looks up (`readCurrentUnitStatus` below; this stays pure). When it is
+ * `open` or `closing`, the result carries `owed: {unitStatus, pr}` and
+ * `formatNextActionCopy` names the merge and the close confirm. `action` keeps
+ * its meaning — a command or `'done'` — because `/sig:drive` reads it. No
+ * argument, `closed`, or any other phase → exactly the result before this.
+ *
  * @param {string} currentPhase - canonical phase, or anything at all
  * @param {string[]} phasesSkipped - phases the current tier skips
- * @returns {{recognized: boolean, action: string|null, rawPhase: string, valid: string[]}}
+ * @param {{unitStatus?: 'open'|'closing'|'closed'|null, pr?: string|number|null}|null} [unit]
+ * @returns {{recognized: boolean, action: string|null, rawPhase: string, valid: string[],
+ *   owed?: {unitStatus: 'open'|'closing', pr: string|number|null}}}
  */
-export function describeNextAction(currentPhase, phasesSkipped = []) {
+export function describeNextAction(currentPhase, phasesSkipped = [], unit = null) {
   const valid = [...PHASES];
   if (typeof currentPhase !== 'string' || !PHASES.includes(currentPhase)) {
     return {
@@ -94,12 +107,66 @@ export function describeNextAction(currentPhase, phasesSkipped = []) {
       valid,
     };
   }
-  return {
+  const desc = {
     recognized: true,
     action: nextActionForPhase(currentPhase, phasesSkipped),
     rawPhase: currentPhase,
     valid,
   };
+  const unitStatus = unit?.unitStatus;
+  if (currentPhase === 'SHIP' && (unitStatus === 'open' || unitStatus === 'closing')) {
+    desc.owed = { unitStatus, pr: unit.pr ?? null };
+  }
+  return desc;
+}
+
+/**
+ * The current unit's record status, for `describeNextAction`'s third argument
+ * (M6.E18, `SIG-319`). The lookup `/sig:resume` and `/sig:status` make; kept
+ * out of `describeNextAction` so that function stays pure.
+ *
+ * `pr` is the one the newest close request recorded (`/sig:ship` § 6.8 passes
+ * it). An open unit has no request, so no PR is known.
+ *
+ * Fail-open, because both callers are briefings: no unit records, no current
+ * unit, no such unit, an untrusted units folder or a broken record → `null`,
+ * which is today's output. Never throws.
+ *
+ * @param {string} baseDir
+ * @param {unknown} unitId - usually `state.current_epic`
+ * @returns {{unitStatus: 'open'|'closing'|'closed', pr: string|null}|null}
+ */
+export function readCurrentUnitStatus(baseDir, unitId) {
+  try {
+    if (typeof unitId !== 'string' || unitId === '') return null;
+    if (!unitRecordsOn(baseDir)) return null;
+    const unit = getUnit(baseDir, unitId);
+    let pr = null;
+    if (unit.status === 'closing') {
+      const events = Array.isArray(unit.record?.events) ? unit.record.events : [];
+      const request = events.findLast((e) => e?.type === 'close_requested');
+      pr = request?.pr ?? null;
+    }
+    return { unitStatus: unit.status, pr };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What SHIP still owes when the unit is not closed (M6.E18, `SIG-319`): the
+ * merge, then the close confirm, named with the commands that confirm a close
+ * (`resume.md` 1a′, `reportCloses`). A PR number is shown only when it is all
+ * digits (M6.E17's record holds `"304"`); anything else reads "the PR".
+ * `/sig:status` uses this after `Next: `.
+ *
+ * @param {{pr?: string|number|null}} owed
+ * @returns {string}
+ */
+export function formatShipOwed(owed) {
+  const raw = owed?.pr === null || owed?.pr === undefined ? '' : String(owed.pr).trim();
+  const pr = raw !== '' && [...raw].every((c) => c >= '0' && c <= '9') ? `PR #${raw}` : 'the PR';
+  return `merge ${pr}, then confirm the close (run /sig:docs-sweep or /sig:ship).`;
 }
 
 /** Longest raw-phase excerpt echoed back before eliding (`B70`). */
@@ -117,11 +184,15 @@ const RAW_PHASE_EXCERPT_MAX = 60;
  * Rendering nothing was rejected (D-M5E18-5): a field that drifted by accident
  * would look identical to one set deliberately — `B39`'s shape.
  *
- * @param {{recognized: boolean, action: string|null, rawPhase: string, valid: string[]}} desc
+ * With `desc.owed` (SHIP, the unit not closed — M6.E18): what is still owed,
+ * never "done".
+ *
+ * @param {{recognized: boolean, action: string|null, rawPhase: string, valid: string[], owed?: object}} desc
  * @returns {string}
  */
 export function formatNextActionCopy(desc) {
   if (!desc || typeof desc !== 'object') return '';
+  if (desc.recognized && desc.owed) return `Next phase: none — still owed at SHIP: ${formatShipOwed(desc.owed)}`;
   if (desc.recognized) return `Next phase: ${desc.action}`;
 
   const collapsed = String(desc.rawPhase ?? '')
