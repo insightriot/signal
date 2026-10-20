@@ -467,7 +467,7 @@ describe('M6.E18 AC4.3 — a round inside an HTML comment or a code fence is not
 
   it('a commented-out round with stop: no does not stand as the last round', () => {
     const dirty = round(2, { fresh: 'aaa1111..bbb2222 — Critical 1, Important 0 — stop: no' });
-    const r = checkFixRounds(`# Review\n\n## Pass 1\n\n${round(1)}<!-- ${dirty} -->\n`, 'PASS-WITH-FIXES', none);
+    const r = checkFixRounds(`# Review\n\n## Pass 1\n\n${round(1)}<!--\n${dirty}-->\n`, 'PASS-WITH-FIXES', none);
     expect(r.reasons).toEqual([]);
     expect(r.rounds).toHaveLength(1);
   });

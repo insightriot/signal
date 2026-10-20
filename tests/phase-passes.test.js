@@ -549,6 +549,13 @@ describe('M6.E18 AC3.5 — a REVIEW pass the fix-round check refused is not reco
       expect(err.message).toMatch(/no \*\*Fresh read:\*\* line/);
     }
     expect((await readState(baseDir)).phase_passes).toBeUndefined();
+    // A check that passed is recorded; a FAIL is recorded whatever the check said; no check is as before.
+    await recordPass(baseDir, 'REVIEW', 'PASS-WITH-FIXES', { date: '2026-10-12', fixRounds: { ...refused, ok: true, reasons: [] } });
+    await recordPass(baseDir, 'REVIEW', 'FAIL', { date: '2026-10-12', fixRounds: refused });
+    await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12' });
+    expect((await readState(baseDir)).phase_passes).toEqual([
+      'REVIEW PASS-WITH-FIXES (2026-10-12)', 'REVIEW FAIL (2026-10-12)', 'REVIEW PASS (2026-10-12)',
+    ]);
   });
 
   it('a check result that does not read is refused, never taken as passed', async () => {
@@ -556,14 +563,5 @@ describe('M6.E18 AC3.5 — a REVIEW pass the fix-round check refused is not reco
       await expect(recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12', fixRounds: bad }), JSON.stringify(bad)).rejects.toThrow(/checkFixRounds/);
     }
     expect((await readState(baseDir)).phase_passes).toBeUndefined();
-  });
-
-  it('a check that passed is recorded; a FAIL is recorded whatever the check said; no check is as before', async () => {
-    await recordPass(baseDir, 'REVIEW', 'PASS-WITH-FIXES', { date: '2026-10-12', fixRounds: { ...refused, ok: true, reasons: [] } });
-    await recordPass(baseDir, 'REVIEW', 'FAIL', { date: '2026-10-12', fixRounds: refused });
-    await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12' });
-    expect((await readState(baseDir)).phase_passes).toEqual([
-      'REVIEW PASS-WITH-FIXES (2026-10-12)', 'REVIEW FAIL (2026-10-12)', 'REVIEW PASS (2026-10-12)',
-    ]);
   });
 });
