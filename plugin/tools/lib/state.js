@@ -1873,7 +1873,7 @@ export async function touchDecisionTimestamp(baseDir, opts = {}) {
  * @returns {Promise<{entry: string}>}
  */
 export async function recordPass(baseDir, phase, verdict, opts = {}) {
-  const { LOOP_BOUNDED_PHASES, PASS_VERDICTS, PASS_ENTRY_RE, isPassDate, todayStamp } = await import('./loop-ceiling.js');
+  const { LOOP_BOUNDED_PHASES, PASS_VERDICTS, isPassDate, todayStamp } = await import('./loop-ceiling.js');
   if (!LOOP_BOUNDED_PHASES.includes(phase)) {
     throw new StateWriteError(
       `recordPass: ${JSON.stringify(phase)} is not a phase that loops (expected one of ${LOOP_BOUNDED_PHASES.join(', ')}).`
@@ -1921,12 +1921,10 @@ export async function recordPass(baseDir, phase, verdict, opts = {}) {
           `recordPass: phase_pass_mark in STATE.md (${JSON.stringify(mark)}) is not a whole number from 0 to ${list.length}. Fix it by hand; the loop ceiling cannot read it.`
         );
       }
-      const already = list.slice(mark).find((e) => PASS_ENTRY_RE.exec(e)?.[1] === phase);
-      if (already) {
-        throw new StateWriteError(
-          `recordPass: this ${phase} visit already recorded "${already}". One pass is recorded per visit; to record another, leave ${phase} and enter it again.`
-        );
-      }
+      // More than one record in a visit is allowed: passes whose fixes never
+      // leave REVIEW are what this record exists to count (M6.E16 ran four).
+      // A pass recorded twice raises the count, so the ceiling stops sooner,
+      // never later (AC3.3 as amended at EXECUTE).
     }
     const payload = stripStateMeta(state);
     payload.phase_passes = [...list, entry];

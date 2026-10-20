@@ -452,17 +452,18 @@ describe('M6.E18 AC3.1 / AC3.3 — recordPass refuses a pass that cannot be true
     expect((await readState(baseDir)).phase_passes).toBeUndefined();
   });
 
-  it('a second record in one visit is refused; a record in the next visit is accepted', async () => {
+  it('several passes in one visit are all recorded, as M6.E16 ran four inside REVIEW (AC3.3 amended)', async () => {
     await writeState(baseDir, { phase: 'EXECUTE' });
-    await transitionPhase(baseDir, 'VERIFY');
-    await recordPass(baseDir, 'VERIFY', 'FAIL', { date: '2026-10-12' });
-    await expect(recordPass(baseDir, 'VERIFY', 'FAIL', { date: '2026-10-12' })).rejects.toThrow(/visit/);
-    expect((await readState(baseDir)).phase_passes).toEqual(['VERIFY FAIL (2026-10-12)']);
     await writeFile(join(baseDir, '.planning', 'M6.E16-VERIFICATION.md'), '# x\n', 'utf-8');
-    await transitionPhase(baseDir, 'EXECUTE');
-    await transitionPhase(baseDir, 'VERIFY');
-    await recordPass(baseDir, 'VERIFY', 'PASS', { date: '2026-10-13' });
-    expect((await readState(baseDir)).phase_passes).toEqual(['VERIFY FAIL (2026-10-12)', 'VERIFY PASS (2026-10-13)']);
+    await transitionPhase(baseDir, 'REVIEW');
+    await recordPass(baseDir, 'REVIEW', 'PASS-WITH-FIXES', { date: '2026-10-12' });
+    await recordPass(baseDir, 'REVIEW', 'PASS-WITH-FIXES', { date: '2026-10-12' });
+    await recordPass(baseDir, 'REVIEW', 'FAIL', { date: '2026-10-13' });
+    const state = await readState(baseDir);
+    expect(state.phase_passes).toEqual([
+      'REVIEW PASS-WITH-FIXES (2026-10-12)', 'REVIEW PASS-WITH-FIXES (2026-10-12)', 'REVIEW FAIL (2026-10-13)',
+    ]);
+    expect(loopStatusFor(state, 'REVIEW')).toMatchObject({ count: 3, atCeiling: true });
   });
 
   it('a mark that does not read is refused at write, as the reader stops on it', async () => {
