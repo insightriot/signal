@@ -197,6 +197,7 @@
 - [M6.E17-VALIDATION.md](M6.E17-VALIDATION.md) — `other` — _(note pending)_
 - [M6.E17-VERIFICATION.md](M6.E17-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E18-PLAN.md](M6.E18-PLAN.md) — `other` — _(note pending)_
+- [M6.E18-PROGRESS.md](M6.E18-PROGRESS.md) — `other` — _(note pending)_
 - [M6.E18-REQUIREMENTS.md](M6.E18-REQUIREMENTS.md) — `other` — _(note pending)_
 - [M6.E18-RESEARCH.md](M6.E18-RESEARCH.md) — `other` — _(note pending)_
 - [M6.E18-VALIDATION.md](M6.E18-VALIDATION.md) — `other` — _(note pending)_
@@ -553,6 +554,9 @@
 - [work/items/00/SIG-349.md](work/items/00/SIG-349.md) — `other` — _(note pending)_
 - [work/items/00/SIG-35.md](work/items/00/SIG-35.md) — `other` — _(note pending)_
 - [work/items/00/SIG-350.md](work/items/00/SIG-350.md) — `other` — _(note pending)_
+- [work/items/00/SIG-351.md](work/items/00/SIG-351.md) — `other` — _(note pending)_
+- [work/items/00/SIG-352.md](work/items/00/SIG-352.md) — `other` — _(note pending)_
+- [work/items/00/SIG-353.md](work/items/00/SIG-353.md) — `other` — _(note pending)_
 - [work/items/00/SIG-36.md](work/items/00/SIG-36.md) — `other` — _(note pending)_
 - [work/items/00/SIG-37.md](work/items/00/SIG-37.md) — `other` — _(note pending)_
 - [work/items/00/SIG-38.md](work/items/00/SIG-38.md) — `other` — _(note pending)_
