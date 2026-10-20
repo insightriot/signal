@@ -72,6 +72,15 @@ describe('AC1.6 — a pass is recorded before the Loop Back ask', () => {
     expect(start).toBeLessThan(loopBack);
   });
 
+  // M6.E18 AC3.4 (P4-S6): VERIFY's report says "PASS with documented limits",
+  // which is not a recordPass verdict. The step says which value it records.
+  it("verify.md's step names the value recorded for PASS with documented limits", () => {
+    const start = verify.search(/^### 5a\. Record the pass\b.*$/m);
+    const rest = verify.slice(verify.indexOf('\n', start) + 1);
+    const step = rest.slice(0, rest.search(/^#{1,3} /m));
+    expect(step.replace(/\s+/g, ' ')).toMatch(/PASS with documented limits[^.]*recordPass\(baseDir, 'VERIFY', 'PASS'\)/);
+  });
+
   it('review.md says the count is the larger of passes and exits', () => {
     expect(review).toMatch(/larger of/);
     expect(review).toContain('phase_passes');

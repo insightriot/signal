@@ -6,6 +6,7 @@ import {
   DEFAULT_LOOP_CEILING,
   LOOP_BOUNDED_PHASES,
   countPhaseCompletions,
+  countPhasePasses,
   loopStatusFor,
   formatLoopCeilingHalt,
 } from '../plugin/tools/lib/loop-ceiling.js';
@@ -159,5 +160,90 @@ describe('B76 — review.md carries the ask it was missing', () => {
     // enforces it, the rule has drifted back to prose — which is the whole bug.
     expect(reviewMd).toContain('loopStatusFor');
     expect(reviewMd).toContain('loop-ceiling.js');
+  });
+});
+
+// M6.E18 S2 (FR2, SIG-349): which visit wrote the newest record is now known.
+// transitionPhase writes phase_pass_mark — the length of phase_passes when
+// VERIFY or REVIEW was entered — and only a record at or after it lifts the
+// ceiling. Proof-of-fail: before S2, loopStatusFor ignores the mark, so the
+// SIG-349 probe reads lifted and a malformed mark reads as no mark.
+describe('M6.E18 — the ceiling counts only what this visit recorded (SIG-349)', () => {
+  const exits = (...phases) => phases.map((p, i) => `${p} (2026-10-${String(i + 1).padStart(2, '0')})`);
+  const probe = (extra = {}) => ({
+    phase: 'VERIFY',
+    phase_passes: ['VERIFY FAIL (2026-10-11)', 'VERIFY PASS (2026-10-11)'],
+    completed_phases: exits('DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'EXECUTE', 'VERIFY', 'REVIEW', 'EXECUTE'),
+    ...extra,
+  });
+
+  it('the SIG-349 probe: an earlier visit\'s PASS, nothing recorded this visit → held', () => {
+    const s = loopStatusFor(probe({ phase_pass_mark: 2 }), 'VERIFY');
+    expect(s).toMatchObject({ count: 2, nextAttempt: 3, atCeiling: true });
+    expect(canProceedUnattended('VERIFY', unattended, { loopStatus: s }).reason).toBe('loop-ceiling');
+  });
+
+  it('a PASS recorded after the mark lifts it', () => {
+    const s = probe({ phase_pass_mark: 2 });
+    s.phase_passes = [...s.phase_passes, 'VERIFY PASS (2026-10-12)'];
+    expect(loopStatusFor(s, 'VERIFY')).toMatchObject({ count: 3, atCeiling: false });
+  });
+
+  it('a PASS-WITH-FIXES at exactly the mark lifts it; a FAIL there does not', () => {
+    const s = { phase: 'REVIEW', phase_passes: ['REVIEW PASS-WITH-FIXES (2026-10-12)'],
+      completed_phases: exits('VERIFY', 'REVIEW', 'EXECUTE', 'VERIFY', 'REVIEW', 'EXECUTE', 'VERIFY'), phase_pass_mark: 0 };
+    expect(loopStatusFor(s, 'REVIEW')).toMatchObject({ count: 2, atCeiling: false });
+    expect(loopStatusFor({ ...s, phase_passes: ['REVIEW FAIL (2026-10-12)'] }, 'REVIEW')).toMatchObject({ atCeiling: true });
+  });
+
+  it('no mark → exactly today\'s results (AC2.3)', () => {
+    // The probe without a mark is the SIG-349 shape as it reads today: lifted.
+    expect(loopStatusFor(probe(), 'VERIFY')).toEqual({ phase: 'VERIFY', count: 2, ceiling: 3, nextAttempt: 3, atCeiling: false });
+    const held = { phase: 'VERIFY', completed_phases: exits('VERIFY', 'REVIEW', 'EXECUTE', 'VERIFY'),
+      phase_passes: ['VERIFY PASS (2026-10-01)', 'REVIEW FAIL (2026-10-01)'] };
+    expect(loopStatusFor(held, 'VERIFY')).toEqual({ phase: 'VERIFY', count: 2, ceiling: 3, nextAttempt: 3, atCeiling: true });
+    expect(loopStatusFor({ ...held, phase_pass_mark: undefined }, 'VERIFY')).toEqual(loopStatusFor(held, 'VERIFY'));
+  });
+
+  it.each([
+    ['a negative number', -1],
+    ['a fraction', 1.5],
+    ['a string', '2'],
+    ['null', null],
+    ['larger than the list', 3],
+  ])('a mark that is %s → null → loop-unknown, never zero (AC2.4)', (_label, mark) => {
+    const s = probe({ phase_pass_mark: mark });
+    expect(loopStatusFor(s, 'VERIFY')).toBeNull();
+    expect(loopStatusFor(s, 'REVIEW')).toBeNull();
+    const verdict = canProceedUnattended('VERIFY', unattended, { loopStatus: loopStatusFor(s, 'VERIFY') });
+    expect(verdict).toMatchObject({ proceed: false, reason: 'loop-unknown' });
+  });
+
+  it('a mark equal to the list length is readable (entered, nothing recorded yet)', () => {
+    expect(loopStatusFor(probe({ phase_pass_mark: 2 }), 'VERIFY')).not.toBeNull();
+    expect(loopStatusFor({ phase: 'VERIFY', completed_phases: [], phase_pass_mark: 0 }, 'VERIFY')).toMatchObject({ count: 0 });
+  });
+});
+
+// M6.E18 S2 (FR3, AC3.2): a record dated after today cannot be a pass that ended.
+describe('M6.E18 — a pass dated after today makes the record unreadable', () => {
+  const s = { phase: 'REVIEW', completed_phases: [], phase_passes: ['REVIEW FAIL (2026-10-20)', 'REVIEW PASS (2026-10-21)'] };
+
+  it('countPhasePasses → null, and so loopStatusFor → null', () => {
+    expect(countPhasePasses(s, 'REVIEW', { today: '2026-10-20' })).toBeNull();
+    expect(countPhasePasses(s, 'VERIFY', { today: '2026-10-20' })).toBeNull();
+    expect(loopStatusFor(s, 'REVIEW', { today: '2026-10-20' })).toBeNull();
+  });
+
+  it('the same record read on or after that day counts', () => {
+    expect(countPhasePasses(s, 'REVIEW', { today: '2026-10-21' })).toBe(2);
+  });
+
+  it('a well-shaped date that is not a calendar day → null', () => {
+    expect(countPhasePasses({ phase_passes: ['REVIEW PASS (2026-02-30)'] }, 'REVIEW', { today: '2026-10-20' })).toBeNull();
+  });
+
+  it('with no today given, the clock decides: a date far in the future → null', () => {
+    expect(countPhasePasses({ phase_passes: ['REVIEW PASS (2999-01-01)'] }, 'REVIEW')).toBeNull();
   });
 });

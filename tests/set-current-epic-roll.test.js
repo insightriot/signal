@@ -17,7 +17,7 @@
 // stale). A gate that never resets can't pass them.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -129,5 +129,45 @@ describe('M5.E2.S1.t0 setCurrentEpic roll-reset (B9)', () => {
     expect(state.current_epic).toBe('M5.E1');
     expect(state.phase).toBeNull();
     expect(state.completed_phases).toEqual([]);
+  });
+});
+
+// M6.E18 S2 (AC2.4): the visit marker is per Epic, like phase_passes. A roll
+// that kept it would leave a mark larger than the emptied list, which reads
+// as unreadable and stops the driver on the new Epic's first VERIFY.
+// Proof-of-fail: before S2, setCurrentEpic leaves phase_pass_mark in place.
+describe('M6.E18 setCurrentEpic roll clears phase_pass_mark', () => {
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-mark-roll-'));
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  async function withMark(dir, epic) {
+    await writeShippedEpicState(dir, { epic });
+    const path = join(dir, '.planning', 'STATE.md');
+    const text = await readFile(path, 'utf-8');
+    await writeFile(
+      path,
+      text.replace('last_updated: ', 'phase_passes:\n  - REVIEW PASS (2026-07-16)\nphase_pass_mark: 1\nlast_updated: '),
+      'utf-8'
+    );
+  }
+
+  it('rolling to a NEW Epic removes the mark', async () => {
+    await withMark(baseDir, 'M5.E1');
+    expect((await readState(baseDir)).phase_pass_mark).toBe(1);
+    await setCurrentEpic(baseDir, 'M5.E2');
+    const state = await readState(baseDir);
+    expect('phase_pass_mark' in state).toBe(false);
+    expect(state.phase_passes).toEqual([]);
+  });
+
+  it('re-setting the SAME Epic keeps it', async () => {
+    await withMark(baseDir, 'M5.E1');
+    await setCurrentEpic(baseDir, 'M5.E1');
+    expect((await readState(baseDir)).phase_pass_mark).toBe(1);
   });
 });

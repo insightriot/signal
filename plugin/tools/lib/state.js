@@ -447,6 +447,16 @@ async function recordPhase(baseDir, { leaving, nextPhase }) {
   const payload = stripStateMeta(state);
   if (nextPhase) payload.phase = nextPhase;
   payload.completed_phases = completed;
+  // M6.E18 (SIG-349, D-M6E18-3): entering VERIFY or REVIEW marks where the
+  // visit began, so loopStatusFor can tell this visit's PASS from an earlier
+  // one. The two names are written out rather than imported: loop-ceiling.js
+  // imports this module. A phase_passes that is not a list gets no new mark —
+  // the reader already stops on it, and a length would be invented.
+  if (nextPhase === 'VERIFY' || nextPhase === 'REVIEW') {
+    const passes = state.phase_passes;
+    if (passes === undefined) payload.phase_pass_mark = 0;
+    else if (Array.isArray(passes)) payload.phase_pass_mark = passes.length;
+  }
   payload.last_updated = new Date().toISOString();
   await writeStateFrontmatter(baseDir, payload);
   return { quarantined: malformed };
@@ -768,6 +778,7 @@ export async function completePhase(baseDir, phase) {
           // them (M6.E17 VERIFY D1); kept, the next run's first REVIEW
           // would read this run's count. Archiving them is SIG-327.
           if (payload.phase_passes !== undefined) payload.phase_passes = [];
+          delete payload.phase_pass_mark; // the visit marker ends with the records it marks (M6.E18)
           payload.last_updated = new Date().toISOString();
           await writeStateFrontmatter(baseDir, payload);
           trimmed = archived;
@@ -1068,6 +1079,8 @@ export async function setCurrentEpic(baseDir, epicId) {
     // M6.E17: recorded passes are per Epic, like completed_phases — a new Epic
     // must not start its loop count at the previous Epic's REVIEW passes.
     payload.phase_passes = [];
+    // M6.E18: so is the visit marker; kept, it would exceed the emptied list.
+    delete payload.phase_pass_mark;
     payload.last_updated = new Date().toISOString();
     await writeStateFrontmatter(baseDir, payload);
     return { archivedPhaseLog: archivedOut }; // surfaced, never silent (NFR1)
@@ -1842,17 +1855,25 @@ export async function touchDecisionTimestamp(baseDir, opts = {}) {
  * the reader stops on). The date defaults to today in the same form as
  * `completed_phases` entries. `setCurrentEpic` clears the list on a roll.
  *
+ * M6.E18 (`SIG-337`, `SIG-344`): also refuses a pass for a phase STATE is not
+ * in (both named), a date that is not a calendar day or is after today
+ * (`opts.today`, `YYYY-MM-DD`, defaults to the clock), and a second record for
+ * this phase in one visit — an entry for it at or after `phase_pass_mark`,
+ * which `transitionPhase` writes on entry. With no mark (STATE written before
+ * M6.E18) a visit cannot be told, so that refusal does not apply. A mark that
+ * does not read is refused, as the reader stops on it.
+ *
  * `loop-ceiling.js` is imported dynamically: it imports from this module, so a
  * static import back would be a cycle (the `planning-index.js` rule above).
  *
  * @param {string} baseDir
  * @param {string} phase
  * @param {string} verdict
- * @param {{date?: string}} [opts]
+ * @param {{date?: string, today?: string}} [opts]
  * @returns {Promise<{entry: string}>}
  */
 export async function recordPass(baseDir, phase, verdict, opts = {}) {
-  const { LOOP_BOUNDED_PHASES, PASS_VERDICTS } = await import('./loop-ceiling.js');
+  const { LOOP_BOUNDED_PHASES, PASS_VERDICTS, PASS_ENTRY_RE, isPassDate, todayStamp } = await import('./loop-ceiling.js');
   if (!LOOP_BOUNDED_PHASES.includes(phase)) {
     throw new StateWriteError(
       `recordPass: ${JSON.stringify(phase)} is not a phase that loops (expected one of ${LOOP_BOUNDED_PHASES.join(', ')}).`
@@ -1863,9 +1884,15 @@ export async function recordPass(baseDir, phase, verdict, opts = {}) {
       `recordPass: ${JSON.stringify(verdict)} is not a verdict (expected one of ${PASS_VERDICTS.join(', ')}).`
     );
   }
-  const date = opts.date ?? new Date().toISOString().split('T')[0];
+  const today = opts.today ?? todayStamp();
+  const date = opts.date ?? today;
   if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     throw new StateWriteError(`recordPass: date ${JSON.stringify(date)} is not YYYY-MM-DD.`);
+  }
+  if (!isPassDate(date, today)) {
+    throw new StateWriteError(
+      `recordPass: date ${date} is not a calendar day on or before today (${today}); a pass cannot have ended then.`
+    );
   }
   const entry = `${phase} ${verdict} (${date})`;
   return withStateLock(baseDir, async () => {
@@ -1881,8 +1908,28 @@ export async function recordPass(baseDir, phase, verdict, opts = {}) {
         'recordPass: phase_passes in STATE.md is not a list. Fix it by hand; appending would hide the damage.'
       );
     }
+    if (state.phase !== phase) {
+      throw new StateWriteError(
+        `recordPass: STATE.md's phase is ${JSON.stringify(state.phase ?? null)}, not ${phase}; a ${phase} pass can only be recorded while ${phase} is the current phase.`
+      );
+    }
+    const list = prior ?? [];
+    const mark = state.phase_pass_mark;
+    if (mark !== undefined) {
+      if (!(Number.isInteger(mark) && mark >= 0 && mark <= list.length)) {
+        throw new StateWriteError(
+          `recordPass: phase_pass_mark in STATE.md (${JSON.stringify(mark)}) is not a whole number from 0 to ${list.length}. Fix it by hand; the loop ceiling cannot read it.`
+        );
+      }
+      const already = list.slice(mark).find((e) => PASS_ENTRY_RE.exec(e)?.[1] === phase);
+      if (already) {
+        throw new StateWriteError(
+          `recordPass: this ${phase} visit already recorded "${already}". One pass is recorded per visit; to record another, leave ${phase} and enter it again.`
+        );
+      }
+    }
     const payload = stripStateMeta(state);
-    payload.phase_passes = [...(prior ?? []), entry];
+    payload.phase_passes = [...list, entry];
     payload.last_updated = new Date().toISOString();
     await writeStateFrontmatter(baseDir, payload);
     return { entry };
