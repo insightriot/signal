@@ -12,7 +12,7 @@
 // `countPhasePasses` do not exist, and `loopStatusFor` ignores `phase_passes`.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile, symlink, lstat } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
@@ -277,6 +277,33 @@ describe('AC1.3 — the records are per Epic', () => {
     const before = await readFile(reportPath, 'utf-8');
     expect(await markRunEnded(baseDir, { date: '2026-10-18', keep: 1 })).toMatchObject({ ok: false });
     expect(await readFile(reportPath, 'utf-8')).toBe(before);
+  });
+
+  // M6.E18 S6 (SIG-342 P4-S1, AC6.1): a linear SHIP followed a symlinked
+  // 1-REVIEW.md, and atomicWrite renamed a regular file over the link — the
+  // linked file's contents written into .planning/. lstat, and refuse.
+  it('a symlinked REVIEW report is refused: the link stays a link, its target is untouched', async () => {
+    await writeState(baseDir, { epic: 'null', phase: 'SHIP', extra: shipPasses(['REVIEW PASS (2026-10-12)']) });
+    const outside = await mkdtemp(join(tmpdir(), 'signal-passes-link-'));
+    try {
+      const target = join(outside, 'elsewhere.md');
+      await writeFile(target, '# Not this project\n', 'utf-8');
+      const reportPath = join(baseDir, '.planning', '1-REVIEW.md');
+      await symlink(target, reportPath);
+
+      const direct = await markRunEnded(baseDir, { date: '2026-10-20' });
+      expect(direct).toMatchObject({ ok: false, path: reportPath });
+      expect(direct.error).toMatch(/1-REVIEW\.md/);
+      expect(direct.error).toMatch(/symbolic link/i);
+
+      const r = await completePhase(baseDir, 'SHIP');
+      expect(r.runEnded).toMatchObject({ ok: false, path: reportPath });
+      expect(r.runEnded.error).toMatch(/symbolic link/i);
+      expect((await lstat(reportPath)).isSymbolicLink()).toBe(true);
+      expect(await readFile(target, 'utf-8')).toBe('# Not this project\n');
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 
   it('an Epic SHIP does not touch the report', async () => {

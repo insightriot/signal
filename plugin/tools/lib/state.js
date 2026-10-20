@@ -1,4 +1,4 @@
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, mkdir, lstat } from 'node:fs/promises';
 import { existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -808,10 +808,17 @@ async function linearReviewReport(baseDir) {
  * its last `keep` pass sections rather than at the end, and a report with no
  * more sections than that is refused, unchanged (P5-I1). A re-invoked SHIP does
  * not write the line: on ship.md's path it returns at completePhase's first guard.
+ *
+ * A report that is a symbolic link is refused, unchanged (M6.E18, SIG-342
+ * P4-S1): reading through it and writing back would replace the link with a
+ * copy of whatever it points at, inside `.planning/`.
  */
 export async function markRunEnded(baseDir, { date = new Date().toISOString().slice(0, 10), keep = 0 } = {}) {
   const report = await linearReviewReport(baseDir);
   try {
+    if ((await lstat(report)).isSymbolicLink()) {
+      return { ok: false, path: report, error: `${report} is a symbolic link; the "## Run ended" line is not written through it. Replace it with the report itself, then call markRunEnded.` };
+    }
     const text = await readFile(report, 'utf-8');
     const { currentRunPasses } = await import('./review-rounds.js');
     const passes = currentRunPasses(text);
