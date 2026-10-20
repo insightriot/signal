@@ -53,7 +53,7 @@ rewrites only between the `adherence:ceiling` markers, so this survives every re
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-10-20 · **Commit:** `a9f7296b` · **Corpus:** 24 `commands/*.md` files
+**Computed:** 2026-10-20 · **Commit:** `4555746a` · **Corpus:** 24 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -62,15 +62,15 @@ by line.
 
 | | count | share |
 |---|---:|---:|
-| Directive lines | **715** | 100% |
-| …naming a real `tools/lib` export | 130 | 18.2% |
+| Directive lines | **719** | 100% |
+| …naming a real `tools/lib` export | 131 | 18.2% |
 | …writing a named artifact | 26 | 3.6% |
-| **Trace-measurable (either)** | **156** | **21.8%** |
-| **No observable trace** | **559** | **78.2%** |
+| **Trace-measurable (either)** | **157** | **21.8%** |
+| **No observable trace** | **562** | **78.2%** |
 
 ### What the remainder is, stated plainly
 
-The 559 directives with no observable trace are **unmeasured, not passing.**
+The 562 directives with no observable trace are **unmeasured, not passing.**
 
 They are not "probably fine", not "covered by the test suite", and not "verified by the
 fact that Signal works". Nothing in this repository establishes whether an agent follows
@@ -84,7 +84,7 @@ harness run as evidence about the whole corpus will not find it here.
 | File | directives | measurable | unmeasured |
 |---|---:|---:|---:|
 | `ship.md` | 71 | 24 | 47 |
-| `status.md` | 27 | 12 | 15 |
+| `status.md` | 28 | 13 | 15 |
 | `add.md` | 42 | 11 | 31 |
 | `discuss.md` | 31 | 10 | 21 |
 | `plan.md` | 54 | 10 | 44 |
@@ -99,7 +99,7 @@ harness run as evidence about the whole corpus will not find it here.
 | `drive.md` | 42 | 5 | 37 |
 | `execute.md` | 22 | 5 | 17 |
 | `calibrate.md` | 28 | 4 | 24 |
-| `review.md` | 55 | 4 | 51 |
+| `review.md` | 58 | 4 | 54 |
 | `verify.md` | 41 | 4 | 37 |
 | `update.md` | 11 | 3 | 8 |
 | `advise.md` | 22 | 2 | 20 |
