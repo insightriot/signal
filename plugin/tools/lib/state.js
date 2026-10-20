@@ -567,7 +567,11 @@ export async function transitionPhase(baseDir, nextPhase) {
     if (!state) {
       throw new Error('No project state found. Run /sig:new-project first.');
     }
-    const leaving = state.phase ?? null;
+    // SHIP is terminal (B43): nothing leaves it, and completePhase is what
+    // records it. A re-invoked /sig:ship runs this with `phase` already SHIP;
+    // recording SHIP as left put a stray `SHIP (<date>)` in the live list
+    // that a linear ship had just emptied (M6.E18, SIG-343).
+    const leaving = state.phase === 'SHIP' && nextPhase === 'SHIP' ? null : (state.phase ?? null);
     // Refuse BEFORE any write, so a rejected transition leaves STATE.md
     // byte-identical rather than half-applied.
     await assertLeavingArtifactExists(baseDir, leaving, state);

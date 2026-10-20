@@ -15,6 +15,7 @@ import {
   readStateSizeBanner,
 } from '../plugin/tools/lib/status.js';
 import { readProfile, ProfileSchemaError } from '../plugin/tools/lib/profile.js';
+import * as status from '../plugin/tools/lib/status.js';
 
 describe('readSchemaDriftBanner (S4.t2, FR5)', () => {
   let tempDir;
@@ -545,5 +546,83 @@ describe('readStateSizeBanner (FR2, v0.1.6)', () => {
   it('AC2.1 returns a banner string for an over-budget STATE.md', async () => {
     await writeFile(join(dir, '.planning', 'STATE.md'), '---\nschema_version: 1\n---\n' + 'x'.repeat(200 * 1024));
     expect(readStateSizeBanner(dir)).toMatch(/⚠ STATE\.md is large/);
+  });
+});
+
+// M6.E18 S5 (SIG-319, AC5.1): at SHIP the briefing read "Next phase: done" while
+// the PR was unmerged and the unit's close waited. The next action now takes the
+// current unit's record: closed → done; open or closing → what is still owed. No
+// record → exactly today's output. `status` is a namespace import so a missing
+// export fails these tests, not the whole file.
+describe('AC5.1 — at SHIP the next action follows the unit record', () => {
+  const unitRecord = (id, events) => JSON.stringify({ id, events }, null, 2);
+  const opened = { type: 'opened', at: '2026-10-15T03:04:28.186Z', by: 'Brett' };
+  const requested = { type: 'close_requested', at: '2026-10-19T20:19:06.623Z', by: 'Claude', proof: 'cc8db82aa76d1da845c565921fdda9634d7687cb', pr: '301', release: 'v0.1.51' };
+  const closed = { type: 'closed', at: '2026-10-20T00:33:09.848Z', by: 'confirmCloses', reason: 'shipped', proof: 'cc8db82aa76d1da845c565921fdda9634d7687cb', pr: '301', release: 'v0.1.51' };
+
+  for (const unitStatus of ['open', 'closing']) {
+    it(`${unitStatus} → the merge, then the close confirm, and never "done"`, () => {
+      const copy = status.formatNextActionCopy(status.describeNextAction('SHIP', [], { unitStatus, pr: '301' }));
+      expect(copy).not.toMatch(/Next phase: done/);
+      expect(copy).toMatch(/merge PR #301, then confirm the close/);
+      expect(copy).toMatch(/\/sig:docs-sweep or \/sig:ship/);
+    });
+  }
+
+  it('without a PR number it says "the PR"', () => {
+    const copy = status.formatNextActionCopy(status.describeNextAction('SHIP', [], { unitStatus: 'open' }));
+    expect(copy).toMatch(/merge the PR, then confirm the close/);
+  });
+
+  // One test, not three: closed and "no context" are today's output, so on
+  // their own they would pass before this change and prove nothing.
+  it('keeps `action` a command or "done"; closed, no unit context, or another phase → exactly today', () => {
+    const d = status.describeNextAction('SHIP', [], { unitStatus: 'closing', pr: '301' });
+    expect(d.action).toBe('done');
+    expect(d.owed).toEqual({ unitStatus: 'closing', pr: '301' });
+    const shut = status.describeNextAction('SHIP', [], { unitStatus: 'closed', pr: '301' });
+    expect(shut.action).toBe('done');
+    expect(shut.owed).toBeUndefined();
+    expect(status.formatNextActionCopy(shut)).toBe('Next phase: done');
+    expect(status.describeNextAction('SHIP', [])).toEqual(status.describeNextAction('SHIP', [], {}));
+    expect(status.describeNextAction('SHIP', []).owed).toBeUndefined();
+    expect(status.formatNextActionCopy(status.describeNextAction('SHIP', [], null))).toBe('Next phase: done');
+    expect(status.describeNextAction('REVIEW', [], { unitStatus: 'open' }).owed).toBeUndefined();
+  });
+
+  describe('readCurrentUnitStatus — the lookup the commands pass in (fail-open)', () => {
+    let dir;
+    beforeEach(async () => {
+      dir = await mkdtemp(join(tmpdir(), 'signal-status-unit-'));
+      await mkdir(join(dir, '.planning'), { recursive: true });
+    });
+    afterEach(async () => {
+      await rm(dir, { recursive: true, force: true });
+    });
+    const writeUnit = async (id, events) => {
+      await mkdir(join(dir, '.planning', 'work', 'units'), { recursive: true });
+      await writeFile(join(dir, '.planning', 'work', 'units', `${id}.json`), unitRecord(id, events));
+    };
+
+    it('closing → the status and the PR from the close request', async () => {
+      await writeUnit('M6.E16', [opened, requested]);
+      expect(status.readCurrentUnitStatus(dir, 'M6.E16')).toEqual({ unitStatus: 'closing', pr: '301' });
+    });
+    it('open → the status and no PR', async () => {
+      await writeUnit('M6.E16', [opened]);
+      expect(status.readCurrentUnitStatus(dir, 'M6.E16')).toEqual({ unitStatus: 'open', pr: null });
+    });
+    it('closed → closed', async () => {
+      await writeUnit('M6.E16', [opened, requested, closed]);
+      expect(status.readCurrentUnitStatus(dir, 'M6.E16')).toMatchObject({ unitStatus: 'closed' });
+    });
+    it('no unit records, no current unit, no such unit, or a broken record → null, never a throw', async () => {
+      expect(status.readCurrentUnitStatus(dir, 'M6.E16')).toBeNull();
+      await writeUnit('M6.E15', [opened]);
+      expect(status.readCurrentUnitStatus(dir, null)).toBeNull();
+      expect(status.readCurrentUnitStatus(dir, 'M6.E16')).toBeNull();
+      await writeFile(join(dir, '.planning', 'work', 'units', 'M6.E16.json'), '{ not json');
+      expect(status.readCurrentUnitStatus(dir, 'M6.E16')).toBeNull();
+    });
   });
 });

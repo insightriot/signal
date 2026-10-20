@@ -5,7 +5,7 @@
 // than hygiene: `resume.js` counts the live list against a /7 denominator, and
 // `isEpicCloseByState` tests it with `.some()`. Both assume one run's worth.
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -112,6 +112,53 @@ describe('FR5 — phase-log trim', () => {
       expect(again.recorded).toBe(false);
       const secondPass = await readFile(join(base, '.planning', 'STATE-HISTORY.md'), 'utf-8');
       expect(secondPass).toBe(firstPass);
+    });
+
+    // M6.E18 S5 (SIG-343, AC5.2): a re-invoked /sig:ship ran § 5 step 1,
+    // transitionPhase('SHIP'), with `phase` already SHIP, and recorded SHIP as
+    // the phase being left — a stray `SHIP (<date>)` in the emptied live list.
+    // Driven the way ship.md § 5 lists its steps, in order, not completePhase
+    // alone (M6.E17 retrospective): step 1, then step 2.
+    describe('a re-invoked ship, run as ship.md § 5 runs it (AC5.2)', () => {
+      const shipSteps = async () => {
+        await transitionPhase(base, 'SHIP'); // § 5 step 1
+        await completePhase(base, 'SHIP'); // § 5 step 2
+      };
+      const runsArchived = async () =>
+        (await readFile(join(base, '.planning', 'STATE-HISTORY.md'), 'utf-8')).match(/linear run ending/g)?.length ?? 0;
+
+      beforeEach(async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-10-20T12:00:00.000Z'));
+        await writeFile(join(base, '.planning', 'STATE.md'), stateFile({ phase: 'REVIEW', completed: ledger(1) }));
+        await seedPhaseArtifacts(base);
+        await shipSteps();
+        expect((await readState(base)).completed_phases).toEqual([]);
+        expect(await runsArchived()).toBe(1);
+      });
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it('the same day: the live list stays empty and no second run is archived', async () => {
+        const history = await readFile(join(base, '.planning', 'STATE-HISTORY.md'), 'utf-8');
+        await shipSteps();
+        const state = await readState(base);
+        expect(state.phase).toBe('SHIP');
+        expect(state.completed_phases).toEqual([]);
+        expect(await readFile(join(base, '.planning', 'STATE-HISTORY.md'), 'utf-8')).toBe(history);
+      });
+
+      it('the next day: the live list stays empty and no second run is archived', async () => {
+        const history = await readFile(join(base, '.planning', 'STATE-HISTORY.md'), 'utf-8');
+        vi.setSystemTime(new Date('2026-10-21T12:00:00.000Z'));
+        await shipSteps();
+        const state = await readState(base);
+        expect(state.phase).toBe('SHIP');
+        expect(state.completed_phases).toEqual([]);
+        expect(await runsArchived()).toBe(1);
+        expect(await readFile(join(base, '.planning', 'STATE-HISTORY.md'), 'utf-8')).toBe(history);
+      });
     });
 
     it('does not trim in Epic mode — that is the roll\'s job, not ship\'s', async () => {
