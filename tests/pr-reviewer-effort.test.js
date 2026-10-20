@@ -4,6 +4,7 @@
 // a run is flagged, and that a run SHIP could not read never reads as reviewed.
 
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 import {
   formatReviewerEffort,
@@ -98,5 +99,143 @@ describe('the readout', () => {
   it('shows the numbers on a real review', () => {
     const out = formatReviewerEffort(readReviewerEffort({ ...args, execFn: gh() }));
     expect(out).toMatch(/^✓ PR reviewer: ran a full review \(35 turns, \$1\.99/);
+  });
+});
+
+// M6.E18 S3 (SIG-348, SIG-285): the upstream review command stops at its step 1 once Claude has
+// commented, so every push after a PR's first one ends in a short "stop" run. Reading only the
+// newest run made a re-push after a real review read as hollow (SIG-285), and nothing said which
+// commit was last reviewed. These read every run on the head commit and name the last reviewed one.
+
+const outcomeLine = (outcome, sha, turns, cost, job = 'review') =>
+  `claude-review\tRecord review outcome\t2026-10-20T00:13:38Z REVIEW_OUTCOME=${outcome} head=${sha} job=${job} turns=${turns} cost=${cost}`;
+
+// #304's shape: a real review on the first commit, then step-1 stops on every later one.
+function ghPr({ commits, runs, logs, additions = 6000, deletions = 861 }) {
+  return (cmd, a) => {
+    if (a[0] === 'pr') {
+      return JSON.stringify({ additions, deletions, headRefOid: commits.at(-1), commits: commits.map((oid) => ({ oid })) });
+    }
+    if (a[0] === 'run' && a[1] === 'list') {
+      const sha = a[a.indexOf('--commit') + 1];
+      return JSON.stringify(runs[sha] ?? []);
+    }
+    if (a[0] === 'run' && a[1] === 'view') return logs[a[2]] ?? '';
+    throw new Error(`unexpected gh ${a.join(' ')}`);
+  };
+}
+const ok = (id) => ({ databaseId: id, status: 'completed', conclusion: 'success' });
+const first = 'e92032de00000000000000000000000000000000';
+const later = ['cc8db82a0000000000000000000000000000000a', 'b249b68d0000000000000000000000000000000b', 'd66100c80000000000000000000000000000000c'];
+const pr304 = (headLog, extraHeadRuns = []) => ghPr({
+  commits: [first, ...later],
+  runs: {
+    [first]: [ok(1)],
+    [later[0]]: [ok(2)],
+    [later[1]]: [ok(3)],
+    [later[2]]: [ok(4), ...extraHeadRuns],
+  },
+  logs: {
+    1: outcomeLine('reviewed', first, 9, 1.44),
+    2: outcomeLine('stopped-step-1', later[0], 3, 0.109),
+    3: outcomeLine('stopped-step-1', later[1], 4, 0.115),
+    4: headLog ?? outcomeLine('stopped-step-1', later[2], 3, 0.111),
+    5: outcomeLine('reviewed', later[2], 14, 1.62, 'review-head'),
+  },
+});
+
+describe('every run on the head commit, and the last reviewed commit (M6.E18)', () => {
+  it("reads #304's head as stopped at step 1, not hollow, and names the last reviewed commit", () => {
+    const r = readReviewerEffort({ ...args, execFn: pr304() });
+    expect(r).toMatchObject({ status: 'stopped', lastReviewed: first, commitsAfter: 3, readyToMerge: false });
+  });
+
+  it('a review-head run on the head commit makes it reviewed, beside the step-1 stop', () => {
+    const r = readReviewerEffort({ ...args, execFn: pr304(undefined, [ok(5)]) });
+    expect(r).toMatchObject({ status: 'reviewed', turns: 14, costUsd: 1.62, readyToMerge: true, lastReviewed: later[2], commitsAfter: 0 });
+  });
+
+  it('a reviewed outcome that did a stop\'s worth of work is still hollow', () => {
+    const r = readReviewerEffort({ ...args, execFn: pr304(outcomeLine('reviewed', later[2], 3, 0.12)) });
+    expect(r).toMatchObject({ status: 'hollow', readyToMerge: false, lastReviewed: first });
+  });
+
+  it('no-result (the workflow-validation skip) is cannot-check, never reviewed', () => {
+    const r = readReviewerEffort({ ...args, execFn: pr304(outcomeLine('no-result', later[2], '', '')) });
+    expect(r).toMatchObject({ status: 'cannot-check', readyToMerge: false });
+    expect(r.reason).toMatch(/no result/);
+  });
+
+  it('a log from before the outcome line falls back to turns and cost, and says so', () => {
+    const r = readReviewerEffort({ ...args, execFn: pr304(logWith(35, 1.99)) });
+    expect(r).toMatchObject({ status: 'reviewed', readyToMerge: true, fromOutcomeLine: false });
+    expect(readReviewerEffort({ ...args, execFn: pr304() }).fromOutcomeLine).toBe(true);
+  });
+
+  it('pre-outcome-line history still finds the last real review (#304 as it was logged)', () => {
+    const r = readReviewerEffort({
+      ...args,
+      execFn: ghPr({
+        commits: [first, ...later],
+        runs: { [first]: [ok(1)], [later[0]]: [ok(2)], [later[1]]: [ok(3)], [later[2]]: [ok(4)] },
+        logs: { 1: logWith(9, 1.44), 2: logWith(3, 0.109), 3: logWith(4, 0.115), 4: logWith(3, 0.111) },
+      }),
+    });
+    expect(r).toMatchObject({ status: 'hollow', lastReviewed: first, commitsAfter: 3, readyToMerge: false });
+  });
+
+  it('lists every run on the head commit, not only the newest', () => {
+    const calls = [];
+    const fake = pr304(undefined, [ok(5)]);
+    readReviewerEffort({ ...args, execFn: (c, a, o) => { calls.push(a); return fake(c, a, o); } });
+    const list = calls.find((a) => a[0] === 'run' && a[1] === 'list');
+    expect(list[list.indexOf('--limit') + 1]).not.toBe('1');
+  });
+
+  it('a run still going on the head commit, with no review yet, is cannot-check', () => {
+    const r = readReviewerEffort({ ...args, execFn: pr304(undefined, [{ databaseId: 9, status: 'in_progress', conclusion: null }]) });
+    expect(r).toMatchObject({ status: 'cannot-check', readyToMerge: false });
+    expect(r.reason).toMatch(/in_progress/);
+  });
+});
+
+describe('the readout names what is owed (AC1.4)', () => {
+  it('a stopped head names the last reviewed commit, the count after it, and the label', () => {
+    const out = formatReviewerEffort(readReviewerEffort({ ...args, execFn: pr304() }));
+    expect(out).toMatch(/did not review the head commit d66100c8/);
+    expect(out).toMatch(/already commented/);
+    expect(out).toMatch(/last real review: e92032de, 3 commits before the head/);
+    expect(out).toMatch(/Not ready to merge/);
+    expect(out).toMatch(/`review-head` label/);
+    expect(out).toMatch(/remove it and add it again/);
+  });
+
+  it('no reviewed commit at all says so', () => {
+    const out = formatReviewerEffort(readReviewerEffort({
+      ...args,
+      execFn: ghPr({ commits: [first], runs: { [first]: [ok(2)] }, logs: { 2: outcomeLine('stopped-step-1', first, 2, 0.1) } }),
+    }));
+    expect(out).toMatch(/no commit on this PR has had a real review/);
+  });
+
+  it('cannot-check is not ready to merge either', () => {
+    const out = formatReviewerEffort(readReviewerEffort({ ...args, execFn: pr304(outcomeLine('no-result', later[2], '', '')) }));
+    expect(out).toMatch(/COULD NOT CHECK/);
+    expect(out).toMatch(/Not ready to merge/);
+  });
+});
+
+describe('ship.md acts on readyToMerge (AC1.4)', () => {
+  const ship = readFileSync(new URL('../plugin/commands/ship.md', import.meta.url), 'utf8').replace(/\s+/g, ' ');
+  const line = ship.slice(ship.indexOf('**Reviewer effort'), ship.indexOf('- [ ] All CI checks pass'));
+
+  it('no longer says the check only reports', () => {
+    expect(line).not.toMatch(/Reports; does not refuse/);
+  });
+
+  it('withholds "ready to merge" unless the head commit was reviewed, and names the label', () => {
+    expect(line).toMatch(/Do not call the PR ready to merge unless `result\.readyToMerge` is true/);
+    expect(line).toMatch(/`review-head` label/);
+    expect(line).toMatch(/every run on the head commit/);
   });
 });
