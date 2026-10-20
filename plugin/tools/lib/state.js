@@ -1863,13 +1863,20 @@ export async function touchDecisionTimestamp(baseDir, opts = {}) {
  * M6.E18) a visit cannot be told, so that refusal does not apply. A mark that
  * does not read is refused, as the reader stops on it.
  *
+ * M6.E18 S4 (AC3.5, P4-S7): `opts.fixRounds` is `checkFixRounds`'s result for
+ * the report. A REVIEW PASS or PASS-WITH-FIXES with a result that did not pass,
+ * or one that does not read (no boolean `ok`), is refused with its reasons:
+ * the verdict cannot stand, so it is not recorded. A FAIL is recorded whatever
+ * the check said, as the check never holds a FAIL. Left out, the pass is
+ * recorded as before: the step that calls this passes it (review.md).
+ *
  * `loop-ceiling.js` is imported dynamically: it imports from this module, so a
  * static import back would be a cycle (the `planning-index.js` rule above).
  *
  * @param {string} baseDir
  * @param {string} phase
  * @param {string} verdict
- * @param {{date?: string, today?: string}} [opts]
+ * @param {{date?: string, today?: string, fixRounds?: {ok: boolean, reasons: string[]}}} [opts]
  * @returns {Promise<{entry: string}>}
  */
 export async function recordPass(baseDir, phase, verdict, opts = {}) {
@@ -1883,6 +1890,20 @@ export async function recordPass(baseDir, phase, verdict, opts = {}) {
     throw new StateWriteError(
       `recordPass: ${JSON.stringify(verdict)} is not a verdict (expected one of ${PASS_VERDICTS.join(', ')}).`
     );
+  }
+  if (phase === 'REVIEW' && verdict !== 'FAIL' && opts.fixRounds !== undefined) {
+    const check = opts.fixRounds;
+    if (typeof check?.ok !== 'boolean') {
+      throw new StateWriteError(
+        `recordPass: fixRounds is not a checkFixRounds result (it has no boolean ok), so a REVIEW ${verdict} cannot be recorded on it.`
+      );
+    }
+    if (!check.ok) {
+      const why = Array.isArray(check.reasons) && check.reasons.length > 0 ? ` ${check.reasons.join(' ')}` : '';
+      throw new StateWriteError(
+        `recordPass: checkFixRounds did not accept the report, so a REVIEW ${verdict} cannot stand.${why}`
+      );
+    }
   }
   const today = opts.today ?? todayStamp();
   const date = opts.date ?? today;
