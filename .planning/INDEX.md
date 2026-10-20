@@ -20,6 +20,7 @@
 - [BACKLOG-REVIEW-2026-10-01.md](BACKLOG-REVIEW-2026-10-01.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-10-06.md](BACKLOG-REVIEW-2026-10-06.md) — `other` — _(note pending)_
 - [BACKLOG-REVIEW-2026-10-10.md](BACKLOG-REVIEW-2026-10-10.md) — `other` — _(note pending)_
+- [BACKLOG-REVIEW-2026-10-14.md](BACKLOG-REVIEW-2026-10-14.md) — `other` — _(note pending)_
 - [BACKLOG.md](BACKLOG.md) — `other` — The sequenced roadmap, promoted from `ISSUES-INBOX.md`; every entry tagged `roadmap` or `hygiene`. Supersedes the point-in-time `BACKLOG-REVIEW-2026-07-04` snapshot (folded in + archived under `archive/`).
 - [BUGS.md](BUGS.md) — `other` — Bugs & verified-findings catalog — where findings get logged (catalog → triage → confirm / dismiss / fixed). GitHub Issues deferred until Signal has live users.
 - [CONTEXT.md](CONTEXT.md) — `other` — Locked + deferred decisions for the *current* work — what DISCUSS settled for the active Epic.
@@ -187,6 +188,13 @@
 - [M6.E16-REVIEW.md](M6.E16-REVIEW.md) — `other` — _(note pending)_
 - [M6.E16-VALIDATION.md](M6.E16-VALIDATION.md) — `other` — _(note pending)_
 - [M6.E16-VERIFICATION.md](M6.E16-VERIFICATION.md) — `other` — _(note pending)_
+- [M6.E17-PLAN.md](M6.E17-PLAN.md) — `other` — _(note pending)_
+- [M6.E17-PROGRESS.md](M6.E17-PROGRESS.md) — `other` — _(note pending)_
+- [M6.E17-REQUIREMENTS.md](M6.E17-REQUIREMENTS.md) — `other` — _(note pending)_
+- [M6.E17-RESEARCH.md](M6.E17-RESEARCH.md) — `other` — _(note pending)_
+- [M6.E17-REVIEW.md](M6.E17-REVIEW.md) — `other` — _(note pending)_
+- [M6.E17-VALIDATION.md](M6.E17-VALIDATION.md) — `other` — _(note pending)_
+- [M6.E17-VERIFICATION.md](M6.E17-VERIFICATION.md) — `other` — _(note pending)_
 - [M6.E2-CORPUS-MEASUREMENT.md](M6.E2-CORPUS-MEASUREMENT.md) — `other` — _(note pending)_
 - [M6.E2-PLAN.md](M6.E2-PLAN.md) — `other` — _(note pending)_
 - [M6.E2-PROGRESS.md](M6.E2-PROGRESS.md) — `other` — _(note pending)_
@@ -497,9 +505,44 @@
 - [work/items/00/SIG-31.md](work/items/00/SIG-31.md) — `other` — _(note pending)_
 - [work/items/00/SIG-310.md](work/items/00/SIG-310.md) — `other` — _(note pending)_
 - [work/items/00/SIG-311.md](work/items/00/SIG-311.md) — `other` — _(note pending)_
+- [work/items/00/SIG-312.md](work/items/00/SIG-312.md) — `other` — _(note pending)_
+- [work/items/00/SIG-313.md](work/items/00/SIG-313.md) — `other` — _(note pending)_
+- [work/items/00/SIG-314.md](work/items/00/SIG-314.md) — `other` — _(note pending)_
+- [work/items/00/SIG-315.md](work/items/00/SIG-315.md) — `other` — _(note pending)_
+- [work/items/00/SIG-316.md](work/items/00/SIG-316.md) — `other` — _(note pending)_
+- [work/items/00/SIG-317.md](work/items/00/SIG-317.md) — `other` — _(note pending)_
+- [work/items/00/SIG-318.md](work/items/00/SIG-318.md) — `other` — _(note pending)_
+- [work/items/00/SIG-319.md](work/items/00/SIG-319.md) — `other` — _(note pending)_
 - [work/items/00/SIG-32.md](work/items/00/SIG-32.md) — `other` — _(note pending)_
+- [work/items/00/SIG-320.md](work/items/00/SIG-320.md) — `other` — _(note pending)_
+- [work/items/00/SIG-321.md](work/items/00/SIG-321.md) — `other` — _(note pending)_
+- [work/items/00/SIG-322.md](work/items/00/SIG-322.md) — `other` — _(note pending)_
+- [work/items/00/SIG-323.md](work/items/00/SIG-323.md) — `other` — _(note pending)_
+- [work/items/00/SIG-324.md](work/items/00/SIG-324.md) — `other` — _(note pending)_
+- [work/items/00/SIG-325.md](work/items/00/SIG-325.md) — `other` — _(note pending)_
+- [work/items/00/SIG-326.md](work/items/00/SIG-326.md) — `other` — _(note pending)_
+- [work/items/00/SIG-327.md](work/items/00/SIG-327.md) — `other` — _(note pending)_
+- [work/items/00/SIG-328.md](work/items/00/SIG-328.md) — `other` — _(note pending)_
+- [work/items/00/SIG-329.md](work/items/00/SIG-329.md) — `other` — _(note pending)_
 - [work/items/00/SIG-33.md](work/items/00/SIG-33.md) — `other` — _(note pending)_
+- [work/items/00/SIG-330.md](work/items/00/SIG-330.md) — `other` — _(note pending)_
+- [work/items/00/SIG-331.md](work/items/00/SIG-331.md) — `other` — _(note pending)_
+- [work/items/00/SIG-332.md](work/items/00/SIG-332.md) — `other` — _(note pending)_
+- [work/items/00/SIG-333.md](work/items/00/SIG-333.md) — `other` — _(note pending)_
+- [work/items/00/SIG-334.md](work/items/00/SIG-334.md) — `other` — _(note pending)_
+- [work/items/00/SIG-335.md](work/items/00/SIG-335.md) — `other` — _(note pending)_
+- [work/items/00/SIG-336.md](work/items/00/SIG-336.md) — `other` — _(note pending)_
+- [work/items/00/SIG-337.md](work/items/00/SIG-337.md) — `other` — _(note pending)_
+- [work/items/00/SIG-338.md](work/items/00/SIG-338.md) — `other` — _(note pending)_
+- [work/items/00/SIG-339.md](work/items/00/SIG-339.md) — `other` — _(note pending)_
 - [work/items/00/SIG-34.md](work/items/00/SIG-34.md) — `other` — _(note pending)_
+- [work/items/00/SIG-340.md](work/items/00/SIG-340.md) — `other` — _(note pending)_
+- [work/items/00/SIG-341.md](work/items/00/SIG-341.md) — `other` — _(note pending)_
+- [work/items/00/SIG-342.md](work/items/00/SIG-342.md) — `other` — _(note pending)_
+- [work/items/00/SIG-343.md](work/items/00/SIG-343.md) — `other` — _(note pending)_
+- [work/items/00/SIG-344.md](work/items/00/SIG-344.md) — `other` — _(note pending)_
+- [work/items/00/SIG-345.md](work/items/00/SIG-345.md) — `other` — _(note pending)_
+- [work/items/00/SIG-346.md](work/items/00/SIG-346.md) — `other` — _(note pending)_
 - [work/items/00/SIG-35.md](work/items/00/SIG-35.md) — `other` — _(note pending)_
 - [work/items/00/SIG-36.md](work/items/00/SIG-36.md) — `other` — _(note pending)_
 - [work/items/00/SIG-37.md](work/items/00/SIG-37.md) — `other` — _(note pending)_
@@ -609,6 +652,7 @@
 - [M6.E14-RETROSPECTIVE.md](M6.E14-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E15-RETROSPECTIVE.md](M6.E15-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E16-RETROSPECTIVE.md](M6.E16-RETROSPECTIVE.md) — `other` — _(note pending)_
+- [M6.E17-RETROSPECTIVE.md](M6.E17-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E2-RETROSPECTIVE.md](M6.E2-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E3-RETROSPECTIVE.md](M6.E3-RETROSPECTIVE.md) — `other` — _(note pending)_
 - [M6.E4-RETROSPECTIVE.md](M6.E4-RETROSPECTIVE.md) — `other` — _(note pending)_
@@ -720,6 +764,7 @@
 - [archive/M6/E14/STATE-NARRATIVE.md](archive/M6/E14/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E15/STATE-NARRATIVE.md](archive/M6/E15/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E16/CONTEXT-2026-08-28.md](archive/M6/E16/CONTEXT-2026-08-28.md) — `other` — _(note pending)_
+- [archive/M6/E16/STATE-NARRATIVE.md](archive/M6/E16/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E2/STATE-NARRATIVE.md](archive/M6/E2/STATE-NARRATIVE.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-PLAN.md](archive/M6/E3/AUGUST-PLAN.md) — `other` — _(note pending)_
 - [archive/M6/E3/AUGUST-RESEARCH.md](archive/M6/E3/AUGUST-RESEARCH.md) — `other` — _(note pending)_
@@ -1073,3 +1118,4 @@
 - [M6.E14](M6.E14-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E15](M6.E15-RETROSPECTIVE.md) — _(note pending)_
 - [M6.E16](M6.E16-RETROSPECTIVE.md) — _(note pending)_
+- [M6.E17](M6.E17-RETROSPECTIVE.md) — _(note pending)_

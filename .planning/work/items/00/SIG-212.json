@@ -5,7 +5,6 @@
   "source": "migration:BACKLOG.md",
   "source_ref": "BACKLOG.md:2044",
   "legacy_id": "BACKLOG.md:2044",
-  "migration_note": "KEPT — the work moved elsewhere but the row was kept open on purpose.",
   "events": [
     {
       "type": "created",
@@ -16,6 +15,17 @@
       "type": "triaged",
       "at": "2026-09-29",
       "by": "migration (v2)"
+    },
+    {
+      "type": "edited",
+      "at": "2026-10-15T14:10:31.934Z",
+      "by": "Brett",
+      "changes": {
+        "migration_note": {
+          "from": "KEPT — the work moved elsewhere but the row was kept open on purpose.",
+          "to": null
+        }
+      }
     }
   ]
 }

@@ -44,6 +44,7 @@ proceed as before.
 4. Run the test suite — all tests must pass
 5. Run the linter — no new warnings
 6. Create an atomic git commit
+7. Run your new tests against the commit the task started from, with `parent-run.js`, and return its output verbatim. The full brief is [`references/fixer-brief.md`](../../references/fixer-brief.md). A test that passes there is not proof, and neither is one that could not run; report either as a stated gap.
 
 ## Commit Format
 ```

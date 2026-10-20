@@ -1,0 +1,20 @@
+{
+  "id": "SIG-329",
+  "type": "CHORE",
+  "title": "Move two grandfathered scale tests from npm test to the perf run",
+  "theme": "testing",
+  "priority": "P3",
+  "source": "M6.E17 EXECUTE",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-16T17:07:06.878Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-16T17:07:06.878Z",
+      "by": "Claude"
+    }
+  ]
+}

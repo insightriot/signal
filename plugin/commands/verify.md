@@ -131,6 +131,17 @@ and a limits section can omit the limit that mattered. Step 1b's `diffRequiremen
 half that compares the report against the requirements. **The structure without the derived check is
 theatre; the check without the structure lets a run report a number with no stated total.**
 
+### 5a. Record the pass (`D-M6E17-5`)
+
+**At the end of every pass, once the verdict is decided:** call `recordPass(baseDir, 'VERIFY', verdict)`
+from `tools/lib/state.js`, with `verdict` as `PASS`, `PASS-WITH-FIXES` or `FAIL`. Do this before the
+Loop Back ask and before the transition out of VERIFY. The loop ceiling (`loopStatusFor` in
+`tools/lib/loop-ceiling.js`) counts the larger of these recorded passes and VERIFY's exits in
+`completed_phases`, so a pass whose fixes stayed inside VERIFY is still counted. A FAIL never lifts
+the ceiling; the count decides as before. While VERIFY is the current phase and the last entry of
+the whole `phase_passes` list is its own PASS or PASS-WITH-FIXES, VERIFY is moving on and is not
+held; which visit wrote that entry is not checked (`SIG-349`).
+
 ### 5b. Mark STATE.md fresh (M4.5.E6.S4)
 
 **SKETCH tier:** skip this step. STATE.md updates only via manual `/sig:checkpoint`.
@@ -159,6 +170,7 @@ If `markFresh` fails (lock contention, git unavailable, etc.):
 - [ ] `validateVerificationContent` passes on the report (Step 5) — locked headings present and
       filled, a denominator stated, and `## What this could not establish` says something
 - [ ] Build succeeds cleanly
+- [ ] The pass is recorded with `recordPass(baseDir, 'VERIFY', verdict)` (Step 5a)
 - [ ] User approves verification results — **when `gates.confirm_verify` is set** (`attention: attended`). Checkpointed and unattended: no ask; the transition is recorded, not approved (`B74`).
 
 ### Loop Back

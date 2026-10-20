@@ -1,0 +1,21 @@
+{
+  "id": "SIG-345",
+  "type": "CHORE",
+  "title": "EXECUTE side of the parent run: brief wording, PROGRESS template, base commit, non-vitest projects",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E17 REVIEW pass 3",
+  "source_ref": "M6.E17-REVIEW execute residue",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-19T17:33:06.741Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-19T17:33:06.741Z",
+      "by": "Claude"
+    }
+  ]
+}

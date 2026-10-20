@@ -1,0 +1,20 @@
+{
+  "id": "SIG-330",
+  "type": "BUG",
+  "title": "parent-run.js still exits 0 silently when its main-module check fails",
+  "theme": "tools",
+  "priority": "P3",
+  "source": "M6.E17 VERIFY loop 1 fresh read",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-16T17:23:17.118Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-16T17:23:17.118Z",
+      "by": "Claude"
+    }
+  ]
+}

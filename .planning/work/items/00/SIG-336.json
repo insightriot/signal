@@ -1,0 +1,21 @@
+{
+  "id": "SIG-336",
+  "type": "BUG",
+  "title": "review-rounds.js: parsing edges (empty Parent run line, placeholders, fences, duplicates)",
+  "theme": "testing",
+  "priority": "P3",
+  "source": "M6.E17 REVIEW pass 2",
+  "source_ref": "M6.E17-REVIEW P2-S2/S3/S4 nits",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-17T13:40:36.245Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-17T13:40:36.245Z",
+      "by": "Claude"
+    }
+  ]
+}

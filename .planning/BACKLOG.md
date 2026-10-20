@@ -150,9 +150,9 @@ already read.
 consults (`M6.E7-REVIEW.md` § Performance Findings). If this row is declined, delete that read
 rather than leaving it to look like it does something.
 
-### Since the snapshot — what shipped (reconciliation, 2026-07-19) · SIG-144
+### Since the snapshot — what shipped (reconciliation, 2026-07-19) · SIG-144 · closed (rejected)
 
-**Status:** triaged (T)
+**Status:** closed 2026-10-15 (rejected)
 
 The snapshot was captured 2026-07-04; four of its clusters have since closed or opened as real Epics. Condensed here so the living list below carries only still-open work (the full snapshot is archived, nothing lost).
 
@@ -1301,9 +1301,9 @@ both** — two mechanisms for one concept is what this row exists to avoid.
 *Done-when:* the drain reports standing entries separately from live candidates, and the count of live
 candidates excludes them.
 
-### Since the re-audit — what M5.E7 changed (reconciliation, 2026-07-26) · SIG-187
+### Since the re-audit — what M5.E7 changed (reconciliation, 2026-07-26) · SIG-187 · closed (rejected)
 
-**Status:** triaged (T)
+**Status:** closed 2026-10-15 (rejected)
 
 **The BR-8 re-audit ran and closed** (Epic **M5.E7**, 2026-07-25→26). Deliverable:
 [`../analysis/SIGNAL-V2-ROADMAP.md`](../analysis/SIGNAL-V2-ROADMAP.md). It gave **45 candidates a
@@ -2193,9 +2193,9 @@ Hook-driven context discipline (planning-with-files lineage). **2-Action Rule** 
 **Tag:** roadmap
 **Cursor → cut on demand-fit** — this file already said *"least evidence of demand."* The trap avoided: Brett works **in** Cursor but runs **Claude Code** inside it; that is not demand for Signal on Cursor's own agent runtime. **Codex → parked** at the corrected ~6/10 estimate (direct analogs now exist: `AGENTS.md`, skills with on-demand loading, subagents with tool allowlists, a hooks framework; real gaps are Custom Prompts being deprecated — 18 commands re-cast as skills — and no `AskUserQuestion` equivalent). *Trigger:* a user asks in writing, or Brett wants a second runtime.
 
-### Parked — the trigger watchlist *(not sprint material)* · SIG-230
+### Parked — the trigger watchlist *(not sprint material)* · SIG-230 · closed (rejected)
 
-**Status:** triaged (T)
+**Status:** closed 2026-10-15 (rejected)
 
 These stay trigger-gated; the standing **WATCHLIST** entry (A1) in `ISSUES-INBOX.md` checks their promote-back conditions at every `/sig:plan` drain. **Tag:** hygiene (except the PREPARE-phase item, which is roadmap).
 
@@ -2416,3 +2416,206 @@ Two tests keep the narrow shape and have passed on CI so far:
 - tests/work-migrate-hostile.test.js — "inbox segmentation is linear: 5 000 → 20 000 entries costs well under 8×" (old code measured 29.4×).
 
 Fix shape: the same 16× step / 64× limit, each re-checked against the pre-fix code so it still fails there.
+
+### GIT_FAILED says "run the confirm again" where the branch gate uses it · SIG-315
+
+**Status:** triaged (T)
+
+`GIT_FAILED`'s text ends "fix that and run the confirm again", but `checkBranchPosture` reuses it as the branch-gate reason (`plugin/tools/lib/branch-guard.js:328,340`), where no confirm is involved. Wrong words in that context.
+
+Found by the fresh read of M6.E16 r7.1 (2026-10-14); filed, not fixed, before the v0.1.51 merge.
+
+### git-env.js: GIT_FAILED JSDoc splits dotGitAtOrAbove from its comment · SIG-316
+
+**Status:** triaged (T)
+
+In `plugin/tools/lib/git-env.js:119-131` the `GIT_FAILED` JSDoc was inserted between `dotGitAtOrAbove`'s comment and the function, so the "Is there an entry named `.git`…" comment sits above the constant. That comment's "only ever used … when git cannot be run at all" was already stale: `whyNoWorkTree`, `repoState` and `jev.js` use it.
+
+Found by the fresh read of M6.E16 r7.1 (2026-10-14); filed, not fixed, before the v0.1.51 merge.
+
+### checkClosedProofs repeats a hand-confirm's typed git_reason as fact · SIG-322
+
+**Status:** triaged (T)
+
+`plugin/tools/lib/sweep.js` ~541: "confirmed closed by hand when the project was not a git repository" (and the `no-remote` form) states the recorded `git_reason` as fact, in exactly the case where git's answer casts doubt on it. Copy fix: "recorded as confirmed by hand when …".
+
+Found by the fresh read of M6.E16 r7.2 (`c05063cc`, 2026-10-14); filed, not fixed, before the v0.1.51 merge on Brett's okay.
+
+### REVIEW and VERIFY record each pass, so the loop ceiling counts what happened · SIG-323 · closing
+
+**Status:** closing — a fixed close waiting for its commit on the default branch
+
+M6.E16 ran four REVIEW passes and loopStatusFor read 0: completed_phases records a phase when it is left, and REVIEW was never left. Each pass records its verdict in STATE; the ceiling counts the larger of passes and exits. M6.E17 FR1, D-M6E17-1.
+
+### review.md: a fresh read of every fix round, with a stated stop · SIG-324 · closing
+
+**Status:** closing — a fixed close waiting for its commit on the default branch
+
+After any FAIL loop or in-phase fix, one fresh reviewer reads only that round's diff; the chain stops at 0 Critical and 0 Important, or at the ceiling. The REVIEW report records each read and a check refuses a pass verdict without it. M6.E17 FR2, D-M6E17-2.
+
+### A tool proves a new test fails on the base commit, for fix rounds and EXECUTE slices · SIG-325 · closing
+
+**Status:** closing — a fixed close waiting for its commit on the default branch
+
+Runs named tests from HEAD against a base commit in a temporary worktree and reports failed / passed / could not run per file. Replaces the by-hand parent runs of M6.E14 and M6.E16 and the fixer reporting it on its own word. M6.E17 FR3, D-M6E17-3.
+
+### runSweep takes no clock, so any sweep test over dated fixtures drifts with the calendar · SIG-328
+
+**Status:** triaged (T)
+
+Split out of SIG-326 so it is not buried when SIG-326 closes. SIG-326 fixed one test by pinning Date (fake timers). The cause is still there: `runSweep` calls `checkClosingTooLong(baseDir)` with no `now`, so the next sweep test written over dated fixtures will go red on its own as days pass, the same way. Fix: let `runSweep` take a `now` and pass it through, then drop the fake timers from `tests/sweep-store-on.test.js`.
+
+### Move two grandfathered scale tests from npm test to the perf run · SIG-329
+
+**Status:** triaged (T)
+
+M6.E17 S3 put wall-clock tests in their own serial run (`npm run test:perf`) and grandfathered 16 existing timing budgets in `tests/timing-budget-guard.test.js`. Two of those entries are marked "candidate to move to the perf run" because they are scale budgets, not backtracking guards: `tests/advise-review-fixes.test.js` (4,000 backlog rows in under 500 ms) and `tests/work-migrate-lists-apply.test.js` (400-row dry-run migration in under 5 s). Under load they can fail the same way SIG-303 did. Move each case to its own `*-perf.test.js`, add it to `PERF_TESTS` in `vitest.config.js`, and drop it from the grandfather list.
+
+### parent-run.js: harden against a hostile base commit or working tree · SIG-331
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md (pass 1 S8, S9, S10; pass 2 P2-S6, P2-S10, P2-S11 and nits). Not fixed in the pass 3 loop, which is kept to the nine Important issues.
+
+- A test path starting with `-` reaches vitest as an option (`--config=evil.js`). Reject a leading `-` in any segment in `checkTestPath`, and pass files after `--` or as `./<rel>`. Demonstrated by the security auditor.
+- `git worktree add` runs the working tree's `post-checkout` hook (husky). Pass `-c core.hooksPath=/dev/null`. Demonstrated.
+- The child vitest inherits `GIT_DIR` and the other variables `gitEnv` strips, and every secret (`TYPESAFE_API_KEY`, `GH_TOKEN`). Strip `REDIRECTS` in `childEnv`, and known token names.
+- The worktree isolates nothing: the base's config and setup files run with full rights, `node_modules` is a link to the main checkout, a linked worktree shares `.git/config` and hooks. Document it, or isolate further.
+- A copy error (dangling symlink on the base, EISDIR, ENOTDIR) aborts the whole run; make it that file's `could-not-run`.
+- A dangling `node_modules` link on the base throws instead of `could-not-run`.
+- vitest takes a file argument as a substring filter: a root file named `t` runs the whole base suite per file.
+
+### parent-run.js: vitest-only, PERF_TESTS files never provable, no green HEAD run · SIG-332
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md (pass 1 S5 and nits; pass 2 P2-S5).
+
+- The tool is vitest-only; every non-vitest project's executor gets `could-not-run` forever. Say so in fixer-brief.md's `could-not-run` row.
+- A file in `PERF_TESTS` can never be proven: the child runs with `--root wt`, the base's config excludes it, vitest finds no files. Every future timing test is a gap. Pass `--config` for perf files, or state the limit.
+- Exit 1 covers both "hollow" and "could not run".
+- The tool never runs the test on HEAD; the brief does not ask for a green HEAD run beside it.
+
+### review.md / verify.md: say what happens when recordPass throws, and at SKETCH · SIG-333
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 1 S4. verify.md § 5a and review.md's "Record the pass" step say nothing about SKETCH tier or about `recordPass` throwing (lock contention, a damaged `phase_passes`). Mirror the `markFresh` failure paragraph (§ 5b).
+
+### AC3.3 EXECUTE half: nothing reads a PROGRESS entry's parent-run line · SIG-334
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 1 S7 and pass 2 (code-reviewer S-9). REVIEW has `checkFixRounds`; EXECUTE has prose only (execute.md step 6). Nothing reads the parent-run line in a PROGRESS entry, so a hollow or missing result passes. AC3.3 also says "slice's record"; execute.md puts it on each task. Recorded as a limit at VERIFY.
+
+### checkFixRounds: tie each round's range and parent-run base together, and say the base for round 2+ · SIG-335
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 1 S13 and pass 2 P2-S1.
+
+- A round's parent-run commit is not tied to its fresh-read range, and the range accepts any `x..y`.
+- review.md § 4.6 says the base is always "the HEAD at the pass that found the issues"; in round 2 a round's read found them, not a pass. Read literally, round 2's diff includes round 1's commits.
+- Nothing checks that round N+1's range starts where round N's ended.
+
+### recordPass / phase_passes: check the phase matches STATE, and the date on read · SIG-337
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 2 P2-S7 and nits.
+
+- `recordPass(…, 'REVIEW', …)` while STATE says `phase: VERIFY` is accepted and raises REVIEW's count.
+- The date in a pass record is checked only when written; a hand-edited `REVIEW FAIL (yesterday)` is counted on read (`loop-ceiling.js:74`). `recordPass`'s default date is checked for format only.
+
+### Timing-budget guard: reach, the branch-commit pin, and no allowed fix for a false match · SIG-338
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 2 P2-S8, P2-S9 and a pass 1 nit.
+
+- `BOUND_RE` misses `not.toBeGreaterThan`, `assert(ms < n)`, `toBeTruthy()`. A reused timer read adds a budget without raising the per-file count.
+- A false match (`new Date()` for a fixture plus an unrelated `toBeLessThan`) has no allowed fix: the grandfather list cannot grow and `PERF_TESTS` is pinned.
+- `GRANDFATHER_PIN = '9477ffa7'` is a branch commit, reachable on main only through a merge commit; its comment dates the reasons, not the baseline.
+- The perf test ran at 1761 ms against its 2000 ms budget, run alone.
+
+### M6.E17 test gaps: rules that survive their own deletion · SIG-339
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 1 S15 and nits, pass 2 P2-S12. Each was shown by mutation (the rule deleted, the suite stays green):
+
+- a bare `gap` parent-run line refused (`GAP_RE`);
+- a round's section ending at the next heading (`body: rest`);
+- `checkTestPath`'s refusal of a path outside the project (the fixture file does not exist, so another check fires first);
+- `childEnv`'s `VITEST*` filter;
+- `0 of 0` as a gap;
+- three cleanup paths: `git worktree add` failing, vitest missing, the per-file timeout;
+- AC3.3's execute.md assertion `/PROGRESS/` already matched before the Epic: anchor on step 6;
+- AC1.4 tested on objects only, never through `readState` from disk;
+- the command-line tests' `spawnSync` has no timeout.
+
+### M6.E17 code nits: undefined finding IDs in comments, stale @returns, template H1 · SIG-340
+
+**Status:** triaged (T)
+
+From M6.E17-REVIEW.md pass 2 nits.
+
+- Comments in parent-run.js and review-rounds.js, and test titles, cite `REVIEW I1`–`I9` and `S2`, defined only in the REVIEW report.
+- `runOnBase`'s `@returns` omits `total`, `passed`, `why`.
+- A second `node:fs` import in tests/parent-run.test.js.
+- review.md's template shows the H1 above `## Pass {n}`; whether it repeats, and whether round numbers run per pass or across the report, is unstated.
+
+### parent-run.js: worktree cleanup leaves its own entry while one of yours is missing, and other limits · SIG-341
+
+**Status:** triaged (T)
+
+From M6.E17 REVIEW passes 3–5 (see `.planning/M6.E17-REVIEW.md`).
+
+- **Known prune limit (P4-I3 fix):** `pruneOwn` prunes only when every prunable worktree is under the runs folder. While one of the user's worktrees is missing its folder, a killed run's entry, or one whose `worktree remove --force` failed, stays registered until that folder is back. Harmless (fresh mkdtemp path per run) but narrows AC3.1 "removes the worktree on every exit path"; record it as a stated exception (P5-S3).
+- P4-S3: a live run whose owner.pid was written by earlier branch code (local-time start) is swept as dead. Pre-merge only.
+- P4-S4: `listTests` costs one extra `vitest list` per existing file (~3 s each).
+- P5-S2: `notRun` also counts missing modules, while the summary says "missing file".
+- Nits: per-file line prints "1 of 2 tests failed" when the second failed only on a missing file; header sentence at parent-run.js:67-68; `git worktree add` runs post-checkout and does not set GIT_LFS_SKIP_SMUDGE; `git show` uses the raw path; `runsFolder` tightens then trusts; `childEnv` passes TYPESAFE_API_KEY to an older base; owner.pid write failure leaves an unjudged folder; `vitest list --json` drops skipped tests.
+
+### markRunEnded / linear run boundary: idempotence, Epic mode, symlinked report, staging · SIG-342
+
+**Status:** triaged (T)
+
+From M6.E17 REVIEW passes 4–5.
+
+- P5-R6-S1: `markRunEnded` without `keep` writes a second `## Run ended` line if called twice (harmless: last one wins).
+- P5-R5-S1: the `keep` hint in `checkFixRounds` shows in Epic projects too, where `markRunEnded` targets the linear report.
+- P5-R5-S2: the hint cannot tell a missing run boundary from a duplicated heading in one run.
+- P5-R5-S3/S4: `markRunEnded` returns `written` only on one path; stale JSDoc on `completePhase` (`@returns`) and a sentence about completePhase on `markRunEnded`.
+- P4-S1 (security, Medium): a linear SHIP follows a symlinked `1-REVIEW.md` and writes the linked contents into `.planning/`; `lstat` and refuse. ship.md never stages the appended report.
+- Nits: CRLF reports get `\n` lines; `keep` not validated; RUN_ENDED_RE matches any "## Run ended…" heading and in Epic mode; ship.md implies a refusal without `keep`; pin the re-run-SHIP behaviour with a test, widen the doc test's negative match (P5-R6-S2/S3).
+
+### checkFixRounds and recordPass: trust gaps and missing tests (passes 3–4) · SIG-344
+
+**Status:** triaged (T)
+
+From M6.E17 REVIEW passes 3–4.
+
+- P3-S3 / P4-S2: a **Parent run:** line is trusted as written; its sha is never resolved or tied to the fresh read's base.
+- P3-S4: a `### Fix round` inside an HTML comment is counted.
+- P3-S8: `recordPass` has no guard against being called twice for one pass.
+- P4-S5: the check runs only when the agent follows review.md (B41 class); `## Pass N, at {sha}` could bound later commits.
+- P4-S6: VERIFY's "PASS with documented limits" has no recordPass value; loop-ceiling.js comment wrong.
+- P4-S7: recordPass before checkFixRounds gives a refusal that does not name the cause.
+- P4-S8 / P4-S13: "(dependencies differ from the base)" is not a gap and never asserted.
+- P4-S9: review-rounds.js header reads as a changelog.
+- P4-S11/S12, P3-S11: no test that phase_passes survives a FAIL loop-back, for state-schema.md's row, or for a `0 of 0` summary.
+- P5-S1: § 4.6's orphaned-heading text should name the tool's check (one more section than STATE records).
+- Nits: PASS_HEADING_RE accepts "## Pass 1 — what it missed"; `Number(pm[3]) === 0` and recordPass's schema check untested; review.md says the check "refuses a fourth" round; GRANDFATHER_PIN is a short sha.
+
+### EXECUTE side of the parent run: brief wording, PROGRESS template, base commit, non-vitest projects · SIG-345
+
+**Status:** triaged (T)
+
+From M6.E17 REVIEW pass 3 (P3-S2, S5, S6, S7, S9).
+
+- fixer-brief.md says "new in your change"; the code checks only "exists in the project".
+- parent-run works only in vitest projects; other projects record a gap per task and the brief does not say so.
+- The PROGRESS template and EXECUTE exit criteria have no place for the parent-run line (AC3.3 partly met).
+- Nothing records an EXECUTE task's base commit.
+- review-loop-doc-contract.test.js checks three words anywhere in execute.md.

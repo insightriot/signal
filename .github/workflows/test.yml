@@ -47,6 +47,11 @@ jobs:
       # it. So this job needs no secrets and no network beyond the install.
       - run: npm test
 
+      # The wall-clock tests run on their own, one file at a time (M6.E17 S3,
+      # SIG-303): `npm test` excludes them, because a budget measured beside a
+      # full parallel suite fails for reasons other than slowness.
+      - run: npm run test:perf
+
       # Lint is its own step (SIG-283): during M6.E14 a no-undef error was
       # committed and VERIFY recorded lint as clean, read from an empty last
       # line of output instead of the exit code. Nothing before `main` ran it.

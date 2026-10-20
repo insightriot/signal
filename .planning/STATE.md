@@ -2,63 +2,80 @@
 schema_version: 1
 docs_layout_version: 3
 phase: SHIP
-current_epic: M6.E16
+current_epic: M6.E17
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-10-11)
-  - PLAN (2026-10-11)
-  - EXECUTE (2026-10-12)
-  - VERIFY (2026-10-12)
-  - REVIEW (2026-10-13)
-  - SHIP (2026-10-13)
+  - DISCUSS (2026-10-15)
+  - PLAN (2026-10-15)
+  - EXECUTE (2026-10-16)
+  - VERIFY (2026-10-16)
+  - EXECUTE (2026-10-17)
+  - VERIFY (2026-10-17)
+  - REVIEW (2026-10-17)
+  - EXECUTE (2026-10-17)
+  - REVIEW (2026-10-17)
+  - EXECUTE (2026-10-17)
+  - REVIEW (2026-10-17)
+  - EXECUTE (2026-10-18)
+  - REVIEW (2026-10-18)
+  - EXECUTE (2026-10-18)
+  - REVIEW (2026-10-19)
+  - SHIP (2026-10-19)
 blockers: []
-last_completed_task: null
-last_decision_at: 2026-10-10T00:40:29.810Z
-last_updated_commit: 2cba9991285144bd8e2743f3b08c682d5a25ad87
-last_updated: 2026-10-13T17:13:59.608Z
+last_completed_task:
+  id: M6.E17.S3
+  status: done
+  commit: 76b00d5a
+  completedAt: 2026-10-15T19:01:26.668Z
+last_decision_at: 2026-10-15T19:01:26.668Z
+last_updated_commit: 0c150e0b
+last_updated: 2026-10-20T00:17:39.367Z
+phase_passes:
+  - VERIFY FAIL (2026-10-16)
+  - VERIFY PASS-WITH-FIXES (2026-10-16)
+  - REVIEW FAIL (2026-10-17)
+  - REVIEW FAIL (2026-10-17)
+  - REVIEW FAIL (2026-10-17)
+  - REVIEW FAIL (2026-10-18)
+  - REVIEW PASS-WITH-FIXES (2026-10-18)
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-14)
+### ▶ WHERE THE WORK IS — read this first (2026-10-19)
+
+**`M6.E17` — *"Make the REVIEW fix loop a mechanism, not a habit"* — at SHIP as `v0.1.52`, PR #304
+open, waiting for CI and Brett's yes to merge with `--merge`.** A VERIFY or REVIEW pass is recorded
+when it ends (`recordPass`, `phase_passes`) and the loop ceiling counts the records; every round of
+fixes carries a fresh read checked before a verdict (`checkFixRounds`); `parent-run.js` proves a new
+test fails on the base commit; wall-clock tests run serially in `npm run test:perf`.
+Report: [`M6.E17-REVIEW.md`](M6.E17-REVIEW.md). Retrospective:
+[`M6.E17-RETROSPECTIVE.md`](M6.E17-RETROSPECTIVE.md).
+
+- **RESUME HERE:** if PR #304 is not merged, check its CI and review findings, then ask Brett to
+  merge with `--merge`. After the merge: tag `v0.1.52`, publish the release, run `/sig:docs-sweep`
+  on `main` to confirm the closes, then update the installed plugin to `0.1.52`
+  (`claude plugin update sig@signal`) and restart before using `/sig:` commands (`B52`).
+- **Closing, proof not yet on `main`:** the Epic `M6.E17`, and `SIG-139`, `SIG-303`, `SIG-323`,
+  `SIG-324`, `SIG-325`.
+- **How REVIEW went:** five passes; passes 1–4 failed (9, 9, 9, 4 Important), passes 4 and 5 ran past
+  the ceiling by Brett's decision, pass 5 was one fresh reader per fix round and ended
+  PASS-WITH-FIXES at round 6.
+- **Filed, open:** `SIG-327` … `SIG-346` (residue from VERIFY and REVIEW). `SIG-343` (a re-invoked
+  SHIP leaves a stray SHIP entry) predates this Epic.
+- Requirements: [`M6.E17-REQUIREMENTS.md`](M6.E17-REQUIREMENTS.md). Plan:
+  [`M6.E17-PLAN.md`](M6.E17-PLAN.md). Decisions `D-M6E17-1` … `-6`.
+
+### Previously (2026-10-14)
 
 **`M6.E16` — *"Epics and units as records"* — SHIPPED as `v0.1.51` and CLOSED (2026-10-14).** PR #301
-merged with `--merge` (`d0df0ef5`) on Brett's word, after a fresh read of the last fix found nothing
-that blocks. Tag `v0.1.51` and the GitHub release are published. `/sig:docs-sweep` on `main` confirmed
-the close of `M6.E16` and of `SIG-132`, `-255`, `-288`, `-289`, `-295`, `-305`, `-310`.
-Report: [`M6.E16-REVIEW.md`](M6.E16-REVIEW.md). Retrospective:
+merged with `--merge` (`d0df0ef5`). An Epic, or a unit of a project that does not use Epic IDs, is a
+record (`.planning/work/units/<ID>.json`) with a close that needs proof on the default branch.
+Signal's own cutover: 48 unit records (`010262f7`). Put off on purpose: `SIG-294`, `SIG-296` …
+`SIG-322`, the scope of a possible "harden unit records" Epic. Retrospective:
 [`M6.E16-RETROSPECTIVE.md`](M6.E16-RETROSPECTIVE.md).
-
-- **RESUME HERE:** update the installed plugin to `0.1.51` (`claude plugin update sig@signal`) and
-  restart the CLI before using `/sig:` commands (`B52`). Then pick the next work from
-  [`BACKLOG.md`](BACKLOG.md) (`/sig:advise`). The candidate this Epic left behind is a "harden unit
-  records" Epic over the items below, as `M6.E14` was for `M6.E13`.
-- **The sweep moved no narrative out of this file** ("nothing in STATE.md to move"). This Epic's
-  narrative sits under this resume pointer, not where `evictEpicNarrative` looks. The bullets below
-  are kept until the next Epic opens and replaces them.
-- **Put off on purpose, on record, to come back to:** `SIG-294`, `SIG-296` … `SIG-322` (in
-  `BUGS.md`). From REVIEW: `SIG-303` … `SIG-313`. `SIG-305` and `SIG-310` were fixed in fix round 6
-  and are now closed; parts of `SIG-309` and `SIG-311` were fixed there too. They are the
-  natural scope of a "harden unit records" Epic, as `M6.E14` was for `M6.E13`. `r5.9`, the last 28
-  lines of fixes, was read first by the pull request's reviewer, not by a REVIEW pass.
-- **How REVIEW went:** four full passes failed, each in a different corner; pass 3 reached the loop
-  ceiling and Brett chose each step after it (`D-M6E16-26` … `-31`).
-- **Signal's own cutover is done** (`010262f7`, 2026-10-12): 48 unit records under `work/units/` —
-  `M6.E16` open, 43 legacy closes Brett confirmed, 4 Epic IDs closed as dropped (`M5.E11`, `M5.E12`,
-  `M5.E14`, `M5.E20`). The Epic table in `MILESTONE-6.md` and `work/EPICS.md` are generated from the
-  records. The diff Brett read: [`M6.E16-MIGRATION-DIFF.md`](M6.E16-MIGRATION-DIFF.md).
-- **A unit record** holds existence, membership, close with proof and a hold; phase progress stays in
-  this file (`D-M6E16-1`). A project without `work/units/` behaves as on `v0.1.50`.
-- **S10 was added after S9** for three gaps: a finished Epic's narrative is now evicted when its
-  close is confirmed (`SIG-295`, `D-M6E16-19`), `/sig:docs-archive` says how to place a hold
-  (`SIG-255`), and one stale archive message (`SIG-289`).
-- **Closing, proof not yet on `main`:** `SIG-132`, `SIG-255`, `SIG-288`, `SIG-289`, `SIG-295`.
-  Filed and open: `SIG-294`, `SIG-296` … `SIG-302`.
-- Requirements: [`M6.E16-REQUIREMENTS.md`](M6.E16-REQUIREMENTS.md). Plan:
-  [`M6.E16-PLAN.md`](M6.E16-PLAN.md). Decisions `D-M6E16-1` … `-31`.
-- Not done from the small-fix batch: `SIG-285`, `SIG-139`.
 
 ### Previously (2026-10-10)
 
@@ -150,7 +167,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-`M6.E16` — see the resume pointer above.
+`M6.E17`, at SHIP — see the resume pointer above.
 
 ## Blockers
 
@@ -158,7 +175,7 @@ None.
 
 ## Pending ops
 
-None currently open.
+Merge PR #304 (`M6.E17`) — see the resume pointer above.
 
 ## Closed work
 - M5.E10 — evicted to .planning/archive/M5/E10/STATE-NARRATIVE.md · card: M5.E10-RETROSPECTIVE.md

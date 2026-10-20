@@ -1,0 +1,21 @@
+{
+  "id": "SIG-347",
+  "type": "BUG",
+  "title": "Generated views rewrite links differently depending on the folder node runs from",
+  "theme": "hygiene",
+  "priority": "P2",
+  "source": "M6.E17 SHIP",
+  "source_ref": "M6.E17 SHIP view cwd",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-19T20:25:05.044Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-19T20:25:05.044Z",
+      "by": "Claude"
+    }
+  ]
+}

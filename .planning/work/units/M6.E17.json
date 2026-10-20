@@ -1,0 +1,18 @@
+{
+  "id": "M6.E17",
+  "events": [
+    {
+      "type": "opened",
+      "at": "2026-10-15T03:04:28.186Z",
+      "by": "Brett"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-19T20:19:06.623Z",
+      "by": "Claude",
+      "proof": "cc8db82aa76d1da845c565921fdda9634d7687cb",
+      "pr": "304",
+      "release": "v0.1.52"
+    }
+  ]
+}

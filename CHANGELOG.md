@@ -6,6 +6,59 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.52] — 2026-10-19 — The REVIEW fix loop is a mechanism
+
+### M6.E17 — The REVIEW fix loop becomes a mechanism
+
+Three habits that had caught real defects in earlier Epics were only habits: count the REVIEW
+passes, have someone new read every round of fixes, and check that a new test fails without its fix.
+M6.E16's REVIEW ran four full passes and a narrow one while the loop count read 0. Each is now something the code records
+or checks.
+
+#### Added
+- **A VERIFY or REVIEW pass is recorded when it ends.** `recordPass` appends
+  `"REVIEW FAIL (2026-10-18)"`-shaped entries to an optional `phase_passes` list in `STATE.md`, and
+  the loop ceiling counts them, so a pass whose fixes never leave the phase still counts. A FAIL
+  never lifts the ceiling. While a phase is the current phase and the last entry of the whole
+  `phase_passes` list is its own PASS or PASS-WITH-FIXES, it is moving on and is not held, whatever
+  the count. A record that does not read stops `/sig:drive` (`loop-unknown`), the same rule as an
+  unreadable phase log.
+  The list is cleared on an Epic roll and at a linear project's SHIP. No `schema_version` change.
+- **Every round of fixes is read fresh, with a stated stop.** `review.md` § 4.6: each round in the
+  REVIEW report carries a `**Fresh read:**` line (range, Critical and Important counts, `stop: yes`
+  only when both are 0) and a `**Parent run:**` line. `checkFixRounds` checks the report before a
+  verdict is declared: a PASS needs the last round clean, at least one round per recorded FAIL, one
+  `## Pass N` section per recorded pass, and at most three rounds per pass. Those structural checks
+  never refuse FAIL; a round whose two lines are missing, malformed or inconsistent is refused
+  whatever the verdict.
+- **"Fails without the fix" is proven by a tool.** `tools/lib/parent-run.js --base <commit> <test
+  files>` runs the named tests on the base commit in a temporary worktree and prints one summary
+  line: which files failed there, which new tests passed there, and which failed only because a file
+  or module was missing (that is not proof). A fixer pastes the line; the report check reads it.
+  Vitest projects only.
+- **A linear project's REVIEW report marks where each run ends.** SHIP appends
+  `## Run ended — <date>` and the check reads only what follows it. If SHIP cannot write it, it says
+  so (`runEnded`), and `markRunEnded(baseDir)` writes it; once the next run has begun,
+  `markRunEnded(baseDir, { keep })` puts it above that run's passes. Re-running `/sig:ship` does not
+  write it.
+
+#### Changed
+- `review.md`, `verify.md`, `execute.md` and `references/fixer-brief.md` describe the recording, the
+  fresh read per round and the parent run.
+
+#### Signal's own repository
+- Wall-clock tests run on their own, serially, in `npm run test:perf` (a separate CI step), and
+  local runs cap workers at half the cores (`SIG-303`, `SIG-139`). `timing-budget-guard.test.js`
+  fails on a new timing assertion outside that run.
+
+#### Known limits (filed)
+- `parent-run.js` leaves its own worktree entry registered while one of yours is missing its folder
+  (`SIG-341`). A re-invoked `/sig:ship` leaves a stray `SHIP` entry in the live phase list
+  (`SIG-343`, older than this release). The ceiling cannot tell which visit wrote the last pass
+  record: when nothing has been recorded since an earlier PASS (a later visit ended without
+  recording), that PASS still lifts the phase's ceiling (`SIG-349`). Other residue: `SIG-331` …
+  `SIG-348`.
+
 ## [0.1.51] — 2026-10-13 — Epics and units are records
 
 ### M6.E16 — Epics and units are records

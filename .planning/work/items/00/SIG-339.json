@@ -1,0 +1,21 @@
+{
+  "id": "SIG-339",
+  "type": "CHORE",
+  "title": "M6.E17 test gaps: rules that survive their own deletion",
+  "theme": "testing",
+  "priority": "P3",
+  "source": "M6.E17 REVIEW pass 2",
+  "source_ref": "M6.E17-REVIEW P1-S15 P2-S12",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-17T13:40:36.245Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-17T13:40:36.245Z",
+      "by": "Claude"
+    }
+  ]
+}

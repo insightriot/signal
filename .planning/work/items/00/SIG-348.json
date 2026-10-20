@@ -1,0 +1,21 @@
+{
+  "id": "SIG-348",
+  "type": "BUG",
+  "title": "The PR reviewer passed PR #304 without reviewing again (4 turns, $0.11 on 6861 lines)",
+  "theme": "hygiene",
+  "priority": "P2",
+  "source": "M6.E17 SHIP",
+  "source_ref": "M6.E17 SHIP hollow reviewer PR 304",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-19T20:29:52.228Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-19T20:29:52.228Z",
+      "by": "Claude"
+    }
+  ]
+}

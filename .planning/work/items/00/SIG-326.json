@@ -21,6 +21,20 @@
       "at": "2026-10-15T18:35:14.956Z",
       "by": "Claude",
       "epic": "M6.E17"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-19T20:19:06.146Z",
+      "by": "M6.E17",
+      "reason": "fixed",
+      "proof": "cde0b02d20ba809f33b49e49567dc5483c750490"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-19T20:19:06.201Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "cde0b02d20ba809f33b49e49567dc5483c750490"
     }
   ]
 }

@@ -4540,3 +4540,38 @@ other reason refuses and names what would confirm it.
 "Keep the rule". A typed row is protected and refused; an edit inside one of Signal's own rows is put
 back at the next regeneration and reported as `view-stale`. Remembering what was printed (a
 fingerprint in the marker) was offered and not taken: it changes the marker on every project.
+
+## M6.E17 — The REVIEW fix loop becomes a mechanism
+
+Opened 2026-10-15 from priority 1 of [`BACKLOG-REVIEW-2026-10-14.md`](BACKLOG-REVIEW-2026-10-14.md),
+picked by Brett. Project FULL, `attention: checkpointed`; the four gray areas were put to Brett in one ask.
+
+### D-M6E17-1 — A REVIEW pass is recorded when it ends, and the ceiling counts the records (Brett, 2026-10-15)
+"Record each pass when it ends." `loopStatusFor` counted only phase exits, and M6.E16's four passes
+never left REVIEW, so it read 0 throughout. Each pass's verdict is written to `STATE.md` by one
+function; the count is the larger of the pass records and the phase exits. Rejected: forcing the
+loop-back through a real EXECUTE transition (works only if every fix round takes it, and M6.E16's did
+not); counting `## Pass N` headings in the report (a renamed heading reads 0 silently).
+
+### D-M6E17-2 — A fresh read of every fix round, with a stated stop (Brett, 2026-10-15)
+"After every round, with a stop rule." After any FAIL loop or in-phase fix, one fresh reviewer reads
+only that round's diff. The chain stops when that read finds 0 Critical and 0 Important, or at the
+loop ceiling. Answers M6.E14's *"a deliberate stop for the reader chain needs a rule"* and M6.E16's
+*"review.md has no step for re-review the fix round"*.
+
+### D-M6E17-3 — "Fails without the fix" is proven by a tool, in fix rounds and EXECUTE slices (Brett, 2026-10-15)
+"A tool, for fix rounds and EXECUTE slices." A tool runs the named new tests against the parent commit
+in a temporary worktree and records the result. For a fix, the parent is the code without the fix, so
+the same run is the mutant check. A fixer's report or a slice's record without it is not evidence.
+
+### D-M6E17-4 — Timing tests get their own serial run; local workers are capped (Brett, 2026-10-15)
+"Separate perf run, fewer local workers." `SIG-303`'s three wall-clock tests move to a perf run that CI
+runs serially, with their budgets unchanged; local parallelism is capped for `SIG-139`'s timeouts.
+
+### D-M6E17-5 — VERIFY counts its passes the same way (Claude, 2026-10-15)
+`LOOP_BOUNDED_PHASES` is VERIFY and REVIEW, and VERIFY's FAIL path has the same in-phase shape. One
+recording function serves both; recording only REVIEW would leave the same hole one phase earlier.
+
+### D-M6E17-6 — An unreadable pass record stops, as an unreadable phase log already does (Claude, 2026-10-15)
+`countPhaseCompletions` returns `null` for "could not look" and the driver halts on it (`loop-unknown`).
+A pass record that does not parse gets the same answer; it is never read as zero.

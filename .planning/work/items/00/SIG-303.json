@@ -15,6 +15,19 @@
       "type": "triaged",
       "at": "2026-10-13T04:13:54.400Z",
       "by": "claude (M6.E16 REVIEW)"
+    },
+    {
+      "type": "queued",
+      "at": "2026-10-15T12:21:26.659Z",
+      "by": "Brett",
+      "epic": "M6.E17"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-19T20:09:03.495Z",
+      "by": "M6.E17",
+      "reason": "fixed",
+      "proof": "76b00d5a854c16f982297ef167a48027bcd46e1a"
     }
   ]
 }

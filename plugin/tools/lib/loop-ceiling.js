@@ -30,6 +30,14 @@
  *
  * The count is **per Epic** for free: `setCurrentEpic` resets
  * `completed_phases` on an Epic roll (`B9`), so loops do not leak across Epics.
+ *
+ * ⚠ AND EXITS ALONE UNDER-COUNT (M6.E17, `D-M6E17-1`). A pass whose fixes stay
+ * inside the phase never leaves it, so `completed_phases` never hears of it:
+ * M6.E16's REVIEW ran four full passes and read **0** throughout. So a pass is
+ * also recorded when it ENDS (`recordPass` in `state.js` → `phase_passes`), and
+ * the count is the LARGER of the two sources — a pass that ends and then leaves
+ * appears in both, and a sum would count it twice. `setCurrentEpic` clears
+ * `phase_passes` beside `completed_phases`, so it is per Epic too.
  */
 
 import { partitionCompletedPhases } from './state.js';
@@ -47,7 +55,9 @@ import { partitionCompletedPhases } from './state.js';
  *
  * So two unattended re-entries are allowed and the third stops. That is
  * `verify.md`'s existing rule, unchanged — this makes it enforceable rather
- * than re-tuning it.
+ * than re-tuning it. It holds a RETRY: while a phase is the current phase and
+ * the last entry of `phase_passes` is its own PASS or PASS-WITH-FIXES, the
+ * phase is moving on and `loopStatusFor` does not hold it, whatever the count.
  */
 export const DEFAULT_LOOP_CEILING = 3;
 
@@ -58,6 +68,12 @@ export const DEFAULT_LOOP_CEILING = 3;
  * counting those would stop loops that are supposed to run.
  */
 export const LOOP_BOUNDED_PHASES = Object.freeze(['VERIFY', 'REVIEW']);
+
+/** The verdicts a recorded pass may carry — the three `verify.md` / `review.md` return. */
+export const PASS_VERDICTS = Object.freeze(['PASS', 'PASS-WITH-FIXES', 'FAIL']);
+
+/** One `phase_passes` entry: `"<PHASE> <VERDICT> (<YYYY-MM-DD>)"`. */
+export const PASS_ENTRY_RE = /^(VERIFY|REVIEW) (PASS|PASS-WITH-FIXES|FAIL) \((\d{4}-\d{2}-\d{2})\)$/;
 
 /**
  * How many times `phase` has been completed, per `completed_phases`.
@@ -82,7 +98,43 @@ export function countPhaseCompletions(state, phase) {
 }
 
 /**
+ * How many passes of `phase` were recorded as they ended, per `phase_passes`.
+ *
+ * `0` when the key is absent — a project that has never recorded a pass reads
+ * exactly as it did before the key existed. `null` when the key is there and
+ * cannot be read: not a list, or ANY entry (for any phase) that is not
+ * `"<PHASE> <VERDICT> (<date>)"`. Unlike `completed_phases`, a bad entry is not
+ * discarded: this list is written only by `recordPass`, so a bad entry means
+ * the record was damaged, and a damaged record cannot say how many passes ran.
+ * The driver must stop on it, never read it as zero (`D-M6E17-6`).
+ *
+ * @param {{phase_passes?: unknown}|null|undefined} state
+ * @param {string} phase
+ * @returns {number|null}
+ */
+export function countPhasePasses(state, phase) {
+  if (!state || typeof state !== 'object') return null;
+  if (!('phase_passes' in state) || state.phase_passes === undefined) return 0;
+  const raw = state.phase_passes;
+  if (!Array.isArray(raw)) return null;
+  let count = 0;
+  for (const entry of raw) {
+    if (typeof entry !== 'string') return null;
+    const m = PASS_ENTRY_RE.exec(entry);
+    if (!m) return null;
+    if (m[1] === phase) count += 1;
+  }
+  return count;
+}
+
+/**
  * Where this phase stands against its ceiling.
+ *
+ * `atCeiling` is false, whatever the count, while `phase` is the current phase
+ * and the last entry of `phase_passes` is its own PASS or PASS-WITH-FIXES:
+ * the phase passed and is being left, not retried. STATE does not say which
+ * visit wrote that entry, so when nothing has been recorded since an earlier
+ * PASS, that PASS still lifts the ceiling (`SIG-349`).
  *
  * Returns `null` for a phase that does not loop, and for a state it cannot
  * read. Both mean "no opinion" and both must be treated as a stop by an actor —
@@ -98,11 +150,23 @@ export function countPhaseCompletions(state, phase) {
 export function loopStatusFor(state, phase, { ceiling = DEFAULT_LOOP_CEILING } = {}) {
   if (!LOOP_BOUNDED_PHASES.includes(phase)) return null;
 
-  const count = countPhaseCompletions(state, phase);
-  if (count === null) return null;
+  // The larger of exits and recorded passes, never the sum (`D-M6E17-1`).
+  // Either source unreadable → no opinion → the driver stops (`D-M6E17-6`).
+  const exits = countPhaseCompletions(state, phase);
+  const passes = countPhasePasses(state, phase);
+  if (exits === null || passes === null) return null;
+  const count = Math.max(exits, passes);
 
   const nextAttempt = count + 1;
-  return { phase, count, ceiling, nextAttempt, atCeiling: nextAttempt >= ceiling };
+  // The ceiling stops a retry, not a step forward. The records count the pass
+  // just ended, so while this is the current phase and the last record of all
+  // is its own PASS or PASS-WITH-FIXES, the phase is being left and is not
+  // held. A later record (a REVIEW FAIL after a VERIFY pass) means a new visit,
+  // held by the count as before. Which visit wrote the record is not checked:
+  // with nothing recorded since an earlier PASS, that PASS stays in force (SIG-349).
+  const newest = state?.phase === phase && passes > 0 ? PASS_ENTRY_RE.exec(state.phase_passes.at(-1)) : null;
+  const passed = newest !== null && newest[1] === phase && newest[2] !== 'FAIL';
+  return { phase, count, ceiling, nextAttempt, atCeiling: !passed && nextAttempt >= ceiling };
 }
 
 /**

@@ -1,0 +1,20 @@
+{
+  "id": "SIG-327",
+  "type": "Q",
+  "title": "Archive phase_passes on an Epic roll, like completed_phases",
+  "theme": "state",
+  "priority": "P3",
+  "source": "M6.E17 EXECUTE",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-15T18:35:05.829Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-15T18:35:05.829Z",
+      "by": "Claude"
+    }
+  ]
+}

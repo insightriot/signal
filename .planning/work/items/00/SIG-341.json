@@ -1,0 +1,21 @@
+{
+  "id": "SIG-341",
+  "type": "CHORE",
+  "title": "parent-run.js: worktree cleanup leaves its own entry while one of yours is missing, and other limits",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E17 REVIEW passes 3-5",
+  "source_ref": "M6.E17-REVIEW parent-run residue",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-19T17:33:06.741Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-19T17:33:06.741Z",
+      "by": "Claude"
+    }
+  ]
+}

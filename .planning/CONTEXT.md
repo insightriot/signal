@@ -4,7 +4,17 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-10-13) — M6.E16 at SHIP (`v0.1.51`)
+## Where things stand (2026-10-15) — M6.E17 at DISCUSS
+
+**`M6.E17` — *"Make the REVIEW fix loop a mechanism, not a habit"*** — REVIEW and VERIFY record each
+pass so the loop ceiling counts what happened (M6.E16's four passes read 0); a fresh read of every
+round of fixes with a stated stop; a tool that proves a new test fails on the parent commit, used in
+fix rounds and EXECUTE slices; timing tests in their own serial run (`SIG-303`, `SIG-139`). Branch
+`feat/m6.e17-review-loop-mechanism`. Picked from
+[`BACKLOG-REVIEW-2026-10-14.md`](BACKLOG-REVIEW-2026-10-14.md). Requirements:
+[`M6.E17-REQUIREMENTS.md`](M6.E17-REQUIREMENTS.md); decisions `D-M6E17-1` … `-6`.
+
+## Previously (2026-10-13) — M6.E16 shipped (`v0.1.51`)
 
 **`M6.E16` — *"Epics and units as records"*** — an Epic or unit is a JSON record
 (`.planning/work/units/<ID>.json`) that says it exists, which items belong to it, its close (with

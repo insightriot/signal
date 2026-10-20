@@ -1,0 +1,21 @@
+{
+  "id": "SIG-332",
+  "type": "CHORE",
+  "title": "parent-run.js: vitest-only, PERF_TESTS files never provable, no green HEAD run",
+  "theme": "tooling",
+  "priority": "P3",
+  "source": "M6.E17 REVIEW pass 2",
+  "source_ref": "M6.E17-REVIEW P1-S5 P2-S5",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-17T13:40:36.244Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-17T13:40:36.244Z",
+      "by": "Claude"
+    }
+  ]
+}

@@ -246,3 +246,11 @@ Can Signal's repo become private without breaking installs — and what unpublis
 **Resolve by:** (unset — triage at next planning pass)
 
 ---
+
+## Archive phase_passes on an Epic roll, like completed_phases
+
+**Item:** SIG-327
+
+M6.E17 S2: `setCurrentEpic` archives `completed_phases` before resetting it (D-M5E9-7) but clears the new `phase_passes` with no copy. The passes are also in the REVIEW/VERIFY reports and the retrospective, so nothing is lost that is not written elsewhere; decide whether the archive should carry them too.
+
+---

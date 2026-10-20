@@ -140,7 +140,7 @@
 | SIG-136 | `dup` | — | **⚠ WITHDRAWN as a duplicate of `B100` — `AC_ID_RE` drops the sub-letter** |
 | SIG-137 | `dup` | — | **`detectProjectKind` calls every non-git directory `greenfield`, so a real codebase is told to start fresh** |
 | SIG-138 | `fixed` | — | **An Epic-lane `--merge` produced a SQUASH, and a published adherence verdict immediately pointed at a commit absent…** |
-| SIG-139 | `confirmed` | P3 | **The suite is flaky under local parallel load — a different test times out each run** |
+| SIG-139 | `closing` | P3 | **The suite is flaky under local parallel load — a different test times out each run** |
 | SIG-140 | `rejected` | — | **`claude-review` CI fails before reviewing: claude binary missing on the runner** |
 | SIG-148 | `confirmed` | — | **Jev key and receipt hardening — the pass-3 REVIEW residue · **fix lane** · small · *filed 2026-09-27 from `M6.E3` REVIEW*** |
 | SIG-249 | `confirmed` | P3 | **tools/adherence-ceiling.js ignores unknown flags and regenerates the log** |
@@ -188,7 +188,7 @@
 | SIG-300 | `confirmed` | P3 | **A unit's text is cleaned or cut on write with no word to the caller** |
 | SIG-301 | `confirmed` | P3 | **One record over a limit, written past the writer, stops every write to the store** |
 | SIG-302 | `confirmed` | P3 | **`npm run lint` does not cover tests/; the Closed section of EPICS.md is in ID order** |
-| SIG-303 | `confirmed` | P3 | **Three timing tests fail under machine load and pass alone** |
+| SIG-303 | `closing` | P3 | **Three timing tests fail under machine load and pass alone** |
 | SIG-304 | `confirmed` | P3 | **A slow pattern at milestones.js:229 is now reached by readMilestoneRows** |
 | SIG-305 | `fixed` | P3 | **The edit hook misses a record written by its real path when .planning is a link** |
 | SIG-306 | `confirmed` | P3 | **Three older refusals print project text through JSON.stringify, not shownName** |
@@ -199,6 +199,19 @@
 | SIG-311 | `confirmed` | P3 | **Suggestions from M6.E16 REVIEW pass 4 and the narrow review that no round took up** |
 | SIG-312 | `confirmed` | P2 | **/sig:permissions proposes any git subcommand a prompt file names, some of which run a command** |
 | SIG-313 | `confirmed` | P3 | **A project unpacked from an archive with a hostile .git/config runs its commands under any git call** |
-| SIG-326 | `confirmed` | P2 | **sweep-store-on test drifts with the calendar (runSweep reads the real clock)** |
+| SIG-314 | `confirmed` | P3 | **unitToCloseAtShip accepts a current_epic that can never be a unit record** |
+| SIG-317 | `confirmed` | P3 | **The closed-proof audit is silent when git fails** |
+| SIG-318 | `confirmed` | P3 | **readsOwnConfig depends on core.repositoryformatversion being present** |
+| SIG-319 | `confirmed` | P2 | **/sig:resume says "Next phase: done" at SHIP while the PR is unmerged and the close waits** |
+| SIG-320 | `confirmed` | P3 | **ancestryFailure reads a merge-base error as unknown-commit after rev-parse found the commit** |
+| SIG-321 | `confirmed` | P3 | **The closed-proof audit drops ambiguous-proof, proof-names-a-ref, shallow and git-failed without a word** |
+| SIG-326 | `fixed` | P2 | **sweep-store-on test drifts with the calendar (runSweep reads the real clock)** |
+| SIG-330 | `confirmed` | P3 | **parent-run.js still exits 0 silently when its main-module check fails** |
+| SIG-336 | `confirmed` | P3 | **review-rounds.js: parsing edges (empty Parent run line, placeholders, fences, duplicates)** |
+| SIG-343 | `confirmed` | P3 | **A re-invoked /sig:ship records SHIP as a phase left, leaving a stray SHIP entry in the live list** |
+| SIG-346 | `confirmed` | P3 | **Wall-clock budgets the timing detector does not see (r61 walk, inverted bounds, helpers)** |
+| SIG-347 | `confirmed` | P2 | **Generated views rewrite links differently depending on the folder node runs from** |
+| SIG-348 | `confirmed` | P2 | **The PR reviewer passed PR #304 without reviewing again (4 turns, $0.11 on 6861 lines)** |
+| SIG-349 | `confirmed` | P2 | **Loop ceiling: an old PASS record lifts the ceiling when a later visit left no record (needs a visit marker)** |
 
-*0 needs-triage · 68 confirmed · 0 closing · 129 closed (197 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 78 confirmed · 2 closing · 130 closed (210 total) · closes more than 30 days before the newest event are in `work/history/`*

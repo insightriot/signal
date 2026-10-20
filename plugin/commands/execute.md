@@ -90,8 +90,8 @@ For each task in a wave, the orchestrator drives the work through `dispatchTaskW
 2. **(agent)** Read the task's acceptance criteria and test mapping.
 3. **(agent)** Write tests first (TDD) where applicable.
 4. **(agent)** Implement the minimum code to pass tests.
-5. **(agent)** Run the test suite, then create an atomic git commit with a descriptive message. Return the commit sha to the orchestrator.
-6. **(orchestrator)** `clearCurrentTask({id, status: 'done', commit})` on success; `clearCurrentTask({id, status: 'aborted'})` on agent throw (re-thrown to the caller). Then update `.planning/{phase}-PROGRESS.md` if applicable.
+5. **(agent)** Run the test suite, then create an atomic git commit with a descriptive message. Then run the task's new tests against the commit the task started from with `parent-run.js` (`tools/lib/parent-run.js`), under [`references/fixer-brief.md`](../references/fixer-brief.md). Return the commit sha and the tool's output, unchanged, to the orchestrator.
+6. **(orchestrator)** `clearCurrentTask({id, status: 'done', commit})` on success; `clearCurrentTask({id, status: 'aborted'})` on agent throw (re-thrown to the caller). Then update `.planning/{phase}-PROGRESS.md` if applicable. **The task's PROGRESS entry carries the parent-run summary line**. A missing or `could-not-run` result is written there as a stated gap, with its reason, and never left blank or read as a pass (`D-M6E17-3`).
 
 ### 3. Context Rot Prevention
 

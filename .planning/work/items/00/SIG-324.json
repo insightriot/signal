@@ -1,0 +1,33 @@
+{
+  "id": "SIG-324",
+  "type": "FEAT",
+  "title": "review.md: a fresh read of every fix round, with a stated stop",
+  "theme": "testing",
+  "priority": "P2",
+  "source": "M6.E17 DISCUSS",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-15T14:10:49.450Z",
+      "by": "Brett"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-15T14:10:49.450Z",
+      "by": "Brett"
+    },
+    {
+      "type": "queued",
+      "at": "2026-10-15T14:10:52.879Z",
+      "by": "Brett",
+      "epic": "M6.E17"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-19",
+      "by": "M6.E17",
+      "reason": "fixed",
+      "proof": "e92032dea9ee4794c1c7e3747036cd86130f7dba"
+    }
+  ]
+}

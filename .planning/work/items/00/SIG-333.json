@@ -1,0 +1,21 @@
+{
+  "id": "SIG-333",
+  "type": "CHORE",
+  "title": "review.md / verify.md: say what happens when recordPass throws, and at SKETCH",
+  "theme": "docs",
+  "priority": "P3",
+  "source": "M6.E17 REVIEW pass 2",
+  "source_ref": "M6.E17-REVIEW P1-S4",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-17T13:40:36.244Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-17T13:40:36.244Z",
+      "by": "Claude"
+    }
+  ]
+}
