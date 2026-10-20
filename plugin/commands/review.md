@@ -314,11 +314,11 @@ The count is **the larger of** two records:
 
 It takes the larger, not the sum, because a pass that ends and then leaves REVIEW is in both. Exits
 alone missed every pass whose fixes stayed inside REVIEW. Both records are per Epic: `setCurrentEpic`
-resets them on a roll (`B9`). Two re-entries run; **the third stops for a person**. A phase that
-has just passed is not held: while REVIEW is the current phase and the last entry of `phase_passes`
-is its own PASS or PASS-WITH-FIXES, the ceiling does not apply (limit: `SIG-349`). That is
+resets them on a roll (`B9`). Two re-entries run; **the third stops for a person**. That is
 `verify.md`'s existing rule (*"A for the first 2 loops; reassess at loop 3"*), now enforceable rather
-than re-tuned.
+than re-tuned. A FAIL never lifts the ceiling. While REVIEW is the current phase and the last entry
+of the whole `phase_passes` list is its own PASS or PASS-WITH-FIXES, REVIEW is moving on and is not
+held; which visit wrote that entry is not checked (`SIG-349`).
 
 Render the halt with `formatLoopCeilingHalt(status)` so this file and `/sig:drive` cannot describe
 the same stop two ways.

@@ -137,9 +137,10 @@ theatre; the check without the structure lets a run report a number with no stat
 from `tools/lib/state.js`, with `verdict` as `PASS`, `PASS-WITH-FIXES` or `FAIL`. Do this before the
 Loop Back ask and before the transition out of VERIFY. The loop ceiling (`loopStatusFor` in
 `tools/lib/loop-ceiling.js`) counts the larger of these recorded passes and VERIFY's exits in
-`completed_phases`, so a pass whose fixes stayed inside VERIFY is still counted. A FAIL is held as
-before. While VERIFY is the current phase and the last entry of `phase_passes` is its own PASS or
-PASS-WITH-FIXES, VERIFY is moving on and the ceiling does not apply (limit: `SIG-349`).
+`completed_phases`, so a pass whose fixes stayed inside VERIFY is still counted. A FAIL never lifts
+the ceiling; the count decides as before. While VERIFY is the current phase and the last entry of
+the whole `phase_passes` list is its own PASS or PASS-WITH-FIXES, VERIFY is moving on and is not
+held; which visit wrote that entry is not checked (`SIG-349`).
 
 ### 5b. Mark STATE.md fresh (M4.5.E6.S4)
 

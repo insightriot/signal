@@ -133,8 +133,8 @@ export function countPhasePasses(state, phase) {
  * `atCeiling` is false, whatever the count, while `phase` is the current phase
  * and the last entry of `phase_passes` is its own PASS or PASS-WITH-FIXES:
  * the phase passed and is being left, not retried. STATE does not say which
- * visit wrote that entry, so a later visit that recorded nothing leaves an
- * earlier PASS lifting the ceiling (`SIG-349`).
+ * visit wrote that entry, so when nothing has been recorded since an earlier
+ * PASS, that PASS still lifts the ceiling (`SIG-349`).
  *
  * Returns `null` for a phase that does not loop, and for a state it cannot
  * read. Both mean "no opinion" and both must be treated as a stop by an actor —
@@ -163,7 +163,7 @@ export function loopStatusFor(state, phase, { ceiling = DEFAULT_LOOP_CEILING } =
   // is its own PASS or PASS-WITH-FIXES, the phase is being left and is not
   // held. A later record (a REVIEW FAIL after a VERIFY pass) means a new visit,
   // held by the count as before. Which visit wrote the record is not checked:
-  // a visit that recorded nothing leaves an earlier PASS in force (SIG-349).
+  // with nothing recorded since an earlier PASS, that PASS stays in force (SIG-349).
   const newest = state?.phase === phase && passes > 0 ? PASS_ENTRY_RE.exec(state.phase_passes.at(-1)) : null;
   const passed = newest !== null && newest[1] === phase && newest[2] !== 'FAIL';
   return { phase, count, ceiling, nextAttempt, atCeiling: !passed && nextAttempt >= ceiling };
