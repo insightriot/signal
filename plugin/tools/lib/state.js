@@ -1868,11 +1868,11 @@ export async function touchDecisionTimestamp(baseDir, opts = {}) {
  *
  * M6.E18 (`SIG-337`, `SIG-344`): also refuses a pass for a phase STATE is not
  * in (both named), a date that is not a calendar day or is after today
- * (`opts.today`, `YYYY-MM-DD`, defaults to the clock), and a second record for
- * this phase in one visit — an entry for it at or after `phase_pass_mark`,
- * which `transitionPhase` writes on entry. With no mark (STATE written before
- * M6.E18) a visit cannot be told, so that refusal does not apply. A mark that
- * does not read is refused, as the reader stops on it.
+ * (`opts.today`, `YYYY-MM-DD`, defaults to the clock), and a
+ * `phase_pass_mark` that does not read, as the reader stops on it. Several
+ * records in one visit are accepted: passes whose fixes never leave REVIEW are
+ * what this list counts, and a duplicate only stops the ceiling sooner (AC3.3
+ * as amended).
  *
  * M6.E18 S4 (AC3.5, P4-S7): `opts.fixRounds` is `checkFixRounds`'s result for
  * the report. A REVIEW PASS or PASS-WITH-FIXES with a result that did not pass,
