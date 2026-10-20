@@ -4613,3 +4613,19 @@ merges with `--merge`.
 ### D-M6E18-6 — The outcome is this Epic's own driven run plus the next PR's review (Claude, 2026-10-20)
 Accepted as recommended. See `M6.E18-REQUIREMENTS.md` § Outcome. The reviewer action refuses to run on
 a PR that edits its own workflow, so the on-demand review is proven on the next PR, not this one.
+
+### D-M6E18-7 — The workflow change ships first, in its own fix-lane PR (Brett, 2026-10-20)
+"Separate PR first." The reviewer action skips any PR that edits its own workflow (success, no review:
+*"The workflow file must exist and have identical content to the version on the repository's default
+branch"*, run 37524298235). Landing the `review-head` trigger in a small PR that Brett merges before
+this Epic's SHIP lets this Epic's own PR be reviewed at its head, so SHIP's check is proven on the Epic
+that built it. Rejected: inside the Epic PR (the trigger is skipped there; proof moves to the next PR);
+deferring the trigger (SHIP would have nothing to point at).
+
+### D-M6E18-8 — The on-demand job forks the review prompt and widens no permission (Claude, 2026-10-20)
+Plumbing, from PLAN research. The `review-head` job runs the upstream command's steps 2–9 inline,
+without step 1, pinned to the upstream commit it was copied from — the only option that removes the
+"already commented" stop rather than arguing with it. It does not remove its own label afterwards:
+that needs `pull-requests: write`, and the job keeps today's `read`. Re-asking is remove-and-re-add.
+A final step writes one `REVIEW_OUTCOME=` line into the run log (kept 90 days), because the log
+carries no result text and the transcript artifact lasts one day.
