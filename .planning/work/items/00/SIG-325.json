@@ -28,6 +28,13 @@
       "by": "M6.E17",
       "reason": "fixed",
       "proof": "e92032dea9ee4794c1c7e3747036cd86130f7dba"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-20T00:33:09.848Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "e92032dea9ee4794c1c7e3747036cd86130f7dba"
     }
   ]
 }

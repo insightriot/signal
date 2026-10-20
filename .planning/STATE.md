@@ -29,8 +29,8 @@ last_completed_task:
   commit: 76b00d5a
   completedAt: 2026-10-15T19:01:26.668Z
 last_decision_at: 2026-10-15T19:01:26.668Z
-last_updated_commit: 0c150e0b
-last_updated: 2026-10-20T00:17:39.367Z
+last_updated_commit: 39a21ce7
+last_updated: 2026-10-20T00:33:35.204Z
 phase_passes:
   - VERIFY FAIL (2026-10-16)
   - VERIFY PASS-WITH-FIXES (2026-10-16)
@@ -46,23 +46,24 @@ phase_passes:
 
 ### ▶ WHERE THE WORK IS — read this first (2026-10-19)
 
-**`M6.E17` — *"Make the REVIEW fix loop a mechanism, not a habit"* — at SHIP as `v0.1.52`, PR #304
-open, waiting for CI and Brett's yes to merge with `--merge`.** A VERIFY or REVIEW pass is recorded
-when it ends (`recordPass`, `phase_passes`) and the loop ceiling counts the records; every round of
-fixes carries a fresh read checked before a verdict (`checkFixRounds`); `parent-run.js` proves a new
-test fails on the base commit; wall-clock tests run serially in `npm run test:perf`.
-Report: [`M6.E17-REVIEW.md`](M6.E17-REVIEW.md). Retrospective:
+**`M6.E17` — *"Make the REVIEW fix loop a mechanism, not a habit"* — SHIPPED as `v0.1.52` and CLOSED
+(2026-10-19).** PR #304 merged with `--merge` (`3b9949bc`) on Brett's word; tag `v0.1.52` and the
+GitHub release are published. Confirmed on `main`: the Epic `M6.E17` and `SIG-139`, `SIG-303`,
+`SIG-323`, `SIG-324`, `SIG-325`. A VERIFY or REVIEW pass is recorded when it ends (`recordPass`,
+`phase_passes`) and the loop ceiling counts the records; every round of fixes carries a fresh read
+checked before a verdict (`checkFixRounds`); `parent-run.js` proves a new test fails on the base
+commit. Report: [`M6.E17-REVIEW.md`](M6.E17-REVIEW.md). Retrospective:
 [`M6.E17-RETROSPECTIVE.md`](M6.E17-RETROSPECTIVE.md).
 
-- **RESUME HERE:** if PR #304 is not merged, check its CI and review findings, then ask Brett to
-  merge with `--merge`. After the merge: tag `v0.1.52`, publish the release, run `/sig:docs-sweep`
-  on `main` to confirm the closes, then update the installed plugin to `0.1.52`
-  (`claude plugin update sig@signal`) and restart before using `/sig:` commands (`B52`).
-- **Closing, proof not yet on `main`:** the Epic `M6.E17`, and `SIG-139`, `SIG-303`, `SIG-323`,
-  `SIG-324`, `SIG-325`.
+- **RESUME HERE:** update the installed plugin to `0.1.52` (`claude plugin update sig@signal`) and
+  restart the CLI before using `/sig:` commands (`B52`). Then pick the next work from
+  [`BACKLOG.md`](BACKLOG.md) (`/sig:advise`). Found at SHIP and worth weighing first: `SIG-349`
+  (the ceiling cannot tell which visit wrote a pass record), `SIG-347` (views rewrite links by the
+  process's folder), `SIG-348` (the PR reviewer passed #304 without reviewing).
 - **How REVIEW went:** five passes; passes 1–4 failed (9, 9, 9, 4 Important), passes 4 and 5 ran past
   the ceiling by Brett's decision, pass 5 was one fresh reader per fix round and ended
-  PASS-WITH-FIXES at round 6.
+  PASS-WITH-FIXES at round 6. Before merging, a whole-PR read (the PR reviewer had read nothing) found
+  the new records stopping `/sig:drive` after a pass that PASSED; fixed in two rounds, each read fresh.
 - **Filed, open:** `SIG-327` … `SIG-346` (residue from VERIFY and REVIEW). `SIG-343` (a re-invoked
   SHIP leaves a stray SHIP entry) predates this Epic.
 - Requirements: [`M6.E17-REQUIREMENTS.md`](M6.E17-REQUIREMENTS.md). Plan:
@@ -167,7 +168,7 @@ on 2026-09-14 (STATE.md over its 40 KB ceiling). **The live queue is [`BACKLOG.m
 
 ## In-flight
 
-`M6.E17`, at SHIP — see the resume pointer above.
+None.
 
 ## Blockers
 
@@ -175,7 +176,7 @@ None.
 
 ## Pending ops
 
-Merge PR #304 (`M6.E17`) — see the resume pointer above.
+None currently open.
 
 ## Closed work
 - M5.E10 — evicted to .planning/archive/M5/E10/STATE-NARRATIVE.md · card: M5.E10-RETROSPECTIVE.md
