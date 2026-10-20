@@ -50,8 +50,32 @@
  * appends `## Run ended — <date>` (state.js), and only what follows the last
  * such line is this run (P3-I5). Typing that line by hand would hide earlier
  * passes from the check; like any line of the report, it is trusted as written.
+ *
+ * M6.E18 S4 (FR4, `SIG-335`, `SIG-344`): THE COMMITS A ROUND NAMES ARE CHECKED.
+ * Until now the check read that a round's lines were there, not what they
+ * said. Given git (`opts.git`, or `opts.cwd` to run it there under `gitEnv`):
+ * - a round's **Parent run:** commit and its fresh read's base and head must
+ *   resolve to commits, and the parent run must be on the base: the base is
+ *   the HEAD the fixer started from, which is what parent-run.js runs on
+ *   (AC4.1). A round whose parent run is a stated gap has no commit to compare;
+ * - a round's base is the previous round's head, in the order the rounds are
+ *   written in this run, across `## Pass N` sections: the read that found
+ *   the issues ended there, a loop-back round's included (AC4.2);
+ * - the commits after the newest `## Pass N, at <sha>` heading that no round's
+ *   range covers are returned as `uncovered`. Reported, not refused: a fix
+ *   made with no round is for review.md's step to name (AC4.4). A report with
+ *   no such heading (older reports) reports nothing.
+ * With no git — neither option given, an older git (`gitUnusableReason`), or a
+ * folder git cannot read — nothing above is checked, and each round, and the
+ * pass's commit, is a stated gap: never a refusal, never a pass.
+ *
+ * A heading inside an HTML comment is not read either, as one in a fence is
+ * not (AC4.3). An unclosed `<!--`, like an unclosed fence, hides nothing.
  */
 
+import { execFileSync } from 'node:child_process';
+
+import { gitEnv, gitUnusableReason } from './git-env.js';
 import { DEFAULT_LOOP_CEILING, PASS_ENTRY_RE, PASS_VERDICTS } from './loop-ceiling.js';
 import { PARENT_RUN_SUMMARY_RE } from './parent-run.js';
 
@@ -63,15 +87,58 @@ const FRESH_READ_RE = new RegExp(
 const FRESH_LINE_RE = /^\*\*Fresh read:\*\*.*$/m;
 const PARENT_LINE_RE = /^\*\*Parent run:\*\*\s*(.*)$/m;
 const GAP_RE = /^gap\b\s*[—–:-]\s*\S/i;
-const FENCE_RE = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$/gm;
-// A pass section's heading is "## Pass N" alone or "## Pass N — <date>, at <sha>":
-// a heading such as "## Pass 1's suggestions" is a section about a pass, not one.
-const PASS_HEADING_RE = /^## Pass (\d+)(?:[ \t]+[—–-][ \t].*)?[ \t]*$/gm;
+// A fenced block, or a closed HTML comment. One pattern, so whichever opens
+// first wins: a "<!--" inside a fence is quoted, and so is a fence inside a comment.
+const HIDDEN_RE = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$|<!--[\s\S]*?-->/gm;
+// A pass section's heading is "## Pass N" alone, "## Pass N — <date>, at <sha>",
+// or "## Pass N, at <sha>": a heading such as "## Pass 1's suggestions" is a
+// section about a pass, not one.
+const PASS_HEADING_RE = /^## Pass (\d+)(?:[ \t]+[—–-][ \t].*|,[ \t]+at[ \t].*)?[ \t]*$/gm;
+// The commit a pass heading names: "…, at <sha>", backticked or not.
+const PASS_AT_RE = /,[ \t]+at[ \t]+`?([^\s`]+)`?[ \t]*$/;
 // Appended by a linear SHIP (state.js): everything above it is an earlier run.
 const RUN_ENDED_RE = /^## Run ended\b.*$/gm;
 
-/** Blank out fenced blocks, keeping every offset, so a quoted template is not read as a round. */
-const unfence = (content) => content.replace(FENCE_RE, (m) => m.replace(/[^\n]/g, ' '));
+/** Blank out fenced blocks and HTML comments, keeping every offset, so a quoted or hidden round is not read. */
+const unfence = (content) => content.replace(HIDDEN_RE, (m) => m.replace(/[^\n]/g, ' '));
+
+function defaultGit(cwd, args) {
+  return execFileSync('git', args, { cwd, env: gitEnv(cwd), encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
+}
+
+const gitWhy = (err) => String(err?.stderr || err?.message || err).trim().split('\n')[0];
+
+/**
+ * The git questions the check asks, or why it cannot ask them. `resolve` gives
+ * a full commit sha or null; `after(a, b)` the commits in `a..b`. A folder git
+ * cannot read at all is found by the first question and reported as `why`.
+ */
+function gitReader({ cwd, git }) {
+  if (!git && !cwd) return { why: 'no git was given to the check (pass cwd: baseDir)' };
+  const run = git ?? defaultGit;
+  if (run === defaultGit && gitUnusableReason() !== null) return { why: gitUnusableReason() };
+  try {
+    run(cwd, ['rev-parse', '--git-dir']);
+  } catch (err) {
+    return { why: `git could not read the repository: ${gitWhy(err)}` };
+  }
+  const memo = new Map();
+  const resolve = (ref) => {
+    if (!memo.has(ref)) {
+      let sha = null;
+      try {
+        sha = String(run(cwd, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${ref}^{commit}`])).trim() || null;
+      } catch {
+        // not a commit: null
+      }
+      memo.set(ref, sha);
+    }
+    return memo.get(ref);
+  };
+  const after = (a, b) =>
+    String(run(cwd, ['rev-list', '--end-of-options', `${a}..${b}`])).split('\n').map((l) => l.trim()).filter(Boolean);
+  return { resolve, after };
+}
 
 /** The `## Pass N` headings after the last `## Run ended` line — this run's — with offsets into `content`. */
 export function currentRunPasses(content) {
@@ -95,12 +162,14 @@ function sections(content) {
  *
  * @param {string} content — the REVIEW report
  * @param {'PASS'|'PASS-WITH-FIXES'|'FAIL'} verdict
- * @param {{phasePasses?: string[]}} [opts] — `phase_passes` from STATE.md
- * @returns {{ok: boolean, reasons: string[], gaps: string[],
+ * @param {{phasePasses?: string[], cwd?: string, git?: (cwd: string, args: string[]) => string}} [opts]
+ *   `phasePasses`: `phase_passes` from STATE.md. `cwd`: the project folder, where git is run (under
+ *   `gitEnv`); `git`: a stand-in for it, for tests. Neither given → the commits are a stated gap.
+ * @returns {{ok: boolean, reasons: string[], gaps: string[], uncovered: string[],
  *   rounds: Array<{n: number, range: string|null, critical: number|null, important: number|null,
  *   stop: boolean|null, parentRun: string|null}>}}
  */
-export function checkFixRounds(content, verdict, { phasePasses } = {}) {
+export function checkFixRounds(content, verdict, { phasePasses, cwd, git } = {}) {
   if (!PASS_VERDICTS.includes(verdict)) {
     throw new Error(`checkFixRounds: ${JSON.stringify(verdict)} is not a verdict (expected one of ${PASS_VERDICTS.join(', ')}).`);
   }
@@ -111,8 +180,9 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
   const whole = unfence(String(content ?? ''));
   const runEnded = [...whole.matchAll(RUN_ENDED_RE)].pop();
   const text = runEnded ? whole.slice(runEnded.index + runEnded[0].length) : whole;
-  const passes = [...text.matchAll(PASS_HEADING_RE)].map((m) => ({ n: m[1], at: m.index }));
+  const passes = [...text.matchAll(PASS_HEADING_RE)].map((m) => ({ n: m[1], at: m.index, sha: PASS_AT_RE.exec(m[0])?.[1] ?? null }));
   const perPass = new Map();
+  const commits = []; // per round with a range: {label, at, base, head, parentSha} — checked below, once git is asked
   for (const { n, at, body } of sections(text)) {
     const pass = passes.filter((p) => p.at < at).pop();
     perPass.set(pass, (perPass.get(pass) ?? 0) + 1);
@@ -131,6 +201,8 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
         reasons.push(`${label}: the **Fresh read:** line does not read as "<base>..<head> — Critical N, Important N — stop: yes|no".`);
       } else {
         Object.assign(round, { range: m[1], critical: Number(m[2]), important: Number(m[3]), stop: m[4] === 'yes' });
+        const [base, head] = m[1].split('..');
+        commits.push({ label, at, base, head, parentSha: null });
         const clean = round.critical === 0 && round.important === 0;
         if (round.stop !== clean) {
           reasons.push(
@@ -148,6 +220,7 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
       const summary = parent.replace(/^`|`$/g, '');
       const pm = PARENT_RUN_SUMMARY_RE.exec(summary);
       if (pm) {
+        if (commits.at(-1)?.at === at) commits.at(-1).parentSha = pm[1];
         if (pm[2] !== pm[3] || Number(pm[3]) === 0 || Number(pm[6] ?? 0) > 0 || Number(pm[7] ?? 0) > 0) gaps.push(`${label}: ${summary}`);
       } else if (GAP_RE.test(parent)) {
         gaps.push(`${label}: ${parent}`);
@@ -156,6 +229,40 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
       }
     }
     rounds.push(round);
+  }
+
+  const uncovered = [];
+  const newest = passes.filter((p) => p.sha).pop();
+  if (commits.length > 0 || newest) {
+    const reader = gitReader({ cwd, git });
+    if (reader.why) {
+      for (const c of commits) gaps.push(`${c.label}: its commits were not checked — ${reader.why}.`);
+      if (newest) gaps.push(`Pass ${newest.n}, at ${newest.sha}: the commits after it were not checked — ${reader.why}.`);
+    } else {
+      checkCommits(commits, reader, reasons);
+      if (newest) {
+        const from = reader.resolve(newest.sha);
+        let since = null;
+        try {
+          since = from ? reader.after(from, 'HEAD') : null;
+        } catch {
+          // git could not list them: a gap, below
+        }
+        if (since === null) {
+          gaps.push(`Pass ${newest.n}, at ${newest.sha}: the commits after it were not checked — ${from ? 'git could not list them' : 'it does not resolve to a commit'}.`);
+        } else {
+          const covered = new Set();
+          for (const c of commits.filter((x) => x.at > newest.at && x.baseSha && x.headSha)) {
+            try {
+              for (const sha of reader.after(c.baseSha, c.headSha)) covered.add(sha);
+            } catch {
+              // a range git cannot list covers nothing
+            }
+          }
+          uncovered.push(...since.filter((sha) => !covered.has(sha)).reverse());
+        }
+      }
+    }
   }
 
   for (const [pass, count] of perPass) {
@@ -206,5 +313,37 @@ export function checkFixRounds(content, verdict, { phasePasses } = {}) {
       `${verdict} but the last fix round reads stop: no — its fresh read found issues. Fix them as a new round, or declare FAIL and take the Loop Back.`
     );
   }
-  return { ok: reasons.length === 0, reasons, gaps, rounds };
+  return { ok: reasons.length === 0, reasons, gaps, uncovered, rounds };
+}
+
+/**
+ * AC4.1 / AC4.2: each round's base, head and parent-run commit resolve, the
+ * parent run is on the base, and each round starts at the previous one's head.
+ * Writes `baseSha` / `headSha` onto each entry for the coverage read.
+ */
+function checkCommits(commits, reader, reasons) {
+  let previous = null;
+  for (const c of commits) {
+    c.baseSha = reader.resolve(c.base);
+    c.headSha = reader.resolve(c.head);
+    for (const [what, ref, sha] of [['base', c.base, c.baseSha], ['head', c.head, c.headSha]]) {
+      if (!sha) reasons.push(`${c.label}: the fresh read's ${what} ${JSON.stringify(ref)} does not resolve to a commit.`);
+    }
+    if (c.parentSha !== null) {
+      const parent = reader.resolve(c.parentSha);
+      if (!parent) {
+        reasons.push(`${c.label}: the parent run's commit ${JSON.stringify(c.parentSha)} does not resolve to a commit.`);
+      } else if (c.baseSha && parent !== c.baseSha) {
+        reasons.push(
+          `${c.label}: the parent run is on ${c.parentSha} (${parent}) but the fresh read starts at ${c.base} (${c.baseSha}). The parent run's base is the commit the fixes started from, which is the range's base (fixer-brief.md).`
+        );
+      }
+    }
+    if (previous?.headSha && c.baseSha && c.baseSha !== previous.headSha) {
+      reasons.push(
+        `${c.label}: the fresh read starts at ${c.base} (${c.baseSha}) but ${previous.label} ended at ${previous.head} (${previous.headSha}). A later round's base is the previous round's head (review.md § 4.6).`
+      );
+    }
+    previous = c;
+  }
 }

@@ -547,6 +547,48 @@ describe('M6.E18 AC3.6 — a "0 of 0" parent-run summary is a gap', () => {
       '**Fresh read:** abc1234..def5678 — Critical 0, Important 0 — stop: yes\n' +
       '**Parent run:** `parent-run abc1234: 0 of 0 failed on the base`\n\n';
     const r = checkFixRounds(report, 'PASS-WITH-FIXES', { phasePasses: [] });
-    expect(r.gaps).toEqual([expect.stringMatching(/Fix round 1: parent-run abc1234: 0 of 0 failed on the base/)]);
+    // With no git given, the round is also a gap whose commits were not checked (M6.E18 S4).
+    expect(r.gaps).toContainEqual(expect.stringMatching(/Fix round 1: parent-run abc1234: 0 of 0 failed on the base/));
+  });
+});
+
+// M6.E18 AC3.5 (P4-S7): recordPass took a REVIEW PASS on the caller's word,
+// whether or not checkFixRounds had accepted the report. It now takes the
+// check's result (`opts.fixRounds`) and refuses a passing verdict the check
+// did not accept, naming the check. Proof-of-fail: on 1e759af3 the option is
+// ignored and every case below records the pass.
+describe('M6.E18 AC3.5 — a REVIEW pass the fix-round check refused is not recorded', () => {
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-passes-rounds-'));
+    await writeState(baseDir, { phase: 'REVIEW' });
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+  const refused = { ok: false, reasons: ['Fix round 1 has no **Fresh read:** line'], gaps: [], rounds: [] };
+
+  it('PASS or PASS-WITH-FIXES with a check that did not pass is refused, naming checkFixRounds and its reason', async () => {
+    for (const verdict of ['PASS', 'PASS-WITH-FIXES']) {
+      const err = await recordPass(baseDir, 'REVIEW', verdict, { date: '2026-10-12', fixRounds: refused }).catch((e) => e);
+      expect(err, verdict).toBeInstanceOf(Error);
+      expect(err.message).toMatch(/checkFixRounds/);
+      expect(err.message).toMatch(/no \*\*Fresh read:\*\* line/);
+    }
+    expect((await readState(baseDir)).phase_passes).toBeUndefined();
+    // A check that passed is recorded; a FAIL is recorded whatever the check said; no check is as before.
+    await recordPass(baseDir, 'REVIEW', 'PASS-WITH-FIXES', { date: '2026-10-12', fixRounds: { ...refused, ok: true, reasons: [] } });
+    await recordPass(baseDir, 'REVIEW', 'FAIL', { date: '2026-10-12', fixRounds: refused });
+    await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12' });
+    expect((await readState(baseDir)).phase_passes).toEqual([
+      'REVIEW PASS-WITH-FIXES (2026-10-12)', 'REVIEW FAIL (2026-10-12)', 'REVIEW PASS (2026-10-12)',
+    ]);
+  });
+
+  it('a check result that does not read is refused, never taken as passed', async () => {
+    for (const bad of [{}, { ok: 'yes' }, null, 'ok']) {
+      await expect(recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12', fixRounds: bad }), JSON.stringify(bad)).rejects.toThrow(/checkFixRounds/);
+    }
+    expect((await readState(baseDir)).phase_passes).toBeUndefined();
   });
 });
