@@ -1,0 +1,21 @@
+{
+  "id": "SIG-349",
+  "type": "BUG",
+  "title": "Loop ceiling: an old PASS record lifts the ceiling when a later visit left no record (needs a visit marker)",
+  "theme": "roadmap",
+  "priority": "P2",
+  "source": "M6.E17 SHIP",
+  "source_ref": "M6.E17 SHIP ceiling visit marker",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-20T00:10:53.175Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-20T00:10:53.175Z",
+      "by": "Claude"
+    }
+  ]
+}

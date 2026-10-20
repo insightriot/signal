@@ -22,7 +22,7 @@ decision and an autonomy layer that quietly overrode one would re-litigate that 
 - **Floors** — the SHIP pull request, the Epic-close retrospective, the drain's diff preview and its
   destructive confirms, and the orphan prompt. Enumerated in `FLOORS` (`tools/lib/drive.js`), not
   re-listed here, so there is one roster rather than two.
-- **The loop ceiling** — a phase that fails and loops backwards stops for a person on the third pass (a pass that has just passed is never held)
+- **The loop ceiling** — a phase that fails and loops backwards stops for a person on the third pass; a phase whose own PASS is the last pass record is moving on and is not held
   (`B76`). Counted by `loopStatusFor` (`tools/lib/loop-ceiling.js`) as the larger of the phase's exits
   in `completed_phases` and its recorded passes in `phase_passes`, and
   enforced by `canProceedUnattended`, which also refuses when it **cannot read** the count.

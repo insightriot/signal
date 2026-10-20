@@ -55,9 +55,9 @@ import { partitionCompletedPhases } from './state.js';
  *
  * So two unattended re-entries are allowed and the third stops. That is
  * `verify.md`'s existing rule, unchanged — this makes it enforceable rather
- * than re-tuning it. It holds a RETRY: a phase whose newest recorded pass is
- * its own PASS or PASS-WITH-FIXES is moving on, and `loopStatusFor` does not
- * hold it, whatever the count.
+ * than re-tuning it. It holds a RETRY: while a phase is the current phase and
+ * the last entry of `phase_passes` is its own PASS or PASS-WITH-FIXES, the
+ * phase is moving on and `loopStatusFor` does not hold it, whatever the count.
  */
 export const DEFAULT_LOOP_CEILING = 3;
 
@@ -131,8 +131,10 @@ export function countPhasePasses(state, phase) {
  * Where this phase stands against its ceiling.
  *
  * `atCeiling` is false, whatever the count, while `phase` is the current phase
- * and the newest entry of `phase_passes` is its own PASS or PASS-WITH-FIXES:
- * the phase passed and is being left, not retried.
+ * and the last entry of `phase_passes` is its own PASS or PASS-WITH-FIXES:
+ * the phase passed and is being left, not retried. STATE does not say which
+ * visit wrote that entry, so a later visit that recorded nothing leaves an
+ * earlier PASS lifting the ceiling (`SIG-349`).
  *
  * Returns `null` for a phase that does not loop, and for a state it cannot
  * read. Both mean "no opinion" and both must be treated as a stop by an actor —
@@ -157,10 +159,11 @@ export function loopStatusFor(state, phase, { ceiling = DEFAULT_LOOP_CEILING } =
 
   const nextAttempt = count + 1;
   // The ceiling stops a retry, not a step forward. The records count the pass
-  // just ended, so when the newest record of all is this phase's own PASS or
-  // PASS-WITH-FIXES, written while it is still the current phase, the phase is
-  // being left and is not held. Any later record (a REVIEW FAIL after a VERIFY
-  // pass) means a new visit, which the count holds as before (D-M6E17-1).
+  // just ended, so while this is the current phase and the last record of all
+  // is its own PASS or PASS-WITH-FIXES, the phase is being left and is not
+  // held. A later record (a REVIEW FAIL after a VERIFY pass) means a new visit,
+  // held by the count as before. Which visit wrote the record is not checked:
+  // a visit that recorded nothing leaves an earlier PASS in force (SIG-349).
   const newest = state?.phase === phase && passes > 0 ? PASS_ENTRY_RE.exec(state.phase_passes.at(-1)) : null;
   const passed = newest !== null && newest[1] === phase && newest[2] !== 'FAIL';
   return { phase, count, ceiling, nextAttempt, atCeiling: !passed && nextAttempt >= ceiling };

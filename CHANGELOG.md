@@ -19,9 +19,9 @@ or checks.
 - **A VERIFY or REVIEW pass is recorded when it ends.** `recordPass` appends
   `"REVIEW FAIL (2026-10-18)"`-shaped entries to an optional `phase_passes` list in `STATE.md`, and
   the loop ceiling counts them, so a pass whose fixes never leave the phase still counts. The
-  ceiling stops a retry: a phase whose newest recorded pass is its own PASS or PASS-WITH-FIXES is not
-  held. A record
-  that does not read stops `/sig:drive` (`loop-unknown`), the same rule as an unreadable phase log.
+  ceiling does not hold a phase that has just passed: while a phase is the current phase and the last entry of `phase_passes` is its own PASS or PASS-WITH-FIXES,
+  whatever the count. A record that does not read stops `/sig:drive` (`loop-unknown`), the same rule
+  as an unreadable phase log.
   The list is cleared on an Epic roll and at a linear project's SHIP. No `schema_version` change.
 - **Every round of fixes is read fresh, with a stated stop.** `review.md` § 4.6: each round in the
   REVIEW report carries a `**Fresh read:**` line (range, Critical and Important counts, `stop: yes`
@@ -53,7 +53,10 @@ or checks.
 #### Known limits (filed)
 - `parent-run.js` leaves its own worktree entry registered while one of yours is missing its folder
   (`SIG-341`). A re-invoked `/sig:ship` leaves a stray `SHIP` entry in the live phase list
-  (`SIG-343`, older than this release). Other residue: `SIG-331` … `SIG-346`.
+  (`SIG-343`, older than this release). The ceiling cannot tell which visit a pass record was written
+  in: if a later visit ended without recording its pass, an earlier PASS still lifts that phase's
+  ceiling; REVIEW's own count still stops the cycle (`SIG-349`). Other residue: `SIG-331` …
+  `SIG-348`.
 
 ## [0.1.51] — 2026-10-13 — Epics and units are records
 
