@@ -1,0 +1,21 @@
+{
+  "id": "SIG-351",
+  "type": "BUG",
+  "title": "A linear project's next run may start with SHIP in its live phase list (transitionPhase from SHIP to DISCUSS)",
+  "theme": "roadmap",
+  "priority": "P3",
+  "source": "M6.E18 EXECUTE",
+  "source_ref": "A linear project's next run may start with SHIP in its live ",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-20T23:48:42.418Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-20T23:48:42.418Z",
+      "by": "Claude"
+    }
+  ]
+}

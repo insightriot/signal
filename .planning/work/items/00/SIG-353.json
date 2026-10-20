@@ -1,0 +1,21 @@
+{
+  "id": "SIG-353",
+  "type": "BUG",
+  "title": "checkFixRounds refuses a round whose 7-character parent-run sha is ambiguous",
+  "theme": "roadmap",
+  "priority": "P3",
+  "source": "M6.E18 EXECUTE",
+  "source_ref": "checkFixRounds short sha ambiguity",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-20T23:49:42.587Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-20T23:49:42.587Z",
+      "by": "Claude"
+    }
+  ]
+}
