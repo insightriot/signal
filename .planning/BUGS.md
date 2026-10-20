@@ -140,7 +140,7 @@
 | SIG-136 | `dup` | — | **⚠ WITHDRAWN as a duplicate of `B100` — `AC_ID_RE` drops the sub-letter** |
 | SIG-137 | `dup` | — | **`detectProjectKind` calls every non-git directory `greenfield`, so a real codebase is told to start fresh** |
 | SIG-138 | `fixed` | — | **An Epic-lane `--merge` produced a SQUASH, and a published adherence verdict immediately pointed at a commit absent…** |
-| SIG-139 | `closing` | P3 | **The suite is flaky under local parallel load — a different test times out each run** |
+| SIG-139 | `fixed` | P3 | **The suite is flaky under local parallel load — a different test times out each run** |
 | SIG-140 | `rejected` | — | **`claude-review` CI fails before reviewing: claude binary missing on the runner** |
 | SIG-148 | `confirmed` | — | **Jev key and receipt hardening — the pass-3 REVIEW residue · **fix lane** · small · *filed 2026-09-27 from `M6.E3` REVIEW*** |
 | SIG-249 | `confirmed` | P3 | **tools/adherence-ceiling.js ignores unknown flags and regenerates the log** |
@@ -188,7 +188,7 @@
 | SIG-300 | `confirmed` | P3 | **A unit's text is cleaned or cut on write with no word to the caller** |
 | SIG-301 | `confirmed` | P3 | **One record over a limit, written past the writer, stops every write to the store** |
 | SIG-302 | `confirmed` | P3 | **`npm run lint` does not cover tests/; the Closed section of EPICS.md is in ID order** |
-| SIG-303 | `closing` | P3 | **Three timing tests fail under machine load and pass alone** |
+| SIG-303 | `fixed` | P3 | **Three timing tests fail under machine load and pass alone** |
 | SIG-304 | `confirmed` | P3 | **A slow pattern at milestones.js:229 is now reached by readMilestoneRows** |
 | SIG-305 | `fixed` | P3 | **The edit hook misses a record written by its real path when .planning is a link** |
 | SIG-306 | `confirmed` | P3 | **Three older refusals print project text through JSON.stringify, not shownName** |
@@ -214,4 +214,4 @@
 | SIG-348 | `confirmed` | P2 | **The PR reviewer passed PR #304 without reviewing again (4 turns, $0.11 on 6861 lines)** |
 | SIG-349 | `confirmed` | P2 | **Loop ceiling: an old PASS record lifts the ceiling when a later visit left no record (needs a visit marker)** |
 
-*0 needs-triage · 78 confirmed · 2 closing · 130 closed (210 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 78 confirmed · 0 closing · 132 closed (210 total) · closes more than 30 days before the newest event are in `work/history/`*

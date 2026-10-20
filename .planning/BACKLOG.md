@@ -2441,21 +2441,21 @@ Found by the fresh read of M6.E16 r7.1 (2026-10-14); filed, not fixed, before th
 
 Found by the fresh read of M6.E16 r7.2 (`c05063cc`, 2026-10-14); filed, not fixed, before the v0.1.51 merge on Brett's okay.
 
-### REVIEW and VERIFY record each pass, so the loop ceiling counts what happened · SIG-323 · closing
+### REVIEW and VERIFY record each pass, so the loop ceiling counts what happened · SIG-323 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-20 (fixed)
 
 M6.E16 ran four REVIEW passes and loopStatusFor read 0: completed_phases records a phase when it is left, and REVIEW was never left. Each pass records its verdict in STATE; the ceiling counts the larger of passes and exits. M6.E17 FR1, D-M6E17-1.
 
-### review.md: a fresh read of every fix round, with a stated stop · SIG-324 · closing
+### review.md: a fresh read of every fix round, with a stated stop · SIG-324 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-20 (fixed)
 
 After any FAIL loop or in-phase fix, one fresh reviewer reads only that round's diff; the chain stops at 0 Critical and 0 Important, or at the ceiling. The REVIEW report records each read and a check refuses a pass verdict without it. M6.E17 FR2, D-M6E17-2.
 
-### A tool proves a new test fails on the base commit, for fix rounds and EXECUTE slices · SIG-325 · closing
+### A tool proves a new test fails on the base commit, for fix rounds and EXECUTE slices · SIG-325 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-20 (fixed)
 
 Runs named tests from HEAD against a base commit in a temporary worktree and reports failed / passed / could not run per file. Replaces the by-hand parent runs of M6.E14 and M6.E16 and the fixer reporting it on its own word. M6.E17 FR3, D-M6E17-3.
 
