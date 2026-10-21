@@ -219,5 +219,6 @@
 | SIG-353 | `confirmed` | P3 | **checkFixRounds refuses a round whose 7-character parent-run sha is ambiguous** |
 | SIG-354 | `confirmed` | P2 | **Re-running /sig:verify or /sig:review after a crash before its report exists is refused, and nothing gets out** |
 | SIG-355 | `confirmed` | P3 | **Re-entering REVIEW moves the visit mark past a PASS this visit recorded, so the halt message reads as if nothing passed** |
+| SIG-358 | `confirmed` | P3 | **parent-run.test.js flakes in CI: a SIGKILLed run leaves a half-made worktree entry** |
 
-*0 needs-triage · 79 confirmed · 5 closing · 132 closed (216 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 80 confirmed · 5 closing · 132 closed (217 total) · closes more than 30 days before the newest event are in `work/history/`*
