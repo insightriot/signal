@@ -24,8 +24,8 @@ decision and an autonomy layer that quietly overrode one would re-litigate that 
   re-listed here, so there is one roster rather than two.
 - **The loop ceiling** — a phase that fails and loops backwards stops for a person on the third pass
   (`B76`). While a phase is the current phase and the last entry of the whole `phase_passes` list is
-  its own PASS or PASS-WITH-FIXES, it is moving on and is not held; which visit wrote that entry is
-  not checked (`SIG-349`). Counted by `loopStatusFor` (`tools/lib/loop-ceiling.js`) as the larger of the phase's exits
+  its own PASS or PASS-WITH-FIXES **recorded in this visit** (at or after `phase_pass_mark`, written on
+  entry), it is moving on and is not held; an earlier visit's PASS does not lift it (`SIG-349`). Counted by `loopStatusFor` (`tools/lib/loop-ceiling.js`) as the larger of the phase's exits
   in `completed_phases` and its recorded passes in `phase_passes`, and
   enforced by `canProceedUnattended`, which also refuses when it **cannot read** the count.
 

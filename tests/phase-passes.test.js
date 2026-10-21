@@ -444,7 +444,18 @@ describe('M6.E18 AC2.1 — entering VERIFY or REVIEW marks where the visit began
     await artifact('REVIEW');
     await transitionPhase(baseDir, 'REVIEW');
     await transitionPhase(baseDir, 'REVIEW');
-    expect(loopStatusFor(await readState(baseDir), 'REVIEW')).toMatchObject({ atCeiling: true });
+    expect(loopStatusFor(await readState(baseDir), 'REVIEW')).toMatchObject({ count: 2, atCeiling: true });
+  });
+
+  it('a re-entry after a recorded PASS moves the mark past it, so that PASS no longer lifts the hold', async () => {
+    await writeState(baseDir, {
+      phase: 'REVIEW',
+      extra: shipPasses(['REVIEW FAIL (2026-10-11)', 'REVIEW PASS (2026-10-12)']) + 'phase_pass_mark: 1\n',
+    });
+    await artifact('REVIEW');
+    expect(loopStatusFor(await readState(baseDir), 'REVIEW')).toMatchObject({ atCeiling: false });
+    await transitionPhase(baseDir, 'REVIEW');
+    expect(loopStatusFor(await readState(baseDir), 'REVIEW')).toMatchObject({ count: 2, atCeiling: true });
   });
 
   it('entering any other phase leaves the mark as it was', async () => {
@@ -543,6 +554,20 @@ describe('M6.E18 AC3.1 / AC3.3 — recordPass refuses a pass that cannot be true
   it('a date that is not a calendar day is refused at write (AC3.2: malformed)', async () => {
     await writeState(baseDir, { phase: 'REVIEW' });
     await expect(recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-02-30', today: '2026-10-20', fixRounds: checked('PASS') })).rejects.toThrow(/date/);
+  });
+});
+
+describe('M6.E18 — no doc still says the visit is not checked (REVIEW pass 3)', () => {
+  it('commands and references describe the visit mark, not "which visit wrote that entry is not checked"', async () => {
+    const { readdir } = await import('node:fs/promises');
+    const root = new URL('../plugin/', import.meta.url);
+    for (const dir of ['commands', 'references']) {
+      for (const f of await readdir(new URL(`${dir}/`, root))) {
+        if (!f.endsWith('.md')) continue;
+        const text = (await readFile(new URL(`${dir}/${f}`, root), 'utf-8')).replace(/\s+/g, ' ');
+        expect(text, `${dir}/${f}`).not.toMatch(/which visit wrote that entry is not checked/);
+      }
+    }
   });
 });
 
