@@ -4629,3 +4629,11 @@ without step 1, pinned to the upstream commit it was copied from — the only op
 that needs `pull-requests: write`, and the job keeps today's `read`. Re-asking is remove-and-re-add.
 A final step writes one `REVIEW_OUTCOME=` line into the run log (kept 90 days), because the log
 carries no result text and the transcript artifact lasts one day.
+
+### D-M6E18-9 — The same-phase re-entry rule goes back to main's (Brett, 2026-10-21)
+"Revert re-entry to main's rule." REVIEW reached its ceiling with both open findings in the
+VERIFY/REVIEW self-transition rule, which every fix round had changed (pass 1 S5 kept the mark;
+round 2 recorded no exit; round 3 counted abandoned visits), each closing one hole and opening the
+next. Every re-entry now records an exit and starts a new visit, as on `main`: it can only stop the
+ceiling sooner. The wedge a crash before the report leaves (`B48`'s artifact check on the re-entry)
+predates this Epic and is filed, not fixed. Pass 3 runs past the ceiling by this decision.
