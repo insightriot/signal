@@ -89,7 +89,9 @@ const PARENT_LINE_RE = /^\*\*Parent run:\*\*\s*(.*)$/m;
 const GAP_RE = /^gap\b\s*[—–:-]\s*\S/i;
 // A fenced block, or a closed HTML comment. One pattern, so whichever opens
 // first wins: a "<!--" inside a fence is quoted, and so is a fence inside a comment.
-const HIDDEN_RE = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$|<!--[\s\S]*?-->/gm;
+// A comment opens only at the start of a line, as a fence does: a "<!--" quoted
+// in a sentence hid every round up to a later "-->" (REVIEW pass 1, I4).
+const HIDDEN_RE = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$|^[ \t]*<!--[\s\S]*?-->/gm;
 // A pass section's heading is "## Pass N" alone, "## Pass N — <date>, at <sha>",
 // or "## Pass N, at <sha>": a heading such as "## Pass 1's suggestions" is a
 // section about a pass, not one.
@@ -98,6 +100,14 @@ const PASS_HEADING_RE = /^## Pass (\d+)(?:[ \t]+[—–-][ \t].*|,[ \t]+at[ \t].
 const PASS_AT_RE = /,[ \t]+at[ \t]+`?([^\s`]+)`?[ \t]*$/;
 // Appended by a linear SHIP (state.js): everything above it is an earlier run.
 const RUN_ENDED_RE = /^## Run ended\b.*$/gm;
+// A commit a round or a pass names is written as its sha: a revision
+// expression (HEAD~2, :/text, a tag) names a different commit as the
+// repository moves (REVIEW pass 1, S6).
+const SHA_RE = /^[0-9a-f]{7,40}$/;
+// Report text in a reason or a gap: every control or format character escaped,
+// so a terminal shows it rather than acting on it (S6). `shown` also quotes it.
+const esc = (s) => String(s).replace(/[\p{Cc}\p{Cf}\u2028\u2029]/gu, (c) => `\\u{${c.codePointAt(0).toString(16)}}`);
+const shown = (s) => esc(JSON.stringify(String(s)));
 
 /** Blank out fenced blocks and HTML comments, keeping every offset, so a quoted or hidden round is not read. */
 const unfence = (content) => content.replace(HIDDEN_RE, (m) => m.replace(/[^\n]/g, ' '));
@@ -165,7 +175,7 @@ function sections(content) {
  * @param {{phasePasses?: string[], cwd?: string, git?: (cwd: string, args: string[]) => string}} [opts]
  *   `phasePasses`: `phase_passes` from STATE.md. `cwd`: the project folder, where git is run (under
  *   `gitEnv`); `git`: a stand-in for it, for tests. Neither given → the commits are a stated gap.
- * @returns {{ok: boolean, reasons: string[], gaps: string[], uncovered: string[],
+ * @returns {{ok: boolean, verdict: string, reasons: string[], gaps: string[], uncovered: string[],
  *   rounds: Array<{n: number, range: string|null, critical: number|null, important: number|null,
  *   stop: boolean|null, parentRun: string|null}>}}
  */
@@ -221,9 +231,9 @@ export function checkFixRounds(content, verdict, { phasePasses, cwd, git } = {})
       const pm = PARENT_RUN_SUMMARY_RE.exec(summary);
       if (pm) {
         if (commits.at(-1)?.at === at) commits.at(-1).parentSha = pm[1];
-        if (pm[2] !== pm[3] || Number(pm[3]) === 0 || Number(pm[6] ?? 0) > 0 || Number(pm[7] ?? 0) > 0) gaps.push(`${label}: ${summary}`);
+        if (pm[2] !== pm[3] || Number(pm[3]) === 0 || Number(pm[6] ?? 0) > 0 || Number(pm[7] ?? 0) > 0) gaps.push(`${label}: ${esc(summary)}`);
       } else if (GAP_RE.test(parent)) {
-        gaps.push(`${label}: ${parent}`);
+        gaps.push(`${label}: ${esc(parent)}`);
       } else {
         reasons.push(`${label}: the **Parent run:** line is neither parent-run.js's summary line nor a stated "gap — <why>".`);
       }
@@ -232,12 +242,26 @@ export function checkFixRounds(content, verdict, { phasePasses, cwd, git } = {})
   }
 
   const uncovered = [];
-  const newest = passes.filter((p) => p.sha).pop();
+  // S6: a commit is named by its sha. Syntax only, so it holds with no git too.
+  const notSha = (what, ref) => `${what} ${shown(ref)} is not a commit id: write the commit's sha (7 to 40 lowercase hex characters), not a revision expression.`;
+  for (const c of commits) {
+    for (const [what, ref] of [["the fresh read's base", c.base], ["the fresh read's head", c.head], ["the parent run's commit", c.parentSha]]) {
+      if (ref !== null && !SHA_RE.test(ref)) {
+        reasons.push(`${c.label}: ${notSha(what, ref)}`);
+        c.notSha = true;
+      }
+    }
+  }
+  let newest = passes.filter((p) => p.sha).pop();
+  if (newest && !SHA_RE.test(newest.sha)) {
+    reasons.push(`Pass ${newest.n}: ${notSha('the commit its heading names', newest.sha)}`);
+    newest = null;
+  }
   if (commits.length > 0 || newest) {
     const reader = gitReader({ cwd, git });
     if (reader.why) {
       for (const c of commits) gaps.push(`${c.label}: its commits were not checked — ${reader.why}.`);
-      if (newest) gaps.push(`Pass ${newest.n}, at ${newest.sha}: the commits after it were not checked — ${reader.why}.`);
+      if (newest) gaps.push(`Pass ${newest.n}, at ${esc(newest.sha)}: the commits after it were not checked — ${reader.why}.`);
     } else {
       checkCommits(commits, reader, reasons);
       if (newest) {
@@ -249,7 +273,7 @@ export function checkFixRounds(content, verdict, { phasePasses, cwd, git } = {})
           // git could not list them: a gap, below
         }
         if (since === null) {
-          gaps.push(`Pass ${newest.n}, at ${newest.sha}: the commits after it were not checked — ${from ? 'git could not list them' : 'it does not resolve to a commit'}.`);
+          gaps.push(`Pass ${newest.n}, at ${esc(newest.sha)}: the commits after it were not checked — ${from ? 'git could not list them' : 'it does not resolve to a commit'}.`);
         } else {
           const covered = new Set();
           for (const c of commits.filter((x) => x.at > newest.at && x.baseSha && x.headSha)) {
@@ -313,7 +337,7 @@ export function checkFixRounds(content, verdict, { phasePasses, cwd, git } = {})
       `${verdict} but the last fix round reads stop: no — its fresh read found issues. Fix them as a new round, or declare FAIL and take the Loop Back.`
     );
   }
-  return { ok: reasons.length === 0, reasons, gaps, uncovered, rounds };
+  return { ok: reasons.length === 0, verdict, reasons, gaps, uncovered, rounds };
 }
 
 /**
@@ -324,24 +348,28 @@ export function checkFixRounds(content, verdict, { phasePasses, cwd, git } = {})
 function checkCommits(commits, reader, reasons) {
   let previous = null;
   for (const c of commits) {
+    if (c.notSha) {
+      previous = c; // refused above; nothing to resolve, and no head to chain from
+      continue;
+    }
     c.baseSha = reader.resolve(c.base);
     c.headSha = reader.resolve(c.head);
     for (const [what, ref, sha] of [['base', c.base, c.baseSha], ['head', c.head, c.headSha]]) {
-      if (!sha) reasons.push(`${c.label}: the fresh read's ${what} ${JSON.stringify(ref)} does not resolve to a commit.`);
+      if (!sha) reasons.push(`${c.label}: the fresh read's ${what} ${shown(ref)} does not resolve to a commit.`);
     }
     if (c.parentSha !== null) {
       const parent = reader.resolve(c.parentSha);
       if (!parent) {
-        reasons.push(`${c.label}: the parent run's commit ${JSON.stringify(c.parentSha)} does not resolve to a commit.`);
+        reasons.push(`${c.label}: the parent run's commit ${shown(c.parentSha)} does not resolve to a commit.`);
       } else if (c.baseSha && parent !== c.baseSha) {
         reasons.push(
-          `${c.label}: the parent run is on ${c.parentSha} (${parent}) but the fresh read starts at ${c.base} (${c.baseSha}). The parent run's base is the commit the fixes started from, which is the range's base (fixer-brief.md).`
+          `${c.label}: the parent run is on ${shown(c.parentSha)} (${parent}) but the fresh read starts at ${shown(c.base)} (${c.baseSha}). The parent run's base is the commit the fixes started from, which is the range's base (fixer-brief.md).`
         );
       }
     }
     if (previous?.headSha && c.baseSha && c.baseSha !== previous.headSha) {
       reasons.push(
-        `${c.label}: the fresh read starts at ${c.base} (${c.baseSha}) but ${previous.label} ended at ${previous.head} (${previous.headSha}). A later round's base is the previous round's head (review.md § 4.6).`
+        `${c.label}: the fresh read starts at ${shown(c.base)} (${c.baseSha}) but ${previous.label} ended at ${shown(previous.head)} (${previous.headSha}). A later round's base is the previous round's head (review.md § 4.6).`
       );
     }
     previous = c;

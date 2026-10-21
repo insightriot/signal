@@ -195,6 +195,17 @@ describe('M6.E18 S4 — the fix-round check reads commits, and the pass record t
   it('AC4.2: § 4.6 says a later round\'s base is the previous round\'s head', () => {
     expect(fixRoundStep).toMatch(/base of a later round is the previous round's head/);
   });
+  // REVIEW pass 1, I1: step 1 and the brief gave every round the pass's HEAD as
+  // its parent-run base, so checkFixRounds refused every round after the first.
+  it('I1: step 1 and the fixer brief give a later round the previous round\'s head as its --base', () => {
+    const step1 = fixRoundStep.slice(fixRoundStep.indexOf('1. **Fix it'), fixRoundStep.indexOf('2. **Dispatch'));
+    expect(step1).toMatch(/--base` set to \*\*the round's base\*\*/);
+    expect(step1).toMatch(/every later round, the previous round's head/);
+    expect(step1).toMatch(/across `## Pass N` sections/);
+    const brief = read(BRIEF).replace(/\s+/g, ' ');
+    expect(brief).not.toMatch(/For a REVIEW fix round, the base is the HEAD at the pass that found the issues\./);
+    expect(brief).toMatch(/every later round, the previous round's head/);
+  });
   it('AC4.1 / AC4.4: § 4.6 passes the project folder so the check can ask git, and surfaces `uncovered`', () => {
     expect(fixRoundStep).toContain('checkFixRounds(reportContent, verdict, { phasePasses, cwd: baseDir })');
     expect(fixRoundStep).toMatch(/`uncovered`/);
@@ -204,6 +215,8 @@ describe('M6.E18 S4 — the fix-round check reads commits, and the pass record t
     const start = flat.search(/### Record the pass\b/);
     const step = flat.slice(start, flat.search(/### Loop Back/));
     expect(step).toContain("recordPass(baseDir, 'REVIEW', verdict, { fixRounds })");
+    // REVIEW pass 1, I3: the record refuses a passing verdict with no result.
+    expect(step).toMatch(/refused with no `fixRounds`/);
   });
   it('the ceiling paragraph describes the visit marker, no longer "not checked (SIG-349)"', () => {
     const para = flat.slice(flat.search(/\*\*The ceiling is counted, not remembered\.\*\*/), flat.search(/Render the halt with/));

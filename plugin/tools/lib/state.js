@@ -452,7 +452,8 @@ async function recordPhase(baseDir, { leaving, nextPhase }) {
   // one. The two names are written out rather than imported: loop-ceiling.js
   // imports this module. A phase_passes that is not a list gets no new mark —
   // the reader already stops on it, and a length would be invented.
-  if (nextPhase === 'VERIFY' || nextPhase === 'REVIEW') {
+  // Re-entering the phase STATE is already in is not a new visit (REVIEW pass 1, S5).
+  if ((nextPhase === 'VERIFY' || nextPhase === 'REVIEW') && state.phase !== nextPhase) {
     const passes = state.phase_passes;
     if (passes === undefined) payload.phase_pass_mark = 0;
     else if (Array.isArray(passes)) payload.phase_pass_mark = passes.length;
@@ -1875,11 +1876,11 @@ export async function touchDecisionTimestamp(baseDir, opts = {}) {
  * as amended).
  *
  * M6.E18 S4 (AC3.5, P4-S7): `opts.fixRounds` is `checkFixRounds`'s result for
- * the report. A REVIEW PASS or PASS-WITH-FIXES with a result that did not pass,
- * or one that does not read (no boolean `ok`), is refused with its reasons:
- * the verdict cannot stand, so it is not recorded. A FAIL is recorded whatever
- * the check said, as the check never holds a FAIL. Left out, the pass is
- * recorded as before: the step that calls this passes it (review.md).
+ * the report. A REVIEW PASS or PASS-WITH-FIXES needs it: left out, or one that
+ * does not read (no boolean `ok`), was computed for another verdict, or did
+ * not pass, the pass is refused with the reason: the verdict cannot stand, so
+ * it is not recorded. A FAIL is recorded whatever the check said, or with no
+ * check, as the check never holds a FAIL (M6.E18 REVIEW pass 1, I3).
  *
  * `loop-ceiling.js` is imported dynamically: it imports from this module, so a
  * static import back would be a cycle (the `planning-index.js` rule above).
@@ -1887,7 +1888,7 @@ export async function touchDecisionTimestamp(baseDir, opts = {}) {
  * @param {string} baseDir
  * @param {string} phase
  * @param {string} verdict
- * @param {{date?: string, today?: string, fixRounds?: {ok: boolean, reasons: string[]}}} [opts]
+ * @param {{date?: string, today?: string, fixRounds?: {ok: boolean, reasons: string[], verdict: string}}} [opts]
  * @returns {Promise<{entry: string}>}
  */
 export async function recordPass(baseDir, phase, verdict, opts = {}) {
@@ -1902,8 +1903,13 @@ export async function recordPass(baseDir, phase, verdict, opts = {}) {
       `recordPass: ${JSON.stringify(verdict)} is not a verdict (expected one of ${PASS_VERDICTS.join(', ')}).`
     );
   }
-  if (phase === 'REVIEW' && verdict !== 'FAIL' && opts.fixRounds !== undefined) {
+  if (phase === 'REVIEW' && verdict !== 'FAIL') {
     const check = opts.fixRounds;
+    if (check === undefined) {
+      throw new StateWriteError(
+        `recordPass: a REVIEW ${verdict} needs fixRounds, the result checkFixRounds returned for this verdict (review.md § 4.6); none was given.`
+      );
+    }
     if (typeof check?.ok !== 'boolean') {
       throw new StateWriteError(
         `recordPass: fixRounds is not a checkFixRounds result (it has no boolean ok), so a REVIEW ${verdict} cannot be recorded on it.`
@@ -1913,6 +1919,11 @@ export async function recordPass(baseDir, phase, verdict, opts = {}) {
       const why = Array.isArray(check.reasons) && check.reasons.length > 0 ? ` ${check.reasons.join(' ')}` : '';
       throw new StateWriteError(
         `recordPass: checkFixRounds did not accept the report, so a REVIEW ${verdict} cannot stand.${why}`
+      );
+    }
+    if (check.verdict !== verdict) {
+      throw new StateWriteError(
+        `recordPass: fixRounds is checkFixRounds's result for ${JSON.stringify(check.verdict ?? null)}, not ${verdict}; run the check for the verdict being recorded.`
       );
     }
   }
