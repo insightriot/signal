@@ -5,6 +5,14 @@
       "type": "opened",
       "at": "2026-10-20T21:29:07.598Z",
       "by": "Brett (via /sig:drive)"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-21T12:14:56.500Z",
+      "by": "Claude (M6.E18 SHIP)",
+      "proof": "2d6e8ccf4994df640e1cae5eacbbfba822911475",
+      "pr": "307",
+      "release": "v0.1.53"
     }
   ]
 }

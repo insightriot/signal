@@ -3,17 +3,17 @@
 
 ## Open
 
-### M6.E18 — open
+### M6.E18 — closing · proof 2d6e8ccf4994df640e1cae5eacbbfba822911475
 
-- SIG-285 · BUG · P — SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'
-- SIG-319 · BUG · P — /sig:resume says "Next phase: done" at SHIP while the PR is unmerged and the close waits
-- SIG-335 · CHORE · P — checkFixRounds: tie each round's range and parent-run base together, and say the base for round 2+
-- SIG-337 · CHORE · P — recordPass / phase_passes: check the phase matches STATE, and the date on read
-- SIG-342 · CHORE · P — markRunEnded / linear run boundary: idempotence, Epic mode, symlinked report, staging
-- SIG-343 · BUG · P — A re-invoked /sig:ship records SHIP as a phase left, leaving a stray SHIP entry in the live list
-- SIG-344 · CHORE · P — checkFixRounds and recordPass: trust gaps and missing tests (passes 3–4)
-- SIG-348 · BUG · P — The PR reviewer passed PR #304 without reviewing again (4 turns, $0.11 on 6861 lines)
-- SIG-349 · BUG · P — Loop ceiling: an old PASS record lifts the ceiling when a later visit left no record (needs a visit marker)
+- SIG-285 · BUG · closing — SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'
+- SIG-319 · BUG · closing — /sig:resume says "Next phase: done" at SHIP while the PR is unmerged and the close waits
+- SIG-335 · CHORE · closing — checkFixRounds: tie each round's range and parent-run base together, and say the base for round 2+
+- SIG-337 · CHORE · closing — recordPass / phase_passes: check the phase matches STATE, and the date on read
+- SIG-342 · CHORE · closing — markRunEnded / linear run boundary: idempotence, Epic mode, symlinked report, staging
+- SIG-343 · BUG · closing — A re-invoked /sig:ship records SHIP as a phase left, leaving a stray SHIP entry in the live list
+- SIG-344 · CHORE · closing — checkFixRounds and recordPass: trust gaps and missing tests (passes 3–4)
+- SIG-348 · BUG · closing — The PR reviewer passed PR #304 without reviewing again (4 turns, $0.11 on 6861 lines)
+- SIG-349 · BUG · closing — Loop ceiling: an old PASS record lifts the ceiling when a later visit left no record (needs a visit marker)
 
 ## Closed
 
