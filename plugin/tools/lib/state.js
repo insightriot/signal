@@ -571,8 +571,13 @@ export async function transitionPhase(baseDir, nextPhase) {
     // SHIP is terminal (B43): nothing leaves it, and completePhase is what
     // records it. A re-invoked /sig:ship runs this with `phase` already SHIP;
     // recording SHIP as left put a stray `SHIP (<date>)` in the live list
-    // that a linear ship had just emptied (M6.E18, SIG-343).
-    const leaving = state.phase === 'SHIP' && nextPhase === 'SHIP' ? null : (state.phase ?? null);
+    // that a linear ship had just emptied (M6.E18, SIG-343). Re-entering VERIFY
+    // or REVIEW from itself is the same visit — the command resumes an
+    // unfinished pass, and recordPhase keeps the visit's mark — so it records
+    // no exit either; otherwise the exit count says a visit ended that the mark
+    // says has not (M6.E18 REVIEW fix round 1).
+    const sameVisit = state.phase === nextPhase && ['SHIP', 'VERIFY', 'REVIEW'].includes(nextPhase);
+    const leaving = sameVisit ? null : (state.phase ?? null);
     // Refuse BEFORE any write, so a rejected transition leaves STATE.md
     // byte-identical rather than half-applied.
     await assertLeavingArtifactExists(baseDir, leaving, state);

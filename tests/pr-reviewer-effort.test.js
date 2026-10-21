@@ -431,6 +431,12 @@ describe('the commit walk stops at a gap and not at a skipped push (I10)', () =>
     expect(walk([{ databaseId: 3, status: 'in_progress', conclusion: null }])).toMatchObject({ lastReviewed: null, commitsAfter: null });
   });
 
+  // REVIEW fix round 1's fresh read: a label other than review-head starts a run whose jobs all
+  // skip. On a middle commit that is no run, not a gap.
+  it('a middle commit whose only run was skipped (another label) does not end the walk', () => {
+    expect(walk([failed(3, 'skipped')])).toMatchObject({ status: 'stopped', lastReviewed: first, commitsAfter: 3 });
+  });
+
   it('a middle commit with no run at all (a skip-ci push) does not end the walk', () => {
     expect(walk(undefined)).toMatchObject({ status: 'stopped', lastReviewed: first, commitsAfter: 3 });
   });

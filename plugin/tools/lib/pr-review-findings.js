@@ -394,8 +394,18 @@ function readCommitReview(run, R, sha, changedLines) {
   if (!Array.isArray(runs) || runs.length === 0) {
     return { status: 'cannot-check', reason: 'no reviewer run found for the PR head commit', canAskForReview: true };
   }
+  // A run whose jobs all skipped (any label but review-head starts one) is no
+  // run: it neither reviewed nor failed to (REVIEW fix round 1).
+  const live = runs.filter((r) => !(r?.status === 'completed' && r.conclusion === 'skipped'));
+  if (live.length === 0) {
+    return {
+      status: 'cannot-check',
+      reason: 'no reviewer run found for the PR head commit (only runs that ended "skipped")',
+      canAskForReview: true,
+    };
+  }
   const seen = [];
-  for (const r of runs) {
+  for (const r of live) {
     if (r?.status !== 'completed') {
       seen.push({ kind: 'pending', reason: `the reviewer run is still ${r?.status}` });
       continue;

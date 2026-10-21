@@ -432,6 +432,25 @@ describe('M6.E18 AC2.1 — entering VERIFY or REVIEW marks where the visit began
     expect((await readState(baseDir)).phase_pass_mark).toBe(0);
   });
 
+  // REVIEW fix round 1's fresh read: the mark was kept on re-entry but an exit was still written,
+  // so the exit count said the visit ended while the mark said it had not. Re-entry is the same
+  // visit (review.md resumes an unfinished pass), so nothing is recorded as left either.
+  for (const phase of ['VERIFY', 'REVIEW']) {
+    it(`re-entering ${phase} from ${phase} records no exit, so both records read one visit`, async () => {
+      await writeState(baseDir, {
+        phase,
+        extra: shipPasses([`${phase} FAIL (2026-10-11)`, `${phase} PASS (2026-10-12)`]) + 'phase_pass_mark: 1\n',
+      });
+      await artifact(phase === 'VERIFY' ? 'VERIFICATION' : 'REVIEW');
+      const before = await readState(baseDir);
+      await transitionPhase(baseDir, phase);
+      const after = await readState(baseDir);
+      expect(after.completed_phases).toEqual(before.completed_phases);
+      expect(after.phase_pass_mark).toBe(1);
+      expect(loopStatusFor(after, phase)).toEqual(loopStatusFor(before, phase));
+    });
+  }
+
   it('entering any other phase leaves the mark as it was', async () => {
     await writeState(baseDir, {
       phase: 'VERIFY',
