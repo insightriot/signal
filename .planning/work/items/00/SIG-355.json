@@ -1,0 +1,21 @@
+{
+  "id": "SIG-355",
+  "type": "BUG",
+  "title": "Re-entering REVIEW moves the visit mark past a PASS this visit recorded, so the halt message reads as if nothing passed",
+  "theme": "roadmap",
+  "priority": "P3",
+  "source": "M6.E18 REVIEW",
+  "source_ref": "Re-entering REVIEW moves the visit mark past a PASS this vis",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-21T11:53:22.264Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-21T11:53:22.264Z",
+      "by": "Claude"
+    }
+  ]
+}

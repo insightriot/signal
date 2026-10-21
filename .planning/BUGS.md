@@ -217,5 +217,7 @@
 | SIG-351 | `confirmed` | P3 | **A linear project's next run may start with SHIP in its live phase list (transitionPhase from SHIP to DISCUSS)** |
 | SIG-352 | `confirmed` | P3 | **A dangling symlink at the linear REVIEW report makes SHIP skip markRunEnded without a word** |
 | SIG-353 | `confirmed` | P3 | **checkFixRounds refuses a round whose 7-character parent-run sha is ambiguous** |
+| SIG-354 | `confirmed` | P2 | **Re-running /sig:verify or /sig:review after a crash before its report exists is refused, and nothing gets out** |
+| SIG-355 | `confirmed` | P3 | **Re-entering REVIEW moves the visit mark past a PASS this visit recorded, so the halt message reads as if nothing passed** |
 
-*0 needs-triage · 82 confirmed · 0 closing · 132 closed (214 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 84 confirmed · 0 closing · 132 closed (216 total) · closes more than 30 days before the newest event are in `work/history/`*
