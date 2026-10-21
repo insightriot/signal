@@ -122,8 +122,11 @@ describe('the outcome line both jobs write into the log (AC1.6)', () => {
   };
 
   it('a step-1 stop reads stopped-step-1, as #304 run 39346376038 ended — in both jobs', () => {
-    expect(run([{ type: 'result', num_turns: 2, total_cost_usd: 0.106, result: 'Claude has already commented on PR #304.' }], jobs['claude-review']))
+    expect(run([{ type: 'result', num_turns: 2, total_cost_usd: 0.106, result: "Claude has already commented on PR #304, so I'm stopping. I did not review it or post anything new." }], jobs['claude-review']))
       .toBe('REVIEW_OUTCOME=stopped-step-1 head=abc1234 job=review turns=2 cost=0.106');
+    // Run 39346782991's own words, the other way the stop was put.
+    expect(run([{ type: 'result', num_turns: 3, total_cost_usd: 0.111, result: "Claude has already commented on this PR, so step 1 says to stop. I haven't reviewed the diff and I haven't posted anything." }], jobs['claude-review']))
+      .toBe('REVIEW_OUTCOME=stopped-step-1 head=abc1234 job=review turns=3 cost=0.111');
     expect(run([{ type: 'system' }, {
       type: 'result', num_turns: 2, total_cost_usd: 0.106,
       result: "Claude has already commented on PR #304, so I'm stopping. I did not review it or post anything new.",
@@ -133,6 +136,13 @@ describe('the outcome line both jobs write into the log (AC1.6)', () => {
   it('a full review that mentions "already commented" is a review, not a stop', () => {
     expect(run([{ type: 'result', num_turns: 14, total_cost_usd: 1.6, result: 'I already commented inline on two issues.' }]))
       .toBe('REVIEW_OUTCOME=reviewed head=abc1234 job=review turns=14 cost=1.6');
+  });
+
+  // REVIEW fix round 1's fresh read: a turn limit let a 6-turn stop read as reviewed. The stop is
+  // known by what it says, whatever it cost.
+  it('a step-1 stop that took more turns still reads stopped-step-1', () => {
+    expect(run([{ type: 'result', num_turns: 7, total_cost_usd: 0.4, result: 'Claude has already commented on PR #12, so I am stopping. I did not review it.' }]))
+      .toBe('REVIEW_OUTCOME=stopped-step-1 head=abc1234 job=review turns=7 cost=0.4');
   });
 
   it('a review that ran reads reviewed, with its turns and cost', () => {

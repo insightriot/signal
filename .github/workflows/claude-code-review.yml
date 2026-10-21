@@ -90,9 +90,10 @@ jobs:
             if (result) {
               turns = String(result.num_turns ?? '');
               cost = String(result.total_cost_usd ?? '');
-              // Step 1's stop is a short run that says Claude already commented; a full review that
-              // happens to use the phrase is not one.
-              const stop = /already commented/i.test(String(result.result ?? '')) && Number(result.num_turns) <= 5;
+              // Step 1's stop says Claude already commented AND that it stopped or did not review;
+              // a full review that only mentions an earlier comment is not one.
+              const said = String(result.result ?? '');
+              const stop = /already commented/i.test(said) && /\bstop(?:ped|ping)?\b|did(?: not|n't) review|have(?: not|n't) reviewed/i.test(said);
               outcome = stop ? 'stopped-step-1' : 'reviewed';
             }
           } catch {}
@@ -264,9 +265,10 @@ jobs:
             if (result) {
               turns = String(result.num_turns ?? '');
               cost = String(result.total_cost_usd ?? '');
-              // Step 1's stop is a short run that says Claude already commented; a full review that
-              // happens to use the phrase is not one.
-              const stop = /already commented/i.test(String(result.result ?? '')) && Number(result.num_turns) <= 5;
+              // Step 1's stop says Claude already commented AND that it stopped or did not review;
+              // a full review that only mentions an earlier comment is not one.
+              const said = String(result.result ?? '');
+              const stop = /already commented/i.test(said) && /\bstop(?:ped|ping)?\b|did(?: not|n't) review|have(?: not|n't) reviewed/i.test(said);
               outcome = stop ? 'stopped-step-1' : 'reviewed';
             }
           } catch {}
