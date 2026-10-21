@@ -191,7 +191,9 @@ For each round:
    written, across `## Pass N` sections, so a loop-back round in pass N+1 starts at the head of the
    last round recorded in pass N or before it, and at pass N's HEAD only when no earlier round exists
    in this run. Commits made between the two (the report's own, say) are in the range.
-   `checkFixRounds` refuses a parent run on any other commit. A sub-agent gets the brief's
+   `checkFixRounds` refuses a parent run on any commit but its round's base, and a later round whose
+   base is not the previous round's head; the first round's base is not checked against the pass
+   heading's commit. A sub-agent gets the brief's
    instructions in its dispatch prompt.
 2. **Dispatch one fresh-context reviewer** (`code-reviewer`, with the same dev-mode fallback as
    § 4.5). Give it **only that round's diff** (`git diff <base>..<head>`, where the base is the round's
@@ -231,7 +233,7 @@ cases: a round missing either line, a PASS-WITH-FIXES with no round in its own p
 last round reads `stop: no`, more than three rounds in one pass, a count of `## Pass N` sections other than the recorded REVIEW
 passes plus this one (a report with no such heading has none), a round above the first `## Pass` heading,
 no round in this pass after a recorded REVIEW FAIL, a parent run that is not on its round's base, a
-round that does not start at the previous round's head, a commit that does not resolve, or too few rounds for the recorded
+round that does not start at the previous round's head, a commit that does not resolve, a commit not written as its sha (7 to 40 lowercase hex characters), or too few rounds for the recorded
 REVIEW FAILs (one per FAIL, plus one for a PASS-WITH-FIXES's own fixes). That last one is a floor, not
 a match: it sees a report with too few rounds, and cannot tell which round belongs to which FAIL. So the
 REVIEW report keeps every earlier pass's rounds, each pass under its own `## Pass N` heading: append

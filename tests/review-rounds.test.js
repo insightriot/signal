@@ -614,7 +614,7 @@ describe('REVIEW pass 1 S6 — commits are named by sha, and report text is esca
 });
 
 describe('REVIEW pass 1 S4 / S6 — on a real repository', () => {
-  it('the same commit at two lengths is one commit; a tag or :/text that git resolves is still refused', async () => {
+  async function repo(body) {
     const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
     const { execFileSync } = await import('node:child_process');
     const { tmpdir } = await import('node:os');
@@ -631,19 +631,26 @@ describe('REVIEW pass 1 S4 / S6 — on a real repository', () => {
         shas.push(g('rev-parse', 'HEAD'));
       }
       g('tag', 'first', shas[0]);
-      const [a, b] = shas;
-      // S4: the parent run names the base at 10 characters, the range at 7.
+      await body(dir, shas);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  // S4: passes on 9628dcff — the comparison was already by resolved sha; untested until now.
+  it('the same commit at two lengths is one commit (parent run 10 characters, range 7)', () =>
+    repo((dir, [a, b]) => {
       const two = checkFixRounds(report(fr(1, a.slice(0, 7), b.slice(0, 7), { parentSha: a.slice(0, 10) })), 'PASS-WITH-FIXES', { ...none, cwd: dir });
       expect(two.reasons).toEqual([]);
       expect(two.ok).toBe(true);
-      // S6: these resolve in git, to the right commit, and are still not a sha.
+    }));
+
+  it('a tag, :/text or HEAD~1 that git resolves to the right commit is still refused as not a commit id', () =>
+    repo((dir, [, b]) => {
       for (const ref of ['first', ':/c1', 'HEAD~1']) {
         const r = checkFixRounds(report(fr(1, ref, b.slice(0, 7), { parentSha: ref })), 'PASS-WITH-FIXES', { ...none, cwd: dir });
         expect(r.ok, ref).toBe(false);
         expect(r.reasons.join(' '), ref).toMatch(/not a commit id/);
       }
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
+    }));
 });
