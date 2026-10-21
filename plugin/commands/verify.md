@@ -38,7 +38,7 @@ Load from `${CLAUDE_PLUGIN_ROOT}/skills/verify/`:
 
 **Call this only if every precondition above passed.** The tier gate must have let this command through, and any halt condition in it must not have fired. If this command is halting — wrong tier, a missing prerequisite artifact, a failed gate — **do not call `transitionPhase`**: return the halt instead.
 
-**Then, before any Workflow step**, call `await transitionPhase(baseDir, 'VERIFY')` (`tools/lib/state.js`). It appends the phase being **left** to `completed_phases` and sets `phase: VERIFY`. Re-entering VERIFY from VERIFY is the same visit when this visit already recorded a pass (nothing is recorded as left); otherwise the visit was abandoned, its exit is recorded, and a new visit begins.
+**Then, before any Workflow step**, call `await transitionPhase(baseDir, 'VERIFY')` (`tools/lib/state.js`). It appends the phase being **left** to `completed_phases` and sets `phase: VERIFY`.
 
 **Why the condition (M5.E13, `B48`).** This instruction used to be unconditional, and an agent running `/sig:execute` against a project with no PLAN artifact **correctly refused it** — obeying would have recorded `phase: EXECUTE` for a project with nothing to execute, writing a false entry into the ledger M5.E9 had just made honest. Obeying corrupted the record; disobeying reproduced `B41`. The instruction was the thing that was wrong. `transitionPhase` now also refuses to record a phase that produced no artifact, so the text and the code agree rather than one relying on the other.
 
@@ -140,7 +140,9 @@ the report, and the ceiling needs only whether the pass passed. Do this before t
 before the transition out of VERIFY. The loop ceiling (`loopStatusFor` in
 `tools/lib/loop-ceiling.js`) counts the larger of these recorded passes and VERIFY's exits in
 `completed_phases`, so a pass whose fixes stayed inside VERIFY is still counted. A FAIL never lifts
-the ceiling; the count decides as before. While VERIFY is the current phase and the last entry of
+the ceiling; the count decides as before. Re-running `/sig:verify` while VERIFY is current is the same visit when this visit already
+recorded a pass; with nothing recorded since the visit began, that visit was abandoned and counts
+as a re-entry, so a session that keeps restarting is still stopped. While VERIFY is the current phase and the last entry of
 the whole `phase_passes` list is its own PASS or PASS-WITH-FIXES, written in this visit (at or after
 `phase_pass_mark`), VERIFY is moving on and is not held (`SIG-349`).
 

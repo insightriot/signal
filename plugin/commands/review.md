@@ -49,7 +49,7 @@ Full load (~12,700 tokens) is the heaviest in the workflow but token-budget anal
 
 **Call this only if every precondition above passed.** The tier gate must have let this command through, and any halt condition in it must not have fired. If this command is halting — wrong tier, a missing prerequisite artifact, a failed gate — **do not call `transitionPhase`**: return the halt instead.
 
-**Then, before any Workflow step**, call `await transitionPhase(baseDir, 'REVIEW')` (`tools/lib/state.js`). It appends the phase being **left** to `completed_phases` and sets `phase: REVIEW`. Re-entering REVIEW from REVIEW is the same visit when this visit already recorded a pass (nothing is recorded as left); otherwise the visit was abandoned, its exit is recorded, and a new visit begins.
+**Then, before any Workflow step**, call `await transitionPhase(baseDir, 'REVIEW')` (`tools/lib/state.js`). It appends the phase being **left** to `completed_phases` and sets `phase: REVIEW`.
 
 **Why the condition (M5.E13, `B48`).** This instruction used to be unconditional, and an agent running `/sig:execute` against a project with no PLAN artifact **correctly refused it** — obeying would have recorded `phase: EXECUTE` for a project with nothing to execute, writing a false entry into the ledger M5.E9 had just made honest. Obeying corrupted the record; disobeying reproduced `B41`. The instruction was the thing that was wrong. `transitionPhase` now also refuses to record a phase that produced no artifact, so the text and the code agree rather than one relying on the other.
 
