@@ -420,23 +420,12 @@ describe('M6.E18 AC2.1 — entering VERIFY or REVIEW marks where the visit began
     expect((await readState(baseDir)).phase_pass_mark).toBe(2);
   });
 
-  // REVIEW pass 1, S5: re-entering REVIEW from REVIEW is not a new visit, so
-  // a PASS recorded in it must stay at or after the mark.
-  it('re-entering the phase STATE is already in leaves the mark as it was', async () => {
-    await writeState(baseDir, {
-      phase: 'REVIEW',
-      extra: shipPasses(['REVIEW PASS (2026-10-11)']) + 'phase_pass_mark: 0\n',
-    });
-    await artifact('REVIEW');
-    await transitionPhase(baseDir, 'REVIEW');
-    expect((await readState(baseDir)).phase_pass_mark).toBe(0);
-  });
-
-  // REVIEW fix round 1's fresh read: the mark was kept on re-entry but an exit was still written,
-  // so the exit count said the visit ended while the mark said it had not. Re-entry is the same
-  // visit (review.md resumes an unfinished pass), so nothing is recorded as left either.
+  // D-M6E18-9: every entry is a new visit, a re-entry from the same phase included. Three fix
+  // rounds tried to make some re-entries "the same visit"; each opened a new hole (a PASS from an
+  // earlier visit lifting the ceiling, re-entries never counted, a crash wedging the phase). Now a
+  // re-entry records its exit and moves the mark, which can only stop the ceiling sooner.
   for (const phase of ['VERIFY', 'REVIEW']) {
-    it(`re-entering ${phase} from ${phase} records no exit, so both records read one visit`, async () => {
+    it(`re-entering ${phase} from ${phase} records an exit and moves the mark past this visit's records`, async () => {
       await writeState(baseDir, {
         phase,
         extra: shipPasses([`${phase} FAIL (2026-10-11)`, `${phase} PASS (2026-10-12)`]) + 'phase_pass_mark: 1\n',
@@ -445,44 +434,17 @@ describe('M6.E18 AC2.1 — entering VERIFY or REVIEW marks where the visit began
       const before = await readState(baseDir);
       await transitionPhase(baseDir, phase);
       const after = await readState(baseDir);
-      expect(after.completed_phases).toEqual(before.completed_phases);
-      expect(after.phase_pass_mark).toBe(1);
-      expect(loopStatusFor(after, phase)).toEqual(loopStatusFor(before, phase));
+      expect(after.completed_phases).toEqual([...before.completed_phases, expect.stringMatching(new RegExp(`^${phase} \\(`))]);
+      expect(after.phase_pass_mark).toBe(2);
     });
   }
 
-  // REVIEW fix round 2's fresh read: with no exit on every re-entry, a session that kept
-  // re-entering without recording a pass was never stopped. A re-entry is the same visit only
-  // when this visit already recorded a pass; otherwise the visit was abandoned, and it counts.
-  for (const phase of ['VERIFY', 'REVIEW']) {
-    it(`re-entering ${phase} with nothing recorded this visit counts the visit, and the ceiling bites`, async () => {
-      await writeState(baseDir, { phase, extra: 'phase_pass_mark: 0\n' });
-      await artifact(phase === 'VERIFY' ? 'VERIFICATION' : 'REVIEW');
-      const exits = (st) => st.completed_phases.filter((e) => e.startsWith(`${phase} `)).length;
-      const before = exits(await readState(baseDir));
-      for (let i = 0; i < 3; i += 1) await transitionPhase(baseDir, phase);
-      const state = await readState(baseDir);
-      expect(exits(state)).toBe(before + 3);
-      expect(state.phase_pass_mark).toBe(0);
-      expect(loopStatusFor(state, phase)).toMatchObject({ atCeiling: true });
-      expect(loopStatusFor(state, phase).count).toBeGreaterThanOrEqual(3);
-    });
-  }
-
-  it('an abandoned visit records its exit and the next visit gets a new mark', async () => {
-    // The REVIEW pass is before the mark, so this visit recorded nothing for REVIEW.
-    await writeState(baseDir, {
-      phase: 'REVIEW',
-      extra: shipPasses(['REVIEW PASS (2026-10-11)', 'VERIFY PASS (2026-10-12)']) + 'phase_pass_mark: 1\n',
-    });
+  it('a recorded FAIL and then re-entries reach the ceiling: nothing makes a restart free', async () => {
+    await writeState(baseDir, { phase: 'REVIEW', extra: shipPasses(['REVIEW FAIL (2026-10-11)']) + 'phase_pass_mark: 0\n' });
     await artifact('REVIEW');
-    const before = (await readState(baseDir)).completed_phases;
     await transitionPhase(baseDir, 'REVIEW');
-    const state = await readState(baseDir);
-    expect(state.phase_pass_mark).toBe(2);
-    expect(state.completed_phases.slice(0, before.length)).toEqual(before);
-    expect(state.completed_phases).toHaveLength(before.length + 1);
-    expect(state.completed_phases.at(-1)).toMatch(/^REVIEW \(/);
+    await transitionPhase(baseDir, 'REVIEW');
+    expect(loopStatusFor(await readState(baseDir), 'REVIEW')).toMatchObject({ atCeiling: true });
   });
 
   it('entering any other phase leaves the mark as it was', async () => {

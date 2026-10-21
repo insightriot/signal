@@ -331,8 +331,8 @@ The count is **the larger of** two records:
 It takes the larger, not the sum, because a pass that ends and then leaves REVIEW is in both. Exits
 alone missed every pass whose fixes stayed inside REVIEW. Both records are per Epic: `setCurrentEpic`
 resets them on a roll (`B9`). Two re-entries run; **the third stops for a person**. A re-run of
-`/sig:review` that finds nothing recorded since the visit began counts as a re-entry too (an
-abandoned visit), so a session that keeps restarting without recording a pass is still stopped. That is
+`/sig:review` while REVIEW is current is a re-entry too: it records an exit and begins a new visit,
+so restarting can only bring the ceiling sooner (`D-M6E18-9`). That is
 `verify.md`'s existing rule (*"A for the first 2 loops; reassess at loop 3"*), now enforceable rather
 than re-tuned. A FAIL never lifts the ceiling. While REVIEW is the current phase and the last entry
 of the whole `phase_passes` list is its own PASS or PASS-WITH-FIXES, REVIEW is moving on and is not

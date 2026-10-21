@@ -416,7 +416,7 @@ export function partitionCompletedPhases(entries) {
 // no completed phase to append). Returns the quarantine report so callers can
 // SURFACE it: a state write that silently drops entries is the bug this Epic
 // exists to fix (NFR1).
-async function recordPhase(baseDir, { leaving, nextPhase, newVisit = true }) {
+async function recordPhase(baseDir, { leaving, nextPhase }) {
   const state = await readStateForMutation(baseDir);
   if (!state) {
     throw new Error('No project state found. Run /sig:new-project first.');
@@ -452,8 +452,10 @@ async function recordPhase(baseDir, { leaving, nextPhase, newVisit = true }) {
   // one. The two names are written out rather than imported: loop-ceiling.js
   // imports this module. A phase_passes that is not a list gets no new mark —
   // the reader already stops on it, and a length would be invented.
-  // A re-entry that is the same visit keeps its mark (`newVisit`, from transitionPhase).
-  if ((nextPhase === 'VERIFY' || nextPhase === 'REVIEW') && newVisit) {
+  // Every entry is a new visit, a re-entry from the same phase included: it
+  // records its exit and moves the mark, so a re-run can only stop the ceiling
+  // sooner (D-M6E18-9).
+  if (nextPhase === 'VERIFY' || nextPhase === 'REVIEW') {
     const passes = state.phase_passes;
     if (passes === undefined) payload.phase_pass_mark = 0;
     else if (Array.isArray(passes)) payload.phase_pass_mark = passes.length;
@@ -461,16 +463,6 @@ async function recordPhase(baseDir, { leaving, nextPhase, newVisit = true }) {
   payload.last_updated = new Date().toISOString();
   await writeStateFrontmatter(baseDir, payload);
   return { quarantined: malformed };
-}
-
-// Did this visit to `phase` record a pass: an entry for it at or after
-// `phase_pass_mark`? A mark or list that does not read answers no, so the
-// re-entry is counted (the direction that stops sooner).
-function recordedThisVisit(state, phase) {
-  const mark = state.phase_pass_mark;
-  const list = state.phase_passes;
-  if (!Number.isInteger(mark) || mark < 0 || !Array.isArray(list)) return false;
-  return list.slice(mark).some((e) => typeof e === 'string' && e.startsWith(`${phase} `));
 }
 
 /**
@@ -581,19 +573,12 @@ export async function transitionPhase(baseDir, nextPhase) {
     // SHIP is terminal (B43): nothing leaves it, and completePhase is what
     // records it. A re-invoked /sig:ship runs this with `phase` already SHIP;
     // recording SHIP as left put a stray `SHIP (<date>)` in the live list
-    // that a linear ship had just emptied (M6.E18, SIG-343). Re-entering VERIFY
-    // or REVIEW from itself is the same visit when this visit already recorded
-    // a pass: no exit, and the visit keeps its mark (REVIEW fix round 1).
-    // With nothing recorded since the mark, the visit was abandoned — it ends
-    // here, is counted as an exit, and the next visit gets a new mark, so a
-    // session that keeps re-entering is still stopped by the ceiling (round 2).
-    const sameVisit = state.phase === nextPhase
-      && (nextPhase === 'SHIP' || ((nextPhase === 'VERIFY' || nextPhase === 'REVIEW') && recordedThisVisit(state, nextPhase)));
-    const leaving = sameVisit ? null : (state.phase ?? null);
+    // that a linear ship had just emptied (M6.E18, SIG-343).
+    const leaving = state.phase === 'SHIP' && nextPhase === 'SHIP' ? null : (state.phase ?? null);
     // Refuse BEFORE any write, so a rejected transition leaves STATE.md
     // byte-identical rather than half-applied.
     await assertLeavingArtifactExists(baseDir, leaving, state);
-    const result = await recordPhase(baseDir, { leaving, nextPhase, newVisit: !sameVisit });
+    const result = await recordPhase(baseDir, { leaving, nextPhase });
     const index = await refreshPlanningIndexAfterTransition(baseDir);
     return index ? { ...result, index } : result;
   });
