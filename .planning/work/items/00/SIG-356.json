@@ -1,0 +1,21 @@
+{
+  "id": "SIG-356",
+  "type": "CHORE",
+  "title": "SIG-344 residue: review-rounds wording and doc nits from M6.E17 REVIEW passes 3–5",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E18 SHIP",
+  "source_ref": "SIG-344 residue: review-rounds wording and doc nits from M6.",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-21T12:13:33.074Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-21T12:13:33.074Z",
+      "by": "Claude"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "SIG-357",
+  "type": "CHORE",
+  "title": "SIG-342 residue: markRunEnded / run-boundary edges left after M6.E18",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E18 SHIP",
+  "source_ref": "SIG-342 residue: markRunEnded / run-boundary edges left afte",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-21T12:13:33.298Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-21T12:13:33.298Z",
+      "by": "Claude"
+    }
+  ]
+}

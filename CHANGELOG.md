@@ -6,6 +6,51 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.53] — 2026-10-21 — The review loop's signals say what happened
+
+### M6.E18 — The review loop's signals become trustworthy
+
+M6.E17 made the REVIEW loop count its passes and read every round of fixes. This release makes the
+signals that loop stops on say what actually happened. The PR reviewer had reviewed only a PR's
+first push: the upstream `/code-review` command stops at its step 1 once Claude has commented, so on
+#304 the nine later pushes, which carried every fix round, were never read while the check stayed
+green (`SIG-348`).
+
+#### Added
+- **A review of the PR's head commit, on demand.** Add the `review-head` label to a PR; the reviewer
+  runs the upstream command's steps 2–9 (pinned copy) without the step-1 stop. To ask again, remove
+  the label and add it again. Both reviewer jobs write one `REVIEW_OUTCOME=` line into the run log.
+  *(Workflow change in PR #306.)*
+- **SHIP reads every reviewer run on the head commit** and tells a step-1 stop from a hollow review
+  and from a real one (`SIG-285`). It names the last commit that did get a real review and how many
+  came after it, and **does not call the PR ready to merge unless the head commit was reviewed**. A
+  PR that edits the reviewer workflow reads cannot-check: it runs its own copy of the workflow.
+- **The loop ceiling counts only what this visit recorded** (`SIG-349`). Entering VERIFY or REVIEW
+  writes `phase_pass_mark` (optional `STATE.md` field, no `schema_version` change); only a PASS at or
+  after it lifts the ceiling. With no mark, the last entry counts as before.
+- **`/sig:resume` and `/sig:status` at SHIP say what is owed** — the merge, then the close confirm —
+  instead of "done", while the unit is open or *closing* (`SIG-319`).
+
+#### Changed
+- **`recordPass` refuses a pass that cannot be true** (`SIG-337`): a phase STATE is not in, a date
+  after today or not a calendar day, a mark that does not read; and a REVIEW PASS or PASS-WITH-FIXES
+  needs the `checkFixRounds` result computed for that verdict. Several passes in one visit are
+  accepted.
+- **`checkFixRounds` checks what a round claims** (`SIG-335`, `SIG-344`): its parent-run commit and
+  range are resolved in git and must agree, each round starts where the last ended, refs must be
+  commit ids, a round inside an HTML comment that opens a line is not counted, `## Pass N, at <sha>`
+  is a pass heading, and commits after a pass that no round covers are reported.
+- A re-invoked `/sig:ship` no longer leaves a stray `SHIP` entry in the live phase list (`SIG-343`).
+  SHIP refuses to append the run boundary through a symlinked REVIEW report and stages what it wrote
+  (`SIG-342`).
+- `review.md` § 4.6 and `references/fixer-brief.md` give a later fix round the previous round's head
+  as its base.
+
+#### Known limits (filed)
+- Re-running `/sig:verify` or `/sig:review` after a crash before its report exists is refused, as on
+  0.1.52 (`SIG-354`). A re-entry moves the visit mark past a PASS that visit recorded, so the halt
+  reads as if nothing passed — it fails closed (`SIG-355`). Also `SIG-351`, `SIG-352`, `SIG-353`.
+
 ## [0.1.52] — 2026-10-19 — The REVIEW fix loop is a mechanism
 
 ### M6.E17 — The REVIEW fix loop becomes a mechanism

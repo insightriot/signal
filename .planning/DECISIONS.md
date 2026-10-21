@@ -4575,3 +4575,65 @@ recording function serves both; recording only REVIEW would leave the same hole 
 ### D-M6E17-6 — An unreadable pass record stops, as an unreadable phase log already does (Claude, 2026-10-15)
 `countPhaseCompletions` returns `null` for "could not look" and the driver halts on it (`loop-unknown`).
 A pass record that does not parse gets the same answer; it is never read as zero.
+
+## M6.E18 — The review loop's signals become trustworthy
+
+Opened 2026-10-20 from priority 1 of [`BACKLOG-REVIEW-2026-10-20.md`](BACKLOG-REVIEW-2026-10-20.md),
+picked by Brett, driven by `/sig:drive` at `attention: checkpointed` (chosen 2026-10-20). Project FULL.
+Two calls were put to Brett in one ask; the defaults below them were accepted as recommended.
+
+### D-M6E18-1 — A real review of the head commit, on demand, and SHIP requires it (Brett, 2026-10-20)
+"1 - b." The PR reviewer reviews only a PR's first push: the upstream `/code-review` step 1 stops when
+Claude has already commented, and on #304 nine pushes stopped there (`SIG-348`). Ordinary pushes keep
+that behaviour; a person can ask for a review of the head commit, and SHIP does not call a PR ready to
+merge until the head commit has one. Rejected: (a) one more sentence in the reviewer's prompt telling
+it to ignore step 1 — it would be the fourth prompt patch on this workflow (`SIG-281` took three), and
+a prompt failing silently is the defect; (c) reviewing every push — about $1.50 × ~10 per Epic, and it
+still stops at step 1 without (a). If the on-demand run itself needs a prompt sentence to get past
+step 1, SHIP's check is what makes that sentence's failure visible.
+
+### D-M6E18-2 — Scope: the trust core in, parsing and wording nits to the fix lane (Brett, 2026-10-20)
+"Agreed." In: `SIG-348` + `SIG-285`, `SIG-349`, `SIG-337`, the correctness parts of `SIG-344` and
+`SIG-335`, `SIG-343`, `SIG-319`, and `SIG-342`'s symlinked-report write (security Medium). Out:
+`SIG-336`, the wording parts of `SIG-344`, the rest of `SIG-342`. `SIG-349` is the precondition for
+the driven-Epic half of the title: without it an old PASS lifts the ceiling the run relies on.
+
+### D-M6E18-3 — The visit marker is an optional STATE field written at phase entry (Claude, 2026-10-20)
+Accepted as recommended. Added the way M6.E17 added `phase_passes`: optional, absent means today's
+behaviour, no `schema_version` change, cleared on an Epic roll.
+
+### D-M6E18-4 — At SHIP, the briefing names what is owed, read from the unit record (Claude, 2026-10-20)
+Accepted as recommended. "Next phase: done" only when the current unit's record is closed; open or
+*closing* names the merge, then the confirm (`SIG-319`).
+
+### D-M6E18-5 — The adherence log is regenerated, planned from the start (Claude, 2026-10-20)
+Accepted as recommended. This Epic edits `commands/*.md`; `ADHERENCE-LOG.md` is regenerated and the PR
+merges with `--merge`.
+
+### D-M6E18-6 — The outcome is this Epic's own driven run plus the next PR's review (Claude, 2026-10-20)
+Accepted as recommended. See `M6.E18-REQUIREMENTS.md` § Outcome. The reviewer action refuses to run on
+a PR that edits its own workflow, so the on-demand review is proven on the next PR, not this one.
+
+### D-M6E18-7 — The workflow change ships first, in its own fix-lane PR (Brett, 2026-10-20)
+"Separate PR first." The reviewer action skips any PR that edits its own workflow (success, no review:
+*"The workflow file must exist and have identical content to the version on the repository's default
+branch"*, run 37524298235). Landing the `review-head` trigger in a small PR that Brett merges before
+this Epic's SHIP lets this Epic's own PR be reviewed at its head, so SHIP's check is proven on the Epic
+that built it. Rejected: inside the Epic PR (the trigger is skipped there; proof moves to the next PR);
+deferring the trigger (SHIP would have nothing to point at).
+
+### D-M6E18-8 — The on-demand job forks the review prompt and widens no permission (Claude, 2026-10-20)
+Plumbing, from PLAN research. The `review-head` job runs the upstream command's steps 2–9 inline,
+without step 1, pinned to the upstream commit it was copied from — the only option that removes the
+"already commented" stop rather than arguing with it. It does not remove its own label afterwards:
+that needs `pull-requests: write`, and the job keeps today's `read`. Re-asking is remove-and-re-add.
+A final step writes one `REVIEW_OUTCOME=` line into the run log (kept 90 days), because the log
+carries no result text and the transcript artifact lasts one day.
+
+### D-M6E18-9 — The same-phase re-entry rule goes back to main's (Brett, 2026-10-21)
+"Revert re-entry to main's rule." REVIEW reached its ceiling with both open findings in the
+VERIFY/REVIEW self-transition rule, which every fix round had changed (pass 1 S5 kept the mark;
+round 2 recorded no exit; round 3 counted abandoned visits), each closing one hole and opening the
+next. Every re-entry now records an exit and starts a new visit, as on `main`: it can only stop the
+ceiling sooner. The wedge a crash before the report leaves (`B48`'s artifact check on the re-entry)
+predates this Epic and is filed, not fixed. Pass 3 runs past the ceiling by this decision.

@@ -185,11 +185,20 @@ For each round:
 
 1. **Fix it under the fixer brief** ([`references/fixer-brief.md`](../references/fixer-brief.md)),
    whether this session or a sub-agent writes the fix. Write the test first, commit, then run
-   `parent-run.js` (`tools/lib/parent-run.js`) with `--base` set to the HEAD at the pass that found
-   the issues. A sub-agent gets the brief's instructions in its dispatch prompt.
+   `parent-run.js` (`tools/lib/parent-run.js`) with `--base` set to **the round's base**: for the
+   first round of the run, the HEAD at the pass that found the issues; for every later round, the
+   previous round's head, the commit its fresh read ended at. Rounds chain in the order they are
+   written, across `## Pass N` sections, so a loop-back round in pass N+1 starts at the head of the
+   last round recorded in pass N or before it, and at pass N's HEAD only when no earlier round exists
+   in this run. Commits made between the two (the report's own, say) are in the range.
+   `checkFixRounds` refuses a parent run on any commit but its round's base, and a later round whose
+   base is not the previous round's head; the first round's base is not checked against the pass
+   heading's commit. A sub-agent gets the brief's
+   instructions in its dispatch prompt.
 2. **Dispatch one fresh-context reviewer** (`code-reviewer`, with the same dev-mode fallback as
-   § 4.5). Give it **only that round's diff** (`git diff <base>..<head>`, where the base is the HEAD at
-   the pass that found the issues) and the unit's `*-REQUIREMENTS.md`. It works under the **same
+   § 4.5). Give it **only that round's diff** (`git diff <base>..<head>`, where the base is the round's
+   base from step 1: the base of a later round is the previous round's head, where the read that
+   found its issues ended) and the unit's `*-REQUIREMENTS.md`. It works under the **same
    omissions as § 4.5**: no `CONTEXT.md`, no `DECISIONS.md`, no reasoning, no summary of intent.
 3. **Record the round** in the report, under its own heading, with exactly these two lines:
 
@@ -214,21 +223,26 @@ A read that finds issues starts the next round: fix them, read that round fresh,
 that ends at the ceiling with findings still open is a FAIL, and the Loop Back below asks a person.
 
 **Before the verdict, run the check** on the report as it is on disk, with this pass's section filled
-in (§ 5). Call `checkFixRounds(reportContent, verdict, { phasePasses })`
+in (§ 5). Call `checkFixRounds(reportContent, verdict, { phasePasses, cwd: baseDir })`
 from `tools/lib/review-rounds.js` with the verdict you are about to declare, and `phasePasses` set to
 `phase_passes` from STATE (`readState`), or `[]` when STATE has none. Leaving it out is itself a
-refusal for PASS and PASS-WITH-FIXES. A refusal means the verdict cannot stand. Its reasons are the
+refusal for PASS and PASS-WITH-FIXES. `cwd` is where the check asks git about the commits each round
+names; without it, or where git cannot answer, every round is listed as a gap whose commits were not
+checked. A refusal means the verdict cannot stand. Its reasons are the
 cases: a round missing either line, a PASS-WITH-FIXES with no round in its own pass, a PASS / PASS-WITH-FIXES whose
 last round reads `stop: no`, more than three rounds in one pass, a count of `## Pass N` sections other than the recorded REVIEW
 passes plus this one (a report with no such heading has none), a round above the first `## Pass` heading,
-no round in this pass after a recorded REVIEW FAIL, or too few rounds for the recorded
+no round in this pass after a recorded REVIEW FAIL, a parent run that is not on its round's base, a
+round that does not start at the previous round's head, a commit that does not resolve, a commit not written as its sha (7 to 40 lowercase hex characters), or too few rounds for the recorded
 REVIEW FAILs (one per FAIL, plus one for a PASS-WITH-FIXES's own fixes). That last one is a floor, not
 a match: it sees a report with too few rounds, and cannot tell which round belongs to which FAIL. So the
 REVIEW report keeps every earlier pass's rounds, each pass under its own `## Pass N` heading: append
-each pass, never rewrite the file. A `### Fix round` inside a code fence is not counted. Fix the
+each pass, never rewrite the file. A `### Fix round` inside a code fence or an HTML comment (one whose `<!--` opens a line) is not counted. Fix the
 report or the verdict. Do not write around the check. List its `gaps` in the report: rounds whose parent run is a stated gap, did
 not fail on the base for every file, counted new tests that passed on the base, or counted tests that
-failed there only on a missing file.
+failed there only on a missing file, and commits the check could not ask git about. List its
+`uncovered` too: the commits after the newest `## Pass N, at {sha}` heading that no round's range
+covers. They are reported, not refused: name each, and say what it is, or record it as a round.
 
 ### 5. Write Review Report
 
@@ -278,8 +292,10 @@ Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir
 ### Record the pass — before the Loop Back ask (`D-M6E17-1`)
 
 **At the end of every pass, once the verdict is decided:** call
-`recordPass(baseDir, 'REVIEW', verdict)` from `tools/lib/state.js`, with `verdict` as one of `PASS` /
-`PASS-WITH-FIXES` / `FAIL`. Do this before the ask below and before the transition out of REVIEW, for
+`recordPass(baseDir, 'REVIEW', verdict, { fixRounds })` from `tools/lib/state.js`, with `verdict` as one of `PASS` /
+`PASS-WITH-FIXES` / `FAIL` and `fixRounds` the result `checkFixRounds` returned for that verdict
+(§ 4.6). A PASS or PASS-WITH-FIXES is refused with no `fixRounds`, with a result computed for
+another verdict, or with one the check did not accept (its reasons are given). A FAIL needs none. Do this before the ask below and before the transition out of REVIEW, for
 every verdict. This is what lets the ceiling count a pass whose fixes never left REVIEW. M6.E16's
 REVIEW ran four full passes that way, and the count read 0 throughout.
 
@@ -314,11 +330,16 @@ The count is **the larger of** two records:
 
 It takes the larger, not the sum, because a pass that ends and then leaves REVIEW is in both. Exits
 alone missed every pass whose fixes stayed inside REVIEW. Both records are per Epic: `setCurrentEpic`
-resets them on a roll (`B9`). Two re-entries run; **the third stops for a person**. That is
+resets them on a roll (`B9`). Two re-entries run; **the third stops for a person**. A re-run of
+`/sig:review` while REVIEW is current is a re-entry too: it records an exit and begins a new visit,
+so restarting can only bring the ceiling sooner (`D-M6E18-9`). That is
 `verify.md`'s existing rule (*"A for the first 2 loops; reassess at loop 3"*), now enforceable rather
 than re-tuned. A FAIL never lifts the ceiling. While REVIEW is the current phase and the last entry
 of the whole `phase_passes` list is its own PASS or PASS-WITH-FIXES, REVIEW is moving on and is not
-held; which visit wrote that entry is not checked (`SIG-349`).
+held. That entry must be this visit's: entering REVIEW writes `phase_pass_mark`, the length of
+`phase_passes` at entry, and only an entry at or after it lifts the hold, so an earlier visit's PASS
+does not (`SIG-349`). With no mark (STATE written before M6.E18), which visit wrote it cannot be told,
+and the last entry counts as before; a mark that does not read stops the driver.
 
 Render the halt with `formatLoopCeilingHalt(status)` so this file and `/sig:drive` cannot describe
 the same stop two ways.
@@ -363,6 +384,6 @@ If `markFresh` fails (lock contention, git unavailable):
 - [ ] Simplification pass completed
 - [ ] **Fresh-context reviewer dispatched (§ 4.5) and its findings triaged into the taxonomy** — or a `cannot-dispatch` recorded in the report naming what was attempted. Not satisfiable by "the change looked fine to me": the point of the step is that the author is not the reader.
 - [ ] **Every fix round has its own fresh read and a parent run (§ 4.6)**, and `checkFixRounds` accepted the report for the declared verdict
-- [ ] The pass is recorded with `recordPass(baseDir, 'REVIEW', verdict)`
+- [ ] The pass is recorded with `recordPass(baseDir, 'REVIEW', verdict, { fixRounds })`
 - [ ] Review report written
 - [ ] User approves review results — **when `gates.confirm_review` is set** (`attention: attended`). Checkpointed and unattended: no ask; the transition is recorded, not approved (`B74`).

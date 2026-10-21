@@ -1,4 +1,4 @@
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, mkdir, lstat } from 'node:fs/promises';
 import { existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -447,6 +447,19 @@ async function recordPhase(baseDir, { leaving, nextPhase }) {
   const payload = stripStateMeta(state);
   if (nextPhase) payload.phase = nextPhase;
   payload.completed_phases = completed;
+  // M6.E18 (SIG-349, D-M6E18-3): entering VERIFY or REVIEW marks where the
+  // visit began, so loopStatusFor can tell this visit's PASS from an earlier
+  // one. The two names are written out rather than imported: loop-ceiling.js
+  // imports this module. A phase_passes that is not a list gets no new mark —
+  // the reader already stops on it, and a length would be invented.
+  // Every entry is a new visit, a re-entry from the same phase included: it
+  // records its exit and moves the mark, so a re-run can only stop the ceiling
+  // sooner (D-M6E18-9).
+  if (nextPhase === 'VERIFY' || nextPhase === 'REVIEW') {
+    const passes = state.phase_passes;
+    if (passes === undefined) payload.phase_pass_mark = 0;
+    else if (Array.isArray(passes)) payload.phase_pass_mark = passes.length;
+  }
   payload.last_updated = new Date().toISOString();
   await writeStateFrontmatter(baseDir, payload);
   return { quarantined: malformed };
@@ -557,7 +570,11 @@ export async function transitionPhase(baseDir, nextPhase) {
     if (!state) {
       throw new Error('No project state found. Run /sig:new-project first.');
     }
-    const leaving = state.phase ?? null;
+    // SHIP is terminal (B43): nothing leaves it, and completePhase is what
+    // records it. A re-invoked /sig:ship runs this with `phase` already SHIP;
+    // recording SHIP as left put a stray `SHIP (<date>)` in the live list
+    // that a linear ship had just emptied (M6.E18, SIG-343).
+    const leaving = state.phase === 'SHIP' && nextPhase === 'SHIP' ? null : (state.phase ?? null);
     // Refuse BEFORE any write, so a rejected transition leaves STATE.md
     // byte-identical rather than half-applied.
     await assertLeavingArtifactExists(baseDir, leaving, state);
@@ -768,6 +785,7 @@ export async function completePhase(baseDir, phase) {
           // them (M6.E17 VERIFY D1); kept, the next run's first REVIEW
           // would read this run's count. Archiving them is SIG-327.
           if (payload.phase_passes !== undefined) payload.phase_passes = [];
+          delete payload.phase_pass_mark; // the visit marker ends with the records it marks (M6.E18)
           payload.last_updated = new Date().toISOString();
           await writeStateFrontmatter(baseDir, payload);
           trimmed = archived;
@@ -793,10 +811,17 @@ async function linearReviewReport(baseDir) {
  * its last `keep` pass sections rather than at the end, and a report with no
  * more sections than that is refused, unchanged (P5-I1). A re-invoked SHIP does
  * not write the line: on ship.md's path it returns at completePhase's first guard.
+ *
+ * A report that is a symbolic link is refused, unchanged (M6.E18, SIG-342
+ * P4-S1): reading through it and writing back would replace the link with a
+ * copy of whatever it points at, inside `.planning/`.
  */
 export async function markRunEnded(baseDir, { date = new Date().toISOString().slice(0, 10), keep = 0 } = {}) {
   const report = await linearReviewReport(baseDir);
   try {
+    if ((await lstat(report)).isSymbolicLink()) {
+      return { ok: false, path: report, error: `${report} is a symbolic link; the "## Run ended" line is not written through it. Replace it with the report itself, then call markRunEnded.` };
+    }
     const text = await readFile(report, 'utf-8');
     const { currentRunPasses } = await import('./review-rounds.js');
     const passes = currentRunPasses(text);
@@ -1068,6 +1093,8 @@ export async function setCurrentEpic(baseDir, epicId) {
     // M6.E17: recorded passes are per Epic, like completed_phases — a new Epic
     // must not start its loop count at the previous Epic's REVIEW passes.
     payload.phase_passes = [];
+    // M6.E18: so is the visit marker; kept, it would exceed the emptied list.
+    delete payload.phase_pass_mark;
     payload.last_updated = new Date().toISOString();
     await writeStateFrontmatter(baseDir, payload);
     return { archivedPhaseLog: archivedOut }; // surfaced, never silent (NFR1)
@@ -1842,17 +1869,32 @@ export async function touchDecisionTimestamp(baseDir, opts = {}) {
  * the reader stops on). The date defaults to today in the same form as
  * `completed_phases` entries. `setCurrentEpic` clears the list on a roll.
  *
+ * M6.E18 (`SIG-337`, `SIG-344`): also refuses a pass for a phase STATE is not
+ * in (both named), a date that is not a calendar day or is after today
+ * (`opts.today`, `YYYY-MM-DD`, defaults to the clock), and a
+ * `phase_pass_mark` that does not read, as the reader stops on it. Several
+ * records in one visit are accepted: passes whose fixes never leave REVIEW are
+ * what this list counts, and a duplicate only stops the ceiling sooner (AC3.3
+ * as amended).
+ *
+ * M6.E18 S4 (AC3.5, P4-S7): `opts.fixRounds` is `checkFixRounds`'s result for
+ * the report. A REVIEW PASS or PASS-WITH-FIXES needs it: left out, or one that
+ * does not read (no boolean `ok`), was computed for another verdict, or did
+ * not pass, the pass is refused with the reason: the verdict cannot stand, so
+ * it is not recorded. A FAIL is recorded whatever the check said, or with no
+ * check, as the check never holds a FAIL (M6.E18 REVIEW pass 1, I3).
+ *
  * `loop-ceiling.js` is imported dynamically: it imports from this module, so a
  * static import back would be a cycle (the `planning-index.js` rule above).
  *
  * @param {string} baseDir
  * @param {string} phase
  * @param {string} verdict
- * @param {{date?: string}} [opts]
+ * @param {{date?: string, today?: string, fixRounds?: {ok: boolean, reasons: string[], verdict: string}}} [opts]
  * @returns {Promise<{entry: string}>}
  */
 export async function recordPass(baseDir, phase, verdict, opts = {}) {
-  const { LOOP_BOUNDED_PHASES, PASS_VERDICTS } = await import('./loop-ceiling.js');
+  const { LOOP_BOUNDED_PHASES, PASS_VERDICTS, isPassDate, todayStamp } = await import('./loop-ceiling.js');
   if (!LOOP_BOUNDED_PHASES.includes(phase)) {
     throw new StateWriteError(
       `recordPass: ${JSON.stringify(phase)} is not a phase that loops (expected one of ${LOOP_BOUNDED_PHASES.join(', ')}).`
@@ -1863,9 +1905,39 @@ export async function recordPass(baseDir, phase, verdict, opts = {}) {
       `recordPass: ${JSON.stringify(verdict)} is not a verdict (expected one of ${PASS_VERDICTS.join(', ')}).`
     );
   }
-  const date = opts.date ?? new Date().toISOString().split('T')[0];
+  if (phase === 'REVIEW' && verdict !== 'FAIL') {
+    const check = opts.fixRounds;
+    if (check === undefined) {
+      throw new StateWriteError(
+        `recordPass: a REVIEW ${verdict} needs fixRounds, the result checkFixRounds returned for this verdict (review.md § 4.6); none was given.`
+      );
+    }
+    if (typeof check?.ok !== 'boolean') {
+      throw new StateWriteError(
+        `recordPass: fixRounds is not a checkFixRounds result (it has no boolean ok), so a REVIEW ${verdict} cannot be recorded on it.`
+      );
+    }
+    if (!check.ok) {
+      const why = Array.isArray(check.reasons) && check.reasons.length > 0 ? ` ${check.reasons.join(' ')}` : '';
+      throw new StateWriteError(
+        `recordPass: checkFixRounds did not accept the report, so a REVIEW ${verdict} cannot stand.${why}`
+      );
+    }
+    if (check.verdict !== verdict) {
+      throw new StateWriteError(
+        `recordPass: fixRounds is checkFixRounds's result for ${JSON.stringify(check.verdict ?? null)}, not ${verdict}; run the check for the verdict being recorded.`
+      );
+    }
+  }
+  const today = opts.today ?? todayStamp();
+  const date = opts.date ?? today;
   if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     throw new StateWriteError(`recordPass: date ${JSON.stringify(date)} is not YYYY-MM-DD.`);
+  }
+  if (!isPassDate(date, today)) {
+    throw new StateWriteError(
+      `recordPass: date ${date} is not a calendar day on or before today (${today}); a pass cannot have ended then.`
+    );
   }
   const entry = `${phase} ${verdict} (${date})`;
   return withStateLock(baseDir, async () => {
@@ -1881,8 +1953,26 @@ export async function recordPass(baseDir, phase, verdict, opts = {}) {
         'recordPass: phase_passes in STATE.md is not a list. Fix it by hand; appending would hide the damage.'
       );
     }
+    if (state.phase !== phase) {
+      throw new StateWriteError(
+        `recordPass: STATE.md's phase is ${JSON.stringify(state.phase ?? null)}, not ${phase}; a ${phase} pass can only be recorded while ${phase} is the current phase.`
+      );
+    }
+    const list = prior ?? [];
+    const mark = state.phase_pass_mark;
+    if (mark !== undefined) {
+      if (!(Number.isInteger(mark) && mark >= 0 && mark <= list.length)) {
+        throw new StateWriteError(
+          `recordPass: phase_pass_mark in STATE.md (${JSON.stringify(mark)}) is not a whole number from 0 to ${list.length}. Fix it by hand; the loop ceiling cannot read it.`
+        );
+      }
+      // More than one record in a visit is allowed: passes whose fixes never
+      // leave REVIEW are what this record exists to count (M6.E16 ran four).
+      // A pass recorded twice raises the count, so the ceiling stops sooner,
+      // never later (AC3.3 as amended at EXECUTE).
+    }
     const payload = stripStateMeta(state);
-    payload.phase_passes = [...(prior ?? []), entry];
+    payload.phase_passes = [...list, entry];
     payload.last_updated = new Date().toISOString();
     await writeStateFrontmatter(baseDir, payload);
     return { entry };

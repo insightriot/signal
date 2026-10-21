@@ -29,6 +29,19 @@
           "to": "P2"
         }
       }
+    },
+    {
+      "type": "started",
+      "at": "2026-10-20T22:16:29.401Z",
+      "by": "Claude (M6.E18 DISCUSS, scope agreed by Brett)",
+      "epic": "M6.E18"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-21T12:13:33.497Z",
+      "by": "Claude (M6.E18 SHIP)",
+      "reason": "fixed",
+      "proof": "2d6e8ccf4994df640e1cae5eacbbfba822911475"
     }
   ]
 }

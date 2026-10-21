@@ -1,0 +1,21 @@
+{
+  "id": "SIG-350",
+  "type": "BUG",
+  "title": "MILESTONE-6.md's M6.E17 row has an empty summary cell after its close",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E18 DISCUSS",
+  "source_ref": "M6.E17 milestone row empty summary",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-20T22:16:56.188Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-20T22:16:56.188Z",
+      "by": "Claude"
+    }
+  ]
+}

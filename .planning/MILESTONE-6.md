@@ -38,6 +38,7 @@ The two candidate themes are recorded in `BACKLOG.md` and remain live for `E2` o
 | `M6.E15` | **shipped** — `v0.1.50`, 2026-10-10 (PR #296) | Other projects move onto the work store with `/sig:docs-migrate --work-store`: old IDs kept, originals archived, nothing closed on its own — finished-looking entries are proposed and one yes closes them. 5426 → 5968 tests. |
 | `M6.E16` | **shipped** — v0.1.51, 2026-10-14 (PR 301) | Epics and units become records: existence, membership, close with proof, and a hold. Phase progress stays in `STATE.md`. |
 | `M6.E17` | **shipped** — v0.1.52, 2026-10-20 (PR 304) |  |
+| `M6.E18` | **closing** — proof 2d6e8cc |  |
 <!-- signal:epics:end -->
 
 > ⚠ **This table sat two rows long while six Epics existed** — `M6.E3`, `M6.E4`, `M6.E5` and

@@ -2508,9 +2508,9 @@ From M6.E17-REVIEW.md pass 1 S4. verify.md § 5a and review.md's "Record the pas
 
 From M6.E17-REVIEW.md pass 1 S7 and pass 2 (code-reviewer S-9). REVIEW has `checkFixRounds`; EXECUTE has prose only (execute.md step 6). Nothing reads the parent-run line in a PROGRESS entry, so a hollow or missing result passes. AC3.3 also says "slice's record"; execute.md puts it on each task. Recorded as a limit at VERIFY.
 
-### checkFixRounds: tie each round's range and parent-run base together, and say the base for round 2+ · SIG-335
+### checkFixRounds: tie each round's range and parent-run base together, and say the base for round 2+ · SIG-335 · closing
 
-**Status:** triaged (T)
+**Status:** closing — a fixed close waiting for its commit on the default branch
 
 From M6.E17-REVIEW.md pass 1 S13 and pass 2 P2-S1.
 
@@ -2518,9 +2518,9 @@ From M6.E17-REVIEW.md pass 1 S13 and pass 2 P2-S1.
 - review.md § 4.6 says the base is always "the HEAD at the pass that found the issues"; in round 2 a round's read found them, not a pass. Read literally, round 2's diff includes round 1's commits.
 - Nothing checks that round N+1's range starts where round N's ended.
 
-### recordPass / phase_passes: check the phase matches STATE, and the date on read · SIG-337
+### recordPass / phase_passes: check the phase matches STATE, and the date on read · SIG-337 · closing
 
-**Status:** triaged (T)
+**Status:** closing — a fixed close waiting for its commit on the default branch
 
 From M6.E17-REVIEW.md pass 2 P2-S7 and nits.
 
@@ -2577,9 +2577,9 @@ From M6.E17 REVIEW passes 3–5 (see `.planning/M6.E17-REVIEW.md`).
 - P5-S2: `notRun` also counts missing modules, while the summary says "missing file".
 - Nits: per-file line prints "1 of 2 tests failed" when the second failed only on a missing file; header sentence at parent-run.js:67-68; `git worktree add` runs post-checkout and does not set GIT_LFS_SKIP_SMUDGE; `git show` uses the raw path; `runsFolder` tightens then trusts; `childEnv` passes TYPESAFE_API_KEY to an older base; owner.pid write failure leaves an unjudged folder; `vitest list --json` drops skipped tests.
 
-### markRunEnded / linear run boundary: idempotence, Epic mode, symlinked report, staging · SIG-342
+### markRunEnded / linear run boundary: idempotence, Epic mode, symlinked report, staging · SIG-342 · closing
 
-**Status:** triaged (T)
+**Status:** closing — a fixed close waiting for its commit on the default branch
 
 From M6.E17 REVIEW passes 4–5.
 
@@ -2590,9 +2590,9 @@ From M6.E17 REVIEW passes 4–5.
 - P4-S1 (security, Medium): a linear SHIP follows a symlinked `1-REVIEW.md` and writes the linked contents into `.planning/`; `lstat` and refuse. ship.md never stages the appended report.
 - Nits: CRLF reports get `\n` lines; `keep` not validated; RUN_ENDED_RE matches any "## Run ended…" heading and in Epic mode; ship.md implies a refusal without `keep`; pin the re-run-SHIP behaviour with a test, widen the doc test's negative match (P5-R6-S2/S3).
 
-### checkFixRounds and recordPass: trust gaps and missing tests (passes 3–4) · SIG-344
+### checkFixRounds and recordPass: trust gaps and missing tests (passes 3–4) · SIG-344 · closing
 
-**Status:** triaged (T)
+**Status:** closing — a fixed close waiting for its commit on the default branch
 
 From M6.E17 REVIEW passes 3–4.
 
@@ -2619,3 +2619,15 @@ From M6.E17 REVIEW pass 3 (P3-S2, S5, S6, S7, S9).
 - The PROGRESS template and EXECUTE exit criteria have no place for the parent-run line (AC3.3 partly met).
 - Nothing records an EXECUTE task's base commit.
 - review-loop-doc-contract.test.js checks three words anywhere in execute.md.
+
+### SIG-344 residue: review-rounds wording and doc nits from M6.E17 REVIEW passes 3–5 · SIG-356
+
+**Status:** triaged (T)
+
+Split from `SIG-344` at M6.E18 SHIP (`D-M6E18-2`): the parts M6.E18 did not take. P4-S8/S13 "(dependencies differ from the base)" is not a gap and never asserted; P4-S9 `review-rounds.js` header reads as a changelog; P5-S1 § 4.6's orphaned-heading text should name the tool's check; nits: PASS_HEADING_RE accepts "## Pass 1 — what it missed"; `Number(pm[3]) === 0` and recordPass's schema check untested; review.md says the check "refuses a fourth" round; GRANDFATHER_PIN is a short sha. See `SIG-344.md` for the original list.
+
+### SIG-342 residue: markRunEnded / run-boundary edges left after M6.E18 · SIG-357
+
+**Status:** triaged (T)
+
+Split from `SIG-342` at M6.E18 SHIP (`D-M6E18-2`): M6.E18 took the symlinked-report refusal (P4-S1) and staging. Left: P5-R6-S1 `markRunEnded` without `keep` writes a second `## Run ended` line if called twice; P5-R5-S1 the `keep` hint shows in Epic projects; P5-R5-S2 the hint cannot tell a missing boundary from a duplicated heading; P5-R5-S3/S4 `markRunEnded` returns `written` on one path only, stale JSDoc; nits: CRLF reports get `\n` lines, `keep` not validated, RUN_ENDED_RE matches any "## Run ended…" heading. See `SIG-342.md`.

@@ -12,11 +12,14 @@
 // `countPhasePasses` do not exist, and `loopStatusFor` ignores `phase_passes`.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile, symlink, lstat } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { readState, recordPass, setCurrentEpic, completePhase, markRunEnded } from '../plugin/tools/lib/state.js';
+import { readState, recordPass, setCurrentEpic, completePhase, markRunEnded, transitionPhase } from '../plugin/tools/lib/state.js';
+import { checkFixRounds } from '../plugin/tools/lib/review-rounds.js';
 import { countPhasePasses, loopStatusFor } from '../plugin/tools/lib/loop-ceiling.js';
 import { canProceedUnattended } from '../plugin/tools/lib/drive.js';
 
@@ -44,6 +47,12 @@ async function writeState(baseDir, { epic = 'M6.E16', phase = 'REVIEW', extra = 
   await writeFile(join(baseDir, '.planning', 'STATE.md'), fm, 'utf-8');
 }
 
+// checkFixRounds's result for a report it accepted: a REVIEW PASS or
+// PASS-WITH-FIXES is recorded only on one (AC3.5, REVIEW pass 1 I3).
+const checked = (verdict) => ({ ok: true, verdict, reasons: [], gaps: [], uncovered: [], rounds: [] });
+
+const shipPasses = (entries) => `phase_passes:\n${entries.map((e) => `  - ${e}\n`).join('')}`;
+
 describe('AC1.1 — recordPass', () => {
   let baseDir;
   beforeEach(async () => {
@@ -56,7 +65,7 @@ describe('AC1.1 — recordPass', () => {
   it('appends "<PHASE> <VERDICT> (<date>)" to phase_passes', async () => {
     await writeState(baseDir);
     await recordPass(baseDir, 'REVIEW', 'FAIL', { date: '2026-10-12' });
-    await recordPass(baseDir, 'REVIEW', 'PASS-WITH-FIXES', { date: '2026-10-13' });
+    await recordPass(baseDir, 'REVIEW', 'PASS-WITH-FIXES', { date: '2026-10-13', fixRounds: checked('PASS-WITH-FIXES') });
     const state = await readState(baseDir);
     expect(state.phase_passes).toEqual([
       'REVIEW FAIL (2026-10-12)',
@@ -65,7 +74,9 @@ describe('AC1.1 — recordPass', () => {
   });
 
   it('leaves every other field as it was', async () => {
-    await writeState(baseDir);
+    // M6.E18: recordPass now refuses a phase STATE is not in (AC3.1), so the
+    // fixture is in VERIFY; the subject of this test is the other fields.
+    await writeState(baseDir, { phase: 'VERIFY' });
     const before = await readState(baseDir);
     await recordPass(baseDir, 'VERIFY', 'PASS', { date: '2026-10-12' });
     const after = await readState(baseDir);
@@ -75,7 +86,7 @@ describe('AC1.1 — recordPass', () => {
   });
 
   it('defaults the date to today, in the same form as completed_phases', async () => {
-    await writeState(baseDir);
+    await writeState(baseDir, { phase: 'VERIFY' });
     await recordPass(baseDir, 'VERIFY', 'PASS');
     const state = await readState(baseDir);
     expect(state.phase_passes[0]).toMatch(/^VERIFY PASS \(\d{4}-\d{2}-\d{2}\)$/);
@@ -96,7 +107,7 @@ describe('AC1.1 — recordPass', () => {
 
   it('refuses a date that is not YYYY-MM-DD', async () => {
     await writeState(baseDir);
-    await expect(recordPass(baseDir, 'REVIEW', 'PASS', { date: 'yesterday' })).rejects.toThrow(
+    await expect(recordPass(baseDir, 'REVIEW', 'PASS', { date: 'yesterday', fixRounds: checked('PASS') })).rejects.toThrow(
       /date/
     );
   });
@@ -201,10 +212,14 @@ describe('AC1.3 — the records are per Epic', () => {
   // VERIFY pass 1, D1: a linear project has no Epic roll. Its run ends at SHIP,
   // where completed_phases is archived and cleared; the passes stayed, so the
   // next run's first REVIEW read the last run's count and stopped the driver.
+  // M6.E18: recordPass refuses REVIEW while STATE is at SHIP (AC3.1), so these
+  // SHIP tests seed the records in the fixture; their subject is SHIP's clear.
   it('a linear SHIP clears them with the run, so the next run starts at 0', async () => {
-    await writeState(baseDir, { epic: 'null', phase: 'SHIP' });
-    await recordPass(baseDir, 'REVIEW', 'FAIL', { date: '2026-10-12' });
-    await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12' });
+    await writeState(baseDir, {
+      epic: 'null',
+      phase: 'SHIP',
+      extra: shipPasses(['REVIEW FAIL (2026-10-12)', 'REVIEW PASS (2026-10-12)']),
+    });
     await completePhase(baseDir, 'SHIP');
     const state = await readState(baseDir);
     expect(state.completed_phases).toEqual([]);
@@ -217,10 +232,9 @@ describe('AC1.3 — the records are per Epic', () => {
   // marking the report left run 2's first REVIEW reading run 1's sections, and
   // refusing a correct PASS. The run's end is appended to the report.
   it('a linear SHIP appends "## Run ended" to the REVIEW report (the test above has no report, and still ships)', async () => {
-    await writeState(baseDir, { epic: 'null', phase: 'SHIP' });
+    await writeState(baseDir, { epic: 'null', phase: 'SHIP', extra: shipPasses(['REVIEW PASS (2026-10-12)']) });
     const reportPath = join(baseDir, '.planning', '1-REVIEW.md');
     await writeFile(reportPath, '# Review Report\n\n## Pass 1\n\nfindings\n', 'utf-8');
-    await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12' });
     await completePhase(baseDir, 'SHIP');
     const text = await readFile(reportPath, 'utf-8');
     expect(text.startsWith('# Review Report\n\n## Pass 1\n\nfindings\n')).toBe(true);
@@ -229,9 +243,8 @@ describe('AC1.3 — the records are per Epic', () => {
   });
 
   it('a report that cannot be appended to does not leave SHIP half done: the run still ends, and the failure is returned', async () => {
-    await writeState(baseDir, { epic: 'null', phase: 'SHIP' });
+    await writeState(baseDir, { epic: 'null', phase: 'SHIP', extra: shipPasses(['REVIEW PASS (2026-10-12)']) });
     await mkdir(join(baseDir, '.planning', '1-REVIEW.md')); // a folder where the report should be
-    await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12' });
     const r = await completePhase(baseDir, 'SHIP');
     expect(r.runEnded).toMatchObject({ ok: false });
     expect(r.runEnded.error).toMatch(/EISDIR|directory/i);
@@ -268,6 +281,33 @@ describe('AC1.3 — the records are per Epic', () => {
     const before = await readFile(reportPath, 'utf-8');
     expect(await markRunEnded(baseDir, { date: '2026-10-18', keep: 1 })).toMatchObject({ ok: false });
     expect(await readFile(reportPath, 'utf-8')).toBe(before);
+  });
+
+  // M6.E18 S6 (SIG-342 P4-S1, AC6.1): a linear SHIP followed a symlinked
+  // 1-REVIEW.md, and atomicWrite renamed a regular file over the link — the
+  // linked file's contents written into .planning/. lstat, and refuse.
+  it('a symlinked REVIEW report is refused: the link stays a link, its target is untouched', async () => {
+    await writeState(baseDir, { epic: 'null', phase: 'SHIP', extra: shipPasses(['REVIEW PASS (2026-10-12)']) });
+    const outside = await mkdtemp(join(tmpdir(), 'signal-passes-link-'));
+    try {
+      const target = join(outside, 'elsewhere.md');
+      await writeFile(target, '# Not this project\n', 'utf-8');
+      const reportPath = join(baseDir, '.planning', '1-REVIEW.md');
+      await symlink(target, reportPath);
+
+      const direct = await markRunEnded(baseDir, { date: '2026-10-20' });
+      expect(direct).toMatchObject({ ok: false, path: reportPath });
+      expect(direct.error).toMatch(/1-REVIEW\.md/);
+      expect(direct.error).toMatch(/symbolic link/i);
+
+      const r = await completePhase(baseDir, 'SHIP');
+      expect(r.runEnded).toMatchObject({ ok: false, path: reportPath });
+      expect(r.runEnded.error).toMatch(/symbolic link/i);
+      expect((await lstat(reportPath)).isSymbolicLink()).toBe(true);
+      expect(await readFile(target, 'utf-8')).toBe('# Not this project\n');
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 
   it('an Epic SHIP does not touch the report', async () => {
@@ -346,5 +386,303 @@ describe('AC1.7 — M6.E16 replay: passes that never left REVIEW stop the driver
     const state = visit('VERIFY', ['VERIFY PASS (2026-10-01)', 'REVIEW FAIL (2026-10-01)', 'VERIFY PASS (2026-10-02)', 'REVIEW FAIL (2026-10-02)'],
       ['DISCUSS', 'PLAN', 'EXECUTE', 'VERIFY', 'REVIEW', 'EXECUTE', 'VERIFY', 'REVIEW', 'EXECUTE']);
     expect(loopStatusFor(state, 'VERIFY')).toMatchObject({ count: 2, atCeiling: true });
+  });
+});
+
+// M6.E18 S2 — the visit marker (FR2, `SIG-349`) and an honest recordPass (FR3,
+// `SIG-337`, `SIG-344`). Proof-of-fail: before S2, transitionPhase writes no
+// phase_pass_mark, recordPass records any phase, any number of times, on any
+// date, and state-schema.md has no phase_pass_mark row.
+describe('M6.E18 AC2.1 — entering VERIFY or REVIEW marks where the visit began', () => {
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-passes-mark-'));
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  const artifact = (name) => writeFile(join(baseDir, '.planning', `M6.E16-${name}.md`), '# x\n', 'utf-8');
+
+  it('entering VERIFY with no phase_passes writes phase_pass_mark: 0', async () => {
+    await writeState(baseDir, { phase: 'EXECUTE' });
+    await transitionPhase(baseDir, 'VERIFY');
+    expect((await readState(baseDir)).phase_pass_mark).toBe(0);
+  });
+
+  it('entering REVIEW writes the length of phase_passes at entry', async () => {
+    await writeState(baseDir, {
+      phase: 'VERIFY',
+      extra: shipPasses(['VERIFY FAIL (2026-10-11)', 'VERIFY PASS (2026-10-11)']),
+    });
+    await artifact('VERIFICATION');
+    await transitionPhase(baseDir, 'REVIEW');
+    expect((await readState(baseDir)).phase_pass_mark).toBe(2);
+  });
+
+  // D-M6E18-9: every entry is a new visit, a re-entry from the same phase included. Three fix
+  // rounds tried to make some re-entries "the same visit"; each opened a new hole (a PASS from an
+  // earlier visit lifting the ceiling, re-entries never counted, a crash wedging the phase). Now a
+  // re-entry records its exit and moves the mark, which can only stop the ceiling sooner.
+  for (const phase of ['VERIFY', 'REVIEW']) {
+    it(`re-entering ${phase} from ${phase} records an exit and moves the mark past this visit's records`, async () => {
+      await writeState(baseDir, {
+        phase,
+        extra: shipPasses([`${phase} FAIL (2026-10-11)`, `${phase} PASS (2026-10-12)`]) + 'phase_pass_mark: 1\n',
+      });
+      await artifact(phase === 'VERIFY' ? 'VERIFICATION' : 'REVIEW');
+      const before = await readState(baseDir);
+      await transitionPhase(baseDir, phase);
+      const after = await readState(baseDir);
+      expect(after.completed_phases).toEqual([...before.completed_phases, expect.stringMatching(new RegExp(`^${phase} \\(`))]);
+      expect(after.phase_pass_mark).toBe(2);
+    });
+  }
+
+  it('a recorded FAIL and then re-entries reach the ceiling: nothing makes a restart free', async () => {
+    await writeState(baseDir, { phase: 'REVIEW', extra: shipPasses(['REVIEW FAIL (2026-10-11)']) + 'phase_pass_mark: 0\n' });
+    await artifact('REVIEW');
+    await transitionPhase(baseDir, 'REVIEW');
+    await transitionPhase(baseDir, 'REVIEW');
+    expect(loopStatusFor(await readState(baseDir), 'REVIEW')).toMatchObject({ count: 2, atCeiling: true });
+  });
+
+  it('a re-entry after a recorded PASS moves the mark past it, so that PASS no longer lifts the hold', async () => {
+    await writeState(baseDir, {
+      phase: 'REVIEW',
+      extra: shipPasses(['REVIEW FAIL (2026-10-11)', 'REVIEW PASS (2026-10-12)']) + 'phase_pass_mark: 1\n',
+    });
+    await artifact('REVIEW');
+    expect(loopStatusFor(await readState(baseDir), 'REVIEW')).toMatchObject({ atCeiling: false });
+    await transitionPhase(baseDir, 'REVIEW');
+    expect(loopStatusFor(await readState(baseDir), 'REVIEW')).toMatchObject({ count: 2, atCeiling: true });
+  });
+
+  it('entering any other phase leaves the mark as it was', async () => {
+    await writeState(baseDir, {
+      phase: 'VERIFY',
+      extra: shipPasses(['VERIFY FAIL (2026-10-11)']) + 'phase_pass_mark: 0\n',
+    });
+    await artifact('VERIFICATION');
+    await transitionPhase(baseDir, 'EXECUTE');
+    expect((await readState(baseDir)).phase_pass_mark).toBe(0);
+  });
+
+  // AC3.6 (P4-S11): a FAIL loop-back leaves VERIFY and comes back; the passes
+  // of the first visit are kept, and the second visit's mark sits after them.
+  it('phase_passes survives a FAIL loop-back: VERIFY FAIL → EXECUTE → VERIFY keeps the entries', async () => {
+    await writeState(baseDir, { phase: 'EXECUTE' });
+    await artifact('VERIFICATION');
+    await transitionPhase(baseDir, 'VERIFY');
+    await recordPass(baseDir, 'VERIFY', 'FAIL', { date: '2026-10-12' });
+    await transitionPhase(baseDir, 'EXECUTE');
+    await transitionPhase(baseDir, 'VERIFY');
+    const state = await readState(baseDir);
+    expect(state.phase_passes).toEqual(['VERIFY FAIL (2026-10-12)']);
+    expect(state.phase_pass_mark).toBe(1);
+  });
+
+  it('an Epic roll clears the mark with phase_passes', async () => {
+    await writeState(baseDir, { phase: 'REVIEW', extra: shipPasses(['REVIEW FAIL (2026-10-12)']) + 'phase_pass_mark: 0\n' });
+    await setCurrentEpic(baseDir, 'M6.E17');
+    const state = await readState(baseDir);
+    expect(state.phase_passes).toEqual([]);
+    expect('phase_pass_mark' in state).toBe(false);
+  });
+
+  it('a linear SHIP clears the mark with phase_passes', async () => {
+    await writeState(baseDir, {
+      epic: 'null',
+      phase: 'SHIP',
+      extra: shipPasses(['REVIEW PASS (2026-10-12)']) + 'phase_pass_mark: 0\n',
+    });
+    await completePhase(baseDir, 'SHIP');
+    const state = await readState(baseDir);
+    expect(state.phase_passes).toEqual([]);
+    expect('phase_pass_mark' in state).toBe(false);
+  });
+});
+
+describe('M6.E18 AC3.1 / AC3.3 — recordPass refuses a pass that cannot be true', () => {
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-passes-honest-'));
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+
+  it("recordPass('REVIEW') while STATE is in VERIFY is refused, naming both", async () => {
+    await writeState(baseDir, { phase: 'VERIFY' });
+    const err = await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12', fixRounds: checked('PASS') }).catch((e) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toMatch(/REVIEW/);
+    expect(err.message).toMatch(/VERIFY/);
+    expect((await readState(baseDir)).phase_passes).toBeUndefined();
+  });
+
+  it('several passes in one visit are all recorded, as M6.E16 ran four inside REVIEW (AC3.3 amended)', async () => {
+    await writeState(baseDir, { phase: 'EXECUTE' });
+    await writeFile(join(baseDir, '.planning', 'M6.E16-VERIFICATION.md'), '# x\n', 'utf-8');
+    await transitionPhase(baseDir, 'REVIEW');
+    await recordPass(baseDir, 'REVIEW', 'PASS-WITH-FIXES', { date: '2026-10-12', fixRounds: checked('PASS-WITH-FIXES') });
+    await recordPass(baseDir, 'REVIEW', 'PASS-WITH-FIXES', { date: '2026-10-12', fixRounds: checked('PASS-WITH-FIXES') });
+    await recordPass(baseDir, 'REVIEW', 'FAIL', { date: '2026-10-13' });
+    const state = await readState(baseDir);
+    expect(state.phase_passes).toEqual([
+      'REVIEW PASS-WITH-FIXES (2026-10-12)', 'REVIEW PASS-WITH-FIXES (2026-10-12)', 'REVIEW FAIL (2026-10-13)',
+    ]);
+    expect(loopStatusFor(state, 'REVIEW')).toMatchObject({ count: 3, atCeiling: true });
+  });
+
+  it('a mark that does not read is refused at write, as the reader stops on it', async () => {
+    await writeState(baseDir, { phase: 'REVIEW', extra: 'phase_pass_mark: 3\n' });
+    await expect(recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12', fixRounds: checked('PASS') })).rejects.toThrow(/phase_pass_mark/);
+    expect((await readState(baseDir)).phase_passes).toBeUndefined();
+  });
+
+  it('a date after today is refused at write; today is accepted', async () => {
+    await writeState(baseDir, { phase: 'REVIEW' });
+    await expect(recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-21', today: '2026-10-20', fixRounds: checked('PASS') })).rejects.toThrow(
+      /2026-10-21/
+    );
+    expect((await readState(baseDir)).phase_passes).toBeUndefined();
+    await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-20', today: '2026-10-20', fixRounds: checked('PASS') });
+    expect((await readState(baseDir)).phase_passes).toEqual(['REVIEW PASS (2026-10-20)']);
+  });
+
+  it('a date that is not a calendar day is refused at write (AC3.2: malformed)', async () => {
+    await writeState(baseDir, { phase: 'REVIEW' });
+    await expect(recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-02-30', today: '2026-10-20', fixRounds: checked('PASS') })).rejects.toThrow(/date/);
+  });
+});
+
+describe('M6.E18 — no doc still says the visit is not checked (REVIEW pass 3)', () => {
+  it('commands and references describe the visit mark, not "which visit wrote that entry is not checked"', async () => {
+    const { readdir } = await import('node:fs/promises');
+    const root = new URL('../plugin/', import.meta.url);
+    for (const dir of ['commands', 'references']) {
+      for (const f of await readdir(new URL(`${dir}/`, root))) {
+        if (!f.endsWith('.md')) continue;
+        const text = (await readFile(new URL(`${dir}/${f}`, root), 'utf-8')).replace(/\s+/g, ' ');
+        expect(text, `${dir}/${f}`).not.toMatch(/which visit wrote that entry is not checked/);
+      }
+    }
+  });
+});
+
+describe('M6.E18 AC2.5 / AC3.6 — state-schema.md documents both records', () => {
+  const schema = readFileSync(
+    fileURLToPath(new URL('../plugin/references/state-schema.md', import.meta.url)),
+    'utf-8'
+  );
+  const row = (key) => schema.split('\n').find((l) => l.startsWith(`| \`${key}\` |`));
+
+  it('has a phase_passes row (P4-S11)', () => {
+    expect(row('phase_passes')).toMatch(/recordPass/);
+  });
+
+  // REVIEW pass 1, I2: AC3.3 was amended so several records in one visit are
+  // accepted; both rows still documented the refusal the code removed.
+  it('neither row says recordPass refuses a second record in one visit', () => {
+    for (const key of ['phase_passes', 'phase_pass_mark']) {
+      expect(row(key), key).not.toMatch(/second (record|entry)/);
+    }
+  });
+
+  it('has a phase_pass_mark row: optional, written on entering VERIFY or REVIEW, cleared with phase_passes', () => {
+    const r = row('phase_pass_mark');
+    expect(r).toBeDefined();
+    expect(r).toMatch(/transitionPhase/);
+    expect(r).toMatch(/VERIFY/);
+    expect(r).toMatch(/REVIEW/);
+    expect(r).toMatch(/[Oo]ptional/);
+    expect(r).toMatch(/loop-unknown/);
+  });
+});
+
+// AC3.6 (P4-S12, P3-S11): a parent-run summary that ran no file proves nothing,
+// so checkFixRounds counts "0 of 0" as a gap, never as proof. The code already
+// does this (review-rounds.js: `Number(pm[3]) === 0`); nothing tested it.
+describe('M6.E18 AC3.6 — a "0 of 0" parent-run summary is a gap', () => {
+  it('a fix round whose Parent run line reads 0 of 0 is listed as a gap', () => {
+    const report =
+      '# Review Report — M9.E1\n\n## Pass 1\n\nfindings\n\n### Fix round 1\n\nFixed.\n\n' +
+      '**Fresh read:** abc1234..def5678 — Critical 0, Important 0 — stop: yes\n' +
+      '**Parent run:** `parent-run abc1234: 0 of 0 failed on the base`\n\n';
+    const r = checkFixRounds(report, 'PASS-WITH-FIXES', { phasePasses: [] });
+    // With no git given, the round is also a gap whose commits were not checked (M6.E18 S4).
+    expect(r.gaps).toContainEqual(expect.stringMatching(/Fix round 1: parent-run abc1234: 0 of 0 failed on the base/));
+  });
+});
+
+// M6.E18 AC3.5 (P4-S7): recordPass took a REVIEW PASS on the caller's word,
+// whether or not checkFixRounds had accepted the report. It now takes the
+// check's result (`opts.fixRounds`) and refuses a passing verdict the check
+// did not accept, naming the check. Proof-of-fail: on 1e759af3 the option is
+// ignored and every case below records the pass.
+describe('M6.E18 AC3.5 — a REVIEW pass the fix-round check refused is not recorded', () => {
+  let baseDir;
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'signal-passes-rounds-'));
+    await writeState(baseDir, { phase: 'REVIEW' });
+  });
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true });
+  });
+  const refused = { ok: false, reasons: ['Fix round 1 has no **Fresh read:** line'], gaps: [], rounds: [] };
+
+  it('PASS or PASS-WITH-FIXES with a check that did not pass is refused, naming checkFixRounds and its reason', async () => {
+    for (const verdict of ['PASS', 'PASS-WITH-FIXES']) {
+      const err = await recordPass(baseDir, 'REVIEW', verdict, { date: '2026-10-12', fixRounds: refused }).catch((e) => e);
+      expect(err, verdict).toBeInstanceOf(Error);
+      expect(err.message).toMatch(/checkFixRounds/);
+      expect(err.message).toMatch(/no \*\*Fresh read:\*\* line/);
+    }
+    expect((await readState(baseDir)).phase_passes).toBeUndefined();
+    // A check that passed for this verdict is recorded; a FAIL is recorded whatever the check said, or with none.
+    await recordPass(baseDir, 'REVIEW', 'PASS-WITH-FIXES', { date: '2026-10-12', fixRounds: { ...refused, ok: true, reasons: [], verdict: 'PASS-WITH-FIXES' } });
+    await recordPass(baseDir, 'REVIEW', 'FAIL', { date: '2026-10-12', fixRounds: refused });
+    await recordPass(baseDir, 'REVIEW', 'FAIL', { date: '2026-10-12' });
+    expect((await readState(baseDir)).phase_passes).toEqual([
+      'REVIEW PASS-WITH-FIXES (2026-10-12)', 'REVIEW FAIL (2026-10-12)', 'REVIEW FAIL (2026-10-12)',
+    ]);
+  });
+
+  // REVIEW pass 1, I3: a caller who skipped checkFixRounds passed nothing and
+  // the PASS was recorded. Proof-of-fail: on 9628dcff both are recorded.
+  it('PASS or PASS-WITH-FIXES with no check given is refused, naming checkFixRounds', async () => {
+    for (const verdict of ['PASS', 'PASS-WITH-FIXES']) {
+      const err = await recordPass(baseDir, 'REVIEW', verdict, { date: '2026-10-12' }).catch((e) => e);
+      expect(err, verdict).toBeInstanceOf(Error);
+      expect(err.message).toMatch(/checkFixRounds/);
+    }
+    expect((await readState(baseDir)).phase_passes).toBeUndefined();
+  });
+
+  it('a check computed for another verdict is refused, naming both verdicts', async () => {
+    for (const other of ['FAIL', 'PASS-WITH-FIXES', undefined]) {
+      const err = await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12', fixRounds: { ...checked(other) } }).catch((e) => e);
+      expect(err, String(other)).toBeInstanceOf(Error);
+      expect(err.message).toMatch(/checkFixRounds/);
+      expect(err.message).toContain('PASS');
+      if (other) expect(err.message).toContain(other);
+    }
+    expect((await readState(baseDir)).phase_passes).toBeUndefined();
+  });
+
+  it('checkFixRounds returns the verdict it was computed for, and recordPass takes that result', async () => {
+    const r = checkFixRounds('# Review Report\n\n## Pass 1\n\nfindings\n', 'PASS', { phasePasses: [] });
+    expect(r.ok).toBe(true);
+    expect(r.verdict).toBe('PASS');
+    await recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12', fixRounds: r });
+    expect((await readState(baseDir)).phase_passes).toEqual(['REVIEW PASS (2026-10-12)']);
+  });
+
+  it('a check result that does not read is refused, never taken as passed', async () => {
+    for (const bad of [{}, { ok: 'yes' }, null, 'ok']) {
+      await expect(recordPass(baseDir, 'REVIEW', 'PASS', { date: '2026-10-12', fixRounds: bad }), JSON.stringify(bad)).rejects.toThrow(/checkFixRounds/);
+    }
+    expect((await readState(baseDir)).phase_passes).toBeUndefined();
   });
 });

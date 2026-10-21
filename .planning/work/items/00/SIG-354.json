@@ -1,0 +1,21 @@
+{
+  "id": "SIG-354",
+  "type": "BUG",
+  "title": "Re-running /sig:verify or /sig:review after a crash before its report exists is refused, and nothing gets out",
+  "theme": "roadmap",
+  "priority": "P2",
+  "source": "M6.E18 REVIEW",
+  "source_ref": "Re-running /sig:verify or /sig:review after a crash before i",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-21T11:53:22.035Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-21T11:53:22.035Z",
+      "by": "Claude"
+    }
+  ]
+}

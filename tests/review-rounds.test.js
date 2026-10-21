@@ -11,6 +11,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { checkFixRounds } from '../plugin/tools/lib/review-rounds.js';
+import { gitEnv } from '../plugin/tools/lib/git-env.js';
 
 const round = (n, { fresh, parent } = {}) =>
   `### Fix round ${n}\n\n` +
@@ -21,6 +22,10 @@ const round = (n, { fresh, parent } = {}) =>
 
 // No REVIEW passes recorded yet: the record is passed explicitly (REVIEW I6).
 const none = { phasePasses: [] };
+
+// The gaps a round's parent run states. With no git given (most cases here),
+// each round is also listed as a gap whose commits were not checked (M6.E18 S4).
+const proofGaps = (r) => r.gaps.filter((g) => !/its commits were not checked/.test(g));
 
 const report = (...rounds) => `# Review Report — M9.E1\n\n## Pass 1\n\nfindings\n\n${rounds.join('')}## Verdict\n\nsee above\n`;
 
@@ -121,7 +126,7 @@ describe('FAIL and stated gaps', () => {
   it('a stated gap is allowed and listed, never counted as proof', () => {
     const r = checkFixRounds(report(round(1, { parent: 'gap — the fix changed only a command file; no test to run' })), 'PASS-WITH-FIXES', none);
     expect(r.ok).toBe(true);
-    expect(r.gaps).toEqual([expect.stringMatching(/Fix round 1: gap — the fix changed only a command file/)]);
+    expect(proofGaps(r)).toEqual([expect.stringMatching(/Fix round 1: gap — the fix changed only a command file/)]);
   });
 
   it('a parent run that is not all-failed is listed as a gap', () => {
@@ -131,7 +136,7 @@ describe('FAIL and stated gaps', () => {
       none
     );
     expect(r.ok).toBe(true);
-    expect(r.gaps).toEqual([expect.stringMatching(/Fix round 1: .*1 of 2 failed/)]);
+    expect(proofGaps(r)).toEqual([expect.stringMatching(/Fix round 1: .*1 of 2 failed/)]);
   });
 });
 
@@ -149,8 +154,8 @@ describe('P2-I2 — a hollow test in the summary line is a gap', () => {
       none
     );
     expect(r.ok).toBe(true);
-    expect(r.gaps).toHaveLength(1);
-    expect(r.gaps[0]).toMatch(/1 new test passed on the base/);
+    expect(proofGaps(r)).toHaveLength(1);
+    expect(proofGaps(r)[0]).toMatch(/1 new test passed on the base/);
   });
 });
 
@@ -320,7 +325,7 @@ describe('REVIEW P4-I2 — a test that failed only on a missing file is a gap', 
     const parent = '`parent-run abc1234: 1 of 1 failed on the base, 1 test failed only on a missing file`';
     const r = checkFixRounds(report(round(1, { parent })), 'PASS-WITH-FIXES', none);
     expect(r.reasons).toEqual([]);
-    expect(r.gaps).toHaveLength(1);
+    expect(proofGaps(r)).toHaveLength(1);
   });
 });
 
@@ -332,4 +337,320 @@ describe('REVIEW P5-I1 — more pass sections than the record names the missing 
     expect(r.ok).toBe(false);
     expect(r.reasons.join(' ')).toMatch(/markRunEnded\(baseDir, \{ keep: 1 \}\)/);
   });
+});
+
+// M6.E18 S4 (FR4, SIG-335, SIG-344) — the check reads what a round CLAIMS, not
+// only that its lines are there. A round's **Parent run:** commit is resolved
+// and must be the base its fresh read starts at; each round starts where the
+// one before it ended; a round inside an HTML comment is not a round; and the
+// commits after the newest "## Pass N, at <sha>" that no round covers are
+// reported. Git is injected (`git(cwd, args)`), so the parser is tested
+// without a repository; one test below runs it on a real one.
+//
+// Proof-of-fail: each case below reads the wrong answer on 1e759af3 — the
+// check makes no git call, so a mismatched or unresolvable commit read ok.
+
+// Six commits in a line, oldest first: a…, b…, c…, d…, e…, f…. HEAD is f….
+const LINE = ['a', 'b', 'c', 'd', 'e', 'f'].map((ch) => ch.repeat(40));
+const S = (i) => LINE[i].slice(0, 7);
+function fakeGit({ head = LINE.at(-1) } = {}) {
+  const resolveRef = (ref) => (ref === 'HEAD' ? head : (ref.length >= 7 && LINE.find((s) => s.startsWith(ref))) || null);
+  const git = (_cwd, args) => {
+    git.calls.push(args);
+    const last = args.at(-1);
+    if (args[0] === 'rev-parse' && last === '--git-dir') return '.git\n';
+    if (args[0] === 'rev-parse') {
+      const sha = resolveRef(last.replace(/\^\{commit\}$/, ''));
+      if (!sha) throw Object.assign(new Error('fatal: Needed a single revision'), { status: 1 });
+      return `${sha}\n`;
+    }
+    if (args[0] === 'rev-list') {
+      const [a, b] = last.split('..').map(resolveRef);
+      return LINE.slice(LINE.indexOf(a) + 1, LINE.indexOf(b) + 1).reverse().map((s) => `${s}\n`).join('');
+    }
+    throw new Error(`unexpected git ${args.join(' ')}`);
+  };
+  git.calls = [];
+  return git;
+}
+const fr = (n, base, head, { dirty = false, parentSha = base } = {}) =>
+  round(n, {
+    fresh: `${base}..${head} — Critical 0, Important ${dirty ? 1 : 0} — stop: ${dirty ? 'no' : 'yes'}`,
+    parent: `\`parent-run ${parentSha}: 1 of 1 failed on the base\``,
+  });
+
+describe('M6.E18 AC4.1 — a round\'s parent run is the base of its fresh read', () => {
+  it('a parent run on another commit is refused, naming the round and both commits; on the base → ok', () => {
+    const good = checkFixRounds(report(fr(1, S(0), S(1))), 'PASS-WITH-FIXES', { ...none, git: fakeGit() });
+    expect(good.reasons).toEqual([]);
+    expect(good.gaps).toEqual([]);
+    const r = checkFixRounds(report(fr(1, S(0), S(1), { parentSha: S(2) })), 'PASS-WITH-FIXES', { ...none, git: fakeGit() });
+    expect(r.ok).toBe(false);
+    const why = r.reasons.join(' ');
+    expect(why).toMatch(/Fix round 1/);
+    expect(why).toContain(S(2));
+    expect(why).toContain(S(0));
+  });
+
+  it('a parent-run commit that does not resolve is refused', () => {
+    const r = checkFixRounds(report(fr(1, S(0), S(1), { parentSha: '9999999' })), 'PASS-WITH-FIXES', { ...none, git: fakeGit() });
+    expect(r.ok).toBe(false);
+    expect(r.reasons.join(' ')).toMatch(/Fix round 1.*9999999.*does not resolve/);
+  });
+
+  it('a fresh-read range whose base or head does not resolve is refused', () => {
+    for (const [base, head] of [['9999999', S(1)], [S(0), '9999999']]) {
+      const r = checkFixRounds(report(fr(1, base, head, { parentSha: base })), 'PASS-WITH-FIXES', { ...none, git: fakeGit() });
+      expect(r.ok, `${base}..${head}`).toBe(false);
+      expect(r.reasons.join(' ')).toMatch(/Fix round 1.*9999999.*does not resolve/);
+    }
+  });
+
+  it('a stated gap on the parent run has no commit to compare, and is not refused for it — but its range still is', () => {
+    const bad = round(1, { fresh: '9999999..bbbbbbb — Critical 0, Important 0 — stop: yes', parent: 'gap — only a command file changed' });
+    expect(checkFixRounds(report(bad), 'PASS-WITH-FIXES', { ...none, git: fakeGit() }).ok).toBe(false);
+    const gap = round(1, { fresh: `${S(0)}..${S(1)} — Critical 0, Important 0 — stop: yes`, parent: 'gap — only a command file changed' });
+    const r = checkFixRounds(report(gap), 'PASS-WITH-FIXES', { ...none, git: fakeGit() });
+    expect(r.reasons).toEqual([]);
+    expect(r.gaps).toEqual([expect.stringMatching(/Fix round 1: gap — only a command file/)]);
+  });
+
+  it('with no git given, every round is a stated gap: its commits were not checked, never passed', () => {
+    const r = checkFixRounds(report(fr(1, S(0), S(1), { parentSha: S(2) })), 'PASS-WITH-FIXES', none);
+    expect(r.gaps).toEqual([expect.stringMatching(/Fix round 1: its commits were not checked/)]);
+  });
+
+  it('a git that cannot read the repository is the same gap, not a refusal and not a pass', () => {
+    const broken = () => {
+      throw Object.assign(new Error('fatal: not a git repository'), { status: 128, stderr: 'fatal: not a git repository' });
+    };
+    const r = checkFixRounds(report(fr(1, S(0), S(1))), 'PASS-WITH-FIXES', { ...none, git: broken });
+    expect(r.reasons).toEqual([]);
+    expect(r.gaps).toEqual([expect.stringMatching(/Fix round 1: its commits were not checked.*not a git repository/)]);
+  });
+});
+
+describe('M6.E18 AC4.2 — a later round starts where the one before it ended', () => {
+  it('round 2 starting anywhere but round 1\'s head is refused, naming both rounds and both commits', () => {
+    const good = checkFixRounds(report(fr(1, S(0), S(1), { dirty: true }), fr(2, S(1), S(2))), 'PASS-WITH-FIXES', { ...none, git: fakeGit() });
+    expect(good.reasons).toEqual([]);
+    const r = checkFixRounds(report(fr(1, S(0), S(1), { dirty: true }), fr(2, S(2), S(3))), 'PASS-WITH-FIXES', { ...none, git: fakeGit() });
+    expect(r.ok).toBe(false);
+    const why = r.reasons.join(' ');
+    expect(why).toMatch(/Fix round 2.*Fix round 1/);
+    expect(why).toContain(S(2));
+    expect(why).toContain(S(1));
+  });
+
+  it('the chain runs across pass sections: the loop-back round starts where the last read ended', () => {
+    const oneFail = { phasePasses: ['REVIEW FAIL (2026-10-16)'] };
+    const good = passes([fr(1, S(0), S(1), { dirty: true })], [fr(2, S(1), S(2))]);
+    expect(checkFixRounds(good, 'PASS', { ...oneFail, git: fakeGit() }).reasons).toEqual([]);
+    const bad = passes([fr(1, S(0), S(1), { dirty: true })], [fr(2, S(3), S(4))]);
+    expect(checkFixRounds(bad, 'PASS', { ...oneFail, git: fakeGit() }).ok).toBe(false);
+  });
+});
+
+describe('M6.E18 AC4.3 — a round inside an HTML comment or a code fence is not counted', () => {
+  it('a commented-out round is not a round; nor is a fenced one', () => {
+    const commented = `# Review\n\n## Pass 1\n\n<!--\n${round(1)}-->\n`;
+    const r = checkFixRounds(commented, 'PASS-WITH-FIXES', none);
+    expect(r.rounds).toEqual([]);
+    expect(r.reasons.join(' ')).toMatch(/PASS-WITH-FIXES with no fix round/);
+    const fenced = `# Review\n\n## Pass 1\n\n\`\`\`markdown\n${round(1)}\`\`\`\n`;
+    expect(checkFixRounds(fenced, 'PASS-WITH-FIXES', none).rounds).toEqual([]);
+    // "<!--" inside a fence opens no comment, and an unclosed "<!--" hides nothing.
+    const quoted = `# Review\n\n## Pass 1\n\n\`\`\`\n<!--\n\`\`\`\n\n${round(1)}-->\n`;
+    expect(checkFixRounds(quoted, 'PASS-WITH-FIXES', none).rounds).toHaveLength(1);
+    const unclosed = `# Review\n\n## Pass 1\n\n<!-- a note\n\n${round(1)}`;
+    expect(checkFixRounds(unclosed, 'PASS-WITH-FIXES', none).rounds).toHaveLength(1);
+  });
+
+  it('a commented-out round with stop: no does not stand as the last round', () => {
+    const dirty = round(2, { fresh: 'aaa1111..bbb2222 — Critical 1, Important 0 — stop: no' });
+    const r = checkFixRounds(`# Review\n\n## Pass 1\n\n${round(1)}<!--\n${dirty}-->\n`, 'PASS-WITH-FIXES', none);
+    expect(r.reasons).toEqual([]);
+    expect(r.rounds).toHaveLength(1);
+  });
+
+  it('a "## Pass N" heading inside a comment is not a pass section', () => {
+    const text = `# Review\n\n<!--\n## Pass 1\n-->\n\n## Pass 1\n\nfindings\n\n${round(1)}`;
+    expect(checkFixRounds(text, 'PASS-WITH-FIXES', none).reasons).toEqual([]);
+  });
+});
+
+describe('M6.E18 AC4.4 — the commits after the newest pass are accounted for', () => {
+  it('"## Pass N, at <sha>" is a pass section', () => {
+    const text = passes([round(1)]).replace('## Pass 1', `## Pass 1, at ${S(0)}`);
+    expect(checkFixRounds(text, 'PASS-WITH-FIXES', none).reasons).toEqual([]);
+  });
+
+  it('commits after the pass that no round covers are reported, not refused', () => {
+    const text = passes([fr(1, S(0), S(2))]).replace('## Pass 1', `## Pass 1, at ${S(0)}`);
+    const r = checkFixRounds(text, 'PASS-WITH-FIXES', { ...none, git: fakeGit() });
+    expect(r.ok).toBe(true);
+    expect(r.uncovered).toEqual([LINE[3], LINE[4], LINE[5]]);
+    // Every commit covered → nothing reported.
+    const all = passes([fr(1, S(0), S(5))]).replace('## Pass 1', `## Pass 1 — 2026-10-20, at \`${S(0)}\``);
+    expect(checkFixRounds(all, 'PASS-WITH-FIXES', { ...none, git: fakeGit() }).uncovered).toEqual([]);
+  });
+
+  it('the newest pass carrying a commit is the one read', () => {
+    const oneFail = { phasePasses: ['REVIEW FAIL (2026-10-16)'] };
+    const text = passes([fr(1, S(0), S(1), { dirty: true })], [fr(2, S(1), S(3))])
+      .replace('## Pass 1', `## Pass 1, at ${S(0)}`)
+      .replace('## Pass 2', `## Pass 2, at ${S(2)}`);
+    expect(checkFixRounds(text, 'PASS', { ...oneFail, git: fakeGit() }).uncovered).toEqual([LINE[4], LINE[5]]);
+  });
+
+  it('a report with no ", at <sha>" heading is read as before: nothing reported, no git asked', () => {
+    const git = fakeGit();
+    const r = checkFixRounds(passes([round(1)]), 'PASS-WITH-FIXES', { ...none, git });
+    expect(r.uncovered).toEqual([]);
+    expect(git.calls.filter((a) => a[0] === 'rev-list')).toEqual([]);
+  });
+
+  it('a pass commit that does not resolve, or no git, is a stated gap', () => {
+    const text = passes([]).replace('## Pass 1', '## Pass 1, at 9999999');
+    const r = checkFixRounds(text, 'PASS', { ...none, git: fakeGit() });
+    expect(r.gaps).toEqual([expect.stringMatching(/Pass 1, at 9999999.*not checked/)]);
+    expect(checkFixRounds(text, 'PASS', none).gaps).toEqual([expect.stringMatching(/Pass 1, at 9999999.*not checked/)]);
+  });
+});
+
+describe('M6.E18 AC4.1 / AC4.4 — on a real repository, through gitEnv', () => {
+  it('cwd alone runs git there: a matching round passes, a commit after it is reported', async () => {
+    const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+    const { execFileSync } = await import('node:child_process');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const dir = mkdtempSync(join(tmpdir(), 'signal-rounds-'));
+    try {
+      const g = (...args) => execFileSync('git', args, { cwd: dir, env: gitEnv(dir), encoding: 'utf-8' }).trim();
+      g('init', '-q');
+      const shas = [];
+      for (const n of [1, 2, 3]) {
+        writeFileSync(join(dir, 'f.txt'), `${n}\n`);
+        g('add', 'f.txt');
+        g('-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', `c${n}`);
+        shas.push(g('rev-parse', 'HEAD'));
+      }
+      const [a, b, c] = shas.map((s) => s.slice(0, 8));
+      const text = passes([fr(1, a, b)]).replace('## Pass 1', `## Pass 1, at ${a}`);
+      const r = checkFixRounds(text, 'PASS-WITH-FIXES', { ...none, cwd: dir });
+      expect(r.reasons).toEqual([]);
+      expect(r.gaps).toEqual([]);
+      expect(r.uncovered).toEqual([shas[2]]);
+      const wrong = checkFixRounds(passes([fr(1, a, b, { parentSha: c })]), 'PASS-WITH-FIXES', { ...none, cwd: dir });
+      expect(wrong.ok).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+// M6.E18 REVIEW pass 1 — I1, I4, S4, S6.
+
+describe('REVIEW pass 1 I1 — a later round starts at the previous round\'s head, whatever lies between', () => {
+  // Round 1 fixed S0..S1; the report was then committed (S2), and round 2's fixes
+  // are S3. Round 2's base is round 1's head, so the unrelated commit is in its
+  // range. Passes on 9628dcff: the code already chains this way; the defect was
+  // the docs (review.md § 4.6 step 1, fixer-brief.md), pinned in the doc contract.
+  it('round 2 = S1..S3 with its parent run on S1 → ok', () => {
+    const r = checkFixRounds(report(fr(1, S(0), S(1), { dirty: true }), fr(2, S(1), S(3))), 'PASS-WITH-FIXES', { ...none, git: fakeGit() });
+    expect(r.reasons).toEqual([]);
+    expect(r.ok).toBe(true);
+  });
+});
+
+describe('REVIEW pass 1 I4 — a "<!--" inside a sentence opens no comment', () => {
+  it('a quoted "<!--" before a stop: no round does not hide that round from PASS-WITH-FIXES', () => {
+    const r1 = round(1).replace('Fixed the thing.', 'Fixed the `<!--` parsing.');
+    const r2 = round(2, { fresh: 'def5678..aaa1111 — Critical 0, Important 1 — stop: no' }).replace('Fixed the thing.', 'Moved VERIFY --> REVIEW.');
+    const r = checkFixRounds(report(r1, r2), 'PASS-WITH-FIXES', none);
+    expect(r.rounds).toHaveLength(2);
+    expect(r.ok).toBe(false);
+    expect(r.reasons.join(' ')).toMatch(/last fix round reads stop: no/);
+  });
+
+  it('a comment that opens a line still hides a round, indented or not', () => {
+    const dirty = round(2, { fresh: 'aaa1111..bbb2222 — Critical 1, Important 0 — stop: no' });
+    for (const open of ['<!--', '  <!--']) {
+      const r = checkFixRounds(`# Review\n\n## Pass 1\n\n${round(1)}${open} a draft\n${dirty}-->\n`, 'PASS-WITH-FIXES', none);
+      expect(r.rounds, JSON.stringify(open)).toHaveLength(1);
+      expect(r.reasons).toEqual([]);
+    }
+  });
+});
+
+describe('REVIEW pass 1 S6 — commits are named by sha, and report text is escaped', () => {
+  it('a revision expression in a range, a parent run or a pass heading is refused as not a commit id, with no git', () => {
+    for (const [fresh, parent] of [
+      ['HEAD~2..def5678', '`parent-run HEAD~2: 1 of 1 failed on the base`'],
+      ['abc1234..HEAD', undefined],
+      ['abc1234..def5678', '`parent-run v1.0: 1 of 1 failed on the base`'],
+    ]) {
+      const r = checkFixRounds(report(round(1, { fresh: `${fresh} — Critical 0, Important 0 — stop: yes`, parent })), 'PASS-WITH-FIXES', none);
+      expect(r.ok, fresh).toBe(false);
+      expect(r.reasons.join(' '), fresh).toMatch(/not a commit id/);
+    }
+    const heading = passes([]).replace('## Pass 1', '## Pass 1, at main');
+    const h = checkFixRounds(heading, 'PASS', none);
+    expect(h.ok).toBe(false);
+    expect(h.reasons.join(' ')).toMatch(/Pass 1.*"main" is not a commit id/);
+  });
+
+  it('control and format characters from the report are escaped in reasons and gaps', () => {
+    const gap = round(1, { parent: 'gap — \u001b[31mred\u001b[0m' });
+    const g = checkFixRounds(report(gap), 'PASS-WITH-FIXES', { ...none, git: fakeGit() });
+    expect(g.gaps.join('\n')).not.toMatch(/\u001b/);
+    expect(g.gaps.join('\n')).toContain('\\u{1b}[31mred');
+    const bidi = round(1, { fresh: 'abc1234‮..def5678 — Critical 0, Important 0 — stop: yes' });
+    const b = checkFixRounds(report(bidi), 'PASS-WITH-FIXES', { ...none, git: fakeGit() });
+    expect(b.ok).toBe(false);
+    expect(b.reasons.join(' ')).not.toMatch(/‮/);
+    expect(b.reasons.join(' ')).toContain('\\u{202e}');
+  });
+});
+
+describe('REVIEW pass 1 S4 / S6 — on a real repository', () => {
+  async function repo(body) {
+    const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+    const { execFileSync } = await import('node:child_process');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const dir = mkdtempSync(join(tmpdir(), 'signal-rounds-'));
+    try {
+      const g = (...args) => execFileSync('git', args, { cwd: dir, env: gitEnv(dir), encoding: 'utf-8' }).trim();
+      g('init', '-q');
+      const shas = [];
+      for (const n of [1, 2]) {
+        writeFileSync(join(dir, 'f.txt'), `${n}\n`);
+        g('add', 'f.txt');
+        g('-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', `c${n}`);
+        shas.push(g('rev-parse', 'HEAD'));
+      }
+      g('tag', 'first', shas[0]);
+      await body(dir, shas);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  // S4: passes on 9628dcff — the comparison was already by resolved sha; untested until now.
+  it('the same commit at two lengths is one commit (parent run 10 characters, range 7)', () =>
+    repo((dir, [a, b]) => {
+      const two = checkFixRounds(report(fr(1, a.slice(0, 7), b.slice(0, 7), { parentSha: a.slice(0, 10) })), 'PASS-WITH-FIXES', { ...none, cwd: dir });
+      expect(two.reasons).toEqual([]);
+      expect(two.ok).toBe(true);
+    }));
+
+  it('a tag, :/text or HEAD~1 that git resolves to the right commit is still refused as not a commit id', () =>
+    repo((dir, [, b]) => {
+      for (const ref of ['first', ':/c1', 'HEAD~1']) {
+        const r = checkFixRounds(report(fr(1, ref, b.slice(0, 7), { parentSha: ref })), 'PASS-WITH-FIXES', { ...none, cwd: dir });
+        expect(r.ok, ref).toBe(false);
+        expect(r.reasons.join(' '), ref).toMatch(/not a commit id/);
+      }
+    }));
 });

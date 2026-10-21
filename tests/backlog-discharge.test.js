@@ -385,8 +385,9 @@ describe('commands/ship.md wires the discharge (AC9.3)', () => {
     // commit no step created. Adding a fifth stager without updating the
     // sentence leaves the new write uncommitted as written.
     const nine = ship.slice(ship.indexOf('### 9.'));
-    // Six since M6.E11 t5.3 added §6.8 (the archived Epic folder).
-    expect(nine).toMatch(/Six steps above/);
+    // Six since M6.E11 t5.3 added §6.8 (the archived Epic folder); seven since
+    // M6.E18 S6 made §5 stage STATE.md, STATE-HISTORY.md and the REVIEW report.
+    expect(nine).toMatch(/Seven steps above/);
     expect(nine).toMatch(/§6\.6/);
     expect(nine).toMatch(/§6\.8/);
   });

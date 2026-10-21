@@ -56,8 +56,9 @@ import { partitionCompletedPhases } from './state.js';
  * So two unattended re-entries are allowed and the third stops. That is
  * `verify.md`'s existing rule, unchanged — this makes it enforceable rather
  * than re-tuning it. It holds a RETRY: while a phase is the current phase and
- * the last entry of `phase_passes` is its own PASS or PASS-WITH-FIXES, the
- * phase is moving on and `loopStatusFor` does not hold it, whatever the count.
+ * the last entry of `phase_passes` is its own PASS or PASS-WITH-FIXES, written
+ * in this visit, the phase is moving on and `loopStatusFor` does not hold it,
+ * whatever the count.
  */
 export const DEFAULT_LOOP_CEILING = 3;
 
@@ -69,11 +70,33 @@ export const DEFAULT_LOOP_CEILING = 3;
  */
 export const LOOP_BOUNDED_PHASES = Object.freeze(['VERIFY', 'REVIEW']);
 
-/** The verdicts a recorded pass may carry — the three `verify.md` / `review.md` return. */
+/**
+ * The verdicts a recorded pass may carry: the three `review.md` returns. VERIFY's
+ * report says PASS / FAIL / PASS with documented limits; the last is recorded as
+ * PASS, because the limits live in the report and the ceiling needs only
+ * "passed or not" (`verify.md` § 5a, M6.E18 AC3.4).
+ */
 export const PASS_VERDICTS = Object.freeze(['PASS', 'PASS-WITH-FIXES', 'FAIL']);
 
 /** One `phase_passes` entry: `"<PHASE> <VERDICT> (<YYYY-MM-DD>)"`. */
 export const PASS_ENTRY_RE = /^(VERIFY|REVIEW) (PASS|PASS-WITH-FIXES|FAIL) \((\d{4}-\d{2}-\d{2})\)$/;
+
+/** Today as `YYYY-MM-DD`, in the same form `recordPass` and `completed_phases` write. */
+export const todayStamp = () => new Date().toISOString().split('T')[0];
+
+/**
+ * Whether `date` (`YYYY-MM-DD`) could be the day a pass ended: a real calendar
+ * day, and not after `today` (M6.E18 AC3.2, `SIG-344`). A string compare is
+ * enough — the form sorts as it reads.
+ *
+ * @param {string} date
+ * @param {string} today
+ * @returns {boolean}
+ */
+export function isPassDate(date, today) {
+  const d = new Date(`${date}T00:00:00.000Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === date && date <= today;
+}
 
 /**
  * How many times `phase` has been completed, per `completed_phases`.
@@ -103,16 +126,18 @@ export function countPhaseCompletions(state, phase) {
  * `0` when the key is absent — a project that has never recorded a pass reads
  * exactly as it did before the key existed. `null` when the key is there and
  * cannot be read: not a list, or ANY entry (for any phase) that is not
- * `"<PHASE> <VERDICT> (<date>)"`. Unlike `completed_phases`, a bad entry is not
+ * `"<PHASE> <VERDICT> (<date>)"`, or whose date is not a calendar day or is
+ * after `today` (M6.E18 AC3.2: a pass cannot end tomorrow). Unlike `completed_phases`, a bad entry is not
  * discarded: this list is written only by `recordPass`, so a bad entry means
  * the record was damaged, and a damaged record cannot say how many passes ran.
  * The driver must stop on it, never read it as zero (`D-M6E17-6`).
  *
  * @param {{phase_passes?: unknown}|null|undefined} state
  * @param {string} phase
+ * @param {{today?: string}} [opts] — `YYYY-MM-DD`; defaults to today
  * @returns {number|null}
  */
-export function countPhasePasses(state, phase) {
+export function countPhasePasses(state, phase, { today = todayStamp() } = {}) {
   if (!state || typeof state !== 'object') return null;
   if (!('phase_passes' in state) || state.phase_passes === undefined) return 0;
   const raw = state.phase_passes;
@@ -121,7 +146,7 @@ export function countPhasePasses(state, phase) {
   for (const entry of raw) {
     if (typeof entry !== 'string') return null;
     const m = PASS_ENTRY_RE.exec(entry);
-    if (!m) return null;
+    if (!m || !isPassDate(m[3], today)) return null;
     if (m[1] === phase) count += 1;
   }
   return count;
@@ -131,40 +156,53 @@ export function countPhasePasses(state, phase) {
  * Where this phase stands against its ceiling.
  *
  * `atCeiling` is false, whatever the count, while `phase` is the current phase
- * and the last entry of `phase_passes` is its own PASS or PASS-WITH-FIXES:
- * the phase passed and is being left, not retried. STATE does not say which
- * visit wrote that entry, so when nothing has been recorded since an earlier
- * PASS, that PASS still lifts the ceiling (`SIG-349`).
+ * and the last entry of `phase_passes` is its own PASS or PASS-WITH-FIXES
+ * written in this visit: the phase passed and is being left, not retried.
+ * "This visit" is `phase_pass_mark`, the length of `phase_passes` when the
+ * visit began, written on entry to VERIFY or REVIEW (M6.E18, `SIG-349`): only an
+ * entry at an index at or after the mark lifts the ceiling, so a PASS from an
+ * earlier visit no longer does. With no mark (STATE written before M6.E18) the
+ * newest entry lifts it whichever visit wrote it, exactly as before.
  *
  * Returns `null` for a phase that does not loop, and for a state it cannot
- * read. Both mean "no opinion" and both must be treated as a stop by an actor —
+ * read — including a mark that is not a non-negative integer, or is larger
+ * than the list it marks (`D-M6E18-3`). Both mean "no opinion" and both must be treated as a stop by an actor —
  * see `canProceedUnattended`, which distinguishes them in its reason so the
  * halt message says which one happened.
  *
  * @param {object|null|undefined} state
  * @param {string} phase
- * @param {{ceiling?: number}} [opts]
+ * @param {{ceiling?: number, today?: string}} [opts]
  * @returns {{phase: string, count: number, ceiling: number, nextAttempt: number,
  *            atCeiling: boolean}|null}
  */
-export function loopStatusFor(state, phase, { ceiling = DEFAULT_LOOP_CEILING } = {}) {
+export function loopStatusFor(state, phase, { ceiling = DEFAULT_LOOP_CEILING, today } = {}) {
   if (!LOOP_BOUNDED_PHASES.includes(phase)) return null;
 
   // The larger of exits and recorded passes, never the sum (`D-M6E17-1`).
   // Either source unreadable → no opinion → the driver stops (`D-M6E17-6`).
   const exits = countPhaseCompletions(state, phase);
-  const passes = countPhasePasses(state, phase);
+  const passes = countPhasePasses(state, phase, today === undefined ? {} : { today });
   if (exits === null || passes === null) return null;
   const count = Math.max(exits, passes);
+
+  // The visit marker. Absent → no marker, today's rule. Present and not a
+  // whole number from 0 to the list's length → unreadable → the driver stops.
+  const list = Array.isArray(state.phase_passes) ? state.phase_passes : [];
+  const mark = state.phase_pass_mark;
+  const marked = 'phase_pass_mark' in state && mark !== undefined;
+  if (marked && !(Number.isInteger(mark) && mark >= 0 && mark <= list.length)) return null;
 
   const nextAttempt = count + 1;
   // The ceiling stops a retry, not a step forward. The records count the pass
   // just ended, so while this is the current phase and the last record of all
   // is its own PASS or PASS-WITH-FIXES, the phase is being left and is not
   // held. A later record (a REVIEW FAIL after a VERIFY pass) means a new visit,
-  // held by the count as before. Which visit wrote the record is not checked:
-  // with nothing recorded since an earlier PASS, that PASS stays in force (SIG-349).
-  const newest = state?.phase === phase && passes > 0 ? PASS_ENTRY_RE.exec(state.phase_passes.at(-1)) : null;
+  // held by the count as before. With a mark, the record must also be this
+  // visit's — at or after the mark — so an earlier visit's PASS does not lift
+  // it (SIG-349). With no mark, which visit wrote it cannot be told.
+  const current = !marked || list.length - 1 >= mark;
+  const newest = state?.phase === phase && passes > 0 && current ? PASS_ENTRY_RE.exec(list.at(-1)) : null;
   const passed = newest !== null && newest[1] === phase && newest[2] !== 'FAIL';
   return { phase, count, ceiling, nextAttempt, atCeiling: !passed && nextAttempt >= ceiling };
 }

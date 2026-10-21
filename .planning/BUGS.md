@@ -173,7 +173,7 @@
 | SIG-282 | `confirmed` | P3 | **PLAN's drain floors still describe the drain when the work store is on (the step is /sig:item triage)** |
 | SIG-283 | `fixed` | P2 | **CI does not run lint, so a lint error can reach main unnoticed** |
 | SIG-284 | `confirmed` | P3 | **/sig:advise and tools/cut-release.js stamp dates with the UTC date, not the local one** |
-| SIG-285 | `confirmed` | P3 | **SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'** |
+| SIG-285 | `closing` | P3 | **SHIP's reviewer-effort check reads only the latest run, so a re-push after a real review reads as 'did NOT review'** |
 | SIG-286 | `fixed` | P3 | **/sig:docs-migrate dry run lists a unit's files to move while also saying it "could not evaluate" that unit** |
 | SIG-287 | `confirmed` | P3 | **/sig:docs-sweep dangling-reference flags non-bug IDs like "B3." research-assumption labels as missing bugs** |
 | SIG-288 | `fixed` | P3 | **/sig:docs-archive shares the retro-only closure default (archive-tree.js senseArchiveTree), so a filled retrospective alone can archive an unfinished Epic** |
@@ -202,16 +202,23 @@
 | SIG-314 | `confirmed` | P3 | **unitToCloseAtShip accepts a current_epic that can never be a unit record** |
 | SIG-317 | `confirmed` | P3 | **The closed-proof audit is silent when git fails** |
 | SIG-318 | `confirmed` | P3 | **readsOwnConfig depends on core.repositoryformatversion being present** |
-| SIG-319 | `confirmed` | P2 | **/sig:resume says "Next phase: done" at SHIP while the PR is unmerged and the close waits** |
+| SIG-319 | `closing` | P2 | **/sig:resume says "Next phase: done" at SHIP while the PR is unmerged and the close waits** |
 | SIG-320 | `confirmed` | P3 | **ancestryFailure reads a merge-base error as unknown-commit after rev-parse found the commit** |
 | SIG-321 | `confirmed` | P3 | **The closed-proof audit drops ambiguous-proof, proof-names-a-ref, shallow and git-failed without a word** |
 | SIG-326 | `fixed` | P2 | **sweep-store-on test drifts with the calendar (runSweep reads the real clock)** |
 | SIG-330 | `confirmed` | P3 | **parent-run.js still exits 0 silently when its main-module check fails** |
 | SIG-336 | `confirmed` | P3 | **review-rounds.js: parsing edges (empty Parent run line, placeholders, fences, duplicates)** |
-| SIG-343 | `confirmed` | P3 | **A re-invoked /sig:ship records SHIP as a phase left, leaving a stray SHIP entry in the live list** |
+| SIG-343 | `closing` | P3 | **A re-invoked /sig:ship records SHIP as a phase left, leaving a stray SHIP entry in the live list** |
 | SIG-346 | `confirmed` | P3 | **Wall-clock budgets the timing detector does not see (r61 walk, inverted bounds, helpers)** |
 | SIG-347 | `confirmed` | P2 | **Generated views rewrite links differently depending on the folder node runs from** |
-| SIG-348 | `confirmed` | P2 | **The PR reviewer passed PR #304 without reviewing again (4 turns, $0.11 on 6861 lines)** |
-| SIG-349 | `confirmed` | P2 | **Loop ceiling: an old PASS record lifts the ceiling when a later visit left no record (needs a visit marker)** |
+| SIG-348 | `closing` | P2 | **The PR reviewer passed PR #304 without reviewing again (4 turns, $0.11 on 6861 lines)** |
+| SIG-349 | `closing` | P2 | **Loop ceiling: an old PASS record lifts the ceiling when a later visit left no record (needs a visit marker)** |
+| SIG-350 | `confirmed` | P3 | **MILESTONE-6.md's M6.E17 row has an empty summary cell after its close** |
+| SIG-351 | `confirmed` | P3 | **A linear project's next run may start with SHIP in its live phase list (transitionPhase from SHIP to DISCUSS)** |
+| SIG-352 | `confirmed` | P3 | **A dangling symlink at the linear REVIEW report makes SHIP skip markRunEnded without a word** |
+| SIG-353 | `confirmed` | P3 | **checkFixRounds refuses a round whose 7-character parent-run sha is ambiguous** |
+| SIG-354 | `confirmed` | P2 | **Re-running /sig:verify or /sig:review after a crash before its report exists is refused, and nothing gets out** |
+| SIG-355 | `confirmed` | P3 | **Re-entering REVIEW moves the visit mark past a PASS this visit recorded, so the halt message reads as if nothing passed** |
+| SIG-358 | `confirmed` | P3 | **parent-run.test.js flakes in CI: a SIGKILLed run leaves a half-made worktree entry** |
 
-*0 needs-triage · 78 confirmed · 0 closing · 132 closed (210 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 80 confirmed · 5 closing · 132 closed (217 total) · closes more than 30 days before the newest event are in `work/history/`*

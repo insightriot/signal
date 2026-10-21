@@ -1,0 +1,20 @@
+{
+  "id": "SIG-358",
+  "type": "BUG",
+  "title": "parent-run.test.js flakes in CI: a SIGKILLed run leaves a half-made worktree entry",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E18 SHIP (PR #306 CI)",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-21T18:44:10.023Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-21T18:44:10.023Z",
+      "by": "Claude"
+    }
+  ]
+}

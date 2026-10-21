@@ -2,49 +2,61 @@
 schema_version: 1
 docs_layout_version: 3
 phase: SHIP
-current_epic: M6.E17
+current_epic: M6.E18
 current_wave: null
 current_tasks: []
 completed_phases:
-  - DISCUSS (2026-10-15)
-  - PLAN (2026-10-15)
-  - EXECUTE (2026-10-16)
-  - VERIFY (2026-10-16)
-  - EXECUTE (2026-10-17)
-  - VERIFY (2026-10-17)
-  - REVIEW (2026-10-17)
-  - EXECUTE (2026-10-17)
-  - REVIEW (2026-10-17)
-  - EXECUTE (2026-10-17)
-  - REVIEW (2026-10-17)
-  - EXECUTE (2026-10-18)
-  - REVIEW (2026-10-18)
-  - EXECUTE (2026-10-18)
-  - REVIEW (2026-10-19)
-  - SHIP (2026-10-19)
+  - DISCUSS (2026-10-20)
+  - PLAN (2026-10-20)
+  - EXECUTE (2026-10-20)
+  - VERIFY (2026-10-20)
+  - REVIEW (2026-10-21)
+  - EXECUTE (2026-10-21)
+  - REVIEW (2026-10-21)
+  - EXECUTE (2026-10-21)
+  - REVIEW (2026-10-21)
+  - SHIP (2026-10-21)
 blockers: []
 last_completed_task:
-  id: M6.E17.S3
+  id: M6.E18.S2
   status: done
-  commit: 76b00d5a
-  completedAt: 2026-10-15T19:01:26.668Z
-last_decision_at: 2026-10-15T19:01:26.668Z
-last_updated_commit: 39a21ce7
-last_updated: 2026-10-20T00:33:35.204Z
+  commit: e5c2bb78
+  completedAt: 2026-10-20T23:28:53.261Z
+last_decision_at: 2026-10-20T23:28:53.261Z
+last_updated_commit: 7294c483e1fad4ee5140e86f2f447a36c2b740b6
+last_updated: 2026-10-21T12:17:24.775Z
 phase_passes:
-  - VERIFY FAIL (2026-10-16)
-  - VERIFY PASS-WITH-FIXES (2026-10-16)
-  - REVIEW FAIL (2026-10-17)
-  - REVIEW FAIL (2026-10-17)
-  - REVIEW FAIL (2026-10-17)
-  - REVIEW FAIL (2026-10-18)
-  - REVIEW PASS-WITH-FIXES (2026-10-18)
+  - VERIFY PASS (2026-10-20)
+  - REVIEW FAIL (2026-10-21)
+  - REVIEW FAIL (2026-10-21)
+  - REVIEW PASS (2026-10-21)
+phase_pass_mark: 3
 ---
 # Project State
 
 ## Resume pointer
 
-### ▶ WHERE THE WORK IS — read this first (2026-10-19)
+### ▶ WHERE THE WORK IS — read this first (2026-10-21)
+
+**`M6.E18` — *"Make the review loop's signals trustworthy, then prove them with a driven Epic"* — at
+SHIP as `v0.1.53`, PR open, waiting for Brett's merge.** Branch `feat/m6.e18-trust-review-loop`.
+Driven by `/sig:drive` at `checkpointed` from DISCUSS. The PR reviewer reviewed only a PR's first push
+(the upstream step 1 stops once Claude commented); a `review-head` label now asks for a review of the
+head commit (companion PR #306, the workflow), and SHIP will not call a PR ready to merge without one.
+The loop ceiling counts only this visit's records (`phase_pass_mark`); `recordPass` and
+`checkFixRounds` check what they are told; `/sig:resume` at SHIP names what is owed. REVIEW: pass 1
+FAIL (11 Important), pass 2 FAIL at the round ceiling, `/sig:drive` halted at the REVIEW ceiling from
+the records, Brett reverted the re-entry rule (`D-M6E18-9`), pass 3 PASS. Retrospective:
+[`M6.E18-RETROSPECTIVE.md`](M6.E18-RETROSPECTIVE.md). Report: [`M6.E18-REVIEW.md`](M6.E18-REVIEW.md).
+
+- **RESUME HERE:** Brett merges **#306** first (`--merge`); then merge `main` into this branch, push,
+  add the `review-head` label to the M6.E18 PR, wait for that run, and re-run SHIP's reviewer check.
+  Merge the M6.E18 PR with `--merge` only after it reads reviewed at the head. Then tag `v0.1.53`,
+  update the installed plugin, restart (`B52`), and confirm the closes (`/sig:docs-sweep`).
+- **Filed, open:** `SIG-350` … `SIG-357` (`SIG-354`, the crash-before-report wedge, is the one to design
+  first).
+
+### Previously (2026-10-19)
 
 **`M6.E17` — *"Make the REVIEW fix loop a mechanism, not a habit"* — SHIPPED as `v0.1.52` and CLOSED
 (2026-10-19).** PR #304 merged with `--merge` (`3b9949bc`) on Brett's word; tag `v0.1.52` and the
@@ -55,11 +67,8 @@ checked before a verdict (`checkFixRounds`); `parent-run.js` proves a new test f
 commit. Report: [`M6.E17-REVIEW.md`](M6.E17-REVIEW.md). Retrospective:
 [`M6.E17-RETROSPECTIVE.md`](M6.E17-RETROSPECTIVE.md).
 
-- **RESUME HERE:** update the installed plugin to `0.1.52` (`claude plugin update sig@signal`) and
-  restart the CLI before using `/sig:` commands (`B52`). Then pick the next work from
-  [`BACKLOG.md`](BACKLOG.md) (`/sig:advise`). Found at SHIP and worth weighing first: `SIG-349`
-  (the ceiling cannot tell which visit wrote a pass record), `SIG-347` (views rewrite links by the
-  process's folder), `SIG-348` (the PR reviewer passed #304 without reviewing).
+- Found at its SHIP and taken by M6.E18: `SIG-349`, `SIG-348`. `SIG-347` (views rewrite links by the
+  process's folder) is still open.
 - **How REVIEW went:** five passes; passes 1–4 failed (9, 9, 9, 4 Important), passes 4 and 5 ran past
   the ceiling by Brett's decision, pass 5 was one fresh reader per fix round and ended
   PASS-WITH-FIXES at round 6. Before merging, a whole-PR read (the PR reviewer had read nothing) found

@@ -1,0 +1,21 @@
+{
+  "id": "SIG-352",
+  "type": "BUG",
+  "title": "A dangling symlink at the linear REVIEW report makes SHIP skip markRunEnded without a word",
+  "theme": "hygiene",
+  "priority": "P3",
+  "source": "M6.E18 EXECUTE",
+  "source_ref": "A dangling symlink at the linear REVIEW report makes SHIP sk",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-20T23:48:42.765Z",
+      "by": "Claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-20T23:48:42.765Z",
+      "by": "Claude"
+    }
+  ]
+}
