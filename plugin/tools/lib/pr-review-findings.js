@@ -267,16 +267,25 @@ export function formatPrReviewFindings(result) {
 // one that was reviewed. SHIP does not call the PR ready to merge unless the
 // head commit was (`readyToMerge`); a person asks for that review with the
 // `review-head` label.
+//
+// M6.E18 REVIEW (I5): a pull_request run uses the PR's own copy of the
+// workflow, so a PR that edits it can print any outcome line it likes. Such a
+// PR is not read at all. (I6): the outcome line is read one log line at a time
+// with an anchored pattern, because the first pattern took 41 s on one 64 KB
+// line, and its `head=` must be the commit the run was listed for.
 
 /** At or under maxTurns, or under maxCostUsd, a run did not do a review's worth of work. */
 export const HOLLOW_REVIEW = { maxTurns: 5, maxCostUsd: 0.3, minChangedLines: 50 };
 
 const REVIEW_WORKFLOW = 'claude-code-review.yml';
+const REVIEW_WORKFLOW_PATH = `.github/workflows/${REVIEW_WORKFLOW}`;
 // Runs listed per commit: a label run and re-runs sit beside the push's run.
 const RUN_LIST_LIMIT = 30;
 // Commits walked back from the head to find the last reviewed one.
 const COMMIT_WALK_LIMIT = 50;
-const OUTCOME_RE = /REVIEW_OUTCOME=(reviewed|stopped-step-1|no-result)\b[^\n]*?\bturns=(\d*)[^\n]*?\bcost=([\d.]*)/g;
+// The whole of the workflow's line, from `REVIEW_OUTCOME=` to the end of the log
+// line: fixed order, no open-ended wildcard, so it runs in time linear in the line.
+const OUTCOME_LINE_RE = /^REVIEW_OUTCOME=(reviewed|stopped-step-1|no-result) head=([0-9a-f]{40}) job=(review|review-head) turns=(\d*) cost=([\d.]*)$/;
 
 /**
  * Did the PR reviewer review the PR's head commit, and if not, which commit
@@ -291,7 +300,7 @@ const OUTCOME_RE = /REVIEW_OUTCOME=(reviewed|stopped-step-1|no-result)\b[^\n]*?\
  *   status: 'reviewed'|'small-change'|'hollow'|'stopped'|'cannot-check',
  *   turns: number|null, costUsd: number|null, changedLines: number|null,
  *   reason: string|null, head: string|null, readyToMerge: boolean,
- *   fromOutcomeLine: boolean|null,
+ *   fromOutcomeLine: boolean|null, canAskForReview: boolean,
  *   lastReviewed: string|null, commitsAfter: number|null,
  * }}
  *
@@ -303,11 +312,18 @@ const OUTCOME_RE = /REVIEW_OUTCOME=(reviewed|stopped-step-1|no-result)\b[^\n]*?\
  * it has one); `commitsAfter` counts the commits after it, and is the PR's
  * commit count when none was reviewed. Both are null when the walk could not
  * be made.
+ *
+ * A PR that changes `.github/workflows/claude-code-review.yml` is
+ * `cannot-check` and no run is read: its runs ran its own copy of the
+ * workflow. A run on the head commit from the `review-head` job that did not
+ * succeed is `cannot-check` saying so, ranked above a step-1 stop.
+ * `canAskForReview` is true when the `review-head` label could help: a stop, a
+ * hollow run, a completed run with no usable result, or no run on the head.
  */
 export function readReviewerEffort({ owner, repo, pr, execFn, cwd = process.cwd() }) {
   const empty = {
     status: 'cannot-check', turns: null, costUsd: null, changedLines: null, reason: null, head: null,
-    readyToMerge: false, fromOutcomeLine: null, lastReviewed: null, commitsAfter: null,
+    readyToMerge: false, fromOutcomeLine: null, lastReviewed: null, commitsAfter: null, canAskForReview: false,
   };
   if (!owner || !repo || !Number.isInteger(pr)) {
     return { ...empty, reason: 'no pull request identified for this branch' };
@@ -319,13 +335,21 @@ export function readReviewerEffort({ owner, repo, pr, execFn, cwd = process.cwd(
 
   let pull;
   try {
-    pull = JSON.parse(run(['pr', 'view', String(pr), '-R', R, '--json', 'additions,deletions,headRefOid,commits']));
+    pull = JSON.parse(run(['pr', 'view', String(pr), '-R', R, '--json', 'additions,deletions,headRefOid,commits,files,changedFiles']));
   } catch (err) {
     return { ...empty, reason: `could not read the PR (${whyFailed(err)})` };
   }
   const changedLines = (Number(pull?.additions) || 0) + (Number(pull?.deletions) || 0);
   const head = pull?.headRefOid;
   if (!head) return { ...empty, changedLines, reason: 'the PR has no head commit in the response' };
+  const files = changedFilePaths(run, R, pr, pull);
+  if (files.reason) return { ...empty, changedLines, head, reason: files.reason };
+  if (files.paths.includes(REVIEW_WORKFLOW_PATH)) {
+    return {
+      ...empty, changedLines, head,
+      reason: `the PR edits the reviewer's own workflow (${REVIEW_WORKFLOW_PATH}), so the reviewer action does not review it and its run logs cannot be trusted; no runs were read`,
+    };
+  }
 
   const found = readCommitReview(run, R, head, changedLines);
   const result = { ...empty, ...found, changedLines, head };
@@ -334,8 +358,29 @@ export function readReviewerEffort({ owner, repo, pr, execFn, cwd = process.cwd(
   return { ...result, ...findLastReviewed(run, R, pull?.commits, head, changedLines) };
 }
 
+// Every path the PR changes. `gh pr view --json files` lists at most 100
+// (measured 2026-10-20: #280 listed 100 of 1006), so a longer PR is listed in
+// full from the REST API, and a list that is still short is not trusted.
+function changedFilePaths(run, R, pr, pull) {
+  const shown = Array.isArray(pull?.files) ? pull.files.map((f) => f?.path) : null;
+  const count = pull?.changedFiles;
+  if (!shown || shown.some((p) => typeof p !== 'string') || !Number.isInteger(count)) {
+    return { reason: "the PR's changed files are not in the response" };
+  }
+  if (shown.length >= count) return { paths: shown };
+  let all;
+  try {
+    all = run(['api', `repos/${R}/pulls/${pr}/files?per_page=100`, '--paginate', '--jq', '.[].filename']).split('\n').filter(Boolean);
+  } catch (err) {
+    return { reason: `could not list the PR's changed files (${whyFailed(err)})` };
+  }
+  if (all.length < count) return { reason: `could not list every changed file (${all.length} of ${count})` };
+  return { paths: all };
+}
+
 // Every reviewer run on one commit, read into one answer: a review on any run
-// wins; a run still going beats a short one; a short one beats a stop.
+// wins; a run still going beats the rest; then a requested head review that
+// failed; a short one beats a stop.
 function readCommitReview(run, R, sha, changedLines) {
   let runs;
   try {
@@ -347,7 +392,7 @@ function readCommitReview(run, R, sha, changedLines) {
     return { status: 'cannot-check', reason: `could not list reviewer runs (${whyFailed(err)})` };
   }
   if (!Array.isArray(runs) || runs.length === 0) {
-    return { status: 'cannot-check', reason: 'no reviewer run found for the PR head commit' };
+    return { status: 'cannot-check', reason: 'no reviewer run found for the PR head commit', canAskForReview: true };
   }
   const seen = [];
   for (const r of runs) {
@@ -355,41 +400,68 @@ function readCommitReview(run, R, sha, changedLines) {
       seen.push({ kind: 'pending', reason: `the reviewer run is still ${r?.status}` });
       continue;
     }
-    if (r.conclusion !== 'success') {
-      seen.push({ kind: 'ended', reason: `the reviewer run ended "${r.conclusion}"` });
-      continue;
-    }
     let log;
     try {
       log = run(['run', 'view', String(r.databaseId), '-R', R, '--log']);
     } catch (err) {
-      seen.push({ kind: 'ended', reason: `could not read the reviewer log (${whyFailed(err)})` });
+      const reason = r.conclusion === 'success' ? `could not read the reviewer log (${whyFailed(err)})` : `the reviewer run ended "${r.conclusion}"`;
+      seen.push({ kind: 'ended', reason });
       continue;
     }
-    seen.push(readRunLog(log, changedLines));
+    if (r.conclusion !== 'success') {
+      // The outcome step runs even when the review fails, so its `job=` says
+      // whether this was the head review a person asked for.
+      const line = outcomeLine(log);
+      const asked = line?.job === 'review-head' && line.head === String(sha).toLowerCase();
+      seen.push(asked
+        ? { kind: 'head-failed', reason: `the requested head review (the \`review-head\` run) ran and did not succeed: it ended "${r.conclusion}"` }
+        : { kind: 'ended', reason: `the reviewer run ended "${r.conclusion}"` });
+      continue;
+    }
+    seen.push(readRunLog(log, changedLines, sha));
   }
-  for (const kind of ['reviewed', 'small-change', 'pending', 'hollow', 'stopped']) {
+  for (const kind of ['reviewed', 'small-change', 'pending', 'head-failed', 'hollow', 'stopped']) {
     const hit = seen.find((x) => x.kind === kind);
     if (!hit) continue;
     if (kind === 'pending') return { status: 'cannot-check', reason: hit.reason };
-    return { status: kind, turns: hit.turns, costUsd: hit.costUsd, fromOutcomeLine: hit.fromOutcomeLine };
+    if (kind === 'head-failed') return { status: 'cannot-check', reason: hit.reason, canAskForReview: true };
+    return { status: kind, turns: hit.turns, costUsd: hit.costUsd, fromOutcomeLine: hit.fromOutcomeLine, canAskForReview: true };
   }
-  return { status: 'cannot-check', reason: seen.at(-1).reason };
+  return { status: 'cannot-check', reason: seen.at(-1).reason, canAskForReview: true };
+}
+
+// The last well-formed outcome line in a log, or null. One log line at a time;
+// GitHub prefixes each with `job<TAB>step<TAB>timestamp `.
+function outcomeLine(log) {
+  let last = null;
+  for (const raw of String(log).split('\n')) {
+    const text = raw.endsWith('\r') ? raw.slice(0, -1) : raw;
+    const at = text.lastIndexOf('REVIEW_OUTCOME=');
+    if (at === -1 || (at > 0 && text[at - 1] !== ' ' && text[at - 1] !== '\t')) continue;
+    const m = OUTCOME_LINE_RE.exec(text.slice(at));
+    if (m) last = { outcome: m[1], head: m[2], job: m[3], turns: m[4], cost: m[5] };
+  }
+  return last;
 }
 
 // One run's log: its outcome line when the workflow wrote one, and otherwise
 // (runs from before M6.E18 S1) the turn count and cost alone, which cannot
-// tell a step-1 stop from a hollow review.
-function readRunLog(log, changedLines) {
-  const outcome = [...String(log).matchAll(OUTCOME_RE)].at(-1);
+// tell a step-1 stop from a hollow review. An outcome line naming another
+// commit than the one the run was listed for ends the run's reading: it is
+// not this commit's outcome, and the turn count beside it is not either.
+function readRunLog(log, changedLines, sha) {
+  const outcome = outcomeLine(log);
   let turns;
   let costUsd;
   if (outcome) {
-    if (outcome[1] === 'no-result') {
+    if (outcome.head !== String(sha).toLowerCase()) {
+      return { kind: 'ended', reason: `the reviewer run's outcome line names commit ${outcome.head.slice(0, 8)}, not ${String(sha).slice(0, 8)}, the commit it was listed for` };
+    }
+    if (outcome.outcome === 'no-result') {
       return { kind: 'ended', reason: 'the reviewer run left no result — it may not have run at all (a skipped run looks like this)' };
     }
-    turns = outcome[2] === '' ? null : Number(outcome[2]);
-    costUsd = outcome[3] === '' ? null : Number(outcome[3]);
+    turns = outcome.turns === '' ? null : Number(outcome.turns);
+    costUsd = outcome.cost === '' ? null : Number(outcome.cost);
   } else {
     turns = lastNumber(log, /"num_turns":\s*(\d+)/g);
     costUsd = lastNumber(log, /"total_cost_usd":\s*([\d.]+)/g);
@@ -398,7 +470,7 @@ function readRunLog(log, changedLines) {
     return { kind: 'ended', reason: 'the reviewer log has no turn count or cost — it may not have run at all' };
   }
   const fromOutcomeLine = Boolean(outcome);
-  if (outcome?.[1] === 'stopped-step-1') return { kind: 'stopped', turns, costUsd, fromOutcomeLine };
+  if (outcome?.outcome === 'stopped-step-1') return { kind: 'stopped', turns, costUsd, fromOutcomeLine };
   const small = turns <= HOLLOW_REVIEW.maxTurns || costUsd < HOLLOW_REVIEW.maxCostUsd;
   let kind = 'reviewed';
   if (small) kind = changedLines >= HOLLOW_REVIEW.minChangedLines ? 'hollow' : 'small-change';
@@ -451,7 +523,9 @@ export function formatReviewerEffort(result) {
   if (!result) return null;
   const effort = `${result.turns} turns, $${result.costUsd?.toFixed(2)}`;
   const fallback = result.fromOutcomeLine === false ? ' — read from turns and cost; the run predates the outcome line' : '';
-  const owed = `   ${lastReviewedLine(result)}.\n   Not ready to merge: ${ASK_FOR_REVIEW}.`;
+  // The label advice only where a new review-head run can help (M6.E18 REVIEW S2).
+  const ask = result.canAskForReview ? `: ${ASK_FOR_REVIEW}` : '';
+  const owed = `   ${lastReviewedLine(result)}.\n   Not ready to merge${ask}.`;
   switch (result.status) {
     case 'reviewed':
       return `✓ PR reviewer: ran a full review (${effort} on ${result.changedLines} changed lines)${fallback}.`;
