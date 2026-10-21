@@ -90,10 +90,13 @@ jobs:
             if (result) {
               turns = String(result.num_turns ?? '');
               cost = String(result.total_cost_usd ?? '');
-              // Step 1's stop says Claude already commented AND that it stopped or did not review;
-              // a full review that only mentions an earlier comment is not one.
+              // Step 1's stop: only the push job has a step 1. It says Claude already commented, and
+              // either says it stopped (in any of the ways #304's runs and the command put it) or is a
+              // short run. A long review that only mentions an earlier comment is not one.
               const said = String(result.result ?? '');
-              const stop = /already commented/i.test(said) && /\bstop(?:ped|ping)?\b|did(?: not|n't) review|have(?: not|n't) reviewed/i.test(said);
+              const saysStopped = /\bstop(?:ped|ping)?\b|\bnot proceed|n['’]t proceed|without reviewing|did(?: not|n['’]t) review|ha(?:ve|s)(?: not|n['’]t) reviewed|(?:will not|won['’]t) review|skipping (?:the )?review/i.test(said);
+              const stop = process.env.JOB === 'review' && /already commented/i.test(said)
+                && (saysStopped || Number(result.num_turns) <= 5);
               outcome = stop ? 'stopped-step-1' : 'reviewed';
             }
           } catch {}
@@ -265,10 +268,13 @@ jobs:
             if (result) {
               turns = String(result.num_turns ?? '');
               cost = String(result.total_cost_usd ?? '');
-              // Step 1's stop says Claude already commented AND that it stopped or did not review;
-              // a full review that only mentions an earlier comment is not one.
+              // Step 1's stop: only the push job has a step 1. It says Claude already commented, and
+              // either says it stopped (in any of the ways #304's runs and the command put it) or is a
+              // short run. A long review that only mentions an earlier comment is not one.
               const said = String(result.result ?? '');
-              const stop = /already commented/i.test(said) && /\bstop(?:ped|ping)?\b|did(?: not|n't) review|have(?: not|n't) reviewed/i.test(said);
+              const saysStopped = /\bstop(?:ped|ping)?\b|\bnot proceed|n['’]t proceed|without reviewing|did(?: not|n['’]t) review|ha(?:ve|s)(?: not|n['’]t) reviewed|(?:will not|won['’]t) review|skipping (?:the )?review/i.test(said);
+              const stop = process.env.JOB === 'review' && /already commented/i.test(said)
+                && (saysStopped || Number(result.num_turns) <= 5);
               outcome = stop ? 'stopped-step-1' : 'reviewed';
             }
           } catch {}

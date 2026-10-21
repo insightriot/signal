@@ -104,7 +104,7 @@ describe('the outcome line both jobs write into the log (AC1.6)', () => {
     expect(outcomeStep(jobs['claude-review']).run).toBe(outcomeStep(head).run);
   });
 
-  const run = (transcript, job = head) => {
+  const run = (transcript, job = jobs['claude-review'], jobName = 'review') => {
     const step = job && outcomeStep(job);
     expect(step?.run).toMatch(/^node - <<'JS'\n/);
     const script = step.run.replace(/^node - <<'JS'\n/, '').replace(/\nJS\n?$/, '\n');
@@ -113,7 +113,7 @@ describe('the outcome line both jobs write into the log (AC1.6)', () => {
       const out = join(dir, 'claude-execution-output.json');
       if (transcript !== undefined) writeFileSync(out, typeof transcript === 'string' ? transcript : JSON.stringify(transcript));
       return execFileSync(process.execPath, ['-e', script], {
-        env: { ...process.env, OUT: out, HEAD_SHA: 'abc1234', JOB: 'review' },  // JOB as the line shows it
+        env: { ...process.env, OUT: out, HEAD_SHA: 'abc1234', JOB: jobName },
         encoding: 'utf8',
       }).trim();
     } finally {
@@ -143,6 +143,26 @@ describe('the outcome line both jobs write into the log (AC1.6)', () => {
   it('a step-1 stop that took more turns still reads stopped-step-1', () => {
     expect(run([{ type: 'result', num_turns: 7, total_cost_usd: 0.4, result: 'Claude has already commented on PR #12, so I am stopping. I did not review it.' }]))
       .toBe('REVIEW_OUTCOME=stopped-step-1 head=abc1234 job=review turns=7 cost=0.4');
+  });
+
+  // REVIEW fix round 2's fresh read: wording alone missed short stops put another way, and the
+  // review-head job (which has no step 1) could be misread as a stop.
+  it('a short step-1 stop put another way still reads stopped-step-1', () => {
+    for (const said of [
+      'Claude has already commented on this PR. Per step 1, I will not proceed with the review.',
+      'Claude has already commented on this PR — not proceeding.',
+      'Skipping review: Claude has already commented on this PR.',
+      'Claude has already commented, so I won’t review it again.',
+      'Claude has already commented. I haven’t reviewed the diff.',
+    ]) {
+      expect(run([{ type: 'result', num_turns: 2, total_cost_usd: 0.1, result: said }], jobs['claude-review'])).toMatch(/^REVIEW_OUTCOME=stopped-step-1 /);
+    }
+  });
+
+  it('the review-head job, which has no step 1, never reads stopped-step-1', () => {
+    const said = 'Claude had already commented on an earlier commit; this review covers the head. Posted the summary and stopped.';
+    expect(run([{ type: 'result', num_turns: 2, total_cost_usd: 0.1, result: said }], head, 'review-head'))
+      .toBe('REVIEW_OUTCOME=reviewed head=abc1234 job=review-head turns=2 cost=0.1');
   });
 
   it('a review that ran reads reviewed, with its turns and cost', () => {
