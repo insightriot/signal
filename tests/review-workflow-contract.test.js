@@ -58,7 +58,7 @@ describe('review-head: a review of the head commit, asked for by a label', () =>
     expect(raw).toContain('SIG-348');
   });
 
-  it('widens no permission: both jobs keep read access to pull requests (AC1.6)', () => {
+  it("keeps the GITHUB_TOKEN's permissions: both jobs read pull requests, nothing more (AC1.6)", () => {
     for (const name of ['claude-review', 'review-head']) {
       expect(jobs[name].permissions).toEqual({
         contents: 'read', 'pull-requests': 'read', issues: 'read', 'id-token': 'write',
@@ -66,8 +66,24 @@ describe('review-head: a review of the head commit, asked for by a label', () =>
     }
   });
 
-  it('names a review-head run for the commit it reviewed', () => {
-    expect(wf['run-name']).toContain("format('review-head {0}', github.event.pull_request.head.sha)");
+  // The agent acts through the action's app token, so its tool list is what bounds it (REVIEW pass 1).
+  it('gives the agent the same tool list in both jobs, with no shell, API, label or file-writing tool', () => {
+    const tools = (job) => /--allowedTools "([^"]*)"/.exec(reviewStep(job).with.claude_args)?.[1];
+    expect(tools(head)).toBe(tools(jobs['claude-review']));
+    const list = tools(head).split(',');
+    for (const banned of ['Bash(*)', 'Bash', 'Write', 'Edit']) expect(list).not.toContain(banned);
+    expect(list.filter((t) => /gh api|gh label|gh pr edit|gh pr merge|git push/.test(t))).toEqual([]);
+  });
+
+  it('leaves no git credential on disk, and runs one head review per PR at a time', () => {
+    for (const name of ['claude-review', 'review-head']) {
+      expect(jobs[name].steps.find((s) => String(s.uses ?? '').startsWith('actions/checkout')).with['persist-credentials']).toBe(false);
+    }
+    expect(head.concurrency).toEqual({ group: 'review-head-${{ github.event.pull_request.number }}', 'cancel-in-progress': true });
+  });
+
+  it('names a run review-head only when the review-head label started it', () => {
+    expect(wf['run-name']).toContain("github.event.label.name == 'review-head' && format('review-head {0}', github.event.pull_request.head.sha)");
   });
 });
 
@@ -84,8 +100,12 @@ describe('the outcome line both jobs write into the log (AC1.6)', () => {
 
   // Run the step's own script against a transcript, the way the runner would. Read inside each test,
   // so a workflow without the step fails the assertion rather than the file's load.
-  const run = (transcript) => {
-    const step = head && outcomeStep(head);
+  it('both jobs run the same outcome script (REVIEW pass 1: only one was ever run by a test)', () => {
+    expect(outcomeStep(jobs['claude-review']).run).toBe(outcomeStep(head).run);
+  });
+
+  const run = (transcript, job = head) => {
+    const step = job && outcomeStep(job);
     expect(step?.run).toMatch(/^node - <<'JS'\n/);
     const script = step.run.replace(/^node - <<'JS'\n/, '').replace(/\nJS\n?$/, '\n');
     const dir = mkdtempSync(join(tmpdir(), 'review-outcome-'));
@@ -93,7 +113,7 @@ describe('the outcome line both jobs write into the log (AC1.6)', () => {
       const out = join(dir, 'claude-execution-output.json');
       if (transcript !== undefined) writeFileSync(out, typeof transcript === 'string' ? transcript : JSON.stringify(transcript));
       return execFileSync(process.execPath, ['-e', script], {
-        env: { ...process.env, OUT: out, HEAD_SHA: 'abc1234', JOB: 'review' },
+        env: { ...process.env, OUT: out, HEAD_SHA: 'abc1234', JOB: 'review' },  // JOB as the line shows it
         encoding: 'utf8',
       }).trim();
     } finally {
@@ -101,11 +121,18 @@ describe('the outcome line both jobs write into the log (AC1.6)', () => {
     }
   };
 
-  it('a step-1 stop reads stopped-step-1, as #304 run 39346376038 ended', () => {
+  it('a step-1 stop reads stopped-step-1, as #304 run 39346376038 ended — in both jobs', () => {
+    expect(run([{ type: 'result', num_turns: 2, total_cost_usd: 0.106, result: 'Claude has already commented on PR #304.' }], jobs['claude-review']))
+      .toBe('REVIEW_OUTCOME=stopped-step-1 head=abc1234 job=review turns=2 cost=0.106');
     expect(run([{ type: 'system' }, {
       type: 'result', num_turns: 2, total_cost_usd: 0.106,
       result: "Claude has already commented on PR #304, so I'm stopping. I did not review it or post anything new.",
     }])).toBe('REVIEW_OUTCOME=stopped-step-1 head=abc1234 job=review turns=2 cost=0.106');
+  });
+
+  it('a full review that mentions "already commented" is a review, not a stop', () => {
+    expect(run([{ type: 'result', num_turns: 14, total_cost_usd: 1.6, result: 'I already commented inline on two issues.' }]))
+      .toBe('REVIEW_OUTCOME=reviewed head=abc1234 job=review turns=14 cost=1.6');
   });
 
   it('a review that ran reads reviewed, with its turns and cost', () => {

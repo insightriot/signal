@@ -1,6 +1,7 @@
 name: Claude Code Review
-# A review-head run is named for the commit it reviewed, so readReviewerEffort can find it (M6.E18).
-run-name: ${{ github.event.action == 'labeled' && format('review-head {0}', github.event.pull_request.head.sha) || github.event.pull_request.title }}
+# A review-head run is named for the commit it reviewed, for a person reading the Actions list (M6.E18).
+# readReviewerEffort finds runs by commit, not by this name.
+run-name: ${{ github.event.action == 'labeled' && github.event.label.name == 'review-head' && format('review-head {0}', github.event.pull_request.head.sha) || github.event.pull_request.title }}
 
 on:
   pull_request:
@@ -34,6 +35,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          # The review only reads; no git credential is left on disk for it to reach (M6.E18 REVIEW).
+          persist-credentials: false
 
       - name: Run Claude Code Review
         id: claude-review
@@ -87,7 +90,10 @@ jobs:
             if (result) {
               turns = String(result.num_turns ?? '');
               cost = String(result.total_cost_usd ?? '');
-              outcome = /already commented/i.test(String(result.result ?? '')) ? 'stopped-step-1' : 'reviewed';
+              // Step 1's stop is a short run that says Claude already commented; a full review that
+              // happens to use the phrase is not one.
+              const stop = /already commented/i.test(String(result.result ?? '')) && Number(result.num_turns) <= 5;
+              outcome = stop ? 'stopped-step-1' : 'reviewed';
             }
           } catch {}
           console.log(`REVIEW_OUTCOME=${outcome} head=${process.env.HEAD_SHA} job=${process.env.JOB} turns=${turns} cost=${cost}`);
@@ -103,10 +109,15 @@ jobs:
   # (plugins/code-review/commands/code-review.md), without step 1. Its eligibility check is the stop
   # this job exists to get past, and an instruction telling the command to ignore its own step would
   # be a fourth prompt patch on this workflow (SIG-281 took three). Re-copy from upstream when it
-  # changes. Same permissions and tools as the job above; it does not remove its own label, which
-  # would need pull-requests: write.
+  # changes. Same GITHUB_TOKEN permissions and the same --allowedTools list as the job above. The agent
+  # acts through the action's own app token, so the allowlist, not the permissions block, is what bounds
+  # it. It does not remove its own label (that would need pull-requests: write on GITHUB_TOKEN). One run
+  # per PR at a time: re-adding the label cancels a run still going.
   review-head:
     if: github.event.action == 'labeled' && github.event.label.name == 'review-head'
+    concurrency:
+      group: review-head-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -119,6 +130,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          # The review only reads; no git credential is left on disk for it to reach (M6.E18 REVIEW).
+          persist-credentials: false
 
       - name: Review the head commit
         id: claude-review
@@ -251,7 +264,10 @@ jobs:
             if (result) {
               turns = String(result.num_turns ?? '');
               cost = String(result.total_cost_usd ?? '');
-              outcome = /already commented/i.test(String(result.result ?? '')) ? 'stopped-step-1' : 'reviewed';
+              // Step 1's stop is a short run that says Claude already commented; a full review that
+              // happens to use the phrase is not one.
+              const stop = /already commented/i.test(String(result.result ?? '')) && Number(result.num_turns) <= 5;
+              outcome = stop ? 'stopped-step-1' : 'reviewed';
             }
           } catch {}
           console.log(`REVIEW_OUTCOME=${outcome} head=${process.env.HEAD_SHA} job=${process.env.JOB} turns=${turns} cost=${cost}`);
