@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.53] — 2026-10-21 — The review loop's signals say what happened
 
 ### M6.E18 — The review loop's signals become trustworthy
 
