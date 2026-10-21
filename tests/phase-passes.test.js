@@ -451,6 +451,40 @@ describe('M6.E18 AC2.1 — entering VERIFY or REVIEW marks where the visit began
     });
   }
 
+  // REVIEW fix round 2's fresh read: with no exit on every re-entry, a session that kept
+  // re-entering without recording a pass was never stopped. A re-entry is the same visit only
+  // when this visit already recorded a pass; otherwise the visit was abandoned, and it counts.
+  for (const phase of ['VERIFY', 'REVIEW']) {
+    it(`re-entering ${phase} with nothing recorded this visit counts the visit, and the ceiling bites`, async () => {
+      await writeState(baseDir, { phase, extra: 'phase_pass_mark: 0\n' });
+      await artifact(phase === 'VERIFY' ? 'VERIFICATION' : 'REVIEW');
+      const exits = (st) => st.completed_phases.filter((e) => e.startsWith(`${phase} `)).length;
+      const before = exits(await readState(baseDir));
+      for (let i = 0; i < 3; i += 1) await transitionPhase(baseDir, phase);
+      const state = await readState(baseDir);
+      expect(exits(state)).toBe(before + 3);
+      expect(state.phase_pass_mark).toBe(0);
+      expect(loopStatusFor(state, phase)).toMatchObject({ atCeiling: true });
+      expect(loopStatusFor(state, phase).count).toBeGreaterThanOrEqual(3);
+    });
+  }
+
+  it('an abandoned visit records its exit and the next visit gets a new mark', async () => {
+    // The REVIEW pass is before the mark, so this visit recorded nothing for REVIEW.
+    await writeState(baseDir, {
+      phase: 'REVIEW',
+      extra: shipPasses(['REVIEW PASS (2026-10-11)', 'VERIFY PASS (2026-10-12)']) + 'phase_pass_mark: 1\n',
+    });
+    await artifact('REVIEW');
+    const before = (await readState(baseDir)).completed_phases;
+    await transitionPhase(baseDir, 'REVIEW');
+    const state = await readState(baseDir);
+    expect(state.phase_pass_mark).toBe(2);
+    expect(state.completed_phases.slice(0, before.length)).toEqual(before);
+    expect(state.completed_phases).toHaveLength(before.length + 1);
+    expect(state.completed_phases.at(-1)).toMatch(/^REVIEW \(/);
+  });
+
   it('entering any other phase leaves the mark as it was', async () => {
     await writeState(baseDir, {
       phase: 'VERIFY',
