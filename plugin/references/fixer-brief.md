@@ -15,7 +15,10 @@ is not enough when the agent cannot read it.
    node "${CLAUDE_PLUGIN_ROOT}/tools/lib/parent-run.js" --base <base commit> <each new or changed test file>
    ```
 
-   For a REVIEW fix round, the base is the HEAD at the pass that found the issues. For a plan task,
+   For a REVIEW fix round, the base is the round's base: for the first round of the run, the HEAD
+   at the pass that found the issues; for every later round, the previous round's head, in the order
+   the rounds are written and across `## Pass N` sections (`review.md` § 4.6). `checkFixRounds`
+   refuses a parent run on any other commit. Name it by its sha. For a plan task,
    it is the commit the task started from. `--of <commit>` means that commit's parent. Use it only
    when your work is exactly one commit.
 

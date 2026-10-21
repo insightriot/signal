@@ -185,12 +185,18 @@ For each round:
 
 1. **Fix it under the fixer brief** ([`references/fixer-brief.md`](../references/fixer-brief.md)),
    whether this session or a sub-agent writes the fix. Write the test first, commit, then run
-   `parent-run.js` (`tools/lib/parent-run.js`) with `--base` set to the HEAD at the pass that found
-   the issues. A sub-agent gets the brief's instructions in its dispatch prompt.
+   `parent-run.js` (`tools/lib/parent-run.js`) with `--base` set to **the round's base**: for the
+   first round of the run, the HEAD at the pass that found the issues; for every later round, the
+   previous round's head, the commit its fresh read ended at. Rounds chain in the order they are
+   written, across `## Pass N` sections, so a loop-back round in pass N+1 starts at the head of the
+   last round recorded in pass N or before it, and at pass N's HEAD only when no earlier round exists
+   in this run. Commits made between the two (the report's own, say) are in the range.
+   `checkFixRounds` refuses a parent run on any other commit. A sub-agent gets the brief's
+   instructions in its dispatch prompt.
 2. **Dispatch one fresh-context reviewer** (`code-reviewer`, with the same dev-mode fallback as
-   § 4.5). Give it **only that round's diff** (`git diff <base>..<head>`, where the base is the HEAD at
-   the pass that found the issues: the base of a later round is the previous round's head, where the
-   read that found its issues ended) and the unit's `*-REQUIREMENTS.md`. It works under the **same
+   § 4.5). Give it **only that round's diff** (`git diff <base>..<head>`, where the base is the round's
+   base from step 1: the base of a later round is the previous round's head, where the read that
+   found its issues ended) and the unit's `*-REQUIREMENTS.md`. It works under the **same
    omissions as § 4.5**: no `CONTEXT.md`, no `DECISIONS.md`, no reasoning, no summary of intent.
 3. **Record the round** in the report, under its own heading, with exactly these two lines:
 
@@ -229,7 +235,7 @@ round that does not start at the previous round's head, a commit that does not r
 REVIEW FAILs (one per FAIL, plus one for a PASS-WITH-FIXES's own fixes). That last one is a floor, not
 a match: it sees a report with too few rounds, and cannot tell which round belongs to which FAIL. So the
 REVIEW report keeps every earlier pass's rounds, each pass under its own `## Pass N` heading: append
-each pass, never rewrite the file. A `### Fix round` inside a code fence or an HTML comment is not counted. Fix the
+each pass, never rewrite the file. A `### Fix round` inside a code fence or an HTML comment (one whose `<!--` opens a line) is not counted. Fix the
 report or the verdict. Do not write around the check. List its `gaps` in the report: rounds whose parent run is a stated gap, did
 not fail on the base for every file, counted new tests that passed on the base, or counted tests that
 failed there only on a missing file, and commits the check could not ask git about. List its
@@ -285,8 +291,9 @@ Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir
 
 **At the end of every pass, once the verdict is decided:** call
 `recordPass(baseDir, 'REVIEW', verdict, { fixRounds })` from `tools/lib/state.js`, with `verdict` as one of `PASS` /
-`PASS-WITH-FIXES` / `FAIL` and `fixRounds` the result `checkFixRounds` returned (§ 4.6). A PASS or
-PASS-WITH-FIXES the check did not accept is refused, with the check's reasons. Do this before the ask below and before the transition out of REVIEW, for
+`PASS-WITH-FIXES` / `FAIL` and `fixRounds` the result `checkFixRounds` returned for that verdict
+(§ 4.6). A PASS or PASS-WITH-FIXES is refused with no `fixRounds`, with a result computed for
+another verdict, or with one the check did not accept (its reasons are given). A FAIL needs none. Do this before the ask below and before the transition out of REVIEW, for
 every verdict. This is what lets the ceiling count a pass whose fixes never left REVIEW. M6.E16's
 REVIEW ran four full passes that way, and the count read 0 throughout.
 
