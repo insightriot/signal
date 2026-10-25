@@ -2508,9 +2508,9 @@ From M6.E17-REVIEW.md pass 1 S4. verify.md § 5a and review.md's "Record the pas
 
 From M6.E17-REVIEW.md pass 1 S7 and pass 2 (code-reviewer S-9). REVIEW has `checkFixRounds`; EXECUTE has prose only (execute.md step 6). Nothing reads the parent-run line in a PROGRESS entry, so a hollow or missing result passes. AC3.3 also says "slice's record"; execute.md puts it on each task. Recorded as a limit at VERIFY.
 
-### checkFixRounds: tie each round's range and parent-run base together, and say the base for round 2+ · SIG-335 · closing
+### checkFixRounds: tie each round's range and parent-run base together, and say the base for round 2+ · SIG-335 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-25 (fixed)
 
 From M6.E17-REVIEW.md pass 1 S13 and pass 2 P2-S1.
 
@@ -2518,9 +2518,9 @@ From M6.E17-REVIEW.md pass 1 S13 and pass 2 P2-S1.
 - review.md § 4.6 says the base is always "the HEAD at the pass that found the issues"; in round 2 a round's read found them, not a pass. Read literally, round 2's diff includes round 1's commits.
 - Nothing checks that round N+1's range starts where round N's ended.
 
-### recordPass / phase_passes: check the phase matches STATE, and the date on read · SIG-337 · closing
+### recordPass / phase_passes: check the phase matches STATE, and the date on read · SIG-337 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-25 (fixed)
 
 From M6.E17-REVIEW.md pass 2 P2-S7 and nits.
 
@@ -2577,9 +2577,9 @@ From M6.E17 REVIEW passes 3–5 (see `.planning/M6.E17-REVIEW.md`).
 - P5-S2: `notRun` also counts missing modules, while the summary says "missing file".
 - Nits: per-file line prints "1 of 2 tests failed" when the second failed only on a missing file; header sentence at parent-run.js:67-68; `git worktree add` runs post-checkout and does not set GIT_LFS_SKIP_SMUDGE; `git show` uses the raw path; `runsFolder` tightens then trusts; `childEnv` passes TYPESAFE_API_KEY to an older base; owner.pid write failure leaves an unjudged folder; `vitest list --json` drops skipped tests.
 
-### markRunEnded / linear run boundary: idempotence, Epic mode, symlinked report, staging · SIG-342 · closing
+### markRunEnded / linear run boundary: idempotence, Epic mode, symlinked report, staging · SIG-342 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-25 (fixed)
 
 From M6.E17 REVIEW passes 4–5.
 
@@ -2590,9 +2590,9 @@ From M6.E17 REVIEW passes 4–5.
 - P4-S1 (security, Medium): a linear SHIP follows a symlinked `1-REVIEW.md` and writes the linked contents into `.planning/`; `lstat` and refuse. ship.md never stages the appended report.
 - Nits: CRLF reports get `\n` lines; `keep` not validated; RUN_ENDED_RE matches any "## Run ended…" heading and in Epic mode; ship.md implies a refusal without `keep`; pin the re-run-SHIP behaviour with a test, widen the doc test's negative match (P5-R6-S2/S3).
 
-### checkFixRounds and recordPass: trust gaps and missing tests (passes 3–4) · SIG-344 · closing
+### checkFixRounds and recordPass: trust gaps and missing tests (passes 3–4) · SIG-344 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-25 (fixed)
 
 From M6.E17 REVIEW passes 3–4.
 
