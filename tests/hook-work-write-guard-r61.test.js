@@ -243,22 +243,19 @@ describe('a path longer than a file can be opened by', () => {
     expect(pathCannotExist(`/${'é'.repeat(2048)}`)).toBe(true); // 4097 bytes in 2049 characters
   });
 
-  it('16,000 folders deep: the guard answers at once, and so does the hook (it took 3 s)', async () => {
+  // How long these take is measured in tests/hook-work-write-guard-perf.test.js (SIG-346).
+  it('16,000 folders deep: the guard answers, and so does the hook (it took 3 s)', async () => {
     const deep = `${dir}${'/a'.repeat(16000)}/.planning/work/units/X.json`;
-    const t = process.hrtime.bigint();
     await allowed(write(deep, dir));
-    expect(Number(process.hrtime.bigint() - t) / 1e6).toBeLessThan(200);
     const { status, stderr } = await runHook({ tool_name: 'Write', cwd: dir, tool_input: { file_path: deep, content: 'x\n' } });
     expect(status).toBe(0);
     expect(stderr).toBe('');
   });
 
-  it('the longest path that can exist, as many folders as fit: the walk for a store stays well under 200 ms', () => {
+  it('the longest path that can exist, as many folders as fit: the walk finds no store', () => {
     const longest = `/${'a/'.repeat(2047)}a`; // 4096 bytes, 2048 folders
     expect(pathCannotExist(longest)).toBe(false);
-    const t = process.hrtime.bigint();
     expect(storeAbove(longest)).toBe(false);
-    expect(Number(process.hrtime.bigint() - t) / 1e6).toBeLessThan(200);
   });
 
   it('a guarded path of ordinary length is still refused', async () => {
@@ -351,11 +348,9 @@ describe('a folder of records that is a link is not read', () => {
     symlinkSync(at('.planning/work/items'), at('.planning/work/items/loop'));
   });
 
-  it('an ordinary file with a second name is allowed, quickly', async () => {
+  it('an ordinary file with a second name is allowed (how fast: the perf file)', async () => {
     linkSync(at('src/index.js'), at('src/second-name.js'));
-    const t = process.hrtime.bigint();
     await allowed(edit(at('src/second-name.js'), dir));
-    expect(Number(process.hrtime.bigint() - t) / 1e6).toBeLessThan(50);
   });
 
   it('a record\'s own second name is still refused', async () => {
@@ -456,12 +451,10 @@ describe('a write through a dangling link', () => {
     expect(reason).toMatch(n <= 40 ? /\.planning\/work\/units\/M9\.E1\.json/ : /more than 40 links/);
   });
 
-  it('a link that loops: refused, and quickly — the system would not write through it either', async () => {
+  it('a link that loops: refused — the system would not write through it either (how fast: the perf file)', async () => {
     symlinkSync('loop-b', at('src/loop-a'));
     symlinkSync('loop-a', at('src/loop-b'));
-    const t = process.hrtime.bigint();
     expect(await blocked(write(at('src/loop-a'), dir))).toMatch(/more than 40 links/);
-    expect(Number(process.hrtime.bigint() - t) / 1e6).toBeLessThan(50);
   });
 
   it('an ordinary file through a chain of 12 links that all exist: allowed (the system resolves it first)', async () => {

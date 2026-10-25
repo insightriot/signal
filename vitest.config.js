@@ -5,7 +5,7 @@ import { defineConfig, configDefaults } from 'vitest/config';
 // `npm test`. Measured while the rest of the suite runs in parallel, a budget
 // fails for reasons other than slowness. tests/timing-budget-guard.test.js
 // keeps new budgets from landing outside this list.
-export const PERF_TESTS = ['tests/unit-records-perf.test.js', 'tests/work-records-perf.test.js'];
+export const PERF_TESTS = ['tests/unit-records-perf.test.js', 'tests/work-records-perf.test.js', 'tests/hook-work-write-guard-perf.test.js'];
 
 export default defineConfig({
   test: {
