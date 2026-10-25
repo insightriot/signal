@@ -56,7 +56,6 @@ const GRANDFATHERED = {
   'tests/advise-review-fixes.test.js': { timers: 4, why: 'scale guard: 4,000 backlog rows format in under 500 ms; candidate to move to the perf run' },
   'tests/backlog-discharge.test.js': { timers: 2, why: 'backtracking guard: a 200,000-backtick heading parses in under 1 s' },
   'tests/hook-store-below.test.js': { timers: 2, why: 'a looping symlink is refused within 50 ms (the hook runs on every write)' },
-  'tests/hook-work-write-guard-r61.test.js': { timers: 8, why: 'the write hook answers quickly on a 16,000-folder path and on hard links: 50-200 ms' },
   'tests/jev.test.js': { timers: 2, why: 'checks that a request timeout fires: 2 s bound on an aborted call' },
   'tests/milestone-table-marker-lines.test.js': { timers: 3, why: 'backtracking guard: 200,000-space lines parse in under 500 ms' },
   'tests/unit-text-slow-input.test.js': { timers: 7, why: 'slow-input guards: long space runs in unit cells, 0.5-2 s' },
@@ -85,7 +84,7 @@ describe('AC4.1 — the perf files run in their own serial run, not in npm test'
   it('npm test excludes them; the perf config includes exactly them, one file at a time', async () => {
     const { default: main, PERF_TESTS } = await import('../vitest.config.js');
     const { default: perf } = await import('../vitest.perf.config.js');
-    expect(PERF_TESTS).toEqual(['tests/unit-records-perf.test.js', 'tests/work-records-perf.test.js']);
+    expect(PERF_TESTS).toEqual(['tests/unit-records-perf.test.js', 'tests/work-records-perf.test.js', 'tests/hook-work-write-guard-perf.test.js']);
     for (const f of PERF_TESTS) {
       expect(existsSync(join(ROOT, f)), f).toBe(true);
       expect(main.test.exclude).toContain(f);

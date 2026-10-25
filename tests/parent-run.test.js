@@ -392,10 +392,16 @@ describe('REVIEW I1 — the copy never writes outside the worktree', () => {
 
 describe('REVIEW I3 — a killed run leaves nothing behind', () => {
   const temps = runEntries;
+  // A check that throws is "not yet". Polled while the run is inside `git worktree add`,
+  // `git worktree list` can fail outright: git writes the new entry's `locked` file and
+  // removes it again, and a list that sees the entry and then not the file exits 128
+  // (CI, PR #306: "failed to read '.git/worktrees/wt/locked'", SIG-358).
   const waitFor = async (cond, ms = 30_000) => {
     const end = Date.now() + ms;
     while (Date.now() < end) {
-      if (cond()) return true;
+      let ok = false;
+      try { ok = cond(); } catch { /* mid-add: poll again */ }
+      if (ok) return true;
       await new Promise((r) => setTimeout(r, 100));
     }
     return false;
