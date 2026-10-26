@@ -2631,3 +2631,15 @@ Split from `SIG-344` at M6.E18 SHIP (`D-M6E18-2`): the parts M6.E18 did not take
 **Status:** triaged (T)
 
 Split from `SIG-342` at M6.E18 SHIP (`D-M6E18-2`): M6.E18 took the symlinked-report refusal (P4-S1) and staging. Left: P5-R6-S1 `markRunEnded` without `keep` writes a second `## Run ended` line if called twice; P5-R5-S1 the `keep` hint shows in Epic projects; P5-R5-S2 the hint cannot tell a missing boundary from a duplicated heading; P5-R5-S3/S4 `markRunEnded` returns `written` on one path only, stale JSDoc; nits: CRLF reports get `\n` lines, `keep` not validated, RUN_ENDED_RE matches any "## Run ended…" heading. See `SIG-342.md`.
+
+### docs-sweep skipped its Signal-only checks on Signal itself, saying "not a plugin repo" · SIG-359 · closing
+
+**Status:** closing — a fixed close waiting for its commit on the default branch
+
+Found 2026-10-26 running /sig:docs-sweep on Signal.
+
+The sweep gates roster-counts, version-consistency and command-frontmatter on `.claude-plugin/plugin.json` at the project root (`plugin/tools/lib/sweep.js`, the gate in `runSweep`). `M6.E1` moved Signal's manifest to `plugin/.claude-plugin/plugin.json`, so on Signal's own repo all three checks were skipped and the report said "skipped (not a plugin repo)" — a false reason. `checkRosterCounts` and `checkVersionConsistency` had been updated for the new layout; the gate and `checkCommandFrontmatter` had not.
+
+CI still enforced the checks through `tests/docs-hygiene.test.js`, so no drift slipped through; the harm was a report stating a false reason for not looking (`B39`'s shape).
+
+Same move left 10 dead `../references/` links in `.planning/`, and the session-start hook still listed 9 of 24 commands.
