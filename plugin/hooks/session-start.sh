@@ -20,4 +20,10 @@ if [ -d ".planning" ]; then
   fi
 fi
 
-echo "[signal] Plugin loaded. Commands: /sig:new-project, /sig:calibrate, /sig:discuss, /sig:plan, /sig:execute, /sig:verify, /sig:review, /sig:ship, /sig:escalate"
+# Read from commands/ — a hand-kept list here named 9 of 24 commands by v0.1.53.
+COMMANDS=""
+for f in "${PLUGIN_ROOT}"/commands/*.md; do
+  [ -e "$f" ] || continue
+  COMMANDS="${COMMANDS:+${COMMANDS}, }/sig:$(basename "$f" .md)"
+done
+echo "[signal] Plugin loaded. Commands: ${COMMANDS}"

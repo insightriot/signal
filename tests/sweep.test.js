@@ -338,6 +338,20 @@ describe('M5.E6.T6 runSweep + renderSweepReport', () => {
     expect(renderSweepReport(result)).toMatch(/^ran:/m);
   });
 
+  // M6.E1 moved Signal's manifest and commands into plugin/. The gate read only
+  // the old path, so Signal's own sweep said "not a plugin repo" and ran none.
+  it('with plugin.json at plugin/.claude-plugin/, all checks run and read plugin/commands', async () => {
+    await seedPlanning(dir);
+    await writeDoc(dir, 'plugin/.claude-plugin/plugin.json', JSON.stringify({ name: 'sig', version: '9.9.9' }) + '\n');
+    await writeDoc(dir, 'plugin/commands/good.md', '---\nname: sig:good\ndescription: "A described command."\nargs: ""\n---\n\n# body\n');
+    await writeDoc(dir, 'plugin/commands/bare.md', '# no frontmatter\n');
+    const result = await runSweep(dir);
+    expect(result.signalOnly.ran).toBe(true);
+    expect(renderSweepReport(result)).not.toContain('not a plugin repo');
+    const fm = result.findings.filter((f) => f.check === 'command-frontmatter');
+    expect(fm.map((f) => f.file)).toEqual(['plugin/commands/bare.md']);
+  });
+
   it('AC1.2 — a dead link inside .planning/archive/ is EXEMPT (not reported)', async () => {
     await seedPlanning(dir);
     await writeDoc(dir, '.planning/archive/OLD.md', '# Old\n\n[gone](vanished.md)\n');

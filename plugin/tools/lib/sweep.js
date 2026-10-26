@@ -737,7 +737,10 @@ export function checkClaudeMdBloat(baseDir) {
  */
 export async function checkCommandFrontmatter(baseDir) {
   const findings = [];
-  for (const rel of listCommands(baseDir)) {
+  // Same payload-root rule as checkRosterCounts: since M6.E1 Signal's commands
+  // live under plugin/, and a finding names the path from the project root.
+  const prefix = existsSync(join(baseDir, 'plugin', 'commands')) ? 'plugin/' : '';
+  for (const rel of listCommands(join(baseDir, prefix)).map((r) => prefix + r)) {
     let raw;
     try {
       raw = await readFile(join(baseDir, rel), 'utf-8');
@@ -926,7 +929,11 @@ export async function runSweep(baseDir = process.cwd()) {
   // Signal-only checks — gated on the plugin manifest (the roster/version/command
   // checks are meaningless in a stranger repo). Canonical path only, never repo
   // root: a stray root plugin.json in an unrelated project must not trip the gate.
-  const ran = existsSync(join(baseDir, '.claude-plugin', 'plugin.json'));
+  // M6.E1 moved Signal's own manifest into the payload, so both layouts count;
+  // reading only the first skipped all three checks on Signal itself.
+  const ran =
+    existsSync(join(baseDir, '.claude-plugin', 'plugin.json')) ||
+    existsSync(join(baseDir, 'plugin', '.claude-plugin', 'plugin.json'));
   if (ran) {
     raw.push(...checkRosterCounts(baseDir));
     raw.push(...checkVersionConsistency(baseDir));
