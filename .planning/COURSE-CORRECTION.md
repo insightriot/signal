@@ -1,7 +1,7 @@
 # Course correction — October 2026
 
 **Status:** Step 0 done 2026-10-26 in PR #312 (this file, the rule, the command-file limits, the
-reminder at session start). Step 1 next. Every other file points here; this is the one home for the course
+reminder at session start). Step 1 started 2026-10-26. Every other file points here; this is the one home for the course
 correction. Keep it under its size limit (`tools/doc-budgets.json`).
 
 ## Why this exists
@@ -95,13 +95,13 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
 
 **Step 1 — prune, and settle how a project keeps its records.**
 - Tag the current state before removing anything.
-- Commands: 24 down to about 10. Proposed list below, **awaiting Brett**.
+- Commands: 24 down to about 10, archived not deleted (see *Decided* below).
 - Rewrite the kept commands as plain steps with no history, aiming for about a quarter of today's size.
 - Archive Signal's own notes from `.planning/`; keep PROJECT, STATE, ROADMAP, active decisions, and a
   backlog filtered by the rule. Rewrite CLAUDE.md to about 5 KB.
-- **Open question: how should a project keep its docs, bugs, captured ideas and work items?** Brett
-  is not convinced it is solved. Decide it by testing on the test project (a real app, mid-build; its
-  `.planning/` has 146 entries, including 11 old copies of `CONTEXT.md`), not on Signal's own records.
+- **How should a project keep its docs, bugs, captured ideas and work items?** Brett is not convinced
+  it is solved. Decided by testing on the test project, not on Signal's own records (see *Records*
+  below).
 
 **Step 2 — build the loop.** Each piece is code, not instructions:
 1. EXECUTE starts a fresh executor agent per task.
@@ -113,18 +113,52 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
 
 **Step 3 — prove it.** Build one real feature on the test project twice: through Signal and with plain
 Claude Code. Record time, defects found afterwards, and how often a person had to step in. If Signal
-doesn't clearly win by the date Brett sets, keep only what earned its place and stop.
+doesn't clearly win by 2026-12-04, keep only what earned its place and stop.
 
-## Proposed commands for Step 1 — awaiting Brett
+## Decided 2026-10-26 (Brett's answers, and calls made for him)
 
-| Keep | Retire or move to extras |
-|---|---|
-| calibrate, discuss, plan, execute, verify, review, ship | advise, docs-index, docs-sweep, docs-migrate, docs-archive |
-| drive, resume, status | checkpoint, doctor, update, permissions |
-| add, item (records; shape decided in Step 1) | escalate (fold into calibrate), init and new-project (merge into one) |
+- **Test project:** a local branch in the test project, in a separate worktree off its `main`, so its
+  in-progress Epic is untouched. Real code, real tests, real records. Not pushed. No more testing on
+  Signal's own records or on made-up fixtures.
+- **Commands are archived, never deleted.** They move to `archive/commands/` at the repo root, outside
+  `plugin/`, so Claude Code stops loading them and nothing is lost. Brett will revisit them once things
+  are cleaner. First batch: advise, checkpoint, doctor, update, permissions. The four docs commands
+  and `item` wait for the records test below, which decides what replaces them. Folding escalate into
+  calibrate and merging init with new-project happen during the rewrite.
+- **Step 3 deadline: 2026-12-04.** Step 3 means building one real feature on the test project twice,
+  once with Signal and once with plain Claude Code, and comparing. The date allows about a week for
+  Step 1 and three for Step 2. If Signal hasn't clearly won by then, keep only what earned its place.
 
-## Open questions for Brett
+## How Signal asks questions (a Step 1 rewrite constraint)
 
-1. The test project is mid-Epic on its own branch. Work in a separate worktree there, or a scratch copy?
-2. The command list above.
-3. The date for Step 3's comparison.
+Brett, 2026-10-26, on being asked things he had no context for: *"WHICH one, of the options that I did
+NOT give you do you like best?"* Signal's commands ask users a lot (calibrate, discuss, drive). Every
+question a rewritten command asks must say what it decides and what the agent already checked, and
+must carry a recommended answer. Anything the agent can look up is never asked. Plumbing is decided
+and stated, not asked. This passes the rule: it changes how long the agent runs on its own.
+
+## Records: what actually goes wrong (measured on the test project)
+
+Measured read-only on 2026-10-26. This is the baseline Step 1 has to fix and Step 3 compares against.
+
+1. **Most things have no ID.** 1 of 10 bugs has one; the rest are headings. Backlog rows mix GitHub
+   numbers with no number at all. (The busiest project in the eval corpus had zero stable bug IDs.)
+2. **Status is written in prose, in several places.** One bug carries "fixed ... Earlier: reopened ...
+   Earlier status: not-a-bug". Closing one Epic touched 8 files to record that it shipped. Its state
+   file once said an Epic was open after it shipped.
+3. **Finished work stays in the live list.** 9 of 32 backlog entries are struck-through done items.
+4. **The roadmap lives in at least five files** (two roadmaps, a milestones file, a milestones folder,
+   per-milestone files). An automated read missed the one holding the real priorities.
+5. **Old files pile up where the agent looks.** 146 entries in `.planning/`: each Epic leaves 8-10
+   files loose at the top, plus 40+ `*-archive` copies of old phase files.
+6. **Bookkeeping costs commits.** 15 of 205 recent commits exist only to mark the state file fresh.
+
+**What a fix has to do:** an ID at capture, status in exactly one place, lists generated rather than
+hand-edited, one roadmap, each Epic's files in one folder that moves to the archive when it closes, and
+closing an Epic as one recorded step.
+
+**Next:** Signal already has tools that claim to do most of this (the work store for 1-3, docs
+archiving for 4-5). Before building anything new, run them on the test project's branch and score the
+result against the six problems above. That result decides keep, simplify, or replace. Bugs found along
+the way get fixed only if they would break a user's project, and if it takes more than three fixes the
+answer is "replace", not "keep fixing".
