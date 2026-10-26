@@ -1,0 +1,13 @@
+{
+  "id": "SIG-359",
+  "type": "NEW",
+  "title": "docs-sweep skipped its Signal-only checks on Signal itself, saying \"not a plugin repo\"",
+  "source": "/sig:docs-sweep",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-26T12:07:59.689Z",
+      "by": "claude"
+    }
+  ]
+}

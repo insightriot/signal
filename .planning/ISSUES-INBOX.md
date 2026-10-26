@@ -21,3 +21,29 @@
 | Option C concerns block (calibration granularity) | Users hand-edit dials against tier defaults, or want a rigor level their tier doesn't offer | ✅ **FIRED on the first half — measured, not inferred.** Checked 2026-08-01 (M5.E16 PLAN drain). Three Epic-scoped profiles exist, **all `created_by: hand`, all overriding tier defaults**: `M5.E7-PROFILE.md`, `M5.E17-PROFILE.md`, `M5.E16-PROFILE.md`. The last states the motive outright — *"`nyquist_enforcement` goes to `strict` — a level above M5.E17's `basic`. This is deliberate and it is the one dial that matters here."* That is the condition's first clause verbatim. **But the remedy Option C proposed is not what is needed**, so this is decided rather than promoted: hand-editing dials is not a workaround here, it is the **supported mechanism** (Epic-scoped PROFILE, M4.5.E11 FR3), and it works. **What the practice actually exposed is that nothing validated the hand-edits** — `B59`, found the same day at this Epic's own PLAN preamble: `M5.E16-PROFILE.md` carried two out-of-enum values and the Epic that declared FEATURE ran DISCUSS at FULL. **That gap is now closed twice over** — `tests/own-profiles-parse.test.js` for Signal's own repo, and **M5.E16 check (g)** for every invoking project. **Row closed as decided.** A concerns block remains a v2 idea with no live pull; re-open only if someone wants a rigor level the four tiers genuinely cannot express, which is the second clause and has **never** been observed. |
 
 ---
+
+## docs-sweep skipped its Signal-only checks on Signal itself, saying "not a plugin repo"
+
+**Status:** untriaged (N) · SIG-359
+
+Found 2026-10-26 running /sig:docs-sweep on Signal.
+
+The sweep gates roster-counts, version-consistency and command-frontmatter on `.claude-plugin/plugin.json` at the project root (`plugin/tools/lib/sweep.js`, the gate in `runSweep`). `M6.E1` moved Signal's manifest to `plugin/.claude-plugin/plugin.json`, so on Signal's own repo all three checks were skipped and the report said "skipped (not a plugin repo)" — a false reason. `checkRosterCounts` and `checkVersionConsistency` had been updated for the new layout; the gate and `checkCommandFrontmatter` had not.
+
+CI still enforced the checks through `tests/docs-hygiene.test.js`, so no drift slipped through; the harm was a report stating a false reason for not looking (`B39`'s shape).
+
+Same move left 10 dead `../references/` links in `.planning/`, and the session-start hook still listed 9 of 24 commands.
+
+---
+
+## docs-sweep phase-log advisory fires on a looped Epic and recommends a command that does not trim the list
+
+**Status:** untriaged (N) · SIG-360
+
+Found 2026-10-26 running /sig:docs-sweep on Signal.
+
+`checkPhaseLog` (`plugin/tools/lib/sweep.js`) reports "completed_phases holds 10 entries — more than one run (max 7)" for `M6.E18`. The 10 entries are one run: REVIEW looped three times (EXECUTE/REVIEW pairs), which is recorded, correct behaviour. The max of 7 (`PHASES.length`) does not allow for loops.
+
+Its remedy, "Recommended: run /sig:docs-migrate", is also wrong: `migrate-memory.js` never trims `completed_phases` (it only relocates prose entries). The list is reset by `state.js` on an Epic roll or at the end of a linear run. A dry run of /sig:docs-migrate here plans 201 archive moves and 4 narrative evictions — a user following the advice gets a corpus reshuffle and the list unchanged.
+
+---

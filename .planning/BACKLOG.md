@@ -227,7 +227,7 @@ the useful part.
 but it has **no command of its own** — it happens inside a document-*layout* reorganizer, so filing
 away finished work means running a command about something else and reading past half its output.
 Brett, 2026-08-07: *"YES — definitely want sig:archive."* Named per
-[`../references/command-taxonomy.md`](../references/command-taxonomy.md) (`D-M5E19-8`).
+[`../plugin/references/command-taxonomy.md`](../plugin/references/command-taxonomy.md) (`D-M5E19-8`).
 
 **Trigger FIRED 2026-08-04** — `curator` was removed from the machine; `eval-project-A` and
 `eval-project-D` archive by hand-written runbook **today**. This is the only item with users
@@ -710,7 +710,7 @@ confusing over time."* Correct, and the evidence was already on disk.
 
 **The ontology existed; the taxonomy did not.** Five coherent groups were derived by reading
 `commands/*.md` and are now written down in
-[`../references/command-taxonomy.md`](../references/command-taxonomy.md) with a naming rule. **That
+[`../plugin/references/command-taxonomy.md`](../plugin/references/command-taxonomy.md) with a naming rule. **That
 doc is the cheap half and it is done.** What remains is one decision it deliberately does not make.
 
 **The open question:** should group 4 (document upkeep — `index`, `sweep`, `migrate-memory`,
