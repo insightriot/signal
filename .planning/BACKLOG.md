@@ -2632,9 +2632,9 @@ Split from `SIG-344` at M6.E18 SHIP (`D-M6E18-2`): the parts M6.E18 did not take
 
 Split from `SIG-342` at M6.E18 SHIP (`D-M6E18-2`): M6.E18 took the symlinked-report refusal (P4-S1) and staging. Left: P5-R6-S1 `markRunEnded` without `keep` writes a second `## Run ended` line if called twice; P5-R5-S1 the `keep` hint shows in Epic projects; P5-R5-S2 the hint cannot tell a missing boundary from a duplicated heading; P5-R5-S3/S4 `markRunEnded` returns `written` on one path only, stale JSDoc; nits: CRLF reports get `\n` lines, `keep` not validated, RUN_ENDED_RE matches any "## Run ended…" heading. See `SIG-342.md`.
 
-### docs-sweep skipped its Signal-only checks on Signal itself, saying "not a plugin repo" · SIG-359 · closing
+### docs-sweep skipped its Signal-only checks on Signal itself, saying "not a plugin repo" · SIG-359 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-26 (fixed)
 
 Found 2026-10-26 running /sig:docs-sweep on Signal.
 
