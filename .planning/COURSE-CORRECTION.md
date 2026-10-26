@@ -157,8 +157,26 @@ Measured read-only on 2026-10-26. This is the baseline Step 1 has to fix and Ste
 hand-edited, one roadmap, each Epic's files in one folder that moves to the archive when it closes, and
 closing an Epic as one recorded step.
 
-**Next:** Signal already has tools that claim to do most of this (the work store for 1-3, docs
-archiving for 4-5). Before building anything new, run them on the test project's branch and score the
-result against the six problems above. That result decides keep, simplify, or replace. Bugs found along
-the way get fixed only if they would break a user's project, and if it takes more than three fixes the
-answer is "replace", not "keep fixing".
+**Tested 2026-10-26** on a local branch of the test project. Fresh Claude sessions ran the existing
+commands as a user would: the work-store migration, then docs archiving.
+
+| Problem | Result |
+|---|---|
+| 1. No IDs | **Solved.** 48 of 48 entries got an ID; old IDs kept. |
+| 2. Status in prose, many places | **Partly, and one regression.** Items now keep status in one place. But 8 bugs fixed months ago now show as open (`confirmed`) in the generated list, because their status line has words after "fixed". "Shipped" is still written in the agent guide, milestone files and retros. |
+| 3. Done work in the live list | **Solved** for the 8 entries it could close. |
+| 4. Roadmap in 5+ files | **Not addressed.** 9 roadmap or milestone files remain. |
+| 5. Old files pile up | **Partly.** 139 to 118 entries at the top of `.planning/`; 21 Epic files moved. 44 `*-archive` copies and 18 loose Epic files remain. |
+| 6. Bookkeeping commits | **Not addressed.** |
+
+**Bugs it found that would hit any user's project** (filed as `SIG-361`, `SIG-362`, `SIG-363`):
+- Docs archiving moves the **current** Epic's files when the project has no work-store records.
+- Fixed bugs written as "fixed in X, PR #N: explanation" are not recognised as fixed.
+- The migration looks for `MILESTONE-3.0.md` and misses `MILESTONE-M3.0.md`, so no Epic table is written.
+
+**Decision:** keep the work store's core (an ID per item, status from recorded events, generated
+lists): on a real project it fixed problems 1 and 3. The rest is **not** solved by any existing tool,
+and the fix is simpler than more tooling: in the rewritten commands, each Epic's files go in
+`.planning/epics/<ID>/` from DISCUSS onward so closing is one move; one `ROADMAP.md`; the state file
+stays short; closing an Epic is one recorded step that updates nothing by hand. Plus a one-time cleanup
+for projects that already have the pile-up. The two data bugs above get fixed first; the third with them.

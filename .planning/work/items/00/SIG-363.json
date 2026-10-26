@@ -1,0 +1,13 @@
+{
+  "id": "SIG-363",
+  "type": "NEW",
+  "title": "migration looks for MILESTONE-3.0.md and misses MILESTONE-M3.0.md",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-26T15:10:57.655Z",
+      "by": "claude (course-correction records test)"
+    }
+  ]
+}

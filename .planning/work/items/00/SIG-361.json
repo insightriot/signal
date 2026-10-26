@@ -1,0 +1,13 @@
+{
+  "id": "SIG-361",
+  "type": "NEW",
+  "title": "docs-archive moves the current Epic when the project has no unit records",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-26T15:10:57.653Z",
+      "by": "claude (course-correction records test)"
+    }
+  ]
+}
