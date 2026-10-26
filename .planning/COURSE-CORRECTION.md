@@ -122,8 +122,9 @@ doesn't clearly win by 2026-12-04, keep only what earned its place and stop.
   Signal's own records or on made-up fixtures.
 - **Commands are archived, never deleted.** They move to `archive/commands/` at the repo root, outside
   `plugin/`, so Claude Code stops loading them and nothing is lost. Brett will revisit them once things
-  are cleaner. First batch: advise, checkpoint, doctor, update, permissions. The four docs commands
-  and `item` wait for the records test below, which decides what replaces them. Folding escalate into
+  are cleaner. First batch, done: doctor, update, permissions. Checkpoint and advise stay until the
+  rewrite, because ten phase commands tell users to run checkpoint and drive follows advise's steps to
+  pick work. The four docs commands and `item` wait for the rewrite, which decides what replaces them (see *Records*). Folding escalate into
   calibrate and merging init with new-project happen during the rewrite.
 - **Step 3 deadline: 2026-12-04.** Step 3 means building one real feature on the test project twice,
   once with Signal and once with plain Claude Code, and comparing. The date allows about a week for

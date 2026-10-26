@@ -152,7 +152,8 @@ describe('scanPrescribedCommands — against the real payload', () => {
 
   it('AC1.1a — returns the binaries measured at DISCUSS', () => {
     // Measured 2026-08-26. `git` and `npm` dominate; the rest are the long tail.
-    for (const b of ['git', 'npm', 'node', 'claude']) {
+    // `claude` left the list 2026-10-26, when update.md was archived.
+    for (const b of ['git', 'npm', 'node']) {
       expect(live.binaries, `expected the live scan to prescribe ${b}`).toContain(b);
     }
   });

@@ -97,9 +97,9 @@
       "When a change shrinks them, lower these numbers in the same change so the gain is kept."
     ],
     "dir": "plugin/commands",
-    "maxFiles": 24,
-    "maxBytes": 471335,
-    "maxHistoryIds": 222,
+    "maxFiles": 21,
+    "maxBytes": 440679,
+    "maxHistoryIds": 183,
     "historyIdPattern": "\\b(?:B[0-9]{1,3}|SIG-[0-9]+|D-[A-Z0-9][A-Za-z0-9.-]*)\\b"
   }
 }

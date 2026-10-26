@@ -980,12 +980,12 @@ export function computeStalenessRecommendation({ installed, latest, pStatesDetec
 
   if (cmp === 'stale') {
     return pStatesDetected
-      ? 'Run /sig:doctor --reinstall (clean install + upgrade).'
+      ? 'Reinstall cleanly to upgrade — steps: https://github.com/insightriot/signal/blob/main/docs/install-troubleshooting.md'
       : 'Run /plugin install sig@signal to upgrade.';
   }
   if (cmp === 'current') {
     return pStatesDetected
-      ? 'Run /sig:doctor --fix to remediate the detected install-state issues.'
+      ? 'Install-state issues detected — fix steps: https://github.com/insightriot/signal/blob/main/docs/install-troubleshooting.md'
       : null;
   }
   // installed > latest (e.g., running a dev build ahead of any tag) — silent.
