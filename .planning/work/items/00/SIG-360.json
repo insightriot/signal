@@ -1,0 +1,13 @@
+{
+  "id": "SIG-360",
+  "type": "NEW",
+  "title": "docs-sweep phase-log advisory fires on a looped Epic and recommends a command that does not trim the list",
+  "source": "/sig:docs-sweep",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-26T12:09:22.965Z",
+      "by": "claude"
+    }
+  ]
+}

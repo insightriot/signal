@@ -546,7 +546,7 @@ Signal's own bug ledger contradicts.
 
 **Target is the existing `.planning/STATE-HISTORY.md`**, not a new file — it is already *"where STATE
 content goes when it leaves the live file"* (M5.E1 FR2a relocates the legacy narrative there), and
-[`../references/doc-runtime-model.md`](../references/doc-runtime-model.md) classifies append-logs as
+[`../plugin/references/doc-runtime-model.md`](../plugin/references/doc-runtime-model.md) classifies append-logs as
 **grow-by-design, bounded by TOC + grep, never loaded whole**, which is exactly this data's shape.
 **`/sig:ship` is the right boundary** because it is the only close event a linear project actually
 has.
@@ -1631,7 +1631,7 @@ it acquired a dead exit criterion in the first place.
 **D-BR0809-3 — Group 4 keeps bare verbs. No prefixed namespace. `migrate-memory` → `migrate` at the
 next breaking window. This closes `D-M5E19-9`, which filed the question as explicitly not decided.**
 
-`/sig:` is already the namespace. [`../references/command-taxonomy.md`](../references/command-taxonomy.md)
+`/sig:` is already the namespace. [`../plugin/references/command-taxonomy.md`](../plugin/references/command-taxonomy.md)
 already supplies the ontology, and **writing the grouping down is what makes the prefix unnecessary**
 — a prefix encodes in every future keystroke what one document explains once. Against that, a rename
 is user-visible and breaking: deprecation aliases, a `[BREAKING]` CHANGELOG entry, a minor bump, and

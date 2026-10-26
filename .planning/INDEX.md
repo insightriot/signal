@@ -563,7 +563,10 @@
 - [work/items/00/SIG-355.md](work/items/00/SIG-355.md) — `other` — _(note pending)_
 - [work/items/00/SIG-356.md](work/items/00/SIG-356.md) — `other` — _(note pending)_
 - [work/items/00/SIG-357.md](work/items/00/SIG-357.md) — `other` — _(note pending)_
+- [work/items/00/SIG-358.md](work/items/00/SIG-358.md) — `other` — _(note pending)_
+- [work/items/00/SIG-359.md](work/items/00/SIG-359.md) — `other` — _(note pending)_
 - [work/items/00/SIG-36.md](work/items/00/SIG-36.md) — `other` — _(note pending)_
+- [work/items/00/SIG-360.md](work/items/00/SIG-360.md) — `other` — _(note pending)_
 - [work/items/00/SIG-37.md](work/items/00/SIG-37.md) — `other` — _(note pending)_
 - [work/items/00/SIG-38.md](work/items/00/SIG-38.md) — `other` — _(note pending)_
 - [work/items/00/SIG-39.md](work/items/00/SIG-39.md) — `other` — _(note pending)_
