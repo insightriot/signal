@@ -1,7 +1,7 @@
 # Course correction — October 2026
 
-**Status:** Step 0 done 2026-10-26 (this file, the rule, the command-file limits, the reminder at
-session start). Step 1 next. Every other file points here; this is the one home for the course
+**Status:** Step 0 done 2026-10-26 in PR #312 (this file, the rule, the command-file limits, the
+reminder at session start). Step 1 next. Every other file points here; this is the one home for the course
 correction. Keep it under its size limit (`tools/doc-budgets.json`).
 
 ## Why this exists
