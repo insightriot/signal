@@ -4637,3 +4637,29 @@ round 2 recorded no exit; round 3 counted abandoned visits), each closing one ho
 next. Every re-entry now records an exit and starts a new visit, as on `main`: it can only stop the
 ceiling sooner. The wedge a crash before the report leaves (`B48`'s artifact check on the re-entry)
 predates this Epic and is filed, not fixed. Pass 3 runs past the ceiling by this decision.
+
+## 2026-10-26 — Course correction (D-BR1026-1 … D-BR1026-4)
+
+A review measured that most of six months went into Signal keeping its own records and that the
+autonomous loop was never built. Brett chose to correct course rather than stop. Full context, the
+plan, and the freeze list live in one place: [`COURSE-CORRECTION.md`](COURSE-CORRECTION.md).
+
+### D-BR1026-1 — Every piece of work passes one rule first (Brett, 2026-10-26)
+"Would someone running Signal on their own project notice the difference?" It must change what the
+agent builds, how well, or how long it runs on its own, or how that project keeps its records. Work
+that only touches Signal's notes about building Signal does not qualify. If nothing passes, stop.
+
+### D-BR1026-2 — Signal's own record machinery is frozen, not removed (Brett, 2026-10-26)
+No new features in the work store, advise, docs-migrate/archive/sweep/index, published facts, the
+adherence harness, Jev claim checks, or retrospective/STATE-drift machinery. Bugs that break a user's
+project still get fixed. Whether the work store is the right shape for a project's records is an
+open question for Step 1, decided on the test project.
+
+### D-BR1026-3 — The command files may only shrink (Brett, 2026-10-26)
+`tests/command-corpus-budget.test.js` holds the number of commands, their total size, and their count
+of old bug/decision IDs at today's values. Rejected: a written rule alone, because rules written only
+in prose have not held here (`B117`).
+
+### D-BR1026-4 — Signal is tested on a real project, not on itself (Brett, 2026-10-26)
+Brett named a real app he is building as the test project. Signal's own `.planning/` stops being the
+main place Signal is exercised. Referred to by role in repo files (it is on the private-name list).

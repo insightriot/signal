@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_PROJECT_DIR/.planning/COURSE-CORRECTION.md\"; echo 'SIGNAL COURSE CORRECTION (2026-10-26) - apply this rule before picking any work:'; sed -n '/<!-- rule:begin -->/,/<!-- rule:end -->/p' \"$f\" | grep -v '<!-- rule:'"
+          }
+        ]
+      }
+    ]
+  }
+}

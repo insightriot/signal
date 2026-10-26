@@ -2,6 +2,23 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Read this first — the course correction (2026-10-26)
+
+Six months of work went mostly into Signal keeping its own records, and the autonomous loop was never
+built. **[`.planning/COURSE-CORRECTION.md`](.planning/COURSE-CORRECTION.md) is the one home for what
+happened, the plan, and what is frozen.** Read it before picking any work.
+
+**The rule:** before starting any work on Signal, ask *would someone running Signal on their own
+project notice the difference?* It must change what the agent builds, how well, or how long it runs
+on its own, or how that project keeps its records. Work that only touches Signal's own notes about
+building Signal does not qualify. If nothing in the backlog passes, say so and stop.
+
+**The archive** (`.planning/archive/`) is history. Read it only when asked, or to trace why a specific
+line exists, or when a live doc links to a specific file there. Never treat it as current state.
+
+Much of the material below this section predates the correction and is being cut in Step 1. Where it
+conflicts with `COURSE-CORRECTION.md`, that file wins.
+
 ## Project Overview
 
 This repository is **Signal** (market-facing: *SignalOS*) — a Claude Code plugin that integrates patterns from across the Claude Code plugin ecosystem and adds a project-complexity calibration layer so rigor is right-sized per project.
@@ -29,7 +46,7 @@ The plugin targets solo developers and small teams who want production-grade eng
 
 ## Current State
 
-Milestones 1–4 closed; v1 + brownfield onboarding (`/sig:init`) feature-complete and shipped. **M4.5 (release hardening / stranger-adoption readiness): CLOSED 2026-07-15** — all Epics E1–E11 shipped across v0.1.1–v0.1.7; the "≥3 non-Signal testers" criterion is **met** (4 non-Signal users onboarded). Highlights: install-path fix (v0.1.1), STATE schema_version 1 + `/sig:checkpoint` (v0.1.2), synthesizer/docs/retro-foundations/`/sig:doctor`/`/sig:add` (v0.1.3), worked example + comparison (v0.1.4), resume-trust + capture integrity (v0.1.5), doc-integrity write-guard (v0.1.6), **Epic-native flow — `--epic` first-class (v0.1.7, 2026-07-15)**.
+Milestones 1–4 closed; v1 + brownfield onboarding (`/sig:init`) feature-complete and shipped. **M4.5 (release hardening / stranger-adoption readiness): CLOSED 2026-07-15** — all Epics E1–E11 shipped across v0.1.1–v0.1.7; the "≥3 non-Signal testers" criterion was declared met (4 non-Signal users) from memory; **no record of tester feedback exists** (`.planning/M5.E7-COUNTERFACTUAL.md`), so treat it as unverified. Highlights: install-path fix (v0.1.1), STATE schema_version 1 + `/sig:checkpoint` (v0.1.2), synthesizer/docs/retro-foundations/`/sig:doctor`/`/sig:add` (v0.1.3), worked example + comparison (v0.1.4), resume-trust + capture integrity (v0.1.5), doc-integrity write-guard (v0.1.6), **Epic-native flow — `--epic` first-class (v0.1.7, 2026-07-15)**.
 
 **Latest: `M6.E7` — `/sig:advise`, the Roadmap Advisor (merged 2026-09-06, PR #239). Signal's 23rd command.** Read-only: it reads this project's own `.planning/` corpus and writes one dated advisory naming what to work on next **and every live row it looked at and passed over, with the reason**. It proposes and never selects. **Every claim carries a `path:line` citation resolved against disk before the file is written; a citation that does not resolve fails the run and no file appears.** Three things in it are counter-intuitive and each was measured, not assumed: **a textual scan of the artifact cannot work** (live `BACKLOG.md` rows carry 108 backticked path-like tokens, 51 unresolvable, so a scan fires on the first quoted row and nothing is ever written — citations therefore occupy **one structural position** and the extractor reads only that); **the gate asserts a COUNT, not a flag** (`verifyCitations` returns `ok: true` over zero citations, correct at the unit and vacuous at a gate); and **the backlog is read at `maxDepth: 4`** (the default is 3 and Signal's own promoted rows sit at `####`, so a default read looks like a working command and is blind to nine of them). ⚠ **The Epic's real finding is about itself: six times, a claim was written from the shape of the work rather than derived from the artifact — inside the Epic that built a mechanism against exactly that**, and two of the six reached committed artifacts. **Two reviewers found 9 of the 11 Important issues**, and the PR reviewer — running *after* REVIEW returned PASS — found the two that mattered most: a live row absorbing the body of any discharged row beneath it (22 of 51 rows, and fixing it **changed the ranking**), and **every citation in the first shipped advisory being off by five lines**, because `t3.7`'s own *"one-time human edit at SHIP"* inserted five lines above every cited row after generation. `verifyCitations` passed all 51 as resolved, because it checks a line is *within* the file and never that it carries the claimed content — **the limit this Epic documented and then walked straight into on its own first artifact.** Fixed with a stale-read guard that refuses to write when a cited line no longer carries its row. 3203 → **3304 tests**. Retro: [`.planning/M6.E7-RETROSPECTIVE.md`](.planning/M6.E7-RETROSPECTIVE.md).
 
