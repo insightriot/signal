@@ -560,7 +560,11 @@ export async function senseArchiveTree(baseDir, opts = {}) {
   } catch {
     currentId = null; // STATE.md does not read: the resolver closes nothing then
   }
-  if (typeof currentId === 'string' && closedUnits.includes(currentId)) stillCurrent = [currentId];
+  if (typeof currentId === 'string') {
+    const own = unitRecords !== null ? unitRecords.byId.get(currentId) : undefined;
+    const recordClosed = own !== undefined && own.status === 'closed' && own.held !== true;
+    if (recordClosed || closedUnits.includes(currentId)) stillCurrent = [currentId];
+  }
   closedUnits = closedUnits.filter((unit) => !stillCurrent.includes(unit));
 
   const files = await walkPlanningMd(baseDir);
