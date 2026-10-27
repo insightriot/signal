@@ -57,6 +57,12 @@
       "ceiling": 40960,
       "grandfathered": false,
       "reason": "The v1 spec, named in CLAUDE.md as orientation reading. Within budget; listed so it stays that way."
+    },
+    ".planning/COURSE-CORRECTION.md": {
+      "target": 16384,
+      "ceiling": 16384,
+      "grandfathered": false,
+      "reason": "The one home for the 2026-10-26 course correction (D-BR1026-1..4). Read before picking any work, so it must stay short. If it needs to grow past this, move finished steps to the archive instead."
     }
   },
   "exempt": {
@@ -82,5 +88,18 @@
       "pattern": "^BACKLOG-REVIEW-\\d{4}-\\d{2}-\\d{2}(-\\d+)?\\.md$",
       "reason": "Dated review snapshot; frozen once written. A same-day re-run after a pick is recorded writes a -N suffix rather than replacing it (M6.E12, AC4.3)."
     }
-  ]
+  ],
+  "commandCorpus": {
+    "$comment": [
+      "The command files (plugin/commands/*.md) are instructions the model reads on every run.",
+      "They grew to ~470 KB with 222 references to old bug and decision IDs: fixes were added as more text.",
+      "Course correction D-BR1026-3: they may shrink and never grow. Enforced by tests/command-corpus-budget.test.js.",
+      "When a change shrinks them, lower these numbers in the same change so the gain is kept."
+    ],
+    "dir": "plugin/commands",
+    "maxFiles": 24,
+    "maxBytes": 471335,
+    "maxHistoryIds": 222,
+    "historyIdPattern": "\\b(?:B[0-9]{1,3}|SIG-[0-9]+|D-[A-Z0-9][A-Za-z0-9.-]*)\\b"
+  }
 }

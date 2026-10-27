@@ -4,16 +4,16 @@ Load this at the start of every work session. Short on purpose.
 
 ---
 
-## Where things stand (2026-10-20) — M6.E18 at DISCUSS
+## Where things stand (2026-10-26) — course correction, Step 0
 
-**`M6.E18` — *"Make the review loop's signals trustworthy, then prove them with a driven Epic"*** —
-the PR reviewer reviews only a PR's first push (the upstream `/code-review` stops when Claude already
-commented; nine of #304's pushes stopped there), so a person can ask for a review of the head commit
-and SHIP requires one; the loop ceiling counts only passes recorded in the current visit (`SIG-349`);
-`recordPass` and `checkFixRounds` check what they are told; SHIP says what is owed. Branch
-`feat/m6.e18-trust-review-loop`. Driven by `/sig:drive` at `checkpointed` (chosen 2026-10-20). Picked
-from [`BACKLOG-REVIEW-2026-10-20.md`](BACKLOG-REVIEW-2026-10-20.md). Requirements:
-[`M6.E18-REQUIREMENTS.md`](M6.E18-REQUIREMENTS.md); decisions `D-M6E18-1` … `-6`.
+**Read [`COURSE-CORRECTION.md`](COURSE-CORRECTION.md) first.** It holds the rule every piece of work
+must pass, what is frozen, and the plan (Step 1: prune and settle how a project keeps its records;
+Step 2: build the loop; Step 3: prove it against plain Claude Code). The sections below are history.
+
+## Previously (2026-10-20) — M6.E18 (shipped v0.1.53, 2026-10-21)
+
+The review loop's signals became trustworthy. See
+[`M6.E18-RETROSPECTIVE.md`](M6.E18-RETROSPECTIVE.md).
 
 ## Previously (2026-10-15) — M6.E17 at DISCUSS (shipped v0.1.52, 2026-10-20)
 
