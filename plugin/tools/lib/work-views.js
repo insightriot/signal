@@ -45,7 +45,7 @@ import {
 import { assertRealInsidePlanning, linkedComponent, readRegularFile, regularFileRefusal } from './path-confine.js';
 import { cut, printable } from './printable-text.js';
 import { compareEpicIds, EPIC_ID_STRICT_RE, parseFrontmatter, PLANNING_DIR, StateSchemaError } from './state.js';
-import { CLOSE_WORDS_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, compareUnitIds, epicIdParts } from './unit-record.js';
+import { CLOSE_WORDS_MAX, UNIT_REASON_MAX, UNIT_REF_MAX, compareUnitIds, epicIdParts, milestoneFileRel } from './unit-record.js';
 // A cycle, by design: unit-records.js regenerates the views after a write.
 // Neither module uses the other's bindings while it is being evaluated.
 import { listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
@@ -535,7 +535,7 @@ function currentMilestoneOf(baseDir) {
   }
   const parts = epicIdParts(state?.current_epic);
   if (parts === null || parts.parts.length > 2) return null;
-  return { milestone: parts.milestone, rel: `${PLANNING_DIR}/MILESTONE-${parts.milestone}.md` };
+  return { milestone: parts.milestone, rel: milestoneFileRel(baseDir, parts.milestone) };
 }
 
 // How many hand-typed rows a refusal names; the rest are counted.
@@ -657,7 +657,7 @@ function milestoneTables(baseDir, units, opts = {}) {
   const files = [
     ...(current === null ? [] : [[current, true]]),
     ...[...others].sort((a, b) => parseFloat(a) - parseFloat(b) || (a < b ? -1 : 1))
-      .map((milestone) => [{ milestone, rel: `${PLANNING_DIR}/MILESTONE-${milestone}.md` }, false]),
+      .map((milestone) => [{ milestone, rel: milestoneFileRel(baseDir, milestone) }, false]),
   ];
   const milestones = [];
   const notes = [];

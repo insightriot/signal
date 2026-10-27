@@ -687,7 +687,7 @@ function unitsRevertLine(probe, force, tag, paths, added = null) {
 }
 
 // A milestone file among the paths a regeneration wrote.
-const MILESTONE_REL_RE = /^\.planning\/MILESTONE-\d+(?:\.\d+)?\.md$/;
+const MILESTONE_REL_RE = /^\.planning\/MILESTONE-M?\d+(?:\.\d+)?\.md$/;
 
 // A refusal found under the store's lock, thrown out of `importUnits`' gate.
 class UnitsStop extends Error {}
