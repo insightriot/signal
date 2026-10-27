@@ -87,7 +87,7 @@ export const TRIM_ORDER = Object.freeze([
 
 const RETRO_SECTION_RE = /^##\s+(What to feed back into Signal|What we'd do differently)\s*$/i;
 const RETRO_FILE_RE = /^(.+)-RETROSPECTIVE\.md$/;
-const MILESTONE_FILE_RE = /^MILESTONE-(\d+(?:\.\d+)?)\.md$/;
+const MILESTONE_FILE_RE = /^MILESTONE-M?(\d+(?:\.\d+)?)\.md$/; // `MILESTONE-M2.9.md` too (`SIG-258`)
 
 /** Collapse whitespace and cut to `n` characters, marking the cut. */
 function clip(text, n) {
@@ -222,7 +222,7 @@ export async function gatherBigPicture(baseDir, { corpus = null, classified = nu
     } else {
       const fromEpic = typeof state?.current_epic === 'string' ? state.current_epic.match(/^M(\d+(?:\.\d+)?)\.E\d+$/) : null;
       const byNumber = [...files].sort((a, b) => Number(b.match(MILESTONE_FILE_RE)[1]) - Number(a.match(MILESTONE_FILE_RE)[1]));
-      const file = (fromEpic && files.find((f) => f === `MILESTONE-${fromEpic[1]}.md`)) || byNumber[0];
+      const file = (fromEpic && (files.find((f) => f === `MILESTONE-${fromEpic[1]}.md`) ?? files.find((f) => f === `MILESTONE-M${fromEpic[1]}.md`))) || byNumber[0];
       const rel = `${PLANNING_DIR}/${file}`;
       const content = readRegularFile(baseDir, rel);
       const lines = content.split('\n');

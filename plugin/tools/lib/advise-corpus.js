@@ -155,7 +155,7 @@ export const ADVISOR_SOURCES = Object.freeze([
 // rather than kept "for a future input": the `M6.E7` REVIEW fix for that
 // over-claim was a sentence; the fix for its cause is not reading the files.
 
-const MILESTONE_FILE_RE = /^MILESTONE-(\d+(?:\.\d+)?)\.md$/;
+const MILESTONE_FILE_RE = /^MILESTONE-M?(\d+(?:\.\d+)?)\.md$/; // `MILESTONE-M2.9.md` too (`SIG-258`)
 
 /**
  * Every unit record, as the advisor reads one: its ID, its record's path, its
