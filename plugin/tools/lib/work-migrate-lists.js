@@ -129,6 +129,7 @@ import {
   bugTitle,
   clip,
   finishedLead,
+  explainedBugStatus,
   headingUndoes,
   legacyIdOf,
   markerDates,
@@ -1537,6 +1538,14 @@ function readMarkers(file, row) {
     else if (c.reasons.size === 1) markers.push({ reason: [...c.reasons][0], text });
     return c.reasons.size > 0 || c.unclear;
   };
+  // A bug's status may explain its fix after the references (`SIG-362`).
+  const takeBugStatus = (text) => {
+    if (finishedLead(text).unclear && explainedBugStatus(text)) {
+      markers.push({ reason: 'fixed', text });
+      return true;
+    }
+    return take(text);
+  };
 
   const heading = file === 'BUGS.md' && row.kind === 'table' ? null : row.heading;
   if (heading) {
@@ -1560,7 +1569,7 @@ function readMarkers(file, row) {
   if (file === 'BUGS.md' && row.kind === 'table') {
     if (row.struckId) markers.push({ reason: 'fixed', text: row.struckId });
     const cell = row.statusRaw ?? '';
-    if (!take(cell) && cell.trim()) statuses.push(cell.trim());
+    if (!takeBugStatus(cell) && cell.trim()) statuses.push(cell.trim());
   }
   if (file === 'OPEN-QUESTIONS.md' && row.groupWord) markers.push({ reason: 'fixed', text: row.groupHeading });
   else if (file === 'OPEN-QUESTIONS.md' && row.groupHeading && finishedLead(row.groupHeading).unclear) unclear.push(row.groupHeading);
@@ -1574,7 +1583,7 @@ function readMarkers(file, row) {
     if (st) {
       statusLine = true;
       const text = st[1].trim();
-      if (!take(text) && text) statuses.push(text);
+      if (!(file === 'BUGS.md' ? takeBugStatus(text) : take(text)) && text) statuses.push(text);
       continue;
     }
     // A bold lead that speaks of finishing is read with the rest of its line,

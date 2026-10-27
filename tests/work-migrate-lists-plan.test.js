@@ -240,14 +240,15 @@ describe('t3.2 — finished markers close as legacy, the wording and the evidenc
     });
   }
 
-  it('the corpus: B1 and the DONE row close on their cited PRs and Epics; the rest stay open', () => {
+  it('the corpus: B1, the explained fix and the DONE row close on their cited PRs and Epics; the rest stay open', () => {
     const p = byId(plan(corpus()));
     const closes = Object.fromEntries([...p].filter(([, r]) => status(r.record) === 'C').map(([id, r]) => [id, closedEvent(r).reason]));
-    expect(closes).toEqual({ 'LF-1': 'fixed', 'LF-11': 'fixed' });
-    // The not-a-bug and the fixed Status lines carry a note of words after
-    // the finish word ("… during M9.E1", "— empty slots are now …"): unclear
-    // since REVIEW pass 3 (C1), flipped on purpose.
-    for (const id of ['LF-4', 'LF-5']) expect(p.get(id).flagged, id).toBe('unclear');
+    expect(closes).toEqual({ 'LF-1': 'fixed', 'LF-5': 'fixed', 'LF-11': 'fixed' });
+    // The not-a-bug Status line carries a note of words after the finish word
+    // ("… during M9.E1"): unclear since REVIEW pass 3 (C1). The fixed one
+    // ("fixed in M9.E2 (S4) — empty slots are now …") was unclear too, until
+    // a bug's status may explain its fix after its references (`SIG-362`).
+    expect(p.get('LF-4').flagged).toBe('unclear');
     expect(closedEvent(p.get('LF-1')).proof).toBe('`fixed`; M9.E1 → .planning/M9.E1-RETROSPECTIVE.md; PR #44 → e41d30e');
     // #279's body line is read whole (a bold lead that speaks of finishing):
     // "**Done** in M9.E2 (S6): … still not built — file it again …" admits the
@@ -267,7 +268,7 @@ describe('t3.2 — finished markers close as legacy, the wording and the evidenc
   it('the corpus with no evidence index: nothing closes (fail closed)', () => {
     const p = plan(corpus(), { evidence: undefined });
     expect(p.records.filter((r) => status(r.record) === 'C')).toEqual([]);
-    expect(p.records.filter((r) => r.flagged === 'no-evidence').map((r) => r.record.id)).toEqual(['LF-1', 'LF-11']);
+    expect(p.records.filter((r) => r.flagged === 'no-evidence').map((r) => r.record.id)).toEqual(['LF-1', 'LF-5', 'LF-11']);
   });
 });
 
