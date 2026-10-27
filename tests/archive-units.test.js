@@ -172,10 +172,10 @@ describe('a closed unit that is still the current unit: closed, and its files st
     expect(refusal(await buildArchiveReport(base), 'M7.E9').reason).toMatch(/current unit/);
   });
 
-  it('without unit records the answer has no `current` key, and the current unit is declined as before', async () => {
+  it('without unit records the current unit is declined as before, and `current` is empty', async () => {
     const base = contradiction();
     put(base, '.planning/M7.E9-PLAN.md', '# plan\n');
-    expect(await senseArchiveTree(base)).not.toHaveProperty('current');
+    expect((await senseArchiveTree(base)).current).toEqual([]);
     expect(refusal(await buildArchiveReport(base), 'M7.E9')).toMatchObject({ status: 'open' });
   });
 
