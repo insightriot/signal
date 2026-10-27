@@ -5,7 +5,7 @@
 > and the corpus disagree. A hand-kept list of what a corpus contains is a completeness claim,
 > and this repository is done writing those.
 
-**138 entries: 118 discipline, 20 shaping.**
+**109 entries: 95 discipline, 14 shaping.**
 
 ## The rule (`B38`)
 
@@ -67,18 +67,6 @@ shaping failure does not merely underperform — **it backfires**.
 
 - **The report always states which checks were skipped and why.** A check that could not run and a check that found nothing must never render the same.
 
-### `commands/update.md`
-
-- **The report shows installed, available, AND the CHANGELOG entries between them.** The delta is the half `/plugin` cannot show, and the reason to run this at all.
-- **The restart line renders on every update.** Size does not predict whether a stale binding bites; `B52` was a one-line release.
-
-### `commands/permissions.md`
-
-- **The report renders in any repository**, including one with no `.planning/` and no Signal install. The tracked artifact is written only where `.planning/` already exists.
-- **A scope that could not be read is a line the reader sees**, with its reason — never a silent omission and never "0 rules".
-- **Flow-derived and stack-derived rules stay under separate headings**, so a reader can accept one and refuse the other.
-- **The approximation limit renders whenever the read renders**, including when every scope parsed cleanly. That is the case where a reader would otherwise conclude the picture is complete.
-
 ### `references/anti-rationalization.md`
 
 - **Provenance: an upstream claim about a third artifact is repeated only after opening that
@@ -149,18 +137,6 @@ output. Listed so the classification is complete rather than asserted.
 
 - **The report always states which checks were skipped and why.** A check that could not run and a check that found nothing must never render the same.
 
-### `commands/update.md`
-
-- **The report shows installed, available, AND the CHANGELOG entries between them.** The delta is the half `/plugin` cannot show, and the reason to run this at all.
-- **The restart line renders on every update.** Size does not predict whether a stale binding bites; `B52` was a one-line release.
-
-### `commands/permissions.md`
-
-- **The report renders in any repository**, including one with no `.planning/` and no Signal install. The tracked artifact is written only where `.planning/` already exists.
-- **A scope that could not be read is a line the reader sees**, with its reason — never a silent omission and never "0 rules".
-- **Flow-derived and stack-derived rules stay under separate headings**, so a reader can accept one and refuse the other.
-- **The approximation limit renders whenever the read renders**, including when every scope parsed cleanly. That is the case where a reader would otherwise conclude the picture is complete.
-
 ### `references/anti-rationalization.md`
 
 - **Provenance: an upstream claim about a third artifact is repeated only after opening that
@@ -218,24 +194,6 @@ output. Listed so the classification is complete rather than asserted.
 - "We don't need a spec for something this simple"
 - "The user seems impatient, let's move on"
 
-### `commands/doctor.md` (15)
-
-- An orphan cache dir is by definition unused — just `rm -rf` it
-- Do the live-session check once, when the script is generated
-- No live sessions found → nothing to warn about
-- Skip the platform check — most users are on macOS anyway
-- Skip Signal-scoping detectors — `~/.claude/` is Signal's domain
-- Treat `--fix` as `--auto-fix` and execute the script directly
-- Bundle `--fix` and `--reinstall` into a single mode with detection-based branching
-- Auto-execute `/plugin install/uninstall` from inside doctor
-- Exit 0 on findings — they're informational, not fatal
-- Fall through to detector logic on Linux just because the paths *might* exist
-- Use `sed` for JSON edits in the generated script — `node -e` is verbose
-- Hardcode `~/.claude/plugins/cache/signal/sig/` paths in the generated script
-- Skip the `claude --version` preamble — users will have a recent version
-- Auto-execute `--fix` since it's surgical
-- Skip the casing-clash check — `signal/` + `Signal/` siblings can't happen on APFS
-
 ### `commands/escalate.md` (3)
 
 - "The user wants more rigor — skip the questions, just bump the tier."
@@ -274,14 +232,6 @@ output. Listed so the classification is complete rather than asserted.
 - "Tests pass, so the migration is faithful."
 - "The project looks non-standard; I'll assume the common old layout and move accordingly."
 - "Apply, then log any dangling links so the user can fix them."
-
-### `commands/permissions.md` (5)
-
-- "Just write the settings file — the user clearly wants these rules."
-- "`.planning/` is missing — create it so the artifact has somewhere to go."
-- "The deny list is short; add a few more useful blocks."
-- "Add a `permission_level` to PROFILE.md so this is configurable."
-- "The scan found a binary nobody classified — default it to allow so the run is clean."
 
 ### `commands/plan.md` (5)
 
@@ -322,12 +272,6 @@ output. Listed so the classification is complete rather than asserted.
 - "Add an arg parser / flags."
 - "Regenerate `INDEX.md` while I'm here — the freshness check already computed the expected content."
 - "Point it at Signal's repo so the Signal-only checks always run."
-
-### `commands/update.md` (3)
-
-- "Parse the version out of `claude plugin list` and move on."
-- "Restart for the user — it's one more step otherwise."
-- "Offline? Assume they're current."
 
 ### `commands/verify.md` (3)
 

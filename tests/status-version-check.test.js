@@ -170,14 +170,16 @@ describe('computeStalenessRecommendation (FR6 4-row matrix)', () => {
     expect(r).toMatch(/plugin install/);
   });
 
-  it('stale + P-states → recommend /sig:doctor --reinstall', () => {
+  it('stale + P-states → point at the clean-reinstall steps', () => {
     const r = computeStalenessRecommendation({ installed: '0.1.2', latest: 'v0.1.3', pStatesDetected: true });
-    expect(r).toMatch(/--reinstall/);
+    expect(r).toMatch(/install-troubleshooting\.md/);
+    expect(r).not.toMatch(/sig:doctor/);
   });
 
-  it('current + P-states → recommend /sig:doctor --fix', () => {
+  it('current + P-states → point at the fix steps', () => {
     const r = computeStalenessRecommendation({ installed: '0.1.3', latest: 'v0.1.3', pStatesDetected: true });
-    expect(r).toMatch(/--fix/);
+    expect(r).toMatch(/install-troubleshooting\.md/);
+    expect(r).not.toMatch(/sig:doctor/);
   });
 
   it('current + no P-states → null (no warning shown)', () => {
@@ -278,11 +280,11 @@ describe('install-troubleshooting.md ownership reframe (S3.t11)', () => {
     );
   });
 
-  it('opens with the FR8 ownership statement and /sig:doctor lead-in', () => {
+  it('opens with the FR8 ownership statement and says /sig:doctor is archived', () => {
     // Statement appears in the first 1KB so it lands above the fold.
     const head = docContent.slice(0, 1500);
     expect(head).toMatch(/Claude Code plugin-host bugs, not Signal bugs/);
-    expect(head).toMatch(/Run `\/sig:doctor` first/);
+    expect(head).toMatch(/`\/sig:doctor` was archived/);
   });
 
   it('each of the 5 symptom sections carries an explicit Owner tag', () => {

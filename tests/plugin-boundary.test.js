@@ -231,7 +231,6 @@ const NON_PAYLOAD_CITATIONS = new Set([
   //     rather than inlined: the command file states the three findings it needs
   //     directly, and the path is there for whoever wants the evidence behind
   //     them.
-  'analysis/PERMISSIONS-SPIKE.md',
 
   // (B) Real citations in `references/**` — shipped docs pointing at tests and
   //     tools that will NOT ship. Dead links for a user; harmless to function.
@@ -258,12 +257,9 @@ const NON_PAYLOAD_CITATIONS = new Set([
   // (C) Real citations in `commands/**` + `agents/**` — the user-facing half.
   'analysis/UNREACHED-MECHANISM-ANALYSIS.md',
   'docs/api.md',
-  'docs/install-troubleshooting.md',
   'docs/install-verification.md',
   'docs/map',
   'docs/map/index.html',
-  'tests/doctor-script-gen.test.js',
-  'tests/prescribed-cli.test.js',
   'tools/adherence-run.js', // AC2.2 — becomes a marked Signal-repository step
 ]);
 
@@ -310,7 +306,7 @@ describe('M6.E1 — citations of paths that will not exist in an install', () =>
     // sibling assertion above caught it. The citation was dropped rather than
     // the number raised — a command file must not point a user at a path their
     // install does not contain.
-    expect(cited.size).toBe(33);
+    expect(cited.size).toBe(29);
   });
 });
 

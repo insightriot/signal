@@ -246,24 +246,13 @@ describe('FR6 — the install page carries the migration', () => {
 describe('AC5.2 — the detector is REACHED, not merely built', () => {
   // The defect class this repo named: a mechanism exists, is correct, and
   // nothing invokes it, so correctness rests on the operator already knowing.
-  // B99's own fix shipped a detector; this asserts the command file calls it.
-  const doctorCmd = readFileSync(join(ROOT, 'plugin/commands/doctor.md'), 'utf-8');
+  // B99's own fix shipped a detector. doctor.md is archived (2026-10-26); /sig:status
+  // still runs the detectors through tools/lib/status.js.
   const doctorLib = readFileSync(join(ROOT, 'plugin/tools/lib/doctor.js'), 'utf-8');
 
   it('the P6 detector is in the detector list runAllDetectors executes', () => {
     const list = doctorLib.slice(doctorLib.indexOf('const detectors = ['));
     expect(list.slice(0, list.indexOf(']'))).toContain('detectP6LegacyMarketplaceSource');
-  });
-
-  it('doctor.md renders the P6 finding and the switch command', () => {
-    expect(doctorCmd).toContain('P6');
-    expect(doctorCmd, 'the nudge is worthless without the command to act on').toContain(URL_FORM);
-  });
-
-  it('doctor.md renders the could-not-check case rather than only the verdict (B39)', () => {
-    expect(doctorCmd).toContain('checked_all');
-    expect(doctorCmd).toContain('undetermined');
-    expect(doctorCmd, 'silence must not read as clean').toMatch(/could not check/i);
   });
 });
 
@@ -288,7 +277,6 @@ describe('B102 — a surface that says "remove" must also say "install"', () => 
   const SURFACES = [
     'README.md',
     'docs/map/install/index.html',
-    'plugin/commands/doctor.md',
   ];
 
   it('governs a non-empty population (this check is not vacuous)', () => {

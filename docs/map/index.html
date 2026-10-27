@@ -672,7 +672,6 @@
 <h2><span class="glyph">▶</span>Getting started — new project or existing one</h2>
 <p><strong class="k">Brand-new project:</strong> one command sets everything up, asks what you're building, and flows straight into the sizing questions. You're working within minutes.</p>
 <p><strong class="k">Existing codebase</strong> (the more common case): a different command sends four scanners through your code — read-only, touching nothing — and produces a "lay of the land" report: what languages and tools it uses, how it's organized, how active it's been, how healthy the tests are. It then drafts the project paperwork for you, honestly marking every guess as a guess ("inferred — please verify") and every blank it couldn't fill as needing your input. You correct the draft instead of writing from scratch, then calibrate and go.</p>
-<p><strong class="k">And if the plugin itself misbehaves:</strong> a built-in "doctor" diagnoses the known installation problems and generates the exact fix — so a broken install is a two-minute detour, not a lost evening.</p>
 <p><strong class="k2">Why it matters:</strong> Adopting a process is usually the hardest part of any process. Signal meets your project where it is — including years-old codebases — and does its own onboarding homework.</p>
 
 <h2><span class="glyph">◌</span>Private by design</h2>
@@ -840,32 +839,9 @@ const COMMANDS = [
         flags: [],
       },
       {
-        name: '/sig:doctor',
-        tags: ['read-only by default', 'macOS first'],
-        summary: 'Install-state diagnostician: detects 5 documented failure modes and reports healthy or actionable findings.',
-        flags: [
-          { f: '--fix', d: 'Generate a surgical remediation script for you to review, then run yourself.' },
-          { f: '--reinstall', d: 'Generate a full canonical reinstall script.' },
-        ],
-      },
-      {
-        name: '/sig:permissions',
-        tags: ['read-only by default', 'proposes, never installs'],
-        summary: "Proposes an intentional permission set — what the flow needs plus what this project's own stack needs — as an allowlist and a short deny list you install yourself. Signal cannot grant itself permission: rules are enforced by Claude Code, not the model.",
-        flags: [
-          { f: '--apply', d: 'Write the proposal to .planning/PERMISSIONS.md. Writes the DOCUMENT, never a settings file.' },
-        ],
-      },
-      {
         name: '/sig:docs-sweep',
         tags: ['read-only', 'not phase-gated'],
         summary: 'Doc-hygiene sweep over the invoking project: dead internal links, unfilled [FILL IN] stubs, INDEX/roster/version drift, a stale capture inbox, CLAUDE.md bloat, and STATE-vs-world drift — what .planning/ asserts measured against what is on disk and in git, each finding declaring whether it needs you or clears itself. Detect-and-report only — writes nothing.',
-        flags: [],
-      },
-      {
-        name: '/sig:update',
-        tags: ['read-only until confirmed', 'not phase-gated'],
-        summary: 'Installed version vs. available, plus the CHANGELOG entries in between — the half /plugin cannot show you. Updates only on confirmation, then states plainly that a restart is required.',
         flags: [],
       },
       {

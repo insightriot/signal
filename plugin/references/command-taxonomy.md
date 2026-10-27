@@ -56,7 +56,7 @@ event on its record, which never moves (new, triage, move, close, reopen, edit, 
 
 ⚠ **`item` is a noun in a group of bare verbs** — the naming rule below would have asked for a verb.
 The name was fixed by `D-M6E11-5` because the command takes a verb as its first argument (eight now), so no
-single verb names it. Recorded here, as `permissions` is below, so it is not re-litigated.
+single verb names it. Recorded here so it is not re-litigated.
 
 ### 4. Document upkeep — acts on `.planning/` as a corpus
 
@@ -65,24 +65,9 @@ single verb names it. Recorded here, as `permissions` is below, so it is not re-
 Operates over the whole document tree rather than one phase's artifacts. Not phase-gated — these
 answer *"is the corpus healthy / current / tidy?"*, a question with its own cadence.
 
-### 5. Signal's own health — acts on the tool, not your project
+### 5. Signal's own health — empty since 2026-10-26
 
-`doctor` · `update` · **`permissions`**
-
-The distinction from group 4 is the **object**: group 4 acts on *your documents*, group 5 on
-*Signal's installation*. `doctor` diagnoses the install; `update` reports and applies a new version;
-`permissions` proposes what Signal may be allowed to run here.
-
-⚠ **`permissions` is the least clean placement in this file, and that is recorded rather than
-smoothed over.** Group 2 is disqualified by its own contract — *"writes nothing"* — because
-`--apply` writes `.planning/PERMISSIONS.md`. Group 4 is *"acts on `.planning/` as a corpus"*, and
-this adds a single document rather than operating over the tree. Group 5 wins on the **object**:
-what is being described is Signal's operating envelope in this environment, not your documents.
-
-The file's own test — *does a command that seems to belong to two groups do two things?* — was put
-to it at `M6.E5` REVIEW and answered **no**: it does one thing (propose an envelope) and writing the
-document is how it reports, not a second job. Recorded so the next person does not re-litigate it
-from scratch.
+`doctor`, `update` and `permissions` were archived on 2026-10-26 and are no longer part of Signal.
 
 ## The naming rule
 

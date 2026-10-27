@@ -2,7 +2,7 @@
 
 > **Most install-state failures documented here are Claude Code plugin-host bugs, not Signal bugs. We document them because strangers should not have to debug Anthropic's plugin host alone.**
 >
-> **Run `/sig:doctor` first** — it will tell you which workaround applies and generate a script that runs the fix for you. Manual workarounds are kept below for environments where `/sig:doctor` isn't available (older Claude Code, Linux, WSL).
+> `/sig:doctor` was archived on 2026-10-26 (`archive/commands/doctor.md`). Use the manual steps below.
 
 Symptom-organized troubleshooting for `/plugin install sig@signal` on Claude Code. If the install isn't behaving as expected, find your symptom in § Quick Triage below and jump to the matching section. For the full empirical record of what's been verified, see [`install-verification.md`](./install-verification.md) § R1.
 
@@ -78,8 +78,6 @@ If `/reload-plugins` reports "1 plugin · 14 skills · 32 agents · 1 hook" and 
 
 **Owner:** Claude Code plugin host. **Upstream:** [anthropics/claude-code#56740](https://github.com/anthropics/claude-code/issues/56740) — open since 2026-05-06.
 
-**Quickest fix:** `/sig:doctor --reinstall` generates a reviewable shell script that runs the canonical clean reinstall. Run that first; the manual sequence below is the fallback.
-
 ### You will see
 
 ```
@@ -125,8 +123,6 @@ Plugin manifests have two version-identity fields. The `version` field tracks th
 ## Symptom 2 — `/plugin` interactive menu has no Uninstall verb (P2)
 
 **Owner:** Claude Code plugin host. **Upstream:** [anthropics/claude-code#62497](https://github.com/anthropics/claude-code/issues/62497) — open since 2026-05-26.
-
-**Quickest fix:** `/sig:doctor --fix` (or `--reinstall`) generates the surgical script. Manual sequence below is the fallback.
 
 ### You will see
 
@@ -188,8 +184,6 @@ The cache directory path is `~/.claude/plugins/cache/<marketplace>/<plugin>/<ver
 
 **Owner:** Claude Code plugin host. **Upstream:** [anthropics/claude-code#63624](https://github.com/anthropics/claude-code/issues/63624) — filed 2026-05-29.
 
-**Quickest fix:** `/sig:doctor --fix` removes the stale `enabledPlugins` entry without touching anything else. Manual sequence below is the fallback.
-
 ### You will see
 
 A clean reinstall completed without errors:
@@ -231,8 +225,6 @@ This is a Claude Code UX papercut. Filed upstream as [#63624](https://github.com
 
 **Owner:** Signal (historical — pre-rename). Not filed upstream because the rename itself is the fix going forward; only existing pre-rename installs need this cleanup.
 
-**Quickest fix:** `/sig:doctor --fix` removes the orphan cache directory and any related state entries. The detector explicitly looks for the `signal@signal` literal slug. Manual sequence below is the fallback.
-
 ### Who is affected
 
 Only users who installed Signal **before M4.t19 (2026-05-12)**, when the plugin slug was renamed `signal` → `sig` so the marketplace install would produce the `/sig:*` command prefix. The pre-rename install entry was registered as `signal@signal`; the post-rename install is `sig@signal`. Upgrading without first removing the pre-rename install leaves a dangling cache directory.
@@ -273,8 +265,6 @@ After this, the canonical `sig@signal` install path is clean.
 ## Symptom 5 — SSH multi-identity clone failure (cross-link)
 
 **Owner:** Environmental (user `~/.ssh/config`). Not filed upstream — the workaround (`CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`) IS the canonical fix, not a workaround for a bug.
-
-**`/sig:doctor` notes this as informational only** (P5 — does not change `healthy:false`); it doesn't generate a remediation step since the resolution is an environment variable, not a filesystem mutation.
 
 If `/plugin marketplace add insightriot/signal` or `/plugin install` fails with an SSH authentication error on a machine using multi-identity `~/.ssh/config` (separate identity files for personal vs. work GitHub accounts, no default `Host github.com` block), this was the original failure mode that motivated **v0.1.1's marketplace source-block fix**.
 
