@@ -1504,7 +1504,10 @@ function titleOf(file, row) {
 //     leads with Resolved / Done / Closed (the segmenter's `groupWord`); a
 //     section heading that is unclear makes its entries unclear.
 //
-// Whether one of those texts is a marker, and which reason, is ONE rule:
+// Whether one of those texts is a marker, and which reason, is ONE rule
+// (one exception: a bug's status that `finishedLead` calls unclear is read
+// again by `explainedBugStatus`, `SIG-362`, which allows words explaining
+// the fix after its references):
 // `finishedLead` in work-migrate.js (REVIEW C1, D-M6E15-24) — an allowed-
 // continuation grammar: the finish word leads, and only a date, `in <ref>`, a
 // reference or a slice tag may follow it (after a dash, `(` or a sentence end

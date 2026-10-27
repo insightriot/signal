@@ -179,4 +179,5 @@ lists): on a real project it fixed problems 1 and 3. The rest is **not** solved 
 and the fix is simpler than more tooling: in the rewritten commands, each Epic's files go in
 `.planning/epics/<ID>/` from DISCUSS onward so closing is one move; one `ROADMAP.md`; the state file
 stays short; closing an Epic is one recorded step that updates nothing by hand. Plus a one-time cleanup
-for projects that already have the pile-up. The two data bugs above get fixed first; the third with them.
+for projects that already have the pile-up. The two data bugs above get fixed first; the third with them (all three in PR #314, plus the same
+milestone-name miss in `/sig:advise`, `SIG-258`).
