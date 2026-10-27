@@ -146,7 +146,7 @@
 /plugin install sig@signal</pre>
     <button type="button">Copy</button>
   </div>
-  <p><strong>All three lines are required.</strong> <code>marketplace remove</code> uninstalls the plugin, and <code>add</code> alone does not bring it back — so run them together rather than stopping after the second. Your settings and your projects are untouched; the plugin itself is removed and reinstalled. <code>/sig:doctor</code> will also tell you if you're still on the old form — you don't have to remember to check.</p>
+  <p><strong>All three lines are required.</strong> <code>marketplace remove</code> uninstalls the plugin, and <code>add</code> alone does not bring it back — so run them together rather than stopping after the second. Your settings and your projects are untouched; the plugin itself is removed and reinstalled.</p>
   <p>You do <strong>not</strong> need to delete anything under <code>~/.claude/plugins/cache/</code>. Old plugin versions are swept automatically about two weeks after they're replaced. The marketplace clone is the one thing that doesn't clean itself up, which is what the <code>remove</code> line above handles.</p>
 </div>
 
@@ -227,11 +227,9 @@ git init</pre>
   <tr><td><code>/sig:add "…"</code></td><td>An idea arrives mid-flow. Captures it without derailing the phase you're in.</td></tr>
   <tr><td><code>/sig:checkpoint</code></td><td>Before clearing context or switching machines. Refreshes the saved state.</td></tr>
   <tr><td><code>/sig:escalate</code></td><td>The work turned out bigger — or smaller — than you calibrated for. Moves the tier either way.</td></tr>
-  <tr><td><code>/sig:doctor</code></td><td>Something's off with the install itself.</td></tr>
-  <tr><td><code>/sig:update</code></td><td>Shows your version against the latest, plus what changed in between.</td></tr>
 </table>
 
-<p>There are 20 commands in total. These are the ones worth knowing on day one.</p>
+<p>There are 21 commands in total. These are the ones worth knowing on day one.</p>
 
 <h2><span class="glyph">07</span>One thing that trips people up</h2>
 

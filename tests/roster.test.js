@@ -43,7 +43,7 @@ describe('roster — canonical filesystem-glob counts (Signal repo)', () => {
     const cmds = listCommands(ROOT);
     expect(cmds).toContain('commands/calibrate.md');
     expect(cmds).toContain('commands/docs-index.md'); // the new /sig:docs-index command
-        expect([...cmds].sort()).toEqual(cmds); // already sorted
+    expect([...cmds].sort()).toEqual(cmds); // already sorted
     expect(listAgents(ROOT)).toContain('agents/scanners/stack-scanner.md');
     expect(listSkills(ROOT).every((p) => p.endsWith('/SKILL.md'))).toBe(true);
   });
