@@ -42,14 +42,6 @@ Found 2026-10-27 while verifying SIG-363 on the test project (records test, read
 
 ---
 
-## tests/quiet-git.test.js: the control case ("without those settings the same commit packs") fails some runs — git does not always pack inside git commit
-
-**Status:** untriaged (N) · SIG-365
-
-Failed once in a local full-suite run on 2026-10-27 (both #313 and #314 merged onto main in a scratch copy; that run did not name the test) and once on PR #315 CI, run 40612972215 attempt 1 (AssertionError: expected 0 to be greater than 0 — no pack after the commit). Passed on rerun, on three more local runs, and on PR #316 CI. Not root-caused. A guess, unverified: the auto-gc ran detached on some git version despite gc.autoDetach/maintenance.autoDetach false, so the pack appears after the check. It turns a PR red with nothing wrong in the change.
-
----
-
 ## advise.md and drive.md never say where Signal's code lives (${CLAUDE_PLUGIN_ROOT}), so the agent searches for it and can run another copy
 
 **Status:** untriaged (N) · SIG-366

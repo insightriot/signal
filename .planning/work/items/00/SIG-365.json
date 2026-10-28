@@ -8,6 +8,13 @@
       "type": "created",
       "at": "2026-10-28T01:35:38.444Z",
       "by": "claude (course-correction rewrite)"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-28T03:23:58.237Z",
+      "by": "claude (course-correction rewrite)",
+      "reason": "fixed",
+      "proof": "f0555614"
     }
   ]
 }

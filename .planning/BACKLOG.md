@@ -2661,3 +2661,11 @@ Found by /sig:docs-migrate --work-store on the test project (records test on the
 **Status:** closing — a fixed close waiting for its commit on the default branch
 
 Found by /sig:docs-migrate --work-store on the test project (records test on the test project, 2026-10-26). The project names milestone files MILESTONE-M3.0.md; the tool looks for MILESTONE-3.0.md, so no Epic table is written. Accept both spellings.
+
+### tests/quiet-git.test.js: the control case ("without those settings the same commit packs") fails some runs — git does not always pack inside git commit · SIG-365 · closing
+
+**Status:** closing — a fixed close waiting for its commit on the default branch
+
+Failed once in a local full-suite run on 2026-10-27 (both #313 and #314 merged onto main in a scratch copy; that run did not name the test) and once on PR #315 CI, run 40612972215 attempt 1 (AssertionError: expected 0 to be greater than 0 — no pack after the commit). Passed on rerun, on three more local runs, and on PR #316 CI. Not root-caused. A guess, unverified: the auto-gc ran detached on some git version despite gc.autoDetach/maintenance.autoDetach false, so the pack appears after the check. It turns a PR red with nothing wrong in the change.
+
+Root cause, 2026-10-27 (the guess above was wrong): CI runners are moving from git 2.55 to 2.56. Every failing run printed `git version 2.56.0` at checkout and every passing one `2.55.0` (seven runs checked). Git 2.56 defaults to the geometric maintenance strategy, which turns the gc task off, so a commit never packs whatever gc.auto says. Reproduced in a container with git 2.56: the control setup packed in 0 of 30 commits; with `maintenance.gc.enabled true` added, 30 of 30; with that and the suite's quiet settings, 0 of 30. Fix: the test sets `maintenance.gc.enabled true`.
