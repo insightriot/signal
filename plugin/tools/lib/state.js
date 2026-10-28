@@ -660,7 +660,7 @@ const PHASE_LOG_MARKER = 'phase-log:archived';
 // exists", which the caller refuses to proceed past.
 const SAFE_UNIT_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
-function unitArchiveDirFor(unit) {
+export function unitArchiveDirFor(unit) {
   const s = String(unit);
   const m = s.match(/^(M\d+(?:\.\d+)*)\.E(\d+)$/);
   if (m) return `.planning/archive/${m[1]}/E${m[2]}`;
@@ -1226,6 +1226,17 @@ const STORE_EPIC_ARTIFACT_PATHS = [
   ':(glob).planning/work/epics/*/REVIEW.md',
 ];
 
+// The Epic's own folder (course correction Step 1): `.planning/epics/<id>/`,
+// on any project. Same four artifacts, canonical names only (what
+// `artifactName` writes there). In the pathspec only when `.planning/epics/`
+// exists, so a project without the folder asks git exactly what it asked before.
+const EPIC_FOLDER_ARTIFACT_PATHS = [
+  ':(glob).planning/epics/*/*-PROGRESS.md',
+  ':(glob).planning/epics/*/*-PLAN.md',
+  ':(glob).planning/epics/*/*-VERIFICATION.md',
+  ':(glob).planning/epics/*/*-REVIEW.md',
+];
+
 // B6/FR4 (M5.E5.T4) — the true "bookkeeping" subset of STATE_AFFECTING_PATHS:
 // curated orientation files that do NOT represent ground-state movement.
 // STATE.md is markFresh's own "+1" (it records last_updated_commit = HEAD, then
@@ -1316,7 +1327,11 @@ export async function isStateStale(baseDir, opts = {}) {
   } catch {
     storeOn = true;
   }
-  const affecting = storeOn ? [...STATE_AFFECTING_PATHS, ...STORE_EPIC_ARTIFACT_PATHS] : STATE_AFFECTING_PATHS;
+  const affecting = [
+    ...STATE_AFFECTING_PATHS,
+    ...(existsSync(join(baseDir, '.planning', 'epics')) ? EPIC_FOLDER_ARTIFACT_PATHS : []),
+    ...(storeOn ? STORE_EPIC_ARTIFACT_PATHS : []),
+  ];
 
   try {
     const out = execFn(

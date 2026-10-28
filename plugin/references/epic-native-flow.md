@@ -36,7 +36,10 @@ The Epic is opened with `openEpic(baseDir, epicId, { by })` (`tools/lib/work-ops
 |---|---|
 | **Epic** (strict `currentEpic`) | `{EpicID}-{ARTIFACT}.md` for all kinds (e.g. `M4.5.E11-PLAN.md`) |
 | **Linear** | `1-{ARTIFACT}.md`, **except** `REQUIREMENTS` → unprefixed `REQUIREMENTS.md` |
-| **Epic folder** (work store on **and** `.planning/work/epics/{EpicID}/` exists; M6.E11) | `work/epics/{EpicID}/{EpicID}-{ARTIFACT}.md` — a path relative to `.planning/`, joined like the others. Reads also accept the bare `work/epics/{EpicID}/{ARTIFACT}.md`, one step below. With no folder for the Epic, or the store off, the two rows above apply unchanged. |
+| **Epic folder** (`.planning/epics/{EpicID}/` exists, store on or off) | `epics/{EpicID}/{EpicID}-{ARTIFACT}.md` — a path relative to `.planning/`, joined like the others. Reads also accept the bare `epics/{EpicID}/{ARTIFACT}.md`, one step below. With this folder present the store's folder below is not read for that Epic. |
+| **Store's Epic folder** (work store on **and** `.planning/work/epics/{EpicID}/` exists; M6.E11) | `work/epics/{EpicID}/{EpicID}-{ARTIFACT}.md`, and the bare form one step below. With no folder for the Epic, or the store off, the first two rows apply unchanged. |
+
+A closed Epic's files are also read, never written, where `/sig:docs-archive` files them: `archive/{M}/E{n}/{EpicID}-{ARTIFACT}.md`, after the root `{EpicID}-{ARTIFACT}.md` and before any linear name.
 
 Carve-outs, so the names match what the commands actually write:
 
