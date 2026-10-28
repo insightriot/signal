@@ -95,3 +95,25 @@ describe('openEpic makes the Epic\'s folder', () => {
     expect(existsSync(join(base, '.planning/epics'))).toBe(false);
   });
 });
+
+describe('the next Epic ID counts Epics that live in folders', () => {
+  it('an Epic whose files are all in its folder takes its number (no unit records)', async () => {
+    const { deriveNextEpicId } = await import('../plugin/tools/lib/milestones.js');
+    await put('.planning/epics/M7.E2/M7.E2-REQUIREMENTS.md', '# requirements\n');
+    expect(await deriveNextEpicId(base, { milestone: '7' })).toBe('M7.E3');
+  });
+
+  it('an Epic filed in archive/<M>/E<n>/ takes its number too', async () => {
+    const { deriveNextEpicId } = await import('../plugin/tools/lib/milestones.js');
+    await put('.planning/archive/7/E4/M7.E4-PLAN.md', '# plan\n');
+    await put('.planning/archive/3.0/E9/M3.0.E9-PLAN.md', '# plan\n');
+    expect(await deriveNextEpicId(base, { milestone: '7' })).toBe('M7.E5');
+    expect(await deriveNextEpicId(base, { milestone: '3.0' })).toBe('M3.0.E10');
+  });
+
+  it('another milestone\'s folders do not count', async () => {
+    const { deriveNextEpicId } = await import('../plugin/tools/lib/milestones.js');
+    await put('.planning/epics/M8.E6/M8.E6-REQUIREMENTS.md', '# requirements\n');
+    expect(await deriveNextEpicId(base, { milestone: '7' })).toBe('M7.E1');
+  });
+});
