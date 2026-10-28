@@ -34,7 +34,7 @@
 // (see `detectUnhandledLinkForms` — the seam S2.t4 fills with a detect-and-warn
 // floor). t3 leaves those forms BYTE-UNCHANGED; it does not silently drop them.
 
-import { readFile, mkdir, rm, readdir } from 'node:fs/promises';
+import { readFile, mkdir, rm, rmdir, readdir } from 'node:fs/promises';
 import { realpathSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, relative, sep, posix } from 'node:path';
 
@@ -69,6 +69,9 @@ export const SCAFFOLD_SUFFIXES = Object.freeze([
   'SHIP',
 ]);
 
+// Where an Epic's own folder lives (`resume.js` reads it): `.planning/epics/<EpicID>/`.
+const EPIC_FOLDERS_REL = `${PLANNING_DIR}/epics`;
+
 const LINK_RE = /\]\(([^)]+)\)/g;
 const isExternal = (t) => /^(https?:|mailto:|#)/.test(t);
 
@@ -85,6 +88,9 @@ export function toPosix(p) {
  * <milestone>/E<n>/`), keeping the full Epic-ID-prefixed filename. Works unchanged
  * on M6.E1 / M2.E3 / any Epic — no `['E1',…]` array, no `M4.5.…` template.
  * RETROSPECTIVE is never in `scaffoldSuffixes`, so retros are never moved.
+ * An Epic's own folder, `.planning/epics/{epicId}/`, moves whole into the same
+ * directory. A unit with two files bound for one destination (or one already
+ * there) moves nothing and is returned in `dropped` with the file named.
  *
  * @param {string[]} closedEpicIds  strict Epic IDs (M{n}[.{n}]*.E{n}) known closed
  * @param {string[]} planningRelFiles  repo-root-relative POSIX paths under .planning/
@@ -157,6 +163,8 @@ export function planArchiveMoves(closedUnitIds, planningRelFiles, opts = {}) {
   const present = new Set(
     (planningRelFiles ?? []).map(toPosix).filter((f) => !isUnderArchive(f))
   );
+  const archived = new Set((planningRelFiles ?? []).map(toPosix).filter(isUnderArchive));
+  const taken = new Set();
   const moves = [];
   const moveMap = new Map();
 
@@ -206,13 +214,41 @@ export function planArchiveMoves(closedUnitIds, planningRelFiles, opts = {}) {
     });
     // A closed unit with no scaffold files on disk contributes no moves —
     // same as the old template loop finding nothing `present`.
+    const unitMoves = [];
     for (const name of ordered) {
       const from = `${PLANNING_DIR}/${name}`;
       if (!present.has(from)) continue;
       const to = `${archiveDir}/${name}`;
       if (from === to) continue;
-      moves.push({ from, to });
-      moveMap.set(from, to);
+      unitMoves.push({ from, to });
+    }
+    // The Epic's own folder (`.planning/epics/<EpicID>/`, course correction
+    // Step 1): every file under it moves to the same archive directory, under
+    // its path inside the folder. Only a strict Epic ID has one, as only a
+    // strict Epic ID's folder is read (`resume.js`).
+    if (EPIC_ID_STRICT_RE.test(unit)) {
+      const folder = `${EPIC_FOLDERS_REL}/${unit}/`;
+      for (const from of [...present].filter((f) => f.startsWith(folder)).sort()) {
+        unitMoves.push({ from, to: `${archiveDir}/${from.slice(folder.length)}` });
+      }
+    }
+    // Two files bound for one place — a root copy and the folder's, or a file
+    // already in the archive — would leave one overwriting the other. Nothing
+    // of the unit moves, and the reason names the file, so it is never split.
+    const clash = unitMoves.find((m, i) => archived.has(m.to) || taken.has(m.to)
+      || unitMoves.findIndex((o) => o.to === m.to) !== i);
+    if (clash) {
+      dropped.push({
+        unit,
+        reason: `${clash.to} would be written twice, or is already in the archive — `
+          + 'keep one copy of the file, then re-run; nothing of this unit was moved',
+      });
+      continue;
+    }
+    for (const m of unitMoves) {
+      moves.push(m);
+      moveMap.set(m.from, m.to);
+      taken.add(m.to);
     }
   }
   return { moves, moveMap, dropped };
@@ -681,6 +717,27 @@ export async function applyArchiveTree(baseDir, opts = {}) {
   }
 }
 
+// Remove `dir` and the folders under it (`depth` levels down; all by default),
+// deepest first, each only while empty. Never removes a file.
+async function removeEmptyFolders(dir, { depth = Infinity } = {}) {
+  if (depth > 0) {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (e.isDirectory()) await removeEmptyFolders(join(dir, e.name), { depth: depth - 1 });
+    }
+  }
+  try {
+    await rmdir(dir);
+  } catch {
+    /* not empty, or gone — leave it */
+  }
+}
+
 // applyArchiveTree's writes, run under the `work` lock when the store is on.
 async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn }) {
   // 1. MOVE first — byte-identical relocate + read-back assert, then drop source.
@@ -697,6 +754,14 @@ async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, sto
     }
     await rm(srcAbs);
   }
+  // An Epic folder left empty goes too: while it exists, `resume.js` names new
+  // files inside it. Only empty folders are removed (`rmdir` refuses others),
+  // so a file the walk does not move — not a `.md` — keeps its folder.
+  const emptied = new Set(moves.map((m) => m.from)
+    .filter((f) => f.startsWith(`${EPIC_FOLDERS_REL}/`))
+    .map((f) => f.split('/').slice(0, 3).join('/')));
+  for (const folder of emptied) await removeEmptyFolders(join(baseDir, folder));
+  if (emptied.size > 0) await removeEmptyFolders(join(baseDir, EPIC_FOLDERS_REL), { depth: 0 });
 
   // 2. REWRITE — apply each file's merged keyed edits at its NEW location.
   // §10: NEVER auto-write the hand-curated INDEX.md. If a move left an INDEX link

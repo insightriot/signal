@@ -13,21 +13,13 @@ You are running `/sig:docs-archive`, a **not phase-gated** command in the **docu
 Its one job: move the scaffold files of **closed units** out of `.planning/` and into
 `.planning/archive/<unit>/`, and **say what it decided about every unit it did not move.**
 
-Authoritative references:
+Authoritative references. Every `tools/lib/` and `references/` path in this file is under
+`${CLAUDE_PLUGIN_ROOT}/`: import from there, never from another copy of Signal.
 - `tools/lib/archive-command.js` — `buildArchiveReport`, `renderArchiveReport`, `applyArchive`
 - `tools/lib/archive-tree.js` — `senseArchiveTree`, `applyArchiveTree`, `planArchiveMoves`
 - `tools/lib/closure.js` — `resolveClosures`, `CLOSURE`
 - `tools/lib/work-units.js` — `deriveUnits` (the single source of unit membership)
 - `references/doc-runtime-model.md` — why finished work leaves the live files at all
-
-## Why this is its own command and not a flag
-
-`/sig:docs-migrate` reorganizes document **layout** and archives along the way. Those are
-different questions on different cadences — layout changes when the structure does, archiving
-happens at **every unit close** — so filing away finished work through a layout command means
-reading past half its output (`D-M5E19-2`, restated against the taxonomy in `D-M5E19-8`).
-
-**This command adds no new archiving power.** The machinery already worked; it had no front door.
 
 ## The bar: a warning asks, a gate refuses
 

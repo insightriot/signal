@@ -113,11 +113,19 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
    files with the same contents; `main`'s code silently read old `PLAN.md`/`REQUIREMENTS.md` files
    from another era instead. The one-time cleanup must also fix links to moved files (the work
    store's Epic close already does this, `computeLinkEdits`).
+   **Filing the folder next, also as code, before any command writes to it** (decided 2026-10-27):
+   docs-archive saw only files at the top of `.planning/`, so a closed Epic whose files were all in
+   its folder read "closed, nothing left to move". It now moves the folder whole into
+   `archive/<M>/E<n>/` once the close is confirmed and the Epic is no longer current, the same rule
+   as before; SHIP itself moves nothing (a close there is only requested). Measured on a copy of the
+   test project: `main` said "nothing left to move" over eight files; the new code moved all eight.
 2. **Then the phase commands in flow order:** discuss, plan, execute, verify, review, ship (ship last:
    the largest, and the most tests). One or two per PR. Tests that only pin removed wording move to
    `archive/tests/`; tests of behaviour stay. The size limit is lowered each time.
 3. **Measured on the test project** by a fresh session running the branch's commands
-   (`claude --plugin-dir`, confirmed 2026-10-27 to replace the installed copy), walking one real
+   (`claude --plugin-dir`). It swaps in the branch's commands, but a command runs the branch's code
+   only if its file names `${CLAUDE_PLUGIN_ROOT}`; otherwise the agent finds an installed copy. Check
+   which file the session imported before trusting a measurement. Walking one real
    bug through the flow: the sidebar times that don't refresh (not the Step 3 feature). Per command:
    size; each question asked and whether it says what it decides, what was checked, and a
    recommendation; files left loose at the top of `.planning/`; places status is written; whether the

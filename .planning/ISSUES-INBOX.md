@@ -41,3 +41,13 @@ Its remedy, "Recommended: run /sig:docs-migrate", is also wrong: `migrate-memory
 Found 2026-10-27 while verifying SIG-363 on the test project (records test, read-only dry run). 5 of 8 Epic rows read like "Shipped 2026-10-15 ([PR #162](https://github.com/<org>/<repo>/pull/162))". The row rule in work-migrate-units.js (SHIPPED_RE plus the allowed-words check) treats the link URL as extra words, so the report says the row "says shipped and also https://github.com/…, so the row is not counted". No damage today: those Epics are still proposed closed from their retrospectives. But the reason printed is confusing, and a project without retrospectives would lose the evidence. Fix: read a markdown link as its text (and drop pull/commit URLs) before the row rule, as finishedLead already does.
 
 ---
+
+## advise.md and drive.md never say where Signal's code lives (${CLAUDE_PLUGIN_ROOT}), so the agent searches for it and can run another copy
+
+**Status:** untriaged (N) · SIG-366
+
+Found 2026-10-27 measuring /sig:docs-archive on a copy of the test project with `claude -p --plugin-dir <branch>`. The session loaded the branch's commands, then ran `find ~/.claude/plugins -path "*tools/lib/archive-command.js"` (four installed versions, 0.1.50 to 0.1.53), read installed_plugins.json, and imported 0.1.53's library. It reported "nothing left to move" while the branch's code planned eight moves. docs-archive.md named only bare `tools/lib/...` paths. A throwaway plugin proved Claude Code fills in `${CLAUDE_PLUGIN_ROOT}` inside command text with the --plugin-dir path. After docs-archive.md said its paths are under `${CLAUDE_PLUGIN_ROOT}/`, a fresh session imported the branch's library directly and showed the eight moves.
+
+Still affected: advise.md and drive.md name `${CLAUDE_PLUGIN_ROOT}` nowhere (checked by grep, 2026-10-27). Installed users get a search of the plugin cache on each run, and a stale version if the agent picks wrong; a --plugin-dir measurement of either command runs the installed code, not the branch. Fix: one line in each saying where `tools/lib/` lives, paid for by cutting history from the same file (the command size limit is at its ceiling). drive.md is in Step 2's path.
+
+---

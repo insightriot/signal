@@ -1,0 +1,13 @@
+{
+  "id": "SIG-366",
+  "type": "NEW",
+  "title": "advise.md and drive.md never say where Signal's code lives (${CLAUDE_PLUGIN_ROOT}), so the agent searches for it and can run another copy",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-28T03:05:30.158Z",
+      "by": "claude (course-correction rewrite)"
+    }
+  ]
+}

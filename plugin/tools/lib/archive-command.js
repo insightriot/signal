@@ -123,13 +123,18 @@ export async function buildArchiveReport(baseDir) {
     for (const f of derivedUnits.get(unit) ?? []) ownerOf.set(f, unit);
   }
 
+  // A move out of an Epic's own folder (`.planning/epics/<EpicID>/`) belongs to
+  // that Epic, asked first: a bare `PLAN.md` there is not the root's `PLAN.md`.
+  const closedSet = new Set(sense.closedUnits ?? []);
   const byUnit = new Map();
   for (const m of sense.moves) {
-    const file = m.from.slice(m.from.lastIndexOf('/') + 1);
-    const unit = ownerOf.get(file);
+    const inFolder = m.from.match(/^\.planning\/epics\/([^/]+)\/(.+)$/);
+    const fromFolder = inFolder !== null && closedSet.has(inFolder[1]);
+    const file = fromFolder ? inFolder[2] : m.from.slice(m.from.lastIndexOf('/') + 1);
+    const unit = fromFolder ? inFolder[1] : ownerOf.get(file);
     if (unit === undefined) continue; // a rename, not a unit archive
     if (!byUnit.has(unit)) {
-      byUnit.set(unit, { unit, dir: m.to.slice(0, m.to.lastIndexOf('/')), files: [] });
+      byUnit.set(unit, { unit, dir: m.to.slice(0, m.to.length - file.length - 1), files: [] });
     }
     // Push in move order, which `planArchiveMoves` already put in LIFECYCLE
     // order (REQUIREMENTS → PLAN → VERIFICATION). Re-sorting alphabetically here
@@ -300,7 +305,7 @@ export function renderArchiveReport(report, opts = {}) {
   }
 
   if (dropped.length > 0) {
-    L.push('', `Dropped (${dropped.length}) — unsafe unit name, cannot be a directory:`);
+    L.push('', `Dropped (${dropped.length}) — not archived:`);
     for (const d of dropped) L.push(`  ${d.unit} — ${d.reason}`);
   } else {
     L.push('Dropped: 0 — every derived unit was considered.');
