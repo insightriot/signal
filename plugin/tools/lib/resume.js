@@ -178,9 +178,10 @@ export function resolveArtifactPath(planningDir, artifact, opts = {}) {
   // Pattern D — where `/sig:docs-archive` filed the Epic's files,
   // `archive/<M>/E<n>/{id}-{artifact}.md`. After pattern 0, so a copy at the
   // root still wins; before the linear names, which may be another unit's.
-  // Read-only, like pattern A.
+  // Read-only, like pattern A. A bare `{artifact}.md` from the Epic's folder is
+  // filed under its own name, so it is read one step below.
   const filed = docsArchiveFolderRel(currentEpic);
-  if (filed) rawCandidates.push(`${filed}/${currentEpic}-${artifact}.md`);
+  if (filed) rawCandidates.push(`${filed}/${currentEpic}-${artifact}.md`, `${filed}/${artifact}.md`);
   for (let n = 1; n <= 9; n++) {
     rawCandidates.push(`${n}-${artifact}.md`); // pattern 1 (ascending N tie-break)
   }

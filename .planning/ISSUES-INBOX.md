@@ -49,3 +49,13 @@ Found 2026-10-27 while verifying SIG-363 on the test project (records test, read
 Failed once in a local full-suite run on 2026-10-27 (both #313 and #314 merged onto main in a scratch copy; that run did not name the test) and once on PR #315 CI, run 40612972215 attempt 1 (AssertionError: expected 0 to be greater than 0 — no pack after the commit). Passed on rerun, on three more local runs, and on PR #316 CI. Not root-caused. A guess, unverified: the auto-gc ran detached on some git version despite gc.autoDetach/maintenance.autoDetach false, so the pack appears after the check. It turns a PR red with nothing wrong in the change.
 
 ---
+
+## advise.md and drive.md never say where Signal's code lives (${CLAUDE_PLUGIN_ROOT}), so the agent searches for it and can run another copy
+
+**Status:** untriaged (N) · SIG-366
+
+Found 2026-10-27 measuring /sig:docs-archive on a copy of the test project with `claude -p --plugin-dir <branch>`. The session loaded the branch's commands, then ran `find ~/.claude/plugins -path "*tools/lib/archive-command.js"` (four installed versions, 0.1.50 to 0.1.53), read installed_plugins.json, and imported 0.1.53's library. It reported "nothing left to move" while the branch's code planned eight moves. docs-archive.md named only bare `tools/lib/...` paths. A throwaway plugin proved Claude Code fills in `${CLAUDE_PLUGIN_ROOT}` inside command text with the --plugin-dir path. After docs-archive.md said its paths are under `${CLAUDE_PLUGIN_ROOT}/`, a fresh session imported the branch's library directly and showed the eight moves.
+
+Still affected: advise.md and drive.md name `${CLAUDE_PLUGIN_ROOT}` nowhere (checked by grep, 2026-10-27). Installed users get a search of the plugin cache on each run, and a stale version if the agent picks wrong; a --plugin-dir measurement of either command runs the installed code, not the branch. Fix: one line in each saying where `tools/lib/` lives, paid for by cutting history from the same file (the command size limit is at its ceiling). drive.md is in Step 2's path.
+
+---

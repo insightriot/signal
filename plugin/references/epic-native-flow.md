@@ -39,7 +39,7 @@ The Epic is opened with `openEpic(baseDir, epicId, { by })` (`tools/lib/work-ops
 | **Epic folder** (`.planning/epics/{EpicID}/` exists, store on or off) | `epics/{EpicID}/{EpicID}-{ARTIFACT}.md` — a path relative to `.planning/`, joined like the others. Reads also accept the bare `epics/{EpicID}/{ARTIFACT}.md`, one step below. With this folder present the store's folder below is not read for that Epic. |
 | **Store's Epic folder** (work store on **and** `.planning/work/epics/{EpicID}/` exists; M6.E11) | `work/epics/{EpicID}/{EpicID}-{ARTIFACT}.md`, and the bare form one step below. With no folder for the Epic, or the store off, the first two rows apply unchanged. |
 
-A closed Epic's files are also read, never written, where `/sig:docs-archive` files them: `archive/{M}/E{n}/{EpicID}-{ARTIFACT}.md`, after the root `{EpicID}-{ARTIFACT}.md` and before any linear name.
+A closed Epic's files are also read, never written, where `/sig:docs-archive` files them: `archive/{M}/E{n}/{EpicID}-{ARTIFACT}.md` (then the bare `{ARTIFACT}.md`), after the root `{EpicID}-{ARTIFACT}.md` and before any linear name. `/sig:docs-archive` moves the Epic folder whole, each file under its path inside the folder, and removes the folder once empty; it does so only when the Epic is closed and no longer current, as for root files. A unit with two files bound for one destination, or one already in the archive, moves nothing and is listed as dropped.
 
 Carve-outs, so the names match what the commands actually write:
 
