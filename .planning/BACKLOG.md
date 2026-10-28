@@ -313,9 +313,9 @@ because the assessment (§2, §5) found the Epic had **no row at all**, so `/sig
 it. Decisions `D-M6E3-7` … `D-M6E3-11`; requirements `M6.E3-REQUIREMENTS.md`. Strike this row at
 the Epic's SHIP.
 
-### DISCUSS silently auto-adopts irreversible decisions at `unattended` · **roadmap** · small · **filed 2026-09-03** · SIG-151
+### DISCUSS silently auto-adopts irreversible decisions at `unattended` · **roadmap** · small · **filed 2026-09-03** · SIG-151 · closing
 
-**Status:** triaged (T)
+**Status:** closing — a fixed close waiting for its commit on the default branch
 
 *Plain: at `unattended`, DISCUSS decides everything for you — including the calls you can't take back.*
 

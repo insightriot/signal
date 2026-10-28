@@ -220,5 +220,6 @@
 | SIG-354 | `confirmed` | P2 | **Re-running /sig:verify or /sig:review after a crash before its report exists is refused, and nothing gets out** |
 | SIG-355 | `confirmed` | P3 | **Re-entering REVIEW moves the visit mark past a PASS this visit recorded, so the halt message reads as if nothing passed** |
 | SIG-358 | `confirmed` | P3 | **parent-run.test.js flakes in CI: a SIGKILLed run leaves a half-made worktree entry** |
+| SIG-367 | `confirmed` | P3 | **The next Epic ID ignores Epics a milestone file already plans, so /sig:discuss --epic can take a planned Epic's number** |
 
-*0 needs-triage · 79 confirmed · 1 closing · 137 closed (217 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 80 confirmed · 1 closing · 137 closed (218 total) · closes more than 30 days before the newest event are in `work/history/`*
