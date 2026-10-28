@@ -98,7 +98,7 @@ describe('M6.E16 AC3.1 — the commands that open an Epic name openEpic', () => 
     return text.slice(start, end === -1 ? undefined : end);
   };
   const OPENERS = [
-    ['discuss', '## Epic mode (', '\n## Workflow'],
+    ['discuss', '## 2. Open the Epic', '\n## 3.'],
     ['new-project', '### 1b. Epic mode', '\n### 2'],
   ];
 
@@ -108,7 +108,7 @@ describe('M6.E16 AC3.1 — the commands that open an Epic name openEpic', () => 
 
   it.each(OPENERS)('%s.md opens the Epic with openEpic, from work-ops.js', (name, from, to) => {
     const text = section(read(name), from, to);
-    expect(text).toMatch(/call `openEpic\(baseDir, resolvedId, \{ ?by/);
+    expect(text).toMatch(/`openEpic\(baseDir, (?:resolvedId|id), \{ ?by/);
     expect(text).toContain('tools/lib/work-ops.js');
   });
 
@@ -226,7 +226,9 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
   });
 
   it('discuss.md: the Done-Epic guard says a closed unit record is done, and that the retrospective is not read there', () => {
-    const text = para('discuss', '**Done-Epic guard.**');
+    // The whole paragraph: since the 2026-10-28 rewrite it is wrapped, not one line.
+    const doc = read('discuss');
+    const text = doc.slice(doc.indexOf('**Done-Epic guard.**')).split('\n\n')[0];
     expect(text).toMatch(/unit record[^.]*closed/);
     expect(text).toMatch(/\*closing\*/);
   });

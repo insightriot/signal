@@ -127,7 +127,7 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
    only if its file names `${CLAUDE_PLUGIN_ROOT}`; otherwise the agent finds an installed copy. Check
    which file the session imported before trusting a measurement. Walking one real
    bug through the flow: the sidebar times that don't refresh (not the Step 3 feature). Per command:
-   size; each question asked and whether it says what it decides, what was checked, and a
+   size; whether it names `${CLAUDE_PLUGIN_ROOT}` for every code path; each question asked and whether it says what it decides, what was checked, and a
    recommendation; files left loose at the top of `.planning/`; places status is written; whether the
    phase finishes without a person.
 4. **Checkpoint goes.** Each phase command updates the state file itself, at every tier, in the same

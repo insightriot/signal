@@ -98,8 +98,8 @@
     ],
     "dir": "plugin/commands",
     "maxFiles": 21,
-    "maxBytes": 440304,
-    "maxHistoryIds": 181,
+    "maxBytes": 421937,
+    "maxHistoryIds": 166,
     "historyIdPattern": "\\b(?:B[0-9]{1,3}|SIG-[0-9]+|D-[A-Z0-9][A-Za-z0-9.-]*)\\b"
   }
 }

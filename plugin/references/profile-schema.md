@@ -176,11 +176,9 @@ makes **FULL rigor, unattended** expressible.
 `attended` when the profile is unreadable — a missing setting must never be the reason something ran
 without asking.
 
-⚠ **`unattended` has a known open defect.** `discuss.md` §4 at `unattended` auto-adopts the
-recommended option for **every** gray area, including `painful` and `irreversible` ones, with no
-reversibility routing. Filed in Signal's own backlog as *"DISCUSS silently auto-adopts irreversible
-decisions at `unattended`"* (no link: `.planning/` belongs to the project being worked on, not to
-the installed plugin payload). Prefer `checkpointed` until that lands.
+At `unattended`, DISCUSS takes the recommended answer for each decision, except one that is hard to
+undo (stored data or its shape, a public interface, anything published or deleted): that one is still
+asked.
 
 ⚠ **`/sig:drive` now ASKS which of the three to use at the start of a run**, offering this key's
 value as the default (`M6.E10`). The reason is recorded in `D-BR0908-1`: with `attention` absent
