@@ -944,6 +944,23 @@ function closeLine(close, { refs = true } = {}) {
   return parts.join('; ');
 }
 
+// The Epic's own folder, `.planning/epics/<EpicID>/` (course correction Step 1):
+// every phase file of the Epic is written there from DISCUSS on, so filing it
+// at close is one move. Not made when the Epic already has files at the top
+// of `.planning/` (written before the folder existed): the folder would be
+// read first and new files written beside the old ones. Nor through a link,
+// or over anything that is not a folder.
+function makeEpicFolder(baseDir, epicId) {
+  const planning = join(baseDir, '.planning');
+  if (readdirSync(planning).some((f) => f.startsWith(`${epicId}-`) && f.endsWith('.md'))) return;
+  for (const rel of ['epics', `epics/${epicId}`]) {
+    let st = null;
+    try { st = lstatSync(join(planning, rel)); } catch { /* absent */ }
+    if (st !== null && !st.isDirectory()) return;
+  }
+  mkdirSync(join(planning, 'epics', epicId), { recursive: true });
+}
+
 /**
  * Open an Epic: create its unit record and set `current_epic`
  * (`setCurrentEpic`, `state.js`). What `/sig:discuss --epic` and
@@ -968,7 +985,8 @@ function closeLine(close, { refs = true } = {}) {
  *
  * Order. Everything that can refuse is checked first, and a refusal writes
  * nothing: the ID, `by`, the store, the unit's record (a broken one is
- * refused, SCHEMA), the closed check. Then `setCurrentEpic`, then the record.
+ * refused, SCHEMA), the closed check. Then `setCurrentEpic`, then the Epic's
+ * folder (`makeEpicFolder`, on every project), then the record.
  * `setCurrentEpic` goes first because it has refusals of its own (no
  * `STATE.md` at schema 1; a phase log with nowhere safe to be archived), and
  * a record is never deleted — written first, a refused roll would leave a
@@ -990,6 +1008,7 @@ function closeLine(close, { refs = true } = {}) {
 export async function openEpic(baseDir, epicId, open = {}) {
   if (!unitRecordsOn(baseDir)) {
     await setCurrentEpic(baseDir, epicId);
+    makeEpicFolder(baseDir, epicId);
     return { epic: epicId, unit: 'no-records' };
   }
   const { by, force = false } = open;
@@ -1023,6 +1042,7 @@ export async function openEpic(baseDir, epicId, open = {}) {
   }
 
   await setCurrentEpic(baseDir, epicId);
+  makeEpicFolder(baseDir, epicId);
   if (step.write) {
     let failure = null;
     try {
