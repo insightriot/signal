@@ -32,6 +32,10 @@ beforeEach(() => {
   git(dir, ['config', 'gc.autoDetach', 'false']);
   git(dir, ['config', 'maintenance.auto', 'true']);
   git(dir, ['config', 'maintenance.autoDetach', 'false']);
+  // Git 2.56 defaults to the geometric strategy, which turns the gc task off,
+  // so the control never packed there (SIG-365). Enabled by name, it runs on
+  // any git.
+  git(dir, ['config', 'maintenance.gc.enabled', 'true']);
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
