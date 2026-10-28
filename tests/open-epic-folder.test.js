@@ -68,6 +68,13 @@ describe('openEpic makes the Epic\'s folder', () => {
     expect(name('M7.E2')).toBe('M7.E2-REQUIREMENTS.md');
   });
 
+  it('its own profile or retrospective at the top does not stop it: those live there', async () => {
+    await put('.planning/M7.E2-PROFILE.md', '---\ntier: SKETCH\n---\n');
+    await put('.planning/M7.E2-RETROSPECTIVE.md', '# retro\n');
+    await openEpic(base, 'M7.E2', { by });
+    expect(existsSync(join(base, '.planning/epics/M7.E2'))).toBe(true);
+  });
+
   it('another Epic\'s top-level files do not stop it (M7.E20 is not M7.E2)', async () => {
     await put('.planning/M7.E20-PLAN.md', '# plan\n');
     await openEpic(base, 'M7.E2', { by });
@@ -105,8 +112,10 @@ describe('the next Epic ID counts Epics that live in folders', () => {
 
   it('an Epic filed in archive/<M>/E<n>/ takes its number too', async () => {
     const { deriveNextEpicId } = await import('../plugin/tools/lib/milestones.js');
-    await put('.planning/archive/7/E4/M7.E4-PLAN.md', '# plan\n');
-    await put('.planning/archive/3.0/E9/M3.0.E9-PLAN.md', '# plan\n');
+    // Where docs-archive files an Epic (planArchiveMoves), so the two cannot drift apart.
+    const { deriveUnitArchiveDir } = await import('../plugin/tools/lib/archive-tree.js');
+    await put(`${deriveUnitArchiveDir('M7.E4')}/M7.E4-PLAN.md`, '# plan\n');
+    await put(`${deriveUnitArchiveDir('M3.0.E9')}/M3.0.E9-PLAN.md`, '# plan\n');
     expect(await deriveNextEpicId(base, { milestone: '7' })).toBe('M7.E5');
     expect(await deriveNextEpicId(base, { milestone: '3.0' })).toBe('M3.0.E10');
   });

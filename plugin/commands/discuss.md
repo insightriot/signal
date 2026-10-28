@@ -26,8 +26,9 @@ Both come before step 2 because `current_epic` cannot be cleared once set.
 1. The ID: `<name>` itself if it matches `EPIC_ID_STRICT_RE` (`tools/lib/state.js`), e.g. `M5.E1`.
    Otherwise `deriveNextEpicId(baseDir)` (`tools/lib/milestones.js`). If that returns `null`, read
    `ROADMAP.md` for the milestone, and ask only if it does not say; then
-   `deriveNextEpicId(baseDir, { milestone })`.
-2. `openEpic(baseDir, id, { by })` (`tools/lib/work-ops.js`, `by` is who opens it). It sets
+   `deriveNextEpicId(baseDir, { milestone })`. Opening cannot be undone: if the milestone file
+   already plans that number for other work, ask which ID to use before opening.
+2. `openEpic(baseDir, id, { by })` (`tools/lib/work-ops.js`, `by` is git's `user.name`). It sets
    `current_epic`, starts the Epic's phase history fresh, makes `.planning/epics/<ID>/`, and creates
    the Epic's unit record if the project keeps them. It refuses an Epic that is closed: show the
    reason, and call again with `force: true` only if the user says they mean to reopen it.
@@ -60,7 +61,6 @@ it inherits the project's tier.
 | `checkpointed` | Decide each with its recommendation, then ask once at the end to approve them all. |
 | `unattended` | Take each recommendation and record it. A decision that is hard to undo is still asked. |
 
-`gate_strictness: strict` adds the check in step 7.
 
 ## 4. Load skills
 
@@ -92,21 +92,20 @@ deleted. At `unattended` and with `--auto`, ask these anyway; take the recommend
 
 Write one file at `artifactName('REQUIREMENTS', { currentEpic, planningDir })`
 (`tools/lib/resume.js`): `.planning/epics/<ID>/<ID>-REQUIREMENTS.md` for an Epic,
-`.planning/REQUIREMENTS.md` without one. Decisions go here, not in `CONTEXT.md`, which is the
-project's orientation file.
+`.planning/REQUIREMENTS.md` without one. Decisions go here, not in `CONTEXT.md`.
 
 - `# <ID> — <label>`
 - `## Decisions` (each with its reason), `## Deferred`, `## Assumptions` (to check during EXECUTE)
 - `## Requirements`: what it must do, each with acceptance criteria.
 
-At FULL and FEATURE, also these, answered from the code first and asked only where it cannot say:
+At FULL and FEATURE, also these, answered from the code first:
 
 - **Non-functional.** FULL: health probe, graceful shutdown, structured request logging, security
   headers, rate limiting if public. FEATURE: error handling at boundaries, a log line for failures,
   input validation. Each is in scope, deferred with a reason, or N/A.
 - `## Blast radius`: what this touches that it does not change (callers, stored data, anything
   downstream).
-- `## Outcome`: how we will know it worked in use, which is not the same as the acceptance criteria.
+- `## Outcome`: how we will know it worked in use (not the acceptance criteria).
   *"No outcome measure, because …"* with a real reason is a valid answer. Check it with
   `checkOutcomeOracle(content, tier)` (`tools/lib/outcome-oracle.js`); it fails a bare "N/A".
 

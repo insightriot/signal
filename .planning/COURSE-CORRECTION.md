@@ -133,8 +133,9 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
    **discuss, 2026-10-28, on that bug:** 25.8 KB to 7.5 KB; branch code imported; 4 questions, all
    saying what they decide and what was checked, with a recommendation; 5 plumbing calls stated, not
    asked; files in the Epic's folder, none loose; one stop for batch approval (`checkpointed`, as
-   designed); STATE written twice, the second left uncommitted (step 4). It caught a planned Epic's
-   number being handed out (`SIG-367`).
+   designed; "approve all" was typed by the agent running the test, not Brett); STATE written twice,
+   the second left uncommitted (step 4); $6.27, 28 turns, 4.5 minutes. It caught a planned Epic's
+   number being handed out (`SIG-367`). An approved per-Epic calibrate was left as a next step.
 4. **Checkpoint goes.** Each phase command updates the state file itself, at every tier, in the same
    commit as the phase's work. No separate commits to mark it fresh (records problem 6).
 

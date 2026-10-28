@@ -948,11 +948,13 @@ function closeLine(close, { refs = true } = {}) {
 // every phase file of the Epic is written there from DISCUSS on, so filing it
 // at close is one move. Not made when the Epic already has files at the top
 // of `.planning/` (written before the folder existed): the folder would be
-// read first and new files written beside the old ones. Nor through a link,
-// or over anything that is not a folder.
+// read first and new files written beside the old ones. Its profile and
+// retrospective live at the top anyway (`ROOT_ONLY_ARTIFACTS`) and do not
+// count. Nor through a link, or over anything that is not a folder.
 function makeEpicFolder(baseDir, epicId) {
   const planning = join(baseDir, '.planning');
-  if (readdirSync(planning).some((f) => f.startsWith(`${epicId}-`) && f.endsWith('.md'))) return;
+  const rootOnly = new Set(ROOT_ONLY_ARTIFACTS.map((a) => `${epicId}-${a}.md`));
+  if (readdirSync(planning).some((f) => f.startsWith(`${epicId}-`) && f.endsWith('.md') && !rootOnly.has(f))) return;
   for (const rel of ['epics', `epics/${epicId}`]) {
     let st = null;
     try { st = lstatSync(join(planning, rel)); } catch { /* absent */ }
