@@ -113,6 +113,10 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
    files with the same contents; `main`'s code silently read old `PLAN.md`/`REQUIREMENTS.md` files
    from another era instead. The one-time cleanup must also fix links to moved files (the work
    store's Epic close already does this, `computeLinkEdits`).
+   **Closing next, also as code, before any command writes to the folder** (decided 2026-10-27):
+   nothing yet moves `.planning/epics/<ID>/` when an Epic closes (`closeEpic` still looks in
+   `work/epics/`, and docs-archive reads unit files from the top only). Without this, an Epic opened
+   into the folder by a rewritten discuss would reach a SHIP that moves nothing.
 2. **Then the phase commands in flow order:** discuss, plan, execute, verify, review, ship (ship last:
    the largest, and the most tests). One or two per PR. Tests that only pin removed wording move to
    `archive/tests/`; tests of behaviour stay. The size limit is lowered each time.

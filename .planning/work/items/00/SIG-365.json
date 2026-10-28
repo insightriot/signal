@@ -1,0 +1,13 @@
+{
+  "id": "SIG-365",
+  "type": "NEW",
+  "title": "tests/quiet-git.test.js: the control case (\"without those settings the same commit packs\") fails some runs — git does not always pack inside git commit",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-28T01:35:38.444Z",
+      "by": "claude (course-correction rewrite)"
+    }
+  ]
+}
