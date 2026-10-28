@@ -2644,20 +2644,20 @@ CI still enforced the checks through `tests/docs-hygiene.test.js`, so no drift s
 
 Same move left 10 dead `../references/` links in `.planning/`, and the session-start hook still listed 9 of 24 commands.
 
-### docs-archive moves the current Epic when the project has no unit records · SIG-361 · closing
+### docs-archive moves the current Epic when the project has no unit records · SIG-361 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-28 (fixed)
 
 Found by running /sig:docs-archive (dry run) on the test project (records test on the test project, 2026-10-26). STATE.md named M3.0.E2 as current_epic; resolveClosures correctly marked it mid-flight, but senseArchiveTree (plugin/tools/lib/archive-tree.js, ~523-566) also treats any unit with a filled retrospective as closed, and its current-unit filter only runs when .planning/work/units/ exists. Result: the current Epic's 7 files were in the move plan. Breaks any project not yet on unit records. Fix: drop the current unit on both closure routes.
 
-### work-store migration misses fixed bugs whose status line explains the fix · SIG-362 · closing
+### work-store migration misses fixed bugs whose status line explains the fix · SIG-362 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-28 (fixed)
 
 Found by /sig:docs-migrate --work-store on the test project (records test on the test project, 2026-10-26). 8 of 9 fixed bugs read "**Status:** fixed in M2.11.E1 (FR-01), [PR #160](...): <explanation>". The close-proposal rule needs nothing but references after the word, so all 8 stayed open and the generated BUGS.md now shows them as confirmed: less accurate than the hand-kept list it replaced. Fix: propose the close when the status starts with fixed/resolved and cites a PR or Epic found in history, whatever follows.
 
-### migration looks for MILESTONE-3.0.md and misses MILESTONE-M3.0.md · SIG-363 · closing
+### migration looks for MILESTONE-3.0.md and misses MILESTONE-M3.0.md · SIG-363 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-28 (fixed)
 
 Found by /sig:docs-migrate --work-store on the test project (records test on the test project, 2026-10-26). The project names milestone files MILESTONE-M3.0.md; the tool looks for MILESTONE-3.0.md, so no Epic table is written. Accept both spellings.
