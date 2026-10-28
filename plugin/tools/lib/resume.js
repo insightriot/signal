@@ -21,6 +21,7 @@ import {
   detectMode,
   EPIC_ID_STRICT_RE,
   PHASE_LOG_MARKER,
+  unitArchiveDirFor,
 } from './state.js';
 import { formatTierLine } from './status.js';
 import { confidenceWords } from './jev.js';
@@ -47,6 +48,9 @@ const EPIC_ID_RE = /^[A-Za-z0-9._-]+$/;
 // bare form is still resolved, one step below.
 //
 // A broken WORK.md throws (`isStoreOn`): the store never reads as off.
+//
+// Nothing has created a `work/epics/` folder since the v1 store was retired
+// (M6.E13 t7.4); it is still read, below `epics/`, for a project that has one.
 const LIVE_EPICS_REL = 'work/epics';
 const ARCHIVED_EPICS_REL = 'archive/epics';
 
@@ -55,6 +59,33 @@ function epicFolderRel(planningRoot, currentEpic, existsFn = existsSync, parent 
   if (!isStoreOn(dirname(planningRoot)).on) return null;
   const rel = `${parent}/${currentEpic}`;
   return existsFn(join(planningRoot, rel)) ? rel : null;
+}
+
+// The Epic's own folder, `.planning/epics/<EpicID>/` (course correction Step 1,
+// 2026-10-27): every file of the Epic in one place, so closing it is one move.
+// Any project, store on or off — the only condition is that the folder exists.
+// File names inside are the canonical `{EpicID}-{ARTIFACT}.md`, as above.
+const EPICS_REL = 'epics';
+
+function ownEpicFolderRel(planningRoot, currentEpic, existsFn = existsSync) {
+  if (typeof currentEpic !== 'string' || !EPIC_ID_STRICT_RE.test(currentEpic)) return null;
+  const rel = `${EPICS_REL}/${currentEpic}`;
+  return existsFn(join(planningRoot, rel)) ? rel : null;
+}
+
+// The live folder an Epic's files are written to and read from first: its own
+// folder when there is one — the store is then never consulted — else the
+// store's `work/epics/` folder, else null.
+function liveEpicFolderRel(planningRoot, currentEpic, existsFn = existsSync) {
+  return ownEpicFolderRel(planningRoot, currentEpic, existsFn) ?? epicFolderRel(planningRoot, currentEpic, existsFn);
+}
+
+// Where a closed Epic's files are filed by `/sig:docs-archive`,
+// `archive/<M>/E<n>/`, relative to `.planning/` — or null for a non-strict ID.
+function docsArchiveFolderRel(currentEpic) {
+  if (typeof currentEpic !== 'string' || !EPIC_ID_STRICT_RE.test(currentEpic)) return null;
+  const dir = unitArchiveDirFor(currentEpic);
+  return dir && dir.startsWith('.planning/') ? dir.slice('.planning/'.length) : null;
 }
 
 /**
@@ -71,6 +102,12 @@ function epicFolderRel(planningRoot, currentEpic, existsFn = existsSync, parent 
  * `work/epics/{id}/{artifact}.md`. Then, when `.planning/archive/epics/{id}/`
  * exists (a closed Epic, t5.4), the same two names there — after `artifactName`'s
  * own candidate, before patterns 0–3. Otherwise the list is exactly the above.
+ *
+ * With `.planning/epics/{currentEpic}/` present (course correction Step 1), the
+ * same two names in that folder come first instead, store on or off, and the
+ * store's folders are not read for this Epic. And after pattern 0, for any
+ * strict ID: `archive/<M>/E<n>/{id}-{artifact}.md`, where `/sig:docs-archive`
+ * files a closed Epic (pattern D).
  *
  * Returns the first existing candidate as an absolute path, or `null`.
  *
@@ -123,17 +160,27 @@ export function resolveArtifactPath(planningDir, artifact, opts = {}) {
   // read (REVIEW I6), so calling it here would recurse. The guarantee holds
   // either way: `artifactName` returns the file read here when it is the
   // Epic's own live file, and otherwise this very pattern-W name.
-  const folder = epicFolderRel(planningRoot, currentEpic, existsFn);
+  // The Epic's own folder (`epics/<id>/`) comes first when it exists, and the
+  // store is then not consulted for this Epic: neither its `work/epics/` nor
+  // its `archive/epics/` folder is read.
+  const own = ownEpicFolderRel(planningRoot, currentEpic, existsFn);
+  const folder = own ?? epicFolderRel(planningRoot, currentEpic, existsFn);
   rawCandidates.push(defaultArtifactName(artifact, { currentEpic, planningDir: planningRoot, existsFn }));
   if (folder) rawCandidates.push(`${folder}/${artifact}.md`);
   // Pattern A (M6.E11 t5.4) — the Epic's ARCHIVED folder, after the live
   // folder and before the legacy list, so `/sig:resume` on a just-shipped
   // Epic still finds its artifacts. Read-only: artifactName never names it.
-  const archived = epicFolderRel(planningRoot, currentEpic, existsFn, ARCHIVED_EPICS_REL);
+  const archived = own ? null : epicFolderRel(planningRoot, currentEpic, existsFn, ARCHIVED_EPICS_REL);
   if (archived) rawCandidates.push(`${archived}/${currentEpic}-${artifact}.md`, `${archived}/${artifact}.md`);
   if (typeof currentEpic === 'string' && currentEpic && EPIC_ID_RE.test(currentEpic)) {
     rawCandidates.push(`${currentEpic}-${artifact}.md`); // pattern 0
   }
+  // Pattern D — where `/sig:docs-archive` filed the Epic's files,
+  // `archive/<M>/E<n>/{id}-{artifact}.md`. After pattern 0, so a copy at the
+  // root still wins; before the linear names, which may be another unit's.
+  // Read-only, like pattern A.
+  const filed = docsArchiveFolderRel(currentEpic);
+  if (filed) rawCandidates.push(`${filed}/${currentEpic}-${artifact}.md`);
   for (let n = 1; n <= 9; n++) {
     rawCandidates.push(`${n}-${artifact}.md`); // pattern 1 (ascending N tie-break)
   }
@@ -208,6 +255,8 @@ const LINEAR_UNPREFIXED = new Set(['REQUIREMENTS']);
  *     `work/epics/{EpicID}/{EpicID}-{artifact}.md` — a path relative to
  *     `.planning/`, joined the same way as every other result. Without
  *     `planningDir` nothing on disk is read and the result is as above.
+ *     With `.planning/epics/{EpicID}/` present, that folder is used the same
+ *     way instead, store on or off (course correction Step 1).
  *
  *   - With the folder present, the folder is the answer (REVIEW I6, then
  *     pass 2 / D-M6E11-33): the file `resolveArtifactPath` reads when it is in
@@ -241,10 +290,10 @@ export function artifactName(artifact, opts = {}) {
   // `fallback` is already the canonical folder name when the folder exists,
   // and the root name when it does not — so only the folder's bare form can
   // differ from it here.
-  const own = [
-    `${LIVE_EPICS_REL}/${currentEpic}/${currentEpic}-${artifact}.md`,
-    `${LIVE_EPICS_REL}/${currentEpic}/${artifact}.md`,
-  ];
+  const own = [EPICS_REL, LIVE_EPICS_REL].flatMap((parent) => [
+    `${parent}/${currentEpic}/${currentEpic}-${artifact}.md`,
+    `${parent}/${currentEpic}/${artifact}.md`,
+  ]);
   return own.includes(rel) ? rel : fallback;
 }
 
@@ -252,7 +301,7 @@ export function artifactName(artifact, opts = {}) {
 // before REVIEW I6, and pattern W of `resolveArtifactPath`.
 function defaultArtifactName(artifact, { currentEpic = null, planningDir = null, existsFn = existsSync } = {}) {
   if (typeof currentEpic === 'string' && EPIC_ID_STRICT_RE.test(currentEpic)) {
-    const folder = planningDir ? epicFolderRel(resolve(planningDir), currentEpic, existsFn) : null;
+    const folder = planningDir ? liveEpicFolderRel(resolve(planningDir), currentEpic, existsFn) : null;
     return folder ? `${folder}/${currentEpic}-${artifact}.md` : `${currentEpic}-${artifact}.md`;
   }
   if (LINEAR_UNPREFIXED.has(artifact)) return `${artifact}.md`;

@@ -814,8 +814,8 @@ export async function collectPreflight(baseDir, { epic = null } = {}) {
   //    spec that still says [FILL IN], and discovering that mid-EXECUTE is the
   //    interruption this pass exists to move to the front.
   if (epic) {
-    // Through the resolver so an Epic whose artifacts live in its work-store
-    // folder is read there (M6.E11 t5.4). Only an answer IN an Epic folder is
+    // Through the resolver so an Epic whose artifacts live in its folder
+    // (`epics/<id>/`, or the store's `work/epics/<id>/`) is read there (M6.E11 t5.4). Only an answer IN an Epic folder is
     // taken: anywhere else the resolver can fall through to linear names
     // (`REQUIREMENTS.md`, `1-…`) this check has never read, so the path stays
     // exactly `{epic}-REQUIREMENTS.md` — byte-identical with the store off.
@@ -828,7 +828,7 @@ export async function collectPreflight(baseDir, { epic = null } = {}) {
       storeError = err; // a broken WORK.md — reported below, never read as "off"
     }
     const inFolder = resolved !== null
-      && [join(planningDir, 'work', 'epics', epic), join(planningDir, 'archive', 'epics', epic)]
+      && [join(planningDir, 'epics', epic), join(planningDir, 'work', 'epics', epic), join(planningDir, 'archive', 'epics', epic)]
         .some((dir) => resolved.startsWith(dir + sep));
     const reqPath = inFolder ? resolved : join(planningDir, `${epic}-REQUIREMENTS.md`);
     if (storeError) {

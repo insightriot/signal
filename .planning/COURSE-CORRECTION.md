@@ -103,6 +103,28 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
   it is solved. Decided by testing on the test project, not on Signal's own records (see *Records*
   below).
 
+**How the rewrite runs (decided 2026-10-27).** Small steps, each merged and measured before the next:
+1. **Epic folder first, as code.** The resolver that finds an Epic's files already existed for the
+   work store's `work/epics/<ID>/` (M6.E11, store on only, and nothing creates that folder since
+   M6.E13). It now reads and names files in `.planning/epics/<ID>/` on any project, and finds a closed
+   Epic's files in `archive/<M>/E<n>/`, where docs-archive files them. Retrospective and profile stay
+   at the top for now; the ship rewrite decides. No command text changes in that PR. Measured on the
+   test project: with the current Epic's eight files moved into the folder, the new code read the same
+   files with the same contents; `main`'s code silently read old `PLAN.md`/`REQUIREMENTS.md` files
+   from another era instead. The one-time cleanup must also fix links to moved files (the work
+   store's Epic close already does this, `computeLinkEdits`).
+2. **Then the phase commands in flow order:** discuss, plan, execute, verify, review, ship (ship last:
+   the largest, and the most tests). One or two per PR. Tests that only pin removed wording move to
+   `archive/tests/`; tests of behaviour stay. The size limit is lowered each time.
+3. **Measured on the test project** by a fresh session running the branch's commands
+   (`claude --plugin-dir`, confirmed 2026-10-27 to replace the installed copy), walking one real
+   bug through the flow: the sidebar times that don't refresh (not the Step 3 feature). Per command:
+   size; each question asked and whether it says what it decides, what was checked, and a
+   recommendation; files left loose at the top of `.planning/`; places status is written; whether the
+   phase finishes without a person.
+4. **Checkpoint goes.** Each phase command updates the state file itself, at every tier, in the same
+   commit as the phase's work. No separate commits to mark it fresh (records problem 6).
+
 **Step 2 — build the loop.** Each piece is code, not instructions:
 1. EXECUTE starts a fresh executor agent per task.
 2. A small command builds waves from the plan's dependencies.
