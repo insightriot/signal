@@ -8,6 +8,13 @@
       "type": "created",
       "at": "2026-10-26T15:10:57.655Z",
       "by": "claude (course-correction records test)"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-27T05:08:36.352Z",
+      "by": "claude (course-correction records test)",
+      "reason": "fixed",
+      "proof": "d37030f7"
     }
   ]
 }

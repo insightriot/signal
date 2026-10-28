@@ -129,6 +129,7 @@ import {
   bugTitle,
   clip,
   finishedLead,
+  explainedBugStatus,
   headingUndoes,
   legacyIdOf,
   markerDates,
@@ -686,7 +687,7 @@ function unitsRevertLine(probe, force, tag, paths, added = null) {
 }
 
 // A milestone file among the paths a regeneration wrote.
-const MILESTONE_REL_RE = /^\.planning\/MILESTONE-\d+(?:\.\d+)?\.md$/;
+const MILESTONE_REL_RE = /^\.planning\/MILESTONE-M?\d+(?:\.\d+)?\.md$/;
 
 // A refusal found under the store's lock, thrown out of `importUnits`' gate.
 class UnitsStop extends Error {}
@@ -1503,7 +1504,10 @@ function titleOf(file, row) {
 //     leads with Resolved / Done / Closed (the segmenter's `groupWord`); a
 //     section heading that is unclear makes its entries unclear.
 //
-// Whether one of those texts is a marker, and which reason, is ONE rule:
+// Whether one of those texts is a marker, and which reason, is ONE rule
+// (one exception: a bug's status that `finishedLead` calls unclear is read
+// again by `explainedBugStatus`, `SIG-362`, which allows words explaining
+// the fix after its references):
 // `finishedLead` in work-migrate.js (REVIEW C1, D-M6E15-24) — an allowed-
 // continuation grammar: the finish word leads, and only a date, `in <ref>`, a
 // reference or a slice tag may follow it (after a dash, `(` or a sentence end
@@ -1537,6 +1541,14 @@ function readMarkers(file, row) {
     else if (c.reasons.size === 1) markers.push({ reason: [...c.reasons][0], text });
     return c.reasons.size > 0 || c.unclear;
   };
+  // A bug's status may explain its fix after the references (`SIG-362`).
+  const takeBugStatus = (text) => {
+    if (finishedLead(text).unclear && explainedBugStatus(text)) {
+      markers.push({ reason: 'fixed', text });
+      return true;
+    }
+    return take(text);
+  };
 
   const heading = file === 'BUGS.md' && row.kind === 'table' ? null : row.heading;
   if (heading) {
@@ -1560,7 +1572,7 @@ function readMarkers(file, row) {
   if (file === 'BUGS.md' && row.kind === 'table') {
     if (row.struckId) markers.push({ reason: 'fixed', text: row.struckId });
     const cell = row.statusRaw ?? '';
-    if (!take(cell) && cell.trim()) statuses.push(cell.trim());
+    if (!takeBugStatus(cell) && cell.trim()) statuses.push(cell.trim());
   }
   if (file === 'OPEN-QUESTIONS.md' && row.groupWord) markers.push({ reason: 'fixed', text: row.groupHeading });
   else if (file === 'OPEN-QUESTIONS.md' && row.groupHeading && finishedLead(row.groupHeading).unclear) unclear.push(row.groupHeading);
@@ -1574,7 +1586,7 @@ function readMarkers(file, row) {
     if (st) {
       statusLine = true;
       const text = st[1].trim();
-      if (!take(text) && text) statuses.push(text);
+      if (!(file === 'BUGS.md' ? takeBugStatus(text) : take(text)) && text) statuses.push(text);
       continue;
     }
     // A bold lead that speaks of finishing is read with the rest of its line,

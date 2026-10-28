@@ -736,6 +736,44 @@ export function finishedLead(text) {
   return { reasons: refined.size > 0 ? refined : new Set(['fixed']), unclear: false, word: g[1].toLowerCase() };
 }
 
+// A bug's status that explains its fix (`SIG-362`): "fixed in M9.E2 (FR-01),
+// [PR #157](…): what changed". Read only for a bug's `**Status:**` line or
+// status cell, where `finishedLead` calls it unclear. The clause before the
+// first `:`, ` — ` or sentence end is a generic finish word and references
+// only, at least one of them a PR, an Epic or a commit. What follows may be
+// words, unless they say the fix was undone or partial. An `Earlier:` or
+// `Previously:` sentence is history and is not read at all. A specific word
+// (not-a-bug, won't-fix, superseded) outside one leaves it to `finishedLead`.
+// Returns true when the status reads as fixed.
+const EXPLAINED_SEP_RE = /:(?=\s|$)|\s[—–-]\s|\.(?=\s|$)/;
+const CLAUSE_REF_RE = /^(?:[A-Z]{1,5}-\d{1,7}(?:\.\d{1,4}){1,3})$/;
+const CLAUSE_JOIN_RE = /^(?:in|on|and|PR|pull|request)$/i;
+const CITES_RE = /^(?:(?:PR\s{0,3})?#\d{1,7}|(?=[0-9a-f]{0,39}[a-f])(?=[0-9a-f]{0,39}\d)[0-9a-f]{7,40}|M\d{1,4}(?:\.\d{1,4}){0,4}\.E\d{1,4})$/;
+const SPECIFIC_ANY_RE = /\bnot[- ]a[- ]bug\b|\bwon['’]?t[- ]?fix\b|\bsuperseded\b/i;
+const HISTORY_NOTE_G = /\b(?:Earlier|Previously)(?:\s+status)?:.*?(?:\.(?=\s|$)|$)/gi;
+const EXPLANATION_UNDOING_RE = new RegExp('\\b(?:'
+  + 're-?opened|reverted|rolled[\\s-]+back|regressed|un-?done|un-?fixed|un-?resolved|'
+  + 'not\\s+(?:yet\\s+)?(?:fixed|resolved|closed|done)|still\\s+(?:broken|fails|failing|happens|reproduces|open)|'
+  + 'partially|partly|except|only\\s+(?:on|in|for|when)|not\\s+(?:on|in|for)'
+  + ')\\b', 'i');
+
+export function explainedBugStatus(text) {
+  const t = String(text).replace(TAIL_LINK_G, ' $1 ').replace(TAIL_URL_G, ' ').replace(/[*_~`]/g, '')
+    .replace(HISTORY_NOTE_G, ' ').trim();
+  if (SPECIFIC_ANY_RE.test(t)) return false;
+  const lead = t.replace(AFFIRM_RE, '');
+  const g = lead.match(GENERIC_LEAD_RE);
+  if (!g) return false;
+  const after = lead.slice(g[0].length);
+  const sep = after.search(EXPLAINED_SEP_RE);
+  const clause = sep === -1 ? after : after.slice(0, sep);
+  const explanation = sep === -1 ? '' : after.slice(sep);
+  const tokens = clause.replace(TAIL_LEAD_IN_G, ' ').split(TAIL_SPLIT_RE).filter((tok) => tok !== '' && tok !== '-');
+  if (!tokens.every((tok) => TAIL_REF_RE.test(tok) || CLAUSE_REF_RE.test(tok) || CLAUSE_JOIN_RE.test(tok))) return false;
+  if (!tokens.some((tok) => CITES_RE.test(tok))) return false;
+  return !EXPLANATION_UNDOING_RE.test(explanation);
+}
+
 // The dates a marker writes BESIDE a finish word (REVIEW S1; D-M6E15-19):
 // `fixed 2026-10-04`, `DONE — M9.E1, 2026-10-08`, `closed on 2026-03-02`. Only
 // punctuation, an optional `on`/`in`, and at most one ID-like token (letters,

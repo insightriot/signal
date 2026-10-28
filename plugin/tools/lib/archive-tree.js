@@ -551,20 +551,21 @@ export async function senseArchiveTree(baseDir, opts = {}) {
   // decides that it is closed; being current decides that nothing of it moves
   // yet). Read from STATE.md here, not from the closed set, so a caller's own
   // `opts.closedUnits` cannot move it either. It is taken out and returned in
-  // `current`. A held one is said as held, above. Without unit records nothing
-  // is closed while it is current, and nothing here runs.
+  // `current`. A held one is said as held, above. This runs with or without unit
+  // records, because a filled retrospective also reads as closed (`SIG-361`).
   let stillCurrent = [];
-  if (unitRecords !== null) {
-    let currentId = null;
-    try {
-      currentId = currentUnit(await readState(baseDir));
-    } catch {
-      currentId = null; // STATE.md does not read: the resolver closes nothing then
-    }
-    const own = typeof currentId === 'string' ? unitRecords.byId.get(currentId) : undefined;
-    if (own !== undefined && own.status === 'closed' && own.held !== true) stillCurrent = [currentId];
-    closedUnits = closedUnits.filter((unit) => !stillCurrent.includes(unit));
+  let currentId = null;
+  try {
+    currentId = currentUnit(await readState(baseDir));
+  } catch {
+    currentId = null; // STATE.md does not read: the resolver closes nothing then
   }
+  if (typeof currentId === 'string') {
+    const own = unitRecords !== null ? unitRecords.byId.get(currentId) : undefined;
+    const recordClosed = own !== undefined && own.status === 'closed' && own.held !== true;
+    if (recordClosed || closedUnits.includes(currentId)) stillCurrent = [currentId];
+  }
+  closedUnits = closedUnits.filter((unit) => !stillCurrent.includes(unit));
 
   const files = await walkPlanningMd(baseDir);
   // `dropped` is forwarded, not discarded (NFR5 / AC4.5). Left off the
@@ -611,8 +612,8 @@ export async function senseArchiveTree(baseDir, opts = {}) {
   // two facts; collapsing them would be the drift this Epic keeps finding.
   return {
     moves, moveMap, closedEpicIds, closedUnits, files, editsByFile, renameFroms, dropped, held,
-    // Only with unit records: without them no unit is closed while it is current.
-    ...(unitRecords !== null ? { current: stillCurrent } : {}),
+    // The current unit, kept out of the moves though something named it closed.
+    current: stillCurrent,
   };
 }
 

@@ -5,7 +5,7 @@
 // silently absent, and the whole thing stays inside its budget.
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -80,6 +80,18 @@ describe('gatherBigPicture — AC1.1–AC1.3', () => {
   it('takes the milestone named by current_epic, not merely the highest-numbered file', async () => {
     const g = await gatherBigPicture(project({ '.planning/MILESTONE-9.md': '# Milestone 9\n\nFuture.\n' }));
     expect(g.entries.milestone[0].path).toBe('.planning/MILESTONE-2.md');
+  });
+
+  it('reads MILESTONE-M2.md as milestone 2: the same digest as MILESTONE-2.md (SIG-258)', async () => {
+    const extra = { '.planning/MILESTONE-9.md': '# Milestone 9\n\nFuture.\n' };
+    const plain = await gatherBigPicture(project(extra));
+    const base = project(extra);
+    renameSync(join(base, '.planning/MILESTONE-2.md'), join(base, '.planning/MILESTONE-M2.md'));
+    renameSync(join(base, '.planning/MILESTONE-9.md'), join(base, '.planning/MILESTONE-M9.md'));
+    const prefixed = await gatherBigPicture(base);
+    const same = (g) => JSON.parse(JSON.stringify({ entries: g.entries, checked: g.checked, cannotCheck: g.cannotCheck }).replace(/MILESTONE-M(\d)/g, 'MILESTONE-$1'));
+    expect(prefixed.entries.milestone[0].path).toBe('.planning/MILESTONE-M2.md');
+    expect(same(prefixed)).toEqual(same(plain));
   });
 
   it('each source absent in turn → cannot-check with an absent reason; the invariant holds (AC1.2)', async () => {

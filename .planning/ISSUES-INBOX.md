@@ -34,26 +34,10 @@ Its remedy, "Recommended: run /sig:docs-migrate", is also wrong: `migrate-memory
 
 ---
 
-## docs-archive moves the current Epic when the project has no unit records
+## work-store migration: a milestone row "Shipped <date> ([PR #N](url))" is not counted as shipped
 
-**Status:** untriaged (N) · SIG-361
+**Status:** untriaged (N) · SIG-364
 
-Found by running /sig:docs-archive (dry run) on the test project (records test on the test project, 2026-10-26). STATE.md named M3.0.E2 as current_epic; resolveClosures correctly marked it mid-flight, but senseArchiveTree (plugin/tools/lib/archive-tree.js, ~523-566) also treats any unit with a filled retrospective as closed, and its current-unit filter only runs when .planning/work/units/ exists. Result: the current Epic's 7 files were in the move plan. Breaks any project not yet on unit records. Fix: drop the current unit on both closure routes.
-
----
-
-## work-store migration misses fixed bugs whose status line explains the fix
-
-**Status:** untriaged (N) · SIG-362
-
-Found by /sig:docs-migrate --work-store on the test project (records test on the test project, 2026-10-26). 8 of 9 fixed bugs read "**Status:** fixed in M2.11.E1 (FR-01), [PR #160](...): <explanation>". The close-proposal rule needs nothing but references after the word, so all 8 stayed open and the generated BUGS.md now shows them as confirmed: less accurate than the hand-kept list it replaced. Fix: propose the close when the status starts with fixed/resolved and cites a PR or Epic found in history, whatever follows.
-
----
-
-## migration looks for MILESTONE-3.0.md and misses MILESTONE-M3.0.md
-
-**Status:** untriaged (N) · SIG-363
-
-Found by /sig:docs-migrate --work-store on the test project (records test on the test project, 2026-10-26). The project names milestone files MILESTONE-M3.0.md; the tool looks for MILESTONE-3.0.md, so no Epic table is written. Accept both spellings.
+Found 2026-10-27 while verifying SIG-363 on the test project (records test, read-only dry run). 5 of 8 Epic rows read like "Shipped 2026-10-15 ([PR #162](https://github.com/<org>/<repo>/pull/162))". The row rule in work-migrate-units.js (SHIPPED_RE plus the allowed-words check) treats the link URL as extra words, so the report says the row "says shipped and also https://github.com/…, so the row is not counted". No damage today: those Epics are still proposed closed from their retrospectives. But the reason printed is confusing, and a project without retrospectives would lose the evidence. Fix: read a markdown link as its text (and drop pull/commit URLs) before the row rule, as finishedLead already does.
 
 ---

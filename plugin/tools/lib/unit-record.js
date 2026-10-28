@@ -13,7 +13,8 @@
 //
 // This module never touches disk except to read its own schema at load.
 
-import { readFileSync } from 'node:fs';
+import { lstatSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { echoed } from './printable-text.js';
 import { byHandRules, makeRecordKind } from './work-record.js';
@@ -288,6 +289,29 @@ const EPIC_ID_PARTS_RE = /^M(\d+(?:\.\d+)*)\.E(\d+)$/;
 export function epicIdParts(id) {
   const m = typeof id === 'string' ? id.match(EPIC_ID_PARTS_RE) : null;
   return m ? { milestone: m[1], parts: m[1].split('.').map(Number), number: Number(m[2]) } : null;
+}
+
+/**
+ * A milestone's file under `.planning/`: `MILESTONE-7.md`, or `MILESTONE-M7.md`
+ * when that is the one on disk and the plain one is not (`SIG-363`). Callers
+ * still check that it is a regular file.
+ *
+ * @param {string} baseDir
+ * @param {string} milestone — `epicIdParts(id).milestone`, e.g. `'7'` or `'3.0'`
+ * @returns {string}
+ */
+export function milestoneFileRel(baseDir, milestone) {
+  const plain = `.planning/MILESTONE-${milestone}.md`;
+  const prefixed = `.planning/MILESTONE-M${milestone}.md`;
+  const there = (rel) => {
+    try {
+      lstatSync(join(baseDir, rel));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  return !there(plain) && there(prefixed) ? prefixed : plain;
 }
 
 /**

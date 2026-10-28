@@ -54,7 +54,7 @@ import { readRegularFile, regularFileRefusal } from './path-confine.js';
 import { cut, printable } from './printable-text.js';
 import { retroStatusFromContent, RETRO_STATUS } from './retro-index.js';
 import { parseFrontmatter } from './state.js';
-import { compareUnitIds, epicIdParts } from './unit-record.js';
+import { compareUnitIds, epicIdParts, milestoneFileRel } from './unit-record.js';
 import { assertUnitId, caseTwins, importUnitsTexts, listUnits, unitRecordsOn } from './unit-records.js';
 import { WorkStoreError } from './work-errors.js';
 import { epicOf } from './work-record.js';
@@ -66,7 +66,7 @@ const PLANNING = '.planning';
 const ARCHIVE = `${PLANNING}/archive`;
 const STATE_REL = `${PLANNING}/STATE.md`;
 
-const MILESTONE_FILE_RE = /^MILESTONE-(\d+(?:\.\d+)?)\.md$/;
+const MILESTONE_FILE_RE = /^MILESTONE-M?(\d+(?:\.\d+)?)\.md$/;
 const RETRO_FILE_RE = /^(.+)-RETROSPECTIVE\.md$/;
 const MILESTONE_DIR_RE = /^M\d+(?:\.\d+)?$/;
 const EPIC_DIR_RE = /^E\d+$/;
@@ -385,7 +385,7 @@ function removedBetween(content, keptRows, milestone) {
 function milestoneMarkers(baseDir, current, keptRows) {
   const parts = epicIdParts(current);
   if (parts === null || parts.parts.length > 2) return null;
-  const rel = `${PLANNING}/MILESTONE-${parts.milestone}.md`;
+  const rel = milestoneFileRel(baseDir, parts.milestone);
   if (regularFileRefusal(baseDir, rel) !== null) return { rel, markers: 'absent' };
   try {
     const content = readRegularFile(baseDir, rel);
@@ -539,7 +539,7 @@ export async function planUnits(baseDir, opts = {}) {
   const currentParts = epicIdParts(current);
   const otherMarked = [];
   for (const rel of markedFiles) {
-    if (currentParts !== null && rel === `${PLANNING}/MILESTONE-${currentParts.milestone}.md`) continue;
+    if (currentParts !== null && rel === milestoneFileRel(baseDir, currentParts.milestone)) continue;
     otherMarked.push(rel);
   }
 
@@ -720,7 +720,7 @@ export function milestoneTableWrites(baseDir, currentRel, units, opts = {}) {
   const others = new Set();
   for (const u of units) {
     const parts = epicIdParts(u.id);
-    if (parts !== null && parts.parts.length <= 2) others.add(`${PLANNING}/MILESTONE-${parts.milestone}.md`);
+    if (parts !== null && parts.parts.length <= 2) others.add(milestoneFileRel(baseDir, parts.milestone));
   }
   others.delete(currentRel);
   const numberOf = (rel) => rel.slice(PLANNING.length + 1).match(MILESTONE_FILE_RE)?.[1] ?? null;

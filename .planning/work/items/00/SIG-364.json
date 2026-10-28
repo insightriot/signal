@@ -1,0 +1,13 @@
+{
+  "id": "SIG-364",
+  "type": "NEW",
+  "title": "work-store migration: a milestone row \"Shipped <date> ([PR #N](url))\" is not counted as shipped",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-27T05:08:29.232Z",
+      "by": "claude (course-correction records test)"
+    }
+  ]
+}
