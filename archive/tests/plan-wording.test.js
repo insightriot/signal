@@ -2,8 +2,10 @@
 // wording and section layout of plan.md before it was rewritten as numbered
 // steps (and, for two of them, the identical phase-entry paragraph plan.md
 // shared with execute, verify and review). Each is copied verbatim from the
-// file named above it. What they protected is still checked against the new
-// file in the same live test files. This file does not run.
+// file named above it, so they use helpers defined in those files (planMd,
+// denorm, liveText, antiRationalizationBlock, MIDDLE_COMMANDS) and are not
+// self-contained. What they protected is still checked against the new file in
+// the same live test files. This file does not run.
 
 // --- from tests/b93-epic-roll-ordering.test.js
     it.each(siblings)('%s.md carries the tier preamble', (name) => {

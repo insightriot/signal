@@ -10,7 +10,7 @@ Write a plan any agent can follow without asking: tasks in vertical slices, each
 criteria and a test, ordered so the riskiest thing runs first. Decide what you can; ask only what the
 requirements, code and records cannot answer.
 
-Every `tools/lib/`, `skills/` and `references/` path in this file is under `${CLAUDE_PLUGIN_ROOT}/`:
+Every `tools/lib/`, `skills/`, `references/` and `commands/` path in this file is under `${CLAUDE_PLUGIN_ROOT}/`:
 import from there, never from another copy of Signal. `baseDir` is the project root; `planningDir` is
 `.planning/` in it; `currentEpic` is `current_epic` from `readState` (`tools/lib/state.js`).
 
@@ -121,8 +121,8 @@ sorts every record at status N and follows the attention setting. On a v1 store 
 
 Cover the angles `research_parallelism` allows: **domain** (external docs, libraries, APIs),
 **codebase** (patterns, reusable code, integration points), **risk** (edge cases, pitfalls), **prior
-art** (how others solved it). Do the research yourself: Signal's research agents are not dispatched
-by this command (`references/agent-reachability.md`).
+art** (how others solved it). Do the research yourself: this command dispatches no research agents
+(`references/agent-reachability.md`).
 
 Check the environment the plan assumes: runtime versions, an install dry run where the project has a
 manifest (`npm install --dry-run`, `cargo check`), a prebuilt binary for any native module, and that
