@@ -32,8 +32,8 @@ import from there, never from another copy of Signal. `baseDir` is the project r
 
 | `attention` | How decisions are confirmed |
 |---|---|
-| `attended` | Ask each decision as you reach it (`gates.confirm_in_phase`), approve the results (`gates.confirm_verify`), and choose the path on a FAIL. |
-| `checkpointed` | No approval at the end: say what the phase found and go on. A decision the plan leaves open is still asked. On a FAIL, take the Loop Back's A and say so. |
+| `attended` | Ask each decision as you reach it (`gates.confirm_in_phase`), and approve the results (`gates.confirm_verify`). |
+| `checkpointed` | No approval at the end: say what the phase found and go on. A decision the plan leaves open is still asked. On a FAIL under the loop ceiling, take A and say so. |
 | `unattended` | As `checkpointed`; a decision that is hard to undo is still asked. |
 
 ## 2. Record the phase
@@ -42,7 +42,7 @@ Only if step 1 let the command through. Call `await transitionPhase(baseDir, 'VE
 (`tools/lib/state.js`) first: it records the phase being left and sets `phase: VERIFY`. If it
 refuses, show its message and stop. Show any `quarantined` entries it returns.
 Call it on a re-run too (it counts as a pass, so the loop ceiling comes sooner), except: skip it
-if `phase` is already `VERIFY` and the report step 7 writes does not exist yet, as the call would refuse.
+if `phase` is already `VERIFY` and no report exists yet (step 8 writes it), as the call would refuse.
 
 ## 3. Load skills and inputs
 
@@ -52,18 +52,18 @@ Read and apply `skills/verify/debugging-and-error-recovery/SKILL.md`, and
 Read the plan from step 1; the requirements,
 `resolveArtifactPath(planningDir, 'REQUIREMENTS', { currentEpic, phase: 'DISCUSS' })`; the
 validation file, `resolveArtifactPath(planningDir, 'VALIDATION', { currentEpic, phase: 'PLAN' })`
-(none at `nyquist_enforcement: off`); and the progress file,
-`resolveArtifactPath(planningDir, 'PROGRESS', { currentEpic, phase: 'EXECUTE' })`. Do each check yourself: this command
+(none at `nyquist_enforcement: off`); and the progress file, `artifactName('PROGRESS', { currentEpic,
+planningDir })`, where it exists (`strict` requires it). Do each check yourself: this command
 dispatches no verifier agent.
 
 ## 4. Check each acceptance criterion
 
 For each task in the plan, check the code against each acceptance criterion and record pass or fail
-with evidence: the test that covers it, a command and its output, or a file and line.
+with evidence: a test, a command and its output, or a file and line.
 
 ## 5. Run the suite and the build
 
-Run the full test suite, build and linter, where the project has them. All tests pass, the build
+Run the full test suite, build and linter, where they exist. All tests pass, the build
 is clean, and no new warnings appear.
 
 ## 6. Check the test map
@@ -74,15 +74,15 @@ it cover its scenario? Name each gap.
 At `strict`, each new test also needs proof it failed before its code: the parent-run line the
 progress file records for its task, or a line in the report naming the test and the commit it came
 before. A progress entry with a stated gap has no proof: report it. Code built before `strict` was
-on cannot get that proof afterwards (`references/tier-definitions.md`): say so as a limit.
+on cannot get it afterwards: say so as a limit.
 
 ## 7. Write the report
 
-1. Draft `artifactName('VERIFICATION', { currentEpic, planningDir })` from
-   `references/verification-template.md`, with the tier's headings. In the coverage section, cite
-   each requirement by its id (`AC1.2`, `FR3`): the coverage check sees only cited ids.
+1. Draft the report from `references/verification-template.md`, with the tier's headings, fresh on
+   every pass (not edited from an earlier one), and keep it in memory. Cite by id (`AC1.2`, `FR3`)
+   only the requirements you verified: the check counts every id the text names as covered.
 2. Run `diffRequirementCoverage({ requirementsText, verificationText })`
-   (`tools/lib/requirement-coverage.js`) on the requirements and the draft, and
+   (`tools/lib/requirement-coverage.js`) on the requirements and that draft, once, and
    `checkValidationConsistency(validationText)` (`tools/lib/validation-consistency.js`) on the
    validation file.
 3. Put their results in the report, including at zero:
@@ -100,16 +100,15 @@ Decide the verdict:
 
 - **PASS**: every check passed. PASS with documented limits is a PASS (the value
   `recordPass(baseDir, 'VERIFY', 'PASS')` below records): the limits live in the report.
-- **PASS-WITH-FIXES**: a check failed, you fixed it in this phase with a commit per fix, and every
-  check passed when run again.
+- **PASS-WITH-FIXES**: a check failed, was fixed in this phase (a commit per fix) and then passed.
 - **FAIL**: anything still fails, including any `missing` requirement. List each failure as a fix to
   make: on a loop back, `/sig:execute` builds those.
 
-Write the verdict in the report and write the file, then run
+Write the verdict in the report, write it to `artifactName('VERIFICATION', { currentEpic, planningDir })`, then run
 `validateVerificationContent(content, profile.tier)` (`tools/lib/verification-template.js`) on it.
 Fix the report until it passes. It checks that the report answers each heading, not that the
-answers are right: steps 4 to 7 do that. Then call `recordPass(baseDir, 'VERIFY', verdict)`
-(`tools/lib/state.js`) once, before the Loop Back.
+answers are right. Then call `recordPass(baseDir, 'VERIFY', verdict)` (`tools/lib/state.js`) once,
+before the Loop Back; if it refuses, show why, do step 10, and stop.
 
 ## 9. Phase Gate
 
@@ -136,25 +135,25 @@ At `gate_strictness: strict`, answer each:
 
 On a FAIL, call `loopStatusFor(await readState(baseDir), 'VERIFY')` (`tools/lib/loop-ceiling.js`).
 
-- It returns `null`: the count cannot be read (`phase_passes` or `phase_pass_mark` in `STATE.md` is
-  damaged). Say so, do step 10, and stop for the user to fix it.
+- It returns `null`: a list or mark in `STATE.md` it counts from is damaged. Say so, do step 10, and
+  stop for the user to fix it.
 - `atCeiling`: show `formatLoopCeilingHalt(status)`. At `attended`, ask the options below with it; at
   `checkpointed` and `unattended`, do step 10 and stop: a person decides.
 - Otherwise: at `attended`, ask with the 3-options-plus-other pattern (`references/question-patterns.md`,
   via `AskUserQuestion`); at `checkpointed` and `unattended`, take A and say so.
 
-A. **Loop back to EXECUTE** (recommended). This command ends after step 10, and the next command is
-   `/sig:execute`, not `/sig:review`: it builds the fixes the report lists.
+A. **Loop back to EXECUTE** (recommended under the ceiling). This command ends after step 10, and the next command is
+   `/sig:execute`, not `/sig:review`.
 B. **Change the tier with `/sig:escalate`**, when the failure shows the work was calibrated too low.
-C. **Accept it as a known limit**: list the failed criteria as limits in the report.
+C. **Accept it as a known limit**: list the failed criteria as limits in the report; then go on as on a pass.
 
-Write the path chosen in the report.
+Write the path chosen in the report, keeping every heading filled.
 
 ## 10. Finish
 
 Commit the report and every `.planning/` file the phase changed (`STATE.md`, `INDEX.md`). This
-command sets no next phase: `/sig:execute` records leaving VERIFY on a loop back, and on a pass the
-next command does (`/sig:review`, or `/sig:ship` where the tier skips REVIEW; SPIKE skips both).
+command sets no next phase; the next command records leaving VERIFY: `/sig:execute` after a loop
+back, else `/sig:review` (`/sig:ship` where the tier skips REVIEW; SPIKE skips both).
 
 Except at SKETCH, after the commit call `markFresh(baseDir, { commit: <HEAD> })`
 (`tools/lib/state.js`). Wrap it in a catch-all: on any error, warn and continue.

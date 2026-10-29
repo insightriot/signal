@@ -68,8 +68,11 @@ describe('verify.md runs the coverage check on the report, not before it', () =>
   // The old file ran diffRequirementCoverage in step 1b and wrote the report in
   // step 5, but the check reads the report: on a first pass it had nothing to read.
   it('drafts the report, then diffs it, then validates it, then records the verdict', () => {
-    const draft = at("Draft `artifactName('VERIFICATION', { currentEpic, planningDir })`");
+    const draft = at('Draft the report from `references/verification-template.md`');
     const diff = at('Run `diffRequirementCoverage({ requirementsText, verificationText })`');
+    expect(at("write it to `artifactName('VERIFICATION', { currentEpic, planningDir })`")).toBeLessThan(
+      at('run `validateVerificationContent(content, profile.tier)`'),
+    );
     const validate = at('run `validateVerificationContent(content, profile.tier)`');
     const record = at("call `recordPass(baseDir, 'VERIFY', verdict)` (`tools/lib/state.js`) once");
     expect(draft).toBeLessThan(diff);
@@ -77,8 +80,15 @@ describe('verify.md runs the coverage check on the report, not before it', () =>
     expect(validate).toBeLessThan(record);
   });
 
-  it('tells the report to cite requirement ids, because the check finds nothing else', () => {
-    expect(flat).toMatch(/cite each requirement by its id/);
+  it('the draft is fresh each pass and cites only the requirements verified, because the check counts every id named', () => {
+    expect(flat).toMatch(/fresh on every pass \(not edited from an earlier one\)/);
+    expect(flat).toMatch(/Cite by id \(`AC1\.2`, `FR3`\) only the requirements you verified/);
+    expect(flat).toMatch(/on the requirements and that draft, once,/);
+    // Review round 2: a report that names a missing id (as a limit, or a
+    // previous pass's "missing" line) reads as covering it.
+    const reqs = '## Requirements\n- AC1.1 a\n- AC1.2 b\n';
+    const named = diffRequirementCoverage({ requirementsText: reqs, verificationText: 'AC1.1 passes.\nMissing: AC1.2.\n' });
+    expect(named.missing).toEqual([]);
     const requirementsText = '## Requirements\n- AC1.1 times refresh\n- AC1.2 no flicker\n';
     // A report written in prose alone: the check cannot scope a denominator.
     const prose = diffRequirementCoverage({ requirementsText, verificationText: '## Verdict\nAll criteria pass.\n' });
@@ -105,8 +115,9 @@ describe('verify.md runs the coverage check on the report, not before it', () =>
 
   it('at strict, the failed-first proof is the parent-run line /sig:execute records', () => {
     expect(flat).toMatch(/At `strict`, each new test also needs proof it failed before its code: the parent-run line the progress file records/);
-    // Read with the lookup, which also finds older progress-file names (review round 1).
-    expect(verify).toContain("resolveArtifactPath(planningDir, 'PROGRESS', { currentEpic, phase: 'EXECUTE' })");
+    // The name /sig:execute writes. The lookup's older names can be another unit's file (review round 2).
+    expect(flat).toContain("`artifactName('PROGRESS', { currentEpic, planningDir })`, where it exists (`strict` requires it)");
+    expect(verify).not.toContain("'PROGRESS', { currentEpic, phase:");
   });
 
   it('a missing plan stops the run in step 1, before the phase is recorded', () => {
@@ -121,7 +132,7 @@ describe('verify.md re-entry and the loop ceiling', () => {
     const step2 = verify.slice(verify.indexOf('## 2. Record the phase'), verify.indexOf('## 3. ')).replace(/\s+/g, ' ');
     expect(step2).not.toMatch(/Skip this step/);
     expect(step2).toMatch(/Call it on a re-run too/);
-    expect(step2).toMatch(/skip it if `phase` is already `VERIFY` and the report step 7 writes does not exist yet/);
+    expect(step2).toMatch(/skip it if `phase` is already `VERIFY` and no report exists yet \(step 8 writes it\)/);
     const base = await mkdtemp(join(tmpdir(), 'sig-verify-reentry-'));
     try {
       await initState(base, 'DISCUSS');
@@ -148,14 +159,19 @@ describe('verify.md re-entry and the loop ceiling', () => {
     const loopBack = flat.slice(flat.indexOf('### Loop Back'));
     const count = loopBack.indexOf("`loopStatusFor(await readState(baseDir), 'VERIFY')`");
     expect(count).toBeGreaterThan(-1);
-    expect(loopBack).toMatch(/It returns `null`: the count cannot be read \(`phase_passes` or `phase_pass_mark` in `STATE\.md` is damaged\)\. Say so, do step 10, and stop/);
+    expect(loopBack).toMatch(/It returns `null`: a list or mark in `STATE\.md` it counts from is damaged\. Say so, do step 10, and stop/);
     // Review round 1: at attended the person is there, so the ceiling asks rather than stopping bare.
     expect(loopBack).toMatch(/`atCeiling`: show `formatLoopCeilingHalt\(status\)`\. At `attended`, ask the options below with it; at `checkpointed` and `unattended`, do step 10 and stop: a person decides/);
     expect(count).toBeLessThan(loopBack.indexOf('AskUserQuestion'));
   });
 
-  it('after taking A the next command is /sig:execute, because /sig:drive picks REVIEW from the phase alone', () => {
+  it('after taking A the next command is /sig:execute, because /sig:drive picks REVIEW from the phase alone (SIG-373)', () => {
     expect(flat).toMatch(/This command ends after step 10, and the next command is `\/sig:execute`, not `\/sig:review`/);
+  });
+
+  it('a refused recordPass still commits, and C goes on as a pass does', () => {
+    expect(flat).toMatch(/before the Loop Back; if it refuses, show why, do step 10, and stop/);
+    expect(flat).toMatch(/list the failed criteria as limits in the report; then go on as on a pass/);
   });
 
   it('under the ceiling, checkpointed and unattended loop back without asking; an open decision is still asked', () => {
