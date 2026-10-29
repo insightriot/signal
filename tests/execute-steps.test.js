@@ -75,7 +75,7 @@ describe('execute.md step order', () => {
   });
 
   it('says plainly that it dispatches no executor agent, so no reader expects one', () => {
-    expect(execute).toMatch(/this command dispatches no executor agent/);
+    expect(execute).toMatch(/this\s+command dispatches no executor agent/);
     expect(execute).not.toMatch(/subagent_type/);
   });
 
@@ -116,12 +116,19 @@ describe('execute.md fixes from the review of its rewrite', () => {
     }
   });
 
-  it('only a resumed run skips tasks marked done, and a resumed task is checked against the commit before its first', () => {
+  it('only a resumed run skips tasks marked done; a loop back builds the fixes; a resumed task starts from the last closed commit', () => {
     // A progress file named 1-PROGRESS.md outlives a linear run, so an
     // unconditional skip would pass over a new plan's Task 1.
     expect(execute).toMatch(/On a resumed run \(step 2 skipped\), skip tasks the progress file or\s+`last_completed_task` marks done, and resume the one still in `current_tasks`/);
     expect(execute).not.toMatch(/skipping any the progress file/);
-    expect(execute).toMatch(/or for a resumed task the commit\s+before its first/);
+    expect(execute).toMatch(/or for a resumed task\s+`last_completed_task\.commit` \(HEAD if it has none\)/);
+    // VERIFY and REVIEW loop back to EXECUTE to fix what they found.
+    expect(execute).toMatch(/On a loop back \(`phase`\s+was VERIFY or REVIEW\), the tasks are the fixes that phase named, not the plan's/);
+  });
+
+  it('the validation file is resolved with the Epic, so a file in the Epic folder is found', () => {
+    expect(execute).toContain("`resolveArtifactPath(planningDir, 'VALIDATION', { currentEpic, phase: 'PLAN' })`");
+    expect(execute).toContain("`resolveArtifactPath(planningDir, 'PLAN', { currentEpic, phase: 'PLAN' })`");
   });
 
   it('a missing plan stops the run in step 1, before the phase is recorded', () => {
@@ -131,7 +138,7 @@ describe('execute.md fixes from the review of its rewrite', () => {
   });
 
   it('a task that cannot be finished stops the run without the finish step, and says what to run next', () => {
-    expect(execute).toMatch(/`status: 'aborted'` for a task you cannot finish; then say why in the progress file, skip step 8,\s+and stop: the user fixes the cause and runs `\/sig:execute` again/);
+    expect(execute).toMatch(/`status: 'aborted'` for a task you cannot finish; then say why in the progress file, skip Finish\s+\(step 8\), and stop: the user fixes the cause and runs `\/sig:execute` again/);
   });
 
   it('a task commit holds only its files; the phase commit holds every .planning/ file it changed', () => {
@@ -144,6 +151,6 @@ describe('execute.md fixes from the review of its rewrite', () => {
   });
 
   it('a light tier with no validation file does not send the agent back to the plan for tests', () => {
-    expect(execute).toMatch(/a mapped test where there is a validation file/);
+    expect(execute).toMatch(/a mapped test where there is a\s+validation file/);
   });
 });
