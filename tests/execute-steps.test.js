@@ -123,7 +123,10 @@ describe('execute.md fixes from the review of its rewrite', () => {
     expect(execute).not.toMatch(/skipping any the progress file/);
     expect(execute).toMatch(/or for a resumed task\s+`last_completed_task\.commit` \(HEAD if it has none\)/);
     // VERIFY and REVIEW loop back to EXECUTE to fix what they found.
-    expect(execute).toMatch(/On a loop back \(`phase`\s+was VERIFY or REVIEW\), the tasks are the fixes that phase named, not the plan's/);
+    expect(execute).toMatch(/On a loop back \(`phase`\s+was VERIFY or REVIEW\), the tasks are the fixes in that phase's report \(`'VERIFICATION'` or `'REVIEW'`\)/);
+    // REVIEW chains one parent run per round from the round's base; checkFixRounds refuses any other.
+    expect(execute).toMatch(/a REVIEW round's parent run follows `commands\/review\.md` § 4\.6 instead of sub-step 6/);
+    expect(readFileSync(join(ROOT, 'plugin', 'commands', 'review.md'), 'utf-8')).toMatch(/^### 4\.6 Fix rounds/m);
   });
 
   it('the validation file is resolved with the Epic, so a file in the Epic folder is found', () => {

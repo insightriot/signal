@@ -1,6 +1,6 @@
 ---
 name: sig:execute
-description: "EXECUTE phase — build the plan's tasks wave by wave, tests first where the tier requires it, one commit per task."
+description: "EXECUTE phase — build the plan's tasks wave by wave, tests first where required, one commit each."
 args: ""
 ---
 
@@ -23,14 +23,14 @@ import from there, never from another copy of Signal. `baseDir` is the project r
   finds no plan: stop and say to run `/sig:plan`.
 
 Then the branch: `checkBranchPosture(baseDir, { tier: profile.tier, override })`
-(`tools/lib/branch-guard.js`), where `override` is true only if the user passed
+(`tools/lib/branch-guard.js`), where `override` is whether the user passed
 `--allow-default-branch`.
 
 | Result | Do |
 |---|---|
 | `ok`, `not-applicable` | Continue. |
 | `on-default` | Stop, showing `formatBranchHalt(result, { command: '/sig:execute' })`. |
-| `overridden` | Continue, and show `formatBranchLine(result)`. |
+| `overridden` | Show `formatBranchLine(result)` and continue. |
 | `cannot-determine` | Show `formatBranchUnknown(result)` and continue. |
 
 `applyRigorOverrides({}, profile)` gives the `gates` used below, and these overrides:
@@ -44,7 +44,7 @@ Then the branch: `checkBranchPosture(baseDir, { tier: profile.tier, override })`
 | `attention` | How decisions are confirmed |
 |---|---|
 | `attended` | Confirm before each wave after the first (`gates.confirm_in_phase`), and the finished phase (`gates.confirm_execute`). |
-| `checkpointed` | Waves run without stopping; a decision the plan leaves open is still asked. At the end, say what was done and continue. |
+| `checkpointed` | Waves run on; a decision the plan leaves open is still asked. At the end, say what was done and go on. |
 | `unattended` | As `checkpointed`, but take each recommendation and record it; ask only if it is hard to undo. |
 
 ## 2. Record the phase
@@ -58,25 +58,26 @@ Show any `quarantined` entries it returns.
 ## 3. Load skills and the plan
 
 Read and apply each `skills/build/<name>/SKILL.md`: `incremental-implementation`,
-`test-driven-development`, `context-engineering`, `source-driven-development`, and, only if the
-project has a frontend, `frontend-ui-engineering`.
+`test-driven-development`, `context-engineering`, `source-driven-development`, and
+`frontend-ui-engineering` if the project has a frontend.
 
 Read the plan from step 1, and
 `resolveArtifactPath(planningDir, 'VALIDATION', { currentEpic, phase: 'PLAN' })` (none at
 `nyquist_enforcement: off`). Every task needs acceptance criteria, and a mapped test where there is a
-validation file. Fix the plan for any task that lacks them.
+validation file. Fix the plan where a task lacks them.
 
 ## 4. Group the tasks into waves
 
-Wave 1: tasks with no dependencies; wave N: those whose dependencies are in earlier waves. Keep in
-wave 1 what the plan says the Epic runs for the first time. Do each task yourself, one at a time: this
+Wave 1: tasks with no dependencies; wave N: those whose dependencies are in earlier waves. Keep the
+plan's first-run work in wave 1. Do each task yourself, one at a time: this
 command dispatches no executor agent.
 
 ## 5. Build each task
 
 For each task, in wave order. On a resumed run (step 2 skipped), skip tasks the progress file or
 `last_completed_task` marks done, and resume the one still in `current_tasks`. On a loop back (`phase`
-was VERIFY or REVIEW), the tasks are the fixes that phase named, not the plan's:
+was VERIFY or REVIEW), the tasks are the fixes in that phase's report (`'VERIFICATION'` or `'REVIEW'`),
+and a REVIEW round's parent run follows `commands/review.md` § 4.6 instead of sub-step 6:
 
 1. **Record it** (not at SKETCH): `clearOrphansBeforeDispatch(baseDir, id)` (`tools/lib/execute.js`),
    then `setCurrentTask(baseDir, { id, epic: currentEpic, wave })` (`tools/lib/state.js`).
@@ -88,7 +89,7 @@ was VERIFY or REVIEW), the tasks are the fixes that phase named, not the plan's:
    `CONTEXT.md` for an Epic planned before that), unless `context_rot_reread: false`.
 4. Write the tests first (required when `tdd_required: true`), then the least code that passes them.
 5. Run the test suite. Commit the task on its own, staging only its files.
-6. Run the task's new tests against its starting commit, as `references/fixer-brief.md` says:
+6. Prove the task's new tests fail on its start commit (`references/fixer-brief.md`):
    `node "${CLAUDE_PLUGIN_ROOT}/tools/lib/parent-run.js" --base <start commit> <each new or changed test file>`.
    It runs vitest only; on another runner, or with no new test, write a stated gap with why.
 7. **Close it** (not at SKETCH): `clearCurrentTask(baseDir, { id, status: 'done', commit })`, or
@@ -107,8 +108,7 @@ After each task, update `artifactName('PROGRESS', { currentEpic, planningDir })`
 - [ ] Task 2 — in progress
 ```
 
-With one task the progress file is optional, except at
-`gate_strictness: strict`, where it is always written.
+One task: the progress file is optional, except at `gate_strictness: strict`.
 
 ## 7. Phase Gate
 
