@@ -81,9 +81,9 @@ describe('verify.md runs the coverage check on the report, not before it', () =>
   });
 
   it('the draft is fresh each pass and cites only the requirements verified, because the check counts every id named', () => {
-    expect(flat).toMatch(/fresh on every pass \(not edited from an earlier one\)/);
+    expect(flat).toMatch(/fresh on every pass \(not edited from an earlier one\)\./);
     expect(flat).toMatch(/Cite by id \(`AC1\.2`, `FR3`\) only the requirements you verified/);
-    expect(flat).toMatch(/on the requirements and that draft \(never the written file\)/);
+    expect(flat).toMatch(/on the requirements and that draft, before it names any id you did not verify/);
     // Review round 3: a group with nothing verified drops out of the total, so it is named.
     expect(flat).toMatch(/each of `unattributableGroups`, saying if it is this unit's: then it is missing too/);
     const groupless = diffRequirementCoverage({

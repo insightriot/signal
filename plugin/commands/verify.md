@@ -78,10 +78,10 @@ on cannot get it afterwards: say so as a limit.
 ## 7. Write the report
 
 1. Draft the report from `references/verification-template.md`, with the tier's headings, fresh on
-   every pass (not edited from an earlier one), and keep it in memory. Cite by id (`AC1.2`, `FR3`)
-   only the requirements you verified: the check counts every id the text names as covered.
+   every pass (not edited from an earlier one). Cite by id (`AC1.2`, `FR3`) only the requirements
+   you verified: the check counts every id the text names as covered.
 2. Run `diffRequirementCoverage({ requirementsText, verificationText })`
-   (`tools/lib/requirement-coverage.js`) on the requirements and that draft (never the written file), and
+   (`tools/lib/requirement-coverage.js`) on the requirements and that draft, before it names any id you did not verify, and
    `checkValidationConsistency(validationText)` (`tools/lib/validation-consistency.js`) on the
    validation file.
 3. Put their results in the report, including at zero:
