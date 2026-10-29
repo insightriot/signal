@@ -144,6 +144,10 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
    7 minutes. It hit a crash on the project's config (`SIG-368`, fixed). The three inbox items were
    list headers the store migration had made into items (`SIG-370`). The approved calibrate again
    did not run (`SIG-369`).
+   **execute, 2026-10-29, from where plan left it:** 12.1 KB to 7.0 KB; branch code imported; no
+   questions or stops; the task recorded before its work and closed after its commit; tests red
+   first; the parent run in the progress file; progress and STATE in one commit; $3.55, 36 turns, 4.4
+   minutes.
 4. **Checkpoint goes.** Each phase command updates the state file itself, at every tier, in the same
    commit as the phase's work. No separate commits to mark it fresh (records problem 6).
 
