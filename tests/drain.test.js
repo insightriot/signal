@@ -531,13 +531,22 @@ describe('commands/plan.md drain step (S5.t3 — FR7.1-7.4, R1 hard gate)', () =
   });
 
   it('FR7.3 + R5: delete/merge confirm per entry at every setting; keep preserves', () => {
-    expect(planMd).toMatch(/\*\*delete\*\* and \*\*merge\*\* also need a\s+per-entry \*confirm\* or \*keep\*; \*keep\* leaves the file unchanged/);
+    expect(planMd).toMatch(/\*\*delete\*\* and \*\*merge\*\* also need a\s+per-entry\s+\*confirm\* or \*keep\*; \*keep\* leaves the file unchanged/);
     expect(planMd).toMatch(/Never propose delete or merge here/);
   });
 
   it('R1 HARD GATE: previews the diff before any disposition write, at every attention setting', () => {
     expect(planMd).toMatch(/Every write is previewed, at every attention setting/);
     expect(planMd).toMatch(/show the diff, and write with\s+`applyDispositionToFile` only after it is accepted/);
+  });
+
+  it('a promote is filed by promoteDrainEntry even in a batch (applyDispositions only stamps the inbox)', () => {
+    expect(planMd).toMatch(/A \*\*promote\*\* is always written by\s+`promoteDrainEntry`, never by those two/);
+  });
+
+  it('the environment check runs at every tier, even when research_parallelism: 0 skips the research', () => {
+    expect(planMd).toMatch(/\*\*At every tier, even when research is skipped\*\*, check the environment/);
+    expect(planMd).toMatch(/- \[ \] The environment check ran and any drift is noted\n/);
   });
 
   it('FR7.4: empty candidate set emits a one-line note and continues', () => {

@@ -7,8 +7,7 @@ args: ""
 # PLAN
 
 Write a plan any agent can follow without asking: tasks in vertical slices, each with acceptance
-criteria and a test, ordered so the riskiest thing runs first. Decide what you can; ask only what the
-requirements, code and records cannot answer.
+criteria and a test, ordered so the riskiest thing runs first.
 
 Every `tools/lib/`, `skills/`, `references/` and `commands/` path in this file is under `${CLAUDE_PLUGIN_ROOT}/`:
 import from there, never from another copy of Signal. `baseDir` is the project root; `planningDir` is
@@ -24,11 +23,11 @@ import from there, never from another copy of Signal. `baseDir` is the project r
 - `PLAN` is in `phases_skipped`: stop with *"This tier ({tier}) skips PLAN. Run `/sig:execute` next,
   or `/sig:escalate` if scope has grown and PLAN should run."*
 
-`applyRigorOverrides` gives the `gates` used below. These overrides shape the phase:
+`applyRigorOverrides` gives the `gates` used below, and these overrides:
 
 | Override | Effect |
 |---|---|
-| `research_parallelism` | `0` skips step 5; `2` covers the two most relevant angles; `4` covers all four. |
+| `research_parallelism` | `0` skips step 5's research, not its environment check; `2` covers the two most relevant angles; `4` covers all four. |
 | `plan_validation_dims` | `none` skips step 7; `core` checks three dimensions; `all` checks eight. |
 | `nyquist_enforcement` | `off` skips step 8; `basic` or `strict` runs it (VERIFY enforces strictness). |
 | `gate_strictness: strict` | Runs the Anti-Rationalization Check in step 9. Nothing else. |
@@ -62,8 +61,7 @@ Then the code the requirements touch.
 ## 4. Sort the inbox (required)
 
 Captured ideas get a disposition here and nowhere else, so this step always runs. You never have to
-triage: always offer "defer all remaining", one batch that stamps every entry. Walking
-away with every entry unstamped is the one thing not allowed.
+triage: always offer "defer all remaining", one batch that stamps every entry.
 
 **Work store on** (`isStoreOn(baseDir)`, `tools/lib/work-store.js`): run `/sig:item triage`. It
 sorts every record at status N and follows the attention setting. On a v1 store it refuses and names
@@ -75,10 +73,9 @@ sorts every record at status N and follows the attention setting. On a v1 store 
 1. `listDrainCandidatesWithRecovery(content)` returns `{candidates, danglingFence, recoveredCount}`:
    every top-level `## ` entry not yet dispositioned. If `danglingFence`, say so first: an unclosed
    code fence hid `{recoveredCount}` entries. Those carry `recovered: true`: list them, offer no
-   disposition and leave them out of any batch; fixing the fence makes them normal entries.
-2. `listStandingEntries(content)`: state the count beside the candidates, e.g. *"(no inbox
-   candidates to drain; 1 standing entry not counted)"*. A standing entry is permanent on purpose:
-   no disposition verb applies to it, so offer none.
+   disposition and leave them out of any batch.
+2. `listStandingEntries(content)`: state the count beside the candidates, e.g. *"(1 standing
+   entry not counted)"*. A standing entry is permanent: no disposition verb applies to it, so offer none.
    No candidates: say *(no inbox candidates to drain)* and go to step 5.
 3. For each candidate, one of:
 
@@ -96,13 +93,15 @@ sorts every record at status N and follows the attention setting. On a v1 store 
    A promote is classified `work` (to `BACKLOG.md`, tagged `roadmap` or `hygiene`) or `bug` (to
    `BUGS.md`), with an offered cleaned-up title (a blank keeps the source heading). Route it with
    `promoteDrainEntry(baseDir, { classification, block, tag, title, entryIndex, reason: '{Epic} drain', date })`,
-   where `block` is `content.slice(range.start, range.end)`. It writes the destination first
-   (`promoteToBacklog` or `promoteToBugs`), then stamps the entry, so a crash between the two re-runs cleanly.
+   where `block` is `content.slice(range.start, range.end)`. It writes the destination
+   (`promoteToBacklog` or `promoteToBugs`) before it stamps the entry.
 
 4. **Every write is previewed, at every attention setting.** Compute the result with
    `applyDisposition` (or `applyDispositions` for a batch), show the diff, and write with
-   `applyDispositionToFile` only after it is accepted. **delete** and **merge** also need a
-   per-entry *confirm* or *keep*; *keep* leaves the file unchanged.
+   `applyDispositionToFile` only after it is accepted. A **promote** is always written by
+   `promoteDrainEntry`, never by those two, which only stamp the inbox;
+   its preview shows the destination write too. **delete** and **merge** also need a per-entry
+   *confirm* or *keep*; *keep* leaves the file unchanged.
 
 | `attention` | How the drain asks |
 |---|---|
@@ -122,13 +121,13 @@ sorts every record at status N and follows the attention setting. On a v1 store 
 Cover the angles `research_parallelism` allows: **domain** (external docs, libraries, APIs),
 **codebase** (patterns, reusable code, integration points), **risk** (edge cases, pitfalls), **prior
 art** (how others solved it). Do the research yourself: this command dispatches no research agents
-(`references/agent-reachability.md`).
+(`references/agent-reachability.md`). Write the findings to
+`artifactName('RESEARCH', { currentEpic, planningDir })` (`tools/lib/resume.js`).
 
-Check the environment the plan assumes: runtime versions, an install dry run where the project has a
-manifest (`npm install --dry-run`, `cargo check`), a prebuilt binary for any native module, and that
-named package versions still exist. Note drift and plan for it.
-
-Write the findings to `artifactName('RESEARCH', { currentEpic, planningDir })` (`tools/lib/resume.js`).
+**At every tier, even when research is skipped**, check the environment the plan assumes: runtime
+versions, an install dry run where the project has a manifest (`npm install --dry-run`,
+`cargo check`), a prebuilt binary for any native module, and that named package versions still
+exist. Note drift in the research file (or the plan, without one) and plan for it.
 
 ## 6. Write the plan
 
@@ -146,7 +145,7 @@ Write `artifactName('PLAN', { currentEpic, planningDir })`:
 it builds: a tool used for its real purpose rather than to prove itself, an instruction actually
 followed rather than read, or a code path taken by a project shape not tried before. **Put it in the
 first wave**, ahead of work that looks more important. If nothing qualifies, say so. Defects hide in
-what was built and never run for its purpose; finding them in wave 1 is cheaper than in the last task.
+what was built and never run for its purpose.
 
 Decisions the requirements leave open that change what gets built are asked as DISCUSS asks them
 (`commands/discuss.md` step 5): what it decides, what you checked, three options with the
@@ -179,7 +178,8 @@ At `gate_strictness: strict`, answer each:
 
 ### Exit Criteria
 - [ ] The plan exists, with vertical slices and acceptance criteria
-- [ ] The research file holds the findings, including the environment check
+- [ ] The environment check ran and any drift is noted
+- [ ] The research file holds the findings (unless `research_parallelism: 0`)
 - [ ] The validation file maps a test to every acceptance criterion (unless `nyquist_enforcement: off`)
 - [ ] The plan passes the dimensions `plan_validation_dims` sets
 - [ ] The inbox advanced: entries triaged, or "defer all remaining" taken
