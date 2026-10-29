@@ -71,7 +71,7 @@ describe('verify.md runs the coverage check on the report, not before it', () =>
     const draft = at("Draft `artifactName('VERIFICATION', { currentEpic, planningDir })`");
     const diff = at('Run `diffRequirementCoverage({ requirementsText, verificationText })`');
     const validate = at('run `validateVerificationContent(content, profile.tier)`');
-    const record = at("call `recordPass(baseDir, 'VERIFY', verdict)`");
+    const record = at("call `recordPass(baseDir, 'VERIFY', verdict)` (`tools/lib/state.js`) once");
     expect(draft).toBeLessThan(diff);
     expect(diff).toBeLessThan(validate);
     expect(validate).toBeLessThan(record);
@@ -88,13 +88,25 @@ describe('verify.md runs the coverage check on the report, not before it', () =>
     expect(cited.missing).toEqual(['AC1.2']);
   });
 
-  it('a missing requirement is a FAIL', () => {
+  it('a missing requirement is a FAIL; the test-map check is reported too', () => {
     expect(flat).toMatch(/Any `missing` makes the verdict FAIL/);
+    expect(flat).toMatch(/`assignedNotMapped` and `mappedNotAssigned`, as test-map gaps/);
+  });
+
+  it('the verdict is decided before the report is validated, since an empty Verdict heading fails it', () => {
+    expect(at('Decide the verdict:')).toBeLessThan(at('run `validateVerificationContent(content, profile.tier)`'));
+  });
+
+  it('says the names artifactName returns are inside planningDir', () => {
+    // Written at the project root, the report is invisible to transitionPhase's
+    // check when /sig:execute or /sig:review leaves VERIFY (review round 1).
+    expect(flat).toMatch(/`artifactName` returns a path inside `planningDir`/);
   });
 
   it('at strict, the failed-first proof is the parent-run line /sig:execute records', () => {
     expect(flat).toMatch(/At `strict`, each new test also needs proof it failed before its code: the parent-run line the progress file records/);
-    expect(verify).toContain("artifactName('PROGRESS', { currentEpic, planningDir })");
+    // Read with the lookup, which also finds older progress-file names (review round 1).
+    expect(verify).toContain("resolveArtifactPath(planningDir, 'PROGRESS', { currentEpic, phase: 'EXECUTE' })");
   });
 
   it('a missing plan stops the run in step 1, before the phase is recorded', () => {
@@ -136,13 +148,19 @@ describe('verify.md re-entry and the loop ceiling', () => {
     const loopBack = flat.slice(flat.indexOf('### Loop Back'));
     const count = loopBack.indexOf("`loopStatusFor(await readState(baseDir), 'VERIFY')`");
     expect(count).toBeGreaterThan(-1);
-    expect(loopBack).toMatch(/returns `null` when the count cannot be read: say so and stop/);
-    expect(loopBack).toMatch(/When `atCeiling`, show `formatLoopCeilingHalt\(status\)` and stop: a person decides/);
+    expect(loopBack).toMatch(/It returns `null`: the count cannot be read \(`phase_passes` or `phase_pass_mark` in `STATE\.md` is damaged\)\. Say so, do step 10, and stop/);
+    // Review round 1: at attended the person is there, so the ceiling asks rather than stopping bare.
+    expect(loopBack).toMatch(/`atCeiling`: show `formatLoopCeilingHalt\(status\)`\. At `attended`, ask the options below with it; at `checkpointed` and `unattended`, do step 10 and stop: a person decides/);
     expect(count).toBeLessThan(loopBack.indexOf('AskUserQuestion'));
   });
 
-  it('under the ceiling, checkpointed and unattended loop back without asking', () => {
+  it('after taking A the next command is /sig:execute, because /sig:drive picks REVIEW from the phase alone', () => {
+    expect(flat).toMatch(/This command ends after step 10, and the next command is `\/sig:execute`, not `\/sig:review`/);
+  });
+
+  it('under the ceiling, checkpointed and unattended loop back without asking; an open decision is still asked', () => {
     expect(flat).toMatch(/at `checkpointed` and `unattended`, take A and say so/);
+    expect(flat).toMatch(/\| `checkpointed` \| [^|]*A decision the plan leaves open is still asked/);
   });
 
   it('a first FAIL is under the ceiling, so an unattended run loops back once on its own', async () => {

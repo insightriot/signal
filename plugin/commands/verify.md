@@ -6,11 +6,12 @@ args: ""
 
 # VERIFY
 
-Check that what was built does what the plan and the requirements said, in a report a reader can check.
+Check that what was built does what the plan and requirements said, in a report a reader can check.
 
 Every `tools/lib/`, `skills/`, `references/` and `commands/` path in this file is under `${CLAUDE_PLUGIN_ROOT}/`:
 import from there, never from another copy of Signal. `baseDir` is the project root; `planningDir` is
 `.planning/` in it; `currentEpic` is `current_epic` from `readState` (`tools/lib/state.js`).
+`artifactName` returns a path inside `planningDir`.
 
 ## 1. Check VERIFY can run (writes nothing)
 
@@ -18,7 +19,7 @@ import from there, never from another copy of Signal. `baseDir` is the project r
 
 - It throws because no profile exists: stop with *"No PROFILE.md found at .planning/PROFILE.md. Run
   `/sig:calibrate` first to tier this project, then re-run `/sig:verify`."*
-- `VERIFY` is in `phases_skipped`: the profile is malformed (no tier skips VERIFY). Stop and say so.
+- `VERIFY` is in `phases_skipped`: the profile is malformed. Stop and say so.
 - `resolveArtifactPath(planningDir, 'PLAN', { currentEpic, phase: 'PLAN' })` (`tools/lib/resume.js`)
   finds no plan: stop and say to run `/sig:plan`.
 
@@ -26,13 +27,13 @@ import from there, never from another copy of Signal. `baseDir` is the project r
 
 | Override | Effect |
 |---|---|
-| `nyquist_enforcement` | `off` skips step 6. `basic`: every mapped test exists and covers its scenario. `strict`: also, each new test failed before its code. |
+| `nyquist_enforcement` | `off` skips step 6; `strict` adds its failed-first proof. |
 | `gate_strictness: strict` | Runs the Anti-Rationalization Check in step 9. |
 
 | `attention` | How decisions are confirmed |
 |---|---|
 | `attended` | Ask each decision as you reach it (`gates.confirm_in_phase`), approve the results (`gates.confirm_verify`), and choose the path on a FAIL. |
-| `checkpointed` | No approval at the end: say what the phase found and go on. On a FAIL under the loop ceiling, loop back and say so. |
+| `checkpointed` | No approval at the end: say what the phase found and go on. A decision the plan leaves open is still asked. On a FAIL, take the Loop Back's A and say so. |
 | `unattended` | As `checkpointed`; a decision that is hard to undo is still asked. |
 
 ## 2. Record the phase
@@ -40,10 +41,8 @@ import from there, never from another copy of Signal. `baseDir` is the project r
 Only if step 1 let the command through. Call `await transitionPhase(baseDir, 'VERIFY')`
 (`tools/lib/state.js`) first: it records the phase being left and sets `phase: VERIFY`. If it
 refuses, show its message and stop. Show any `quarantined` entries it returns.
-Call it on a re-run too: a re-run while VERIFY is current counts as a new pass, so the loop ceiling
-can only come sooner. The one exception: skip it if `phase` is already `VERIFY` and the report step 7
-writes does not exist yet. The earlier run stopped before writing it, so the call would refuse and
-there is nothing to record.
+Call it on a re-run too (it counts as a pass, so the loop ceiling comes sooner), except: skip it
+if `phase` is already `VERIFY` and the report step 7 writes does not exist yet, as the call would refuse.
 
 ## 3. Load skills and inputs
 
@@ -54,7 +53,7 @@ Read the plan from step 1; the requirements,
 `resolveArtifactPath(planningDir, 'REQUIREMENTS', { currentEpic, phase: 'DISCUSS' })`; the
 validation file, `resolveArtifactPath(planningDir, 'VALIDATION', { currentEpic, phase: 'PLAN' })`
 (none at `nyquist_enforcement: off`); and the progress file,
-`artifactName('PROGRESS', { currentEpic, planningDir })`. Do each check yourself: this command
+`resolveArtifactPath(planningDir, 'PROGRESS', { currentEpic, phase: 'EXECUTE' })`. Do each check yourself: this command
 dispatches no verifier agent.
 
 ## 4. Check each acceptance criterion
@@ -64,8 +63,8 @@ with evidence: the test that covers it, a command and its output, or a file and 
 
 ## 5. Run the suite and the build
 
-Run the full test suite, the build and the linter, where the project has them. Every test passes,
-the build is clean, and no new warnings appear.
+Run the full test suite, build and linter, where the project has them. All tests pass, the build
+is clean, and no new warnings appear.
 
 ## 6. Check the test map
 
@@ -81,12 +80,11 @@ on cannot get that proof afterwards (`references/tier-definitions.md`): say so a
 
 1. Draft `artifactName('VERIFICATION', { currentEpic, planningDir })` from
    `references/verification-template.md`, with the tier's headings. In the coverage section, cite
-   each requirement by its id (`AC1.2`, `FR3`): the coverage check finds only the ids the report
-   cites, so a report that cites none cannot be checked.
+   each requirement by its id (`AC1.2`, `FR3`): the coverage check sees only cited ids.
 2. Run `diffRequirementCoverage({ requirementsText, verificationText })`
    (`tools/lib/requirement-coverage.js`) on the requirements and the draft, and
    `checkValidationConsistency(validationText)` (`tools/lib/validation-consistency.js`) on the
-   validation file. Both are read-only and never throw.
+   validation file.
 3. Put their results in the report, including at zero:
    - `missing`: requirements declared and not verified. **Name them.** Any `missing` makes the
      verdict FAIL.
@@ -94,24 +92,24 @@ on cannot get that proof afterwards (`references/tier-definitions.md`): say so a
    - what the check could not look at: a `cannot-evaluate` outcome with its `reason`, and
      `unattributableGroups`. Never report these as clean.
    - each coverage claim as `{n} of {total}`, with where the total came from (the diff's `basis`).
-     A claim with no denominator cannot be checked.
-4. Write the file, then run `validateVerificationContent(content, profile.tier)`
-   (`tools/lib/verification-template.js`). Fix the report until it passes. It checks that the
-   report answers each heading, not that the answers are right: steps 4 to 6 and the coverage
-   check do that.
+   - the validation file's `assignedNotMapped` and `mappedNotAssigned`, as test-map gaps.
 
 ## 8. Record the pass
 
-Decide the verdict and write it in the report:
+Decide the verdict:
 
-- **PASS**: every check passed. PASS with documented limits is recorded as
-  `recordPass(baseDir, 'VERIFY', 'PASS')`: the limits live in the report.
+- **PASS**: every check passed. PASS with documented limits is a PASS (the value
+  `recordPass(baseDir, 'VERIFY', 'PASS')` below records): the limits live in the report.
 - **PASS-WITH-FIXES**: a check failed, you fixed it in this phase with a commit per fix, and every
   check passed when run again.
 - **FAIL**: anything still fails, including any `missing` requirement. List each failure as a fix to
   make: on a loop back, `/sig:execute` builds those.
 
-Then call `recordPass(baseDir, 'VERIFY', verdict)` (`tools/lib/state.js`), before the Loop Back.
+Write the verdict in the report and write the file, then run
+`validateVerificationContent(content, profile.tier)` (`tools/lib/verification-template.js`) on it.
+Fix the report until it passes. It checks that the report answers each heading, not that the
+answers are right: steps 4 to 7 do that. Then call `recordPass(baseDir, 'VERIFY', verdict)`
+(`tools/lib/state.js`) once, before the Loop Back.
 
 ## 9. Phase Gate
 
@@ -129,8 +127,7 @@ At `gate_strictness: strict`, answer each:
 - [ ] Every acceptance criterion checked, with evidence
 - [ ] The full test suite passes and the build is clean
 - [ ] The test map is checked (unless `nyquist_enforcement: off`)
-- [ ] Requirement coverage run (step 7): `missing` is empty, `deferred` and what could not be
-      checked are in the report, and every coverage claim has its denominator
+- [ ] Requirement coverage run (step 7): `missing` empty; deferred, unchecked and denominators reported
 - [ ] `validateVerificationContent` passes on the report
 - [ ] The verdict is recorded with `recordPass` (step 8)
 - [ ] User approves the results — only when `gates.confirm_verify` is set (`attended`)
@@ -138,15 +135,18 @@ At `gate_strictness: strict`, answer each:
 ### Loop Back
 
 On a FAIL, call `loopStatusFor(await readState(baseDir), 'VERIFY')` (`tools/lib/loop-ceiling.js`).
-It returns `null` when the count cannot be read: say so and stop. When `atCeiling`, show
-`formatLoopCeilingHalt(status)` and stop: a person decides. Otherwise, at `attended`, ask with the
-3-options-plus-other pattern (`references/question-patterns.md`, via `AskUserQuestion`); at
-`checkpointed` and `unattended`, take A and say so.
 
-A. **Loop back to EXECUTE** (recommended). `/sig:execute` builds the fixes the report lists.
+- It returns `null`: the count cannot be read (`phase_passes` or `phase_pass_mark` in `STATE.md` is
+  damaged). Say so, do step 10, and stop for the user to fix it.
+- `atCeiling`: show `formatLoopCeilingHalt(status)`. At `attended`, ask the options below with it; at
+  `checkpointed` and `unattended`, do step 10 and stop: a person decides.
+- Otherwise: at `attended`, ask with the 3-options-plus-other pattern (`references/question-patterns.md`,
+  via `AskUserQuestion`); at `checkpointed` and `unattended`, take A and say so.
+
+A. **Loop back to EXECUTE** (recommended). This command ends after step 10, and the next command is
+   `/sig:execute`, not `/sig:review`: it builds the fixes the report lists.
 B. **Change the tier with `/sig:escalate`**, when the failure shows the work was calibrated too low.
-C. **Accept it as a known limit**: record the failed criteria as limits in the report, to ship with
-   that caveat.
+C. **Accept it as a known limit**: list the failed criteria as limits in the report.
 
 Write the path chosen in the report.
 
