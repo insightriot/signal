@@ -1,0 +1,19 @@
+{
+  "id": "SIG-375",
+  "type": "BUG",
+  "title": "parent-run summary line counts test files but does not say so; an agent read \"1 of 1 failed\" as one test",
+  "priority": "P3",
+  "source": "verify rewrite review",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-29T13:34:45.593Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-29T13:34:45.593Z",
+      "by": "claude"
+    }
+  ]
+}
