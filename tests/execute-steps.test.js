@@ -6,7 +6,12 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import { initState, readState, transitionPhase } from '../plugin/tools/lib/state.js';
+import { applyRigorOverrides } from '../plugin/tools/lib/profile.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const LIB = join(ROOT, 'plugin', 'tools', 'lib');
@@ -25,6 +30,7 @@ describe('execute.md names only calls that exist', () => {
     readState: 'state.js',
     setCurrentTask: 'state.js',
     clearCurrentTask: 'state.js',
+    markFresh: 'state.js',
     clearOrphansBeforeDispatch: 'execute.js',
     resolveArtifactPath: 'resume.js',
     artifactName: 'resume.js',
@@ -76,5 +82,59 @@ describe('execute.md step order', () => {
   it('the task records are skipped at SKETCH, and only there', () => {
     expect(execute).toMatch(/\*\*Record it\*\* \(not at SKETCH\)/);
     expect(execute).toMatch(/\*\*Close it\*\* \(not at SKETCH\)/);
+  });
+});
+
+describe('execute.md fixes from the review of its rewrite', () => {
+  it('applyRigorOverrides is named with its config first; given the profile alone it throws', () => {
+    // The measured session called applyRigorOverrides(profile), got an error, and
+    // had to read the code. plan.md had the same slip.
+    const plan = readFileSync(join(ROOT, 'plugin', 'commands', 'plan.md'), 'utf-8');
+    for (const text of [execute, plan]) expect(text).toContain('`applyRigorOverrides({}, profile)`');
+    const profile = { tier: 'FEATURE', rigor_overrides: { attention: 'attended' } };
+    expect(() => applyRigorOverrides(profile)).toThrow();
+    expect(applyRigorOverrides({}, profile).gates.confirm_execute).toBe(true);
+  });
+
+  it('a resumed run skips the phase-entry call, which would record a false EXECUTE entry', async () => {
+    expect(execute).toMatch(/Skip this step if `phase` is already `EXECUTE` \(a resumed run\)\./);
+    const base = await mkdtemp(join(tmpdir(), 'sig-execute-resume-'));
+    try {
+      await initState(base, 'DISCUSS');
+      await writeFile(join(base, '.planning', 'REQUIREMENTS.md'), '# r\n');
+      await transitionPhase(base, 'PLAN');
+      await writeFile(join(base, '.planning', 'PLAN.md'), '# p\n');
+      const executes = async () =>
+        (await readState(base)).completed_phases.filter((e) => e.startsWith('EXECUTE ')).length;
+      await transitionPhase(base, 'EXECUTE');
+      expect(await executes()).toBe(0); // EXECUTE is running, not finished
+      // What the skip avoids: entering again records EXECUTE as finished.
+      await transitionPhase(base, 'EXECUTE');
+      expect(await executes()).toBe(1);
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
+  });
+
+  it('a resumed run skips finished tasks and resumes the one in flight', () => {
+    expect(execute).toMatch(/skipping any the progress file or `last_completed_task` marks done/);
+    expect(execute).toMatch(/still in `current_tasks` was in flight: resume it/);
+  });
+
+  it('a task that cannot be finished stops the phase', () => {
+    expect(execute).toMatch(/`status: 'aborted'` for a task you cannot finish; then say why in the progress file and stop the\s+phase/);
+  });
+
+  it('a task commit holds only its files; the phase commit holds every .planning/ file it changed', () => {
+    expect(execute).toMatch(/Commit the task on its own, staging only its files\./);
+    expect(execute).toMatch(/Commit every `\.planning\/` file the phase changed \(progress, `STATE\.md`, `INDEX\.md`\)/);
+  });
+
+  it('at attended, the finished phase is accepted by the user', () => {
+    expect(execute).toMatch(/^- \[ \] User accepts the phase — only when `gates\.confirm_execute` is set \(`attended`\)$/m);
+  });
+
+  it('a light tier with no validation file does not send the agent back to the plan for tests', () => {
+    expect(execute).toMatch(/a mapped test where there is a validation file/);
   });
 });

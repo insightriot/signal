@@ -149,13 +149,11 @@ describe("M5.E17 S2 — every markFresh call site states its ordering (AC3.1', F
     // future command is covered without anyone remembering to add it here.
     expect(callSites.length).toBeGreaterThanOrEqual(5);
     expect(callSites).toContain('ship.md');
-    // The predicate must exclude the prose-only mention.
-    expect(callSites, 'execute.md names markFresh in prose, not as a call').not.toContain(
-      'execute.md'
-    );
+    // execute.md calls it too since its rewrite (old check: archive/tests/execute-wording.test.js).
+    expect(callSites).toContain('execute.md');
   });
 
-  it.each(['discuss.md', 'plan.md', 'review.md', 'ship.md', 'verify.md'])(
+  it.each(['discuss.md', 'execute.md', 'plan.md', 'review.md', 'ship.md', 'verify.md'])(
     '%s states that markFresh runs AFTER the commit it stamps',
     (file) => {
       const text = denorm(readFileSync(join(CMD, file), 'utf-8'));

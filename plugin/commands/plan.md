@@ -23,7 +23,7 @@ import from there, never from another copy of Signal. `baseDir` is the project r
 - `PLAN` is in `phases_skipped`: stop with *"This tier ({tier}) skips PLAN. Run `/sig:execute` next,
   or `/sig:escalate` if scope has grown and PLAN should run."*
 
-`applyRigorOverrides` gives the `gates` used below, and these overrides:
+`applyRigorOverrides({}, profile)` gives the `gates` used below, and these overrides:
 
 | Override | Effect |
 |---|---|
