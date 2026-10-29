@@ -127,9 +127,15 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
    only if its file names `${CLAUDE_PLUGIN_ROOT}`; otherwise the agent finds an installed copy. Check
    which file the session imported before trusting a measurement. Walking one real
    bug through the flow: the sidebar times that don't refresh (not the Step 3 feature). Per command:
-   size; each question asked and whether it says what it decides, what was checked, and a
+   size; whether it names `${CLAUDE_PLUGIN_ROOT}` for every code path; each question asked and whether it says what it decides, what was checked, and a
    recommendation; files left loose at the top of `.planning/`; places status is written; whether the
    phase finishes without a person.
+   **discuss, 2026-10-28, on that bug:** 25.8 KB to 7.5 KB; branch code imported; 4 questions, all
+   saying what they decide and what was checked, with a recommendation; 5 plumbing calls stated, not
+   asked; files in the Epic's folder, none loose; one stop for batch approval (`checkpointed`, as
+   designed; "approve all" was typed by the agent running the test, not Brett); STATE written twice,
+   the second left uncommitted (step 4); $6.27, 28 turns, 4.5 minutes. It caught a planned Epic's
+   number being handed out (`SIG-367`). An approved per-Epic calibrate was left as a next step.
 4. **Checkpoint goes.** Each phase command updates the state file itself, at every tier, in the same
    commit as the phase's work. No separate commits to mark it fresh (records problem 6).
 

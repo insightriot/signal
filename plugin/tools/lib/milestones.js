@@ -9,9 +9,9 @@
 // No new runtime deps — node:fs/promises + node:path only.
 
 import { readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
-import { readState } from './state.js';
+import { readState, unitArchiveDirFor } from './state.js';
 
 const PLANNING_DIR = '.planning';
 
@@ -85,7 +85,8 @@ export async function listMilestones(baseDir) {
 /**
  * Derive the next Epic ID under a milestone (M4.5.E11.S1.t7 — the "commands
  * assign IDs" half of FR1). Scans `.planning/` for existing
- * `M{milestone}.E{N}-*.md` artifacts and returns `M{milestone}.E{maxN+1}`
+ * `M{milestone}.E{N}-*.md` artifacts, `epics/M{milestone}.E{N}/` folders and
+ * `archive/M{milestone}/E{N}/` folders, and returns `M{milestone}.E{maxN+1}`
  * (or `...E1` when none exist). The milestone comes from `opts.milestone`
  * when given, otherwise from the milestone portion of STATE.md's current_epic.
  * Returns `null` when there is no milestone context to derive under (no
@@ -125,6 +126,28 @@ export async function deriveNextEpicId(baseDir, { milestone } = {}) {
     if (m && m[1] === ms) {
       const n = parseInt(m[2], 10);
       if (n > maxN) maxN = n;
+    }
+  }
+  // An Epic's own folder, `epics/<EpicID>/`, and where docs-archive files it,
+  // `archive/M<m>/E<n>/` (course correction Step 1): an Epic whose files are all
+  // in its folder has no name at the top to be counted by.
+  const folderNumbers = [
+    [join(baseDir, PLANNING_DIR, 'epics'), (d) => d.match(/^M(\d+(?:\.\d+)?)\.E(\d+)$/)],
+    [join(baseDir, dirname(unitArchiveDirFor(`M${ms}.E1`))), (d) => { const m = d.match(/^E(\d+)$/); return m && [d, ms, m[1]]; }],
+  ];
+  for (const [dir, parse] of folderNumbers) {
+    let names;
+    try {
+      names = await readdir(dir);
+    } catch {
+      continue;
+    }
+    for (const d of names) {
+      const m = parse(d);
+      if (m && m[1] === ms) {
+        const n = parseInt(m[2], 10);
+        if (n > maxN) maxN = n;
+      }
     }
   }
   // With unit records (M6.E16 t3.2, AC3.2): an Epic's record takes its

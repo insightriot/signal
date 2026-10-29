@@ -1,0 +1,19 @@
+{
+  "id": "SIG-367",
+  "type": "BUG",
+  "title": "The next Epic ID ignores Epics a milestone file already plans, so /sig:discuss --epic can take a planned Epic's number",
+  "priority": "P3",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-28T14:01:02.931Z",
+      "by": "claude (course-correction rewrite)"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-28T14:01:02.931Z",
+      "by": "claude (course-correction rewrite)"
+    }
+  ]
+}

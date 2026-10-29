@@ -15,6 +15,13 @@
       "type": "triaged",
       "at": "2026-09-29",
       "by": "migration (v2)"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-28T14:01:21.235Z",
+      "by": "claude (course-correction rewrite)",
+      "reason": "fixed",
+      "proof": "f16326ab"
     }
   ]
 }
