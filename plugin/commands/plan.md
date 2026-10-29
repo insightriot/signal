@@ -30,7 +30,7 @@ import from there, never from another copy of Signal. `baseDir` is the project r
 | `research_parallelism` | `0` skips step 5's research, not its environment check; `2` covers the two most relevant angles; `4` covers all four. |
 | `plan_validation_dims` | `none` skips step 7; `core` checks three dimensions; `all` checks eight. |
 | `nyquist_enforcement` | `off` skips step 8; `basic` or `strict` runs it (VERIFY enforces strictness). |
-| `gate_strictness: strict` | Runs the Anti-Rationalization Check in step 9. Nothing else. |
+| `gate_strictness: strict` | Runs the Anti-Rationalization Check in step 9. |
 
 | `attention` | How decisions are confirmed |
 |---|---|
@@ -60,11 +60,11 @@ Then the code the requirements touch.
 
 ## 4. Sort the inbox (required)
 
-Captured ideas get a disposition here and nowhere else, so this step always runs. You never have to
-triage: always offer "defer all remaining", one batch that stamps every entry.
+Captures get a disposition nowhere else, so this step always runs. You need not triage:
+always offer "defer all remaining", one batch that stamps every entry.
 
 **Work store on** (`isStoreOn(baseDir)`, `tools/lib/work-store.js`): run `/sig:item triage`. It
-sorts every record at status N and follows the attention setting. On a v1 store it refuses and names
+follows the attention setting. On a v1 store it refuses and names
 `node tools/work-migrate-v2.mjs`: migrate first. Then go to step 5.
 
 **Work store off:** the inbox is `resolveInboxPath(baseDir)` (`ISSUES-INBOX.md`, or the older
@@ -73,7 +73,8 @@ sorts every record at status N and follows the attention setting. On a v1 store 
 1. `listDrainCandidatesWithRecovery(content)` returns `{candidates, danglingFence, recoveredCount}`:
    every top-level `## ` entry not yet dispositioned. If `danglingFence`, say so first: an unclosed
    code fence hid `{recoveredCount}` entries. Those carry `recovered: true`: list them, offer no
-   disposition and leave them out of any batch.
+   disposition and leave them out of any batch. Every write names an entry by `entryIndex`: its
+   position in `parseEntries(content)`, not in this list (match on `range.start`).
 2. `listStandingEntries(content)`: state the count beside the candidates, e.g. *"(1 standing
    entry not counted)"*. A standing entry is permanent: no disposition verb applies to it, so offer none.
    No candidates: say *(no inbox candidates to drain)* and go to step 5.
@@ -81,9 +82,9 @@ sorts every record at status N and follows the attention setting. On a v1 store 
 
 | Verb | Effect |
 |---|---|
-| **promote** | Becomes a candidate task for step 6, and is routed to a home (below). Stamped `→ Promoted {date} ({Epic} drain).` |
+| **promote** | A candidate task for step 6, routed to a home (below). Stamped `→ Promoted {date} ({Epic} drain).` |
 | **defer** | Left for a later pass. Stamped `→ Deferred {date} ({Epic} drain).` |
-| **shipped** | The work is already done. Stamped `→ Shipped {date} ({Epic} drain).`; the block stays, since it holds the reasoning. |
+| **shipped** | Already done. Stamped `→ Shipped {date} ({Epic} drain).`; the block stays (it holds the reasoning). |
 | **merge** | Folded into another entry; the block is removed. |
 | **delete** | Dropped; the block is removed. |
 | **skip** | No change; it comes back at the next drain. |
@@ -98,10 +99,10 @@ sorts every record at status N and follows the attention setting. On a v1 store 
 
 4. **Every write is previewed, at every attention setting.** Compute the result with
    `applyDisposition` (or `applyDispositions` for a batch), show the diff, and write with
-   `applyDispositionToFile` only after it is accepted. A **promote** is always written by
-   `promoteDrainEntry`, never by those two, which only stamp the inbox;
-   its preview shows the destination write too. **delete** and **merge** also need a per-entry
-   *confirm* or *keep*; *keep* leaves the file unchanged.
+   `applyDispositionToFile` only after it is accepted, one call per entry. A **promote** is always written by
+   `promoteDrainEntry`, never by those two, which only stamp the inbox: keep it out of the batch
+   and show its destination write in the preview. **delete** and **merge** also need a per-entry
+   *confirm* or *keep*; *keep* leaves the file unchanged. After either, parse the file again.
 
 | `attention` | How the drain asks |
 |---|---|
@@ -113,14 +114,13 @@ sorts every record at status N and follows the attention setting. On a v1 store 
    whose condition was not met is marked *expired-clean*. Decide each `unevaluated` row: promote it,
    or re-park it with a new written condition and a date. Give `decided` as a count.
 6. **Evict finished entries.** `evictTerminalToLedger(baseDir, { dryRun: true })` shows which
-   promoted, shipped, merged and deleted entries would move to the ledger (a deferred entry stays); on
-   acceptance call it without `dryRun`. If it reports `danglingFence: true` it changed nothing: say so.
+   finished entries would move to the ledger (a deferred entry stays); on acceptance call it without `dryRun`. If it reports `danglingFence: true` it changed nothing: say so.
 
 ## 5. Research
 
 Cover the angles `research_parallelism` allows: **domain** (external docs, libraries, APIs),
 **codebase** (patterns, reusable code, integration points), **risk** (edge cases, pitfalls), **prior
-art** (how others solved it). Do the research yourself: this command dispatches no research agents
+art**. Do the research yourself: this command dispatches no research agents
 (`references/agent-reachability.md`). Write the findings to
 `artifactName('RESEARCH', { currentEpic, planningDir })` (`tools/lib/resume.js`).
 
@@ -148,8 +148,7 @@ first wave**, ahead of work that looks more important. If nothing qualifies, say
 what was built and never run for its purpose.
 
 Decisions the requirements leave open that change what gets built are asked as DISCUSS asks them
-(`commands/discuss.md` step 5): what it decides, what you checked, three options with the
-recommended one first. Plumbing (file layout, test mechanics, tooling) is decided and stated.
+(`commands/discuss.md` step 5). Plumbing (file layout, test mechanics, tooling) is decided and stated.
 
 ## 7. Check the plan
 

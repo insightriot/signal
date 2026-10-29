@@ -542,6 +542,13 @@ describe('commands/plan.md drain step (S5.t3 — FR7.1-7.4, R1 hard gate)', () =
 
   it('a promote is filed by promoteDrainEntry even in a batch (applyDispositions only stamps the inbox)', () => {
     expect(planMd).toMatch(/A \*\*promote\*\* is always written by\s+`promoteDrainEntry`, never by those two/);
+    expect(planMd).toMatch(/keep it out of the batch/);
+  });
+
+  it('entryIndex is the position in parseEntries, not in the candidate list; one write call per entry', () => {
+    expect(planMd).toMatch(/`entryIndex`: its\s+position in `parseEntries\(content\)`, not in this list/);
+    expect(planMd).toMatch(/only after it is accepted, one call per entry/);
+    expect(planMd).toMatch(/After either, parse the file again/);
   });
 
   it('the environment check runs at every tier, even when research_parallelism: 0 skips the research', () => {
