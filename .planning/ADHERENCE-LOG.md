@@ -53,7 +53,7 @@ rewrites only between the `adherence:ceiling` markers, so this survives every re
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-10-28 · **Commit:** `24bc25e7` · **Corpus:** 21 `commands/*.md` files
+**Computed:** 2026-10-29 · **Commit:** `535a9dfe` · **Corpus:** 21 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -62,15 +62,15 @@ by line.
 
 | | count | share |
 |---|---:|---:|
-| Directive lines | **648** | 100% |
-| …naming a real `tools/lib` export | 114 | 17.6% |
-| …writing a named artifact | 22 | 3.4% |
-| **Trace-measurable (either)** | **136** | **21.0%** |
-| **No observable trace** | **512** | **79.0%** |
+| Directive lines | **614** | 100% |
+| …naming a real `tools/lib` export | 106 | 17.3% |
+| …writing a named artifact | 22 | 3.6% |
+| **Trace-measurable (either)** | **128** | **20.8%** |
+| **No observable trace** | **486** | **79.2%** |
 
 ### What the remainder is, stated plainly
 
-The 512 directives with no observable trace are **unmeasured, not passing.**
+The 486 directives with no observable trace are **unmeasured, not passing.**
 
 They are not "probably fine", not "covered by the test suite", and not "verified by the
 fact that Signal works". Nothing in this repository establishes whether an agent follows
@@ -86,7 +86,6 @@ harness run as evidence about the whole corpus will not find it here.
 | `ship.md` | 71 | 24 | 47 |
 | `status.md` | 28 | 13 | 15 |
 | `add.md` | 42 | 11 | 31 |
-| `plan.md` | 54 | 10 | 44 |
 | `resume.md` | 31 | 10 | 21 |
 | `item.md` | 25 | 9 | 16 |
 | `docs-migrate.md` | 30 | 7 | 23 |
@@ -102,6 +101,7 @@ harness run as evidence about the whole corpus will not find it here.
 | `advise.md` | 22 | 2 | 20 |
 | `docs-archive.md` | 23 | 2 | 21 |
 | `docs-index.md` | 7 | 2 | 5 |
+| `plan.md` | 20 | 2 | 18 |
 | `discuss.md` | 18 | 1 | 17 |
 | `escalate.md` | 16 | 0 | 16 |
 <!-- adherence:ceiling:end -->
