@@ -10,7 +10,7 @@
 //    findings. (Before the cutover, t7.3, it skipped on the v1 store; the gate
 //    was removed at t7.4.)
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -100,7 +100,18 @@ describe('regenerate-and-diff on a v2 fixture (AC5.2)', () => {
   });
 
   it('a write whose regeneration was skipped leaves the views stale until they are regenerated', async () => {
-    await records.triageItem(base, 'SIG-6', { type: 'FEAT', by }, { regenerate: async () => {} });
+    // The triage event is stamped with the clock, and the recent-closes window
+    // is counted back from the newest event. On the real clock SIG-5's close
+    // (2026-09-29) fell out of the window on 2026-10-29 and a history file
+    // joined the stale list. A fixed date inside the window keeps this test
+    // about the skipped regeneration.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-15T12:00:00.000Z'));
+    try {
+      await records.triageItem(base, 'SIG-6', { type: 'FEAT', by }, { regenerate: async () => {} });
+    } finally {
+      vi.useRealTimers();
+    }
     const stale = records.checkRecords(base).map((f) => f.path).sort();
     expect(stale).toEqual(['.planning/BACKLOG.md', '.planning/ISSUES-INBOX.md']);
     await regenerateViews(base);
