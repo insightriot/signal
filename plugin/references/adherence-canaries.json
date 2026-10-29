@@ -40,7 +40,7 @@
       "instruction": "Call transitionPhase only if every precondition passed; then, before any Workflow step, call `await transitionPhase(baseDir, 'EXECUTE')` at phase entry.",
       "isolation": "directive",
       "deletions": [
-        { "file": "commands/execute.md", "section": "## Phase entry — record the phase (M5.E9 FR6, `B41`)" },
+        { "file": "commands/execute.md", "section": "## 2. Record the phase" },
         { "file": "commands/plan.md", "section": "## 2. Record the phase" },
         { "file": "commands/verify.md", "section": "## Phase entry — record the phase (M5.E9 FR6, `B41`)" },
         { "file": "commands/review.md", "section": "## Phase entry — record the phase (M5.E9 FR6, `B41`)" },
