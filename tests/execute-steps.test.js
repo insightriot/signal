@@ -116,13 +116,22 @@ describe('execute.md fixes from the review of its rewrite', () => {
     }
   });
 
-  it('a resumed run skips finished tasks and resumes the one in flight', () => {
-    expect(execute).toMatch(/skipping any the progress file or `last_completed_task` marks done/);
-    expect(execute).toMatch(/still in `current_tasks` was in flight: resume it/);
+  it('only a resumed run skips tasks marked done, and a resumed task is checked against the commit before its first', () => {
+    // A progress file named 1-PROGRESS.md outlives a linear run, so an
+    // unconditional skip would pass over a new plan's Task 1.
+    expect(execute).toMatch(/On a resumed run \(step 2 skipped\), skip tasks the progress file or\s+`last_completed_task` marks done, and resume the one still in `current_tasks`/);
+    expect(execute).not.toMatch(/skipping any the progress file/);
+    expect(execute).toMatch(/or for a resumed task the commit\s+before its first/);
   });
 
-  it('a task that cannot be finished stops the phase', () => {
-    expect(execute).toMatch(/`status: 'aborted'` for a task you cannot finish; then say why in the progress file and stop the\s+phase/);
+  it('a missing plan stops the run in step 1, before the phase is recorded', () => {
+    const noPlan = execute.indexOf('finds no plan: stop and say to run `/sig:plan`');
+    expect(noPlan).toBeGreaterThan(-1);
+    expect(noPlan).toBeLessThan(execute.indexOf('## 2. Record the phase'));
+  });
+
+  it('a task that cannot be finished stops the run without the finish step, and says what to run next', () => {
+    expect(execute).toMatch(/`status: 'aborted'` for a task you cannot finish; then say why in the progress file, skip step 8,\s+and stop: the user fixes the cause and runs `\/sig:execute` again/);
   });
 
   it('a task commit holds only its files; the phase commit holds every .planning/ file it changed', () => {

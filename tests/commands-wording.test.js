@@ -131,8 +131,7 @@ const denorm = (s) => s.replace(/\*\*|__|\*|_/g, '');
 
 describe("M5.E17 S2 — every markFresh call site states its ordering (AC3.1', FR3)", () => {
   // A file "instructs a markFresh call" iff it uses CALL syntax (open paren).
-  // A bare mention is not a call site: execute.md names `markFresh` only in its
-  // "Why this exists" prose paragraph, describing the M5.E9 bug.
+  // A bare mention is not a call site.
   const CALL_RE = /markFresh\(/;
   // Explicit, reasoned exclusion — NOT a regex tuned until it happens to miss.
   // /sig:checkpoint IS the manual refresh command; markFresh against HEAD is

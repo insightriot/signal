@@ -19,6 +19,8 @@ import from there, never from another copy of Signal. `baseDir` is the project r
 - It throws because no profile exists: stop with *"No PROFILE.md found at .planning/PROFILE.md. Run
   `/sig:calibrate` first to tier this project, then re-run `/sig:execute`."*
 - `EXECUTE` is in `phases_skipped`: the profile is malformed. Stop and say so.
+- `resolveArtifactPath(planningDir, 'PLAN', { currentEpic, phase: 'PLAN' })` (`tools/lib/resume.js`)
+  finds no plan: stop and say to run `/sig:plan`.
 
 Then check the branch: `checkBranchPosture(baseDir, { tier: profile.tier, override })`
 (`tools/lib/branch-guard.js`), where `override` is true only if the user passed
@@ -43,15 +45,15 @@ Then check the branch: `checkBranchPosture(baseDir, { tier: profile.tier, overri
 |---|---|
 | `attended` | Confirm before each wave after the first (`gates.confirm_in_phase`), and the finished phase (`gates.confirm_execute`). |
 | `checkpointed` | Waves run without stopping; a decision the plan leaves open is still asked. At the end, say what the phase produced and continue. |
-| `unattended` | Waves run without stopping. Take each recommendation and record it. A decision that is hard to undo is still asked. |
+| `unattended` | As `checkpointed`, but take each recommendation and record it; ask only if it is hard to undo. |
 
 ## 2. Record the phase
 
 Skip this step if `phase` is already `EXECUTE` (a resumed run).
 Only if step 1 let the command through. Call `await transitionPhase(baseDir, 'EXECUTE')`
-(`tools/lib/state.js`) first: it records the phase being left and sets `phase: EXECUTE`. It refuses
-if the phase being left produced no artifact (PLAN without its plan): show its message and stop.
-Show any `quarantined` entries it returns (moved, not dropped).
+(`tools/lib/state.js`) first: it records the phase being left and sets `phase: EXECUTE`. If it
+refuses, show its message and stop.
+Show any `quarantined` entries it returns.
 
 ## 3. Load skills and the plan
 
@@ -59,9 +61,8 @@ Read and apply each `skills/build/<name>/SKILL.md`: `incremental-implementation`
 `test-driven-development`, `context-engineering`, `source-driven-development`, and, only if the
 project has a frontend, `frontend-ui-engineering`.
 
-Read the plan and the validation file: `resolveArtifactPath(planningDir, 'PLAN', { currentEpic, phase: 'PLAN' })`
-and the same for `'VALIDATION'` (`tools/lib/resume.js`); there is no validation file at
-`nyquist_enforcement: off`. No plan: stop and say to run `/sig:plan`. Every task needs acceptance
+Read the plan, and the validation file (`resolveArtifactPath` with `'VALIDATION'`; there is none at
+`nyquist_enforcement: off`). Every task needs acceptance
 criteria, and a mapped test where there is a validation file. Fix the plan for any task that lacks them.
 
 ## 4. Group the tasks into waves
@@ -72,14 +73,15 @@ yourself, one at a time: this command dispatches no executor agent (`references/
 
 ## 5. Build each task
 
-For each task, in wave order, skipping any the progress file or `last_completed_task` marks done (a
-task still in `current_tasks` was in flight: resume it):
+For each task, in wave order. On a resumed run (step 2 skipped), skip tasks the progress file or
+`last_completed_task` marks done, and resume the one still in `current_tasks`:
 
 1. **Record it** (not at SKETCH): `clearOrphansBeforeDispatch(baseDir, id)` (`tools/lib/execute.js`),
    then `setCurrentTask(baseDir, { id, epic: currentEpic, wave })` (`tools/lib/state.js`), so
    `/sig:resume` can pick up after a context clear. If either write fails, stop at
    `gate_strictness: strict`; otherwise warn and continue.
-2. Note the commit the task starts from (`git rev-parse HEAD`).
+2. Note the commit the task starts from: `git rev-parse HEAD`, or for a resumed task the commit
+   before its first.
 3. Re-read the task's acceptance criteria and mapped tests, and the `## Decisions` in the
    requirements (`resolveArtifactPath(planningDir, 'REQUIREMENTS', { currentEpic, phase: 'DISCUSS' })`;
    `CONTEXT.md` for an Epic planned before that), unless `context_rot_reread: false`.
@@ -89,8 +91,8 @@ task still in `current_tasks` was in flight: resume it):
    `node "${CLAUDE_PLUGIN_ROOT}/tools/lib/parent-run.js" --base <start commit> <each new or changed test file>`.
    It runs vitest only; on another runner, or with no new test, write a stated gap with the reason.
 7. **Close it** (not at SKETCH): `clearCurrentTask(baseDir, { id, status: 'done', commit })`, or
-   `status: 'aborted'` for a task you cannot finish; then say why in the progress file and stop the
-   phase. A failed write here only warns.
+   `status: 'aborted'` for a task you cannot finish; then say why in the progress file, skip step 8,
+   and stop: the user fixes the cause and runs `/sig:execute` again. A failed write here only warns.
 8. Add the task to the progress file (step 6), with the parent-run summary line, or a stated gap
    with its reason for a missing or `could-not-run` result: never blank, never read as a pass.
 
@@ -104,7 +106,7 @@ After each task, update `artifactName('PROGRESS', { currentEpic, planningDir })`
 - [ ] Task 2 — in progress
 ```
 
-With one task the progress file is optional (the commit log stands in for it), except at
+With one task the progress file is optional, except at
 `gate_strictness: strict`, where it is always written.
 
 ## 7. Phase Gate

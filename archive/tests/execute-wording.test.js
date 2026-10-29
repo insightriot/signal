@@ -47,7 +47,8 @@ describe('M5.E13 S2.t4 — the phase-entry instruction is conditional and shared
 
 // --- from tests/commands-wording.test.js (M5.E17 S2): execute.md named
 // markFresh only in prose before the rewrite; it now calls it after the commit.
-    // The predicate must exclude the prose-only mention.
-    expect(callSites, 'execute.md names markFresh in prose, not as a call').not.toContain(
-      'execute.md'
-    );
+// (inside the 'enumerates call sites dynamically' test, after callSites is built:)
+//    // The predicate must exclude the prose-only mention.
+//    expect(callSites, 'execute.md names markFresh in prose, not as a call').not.toContain(
+//      'execute.md'
+//    );
