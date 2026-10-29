@@ -1,163 +1,124 @@
 ---
 name: sig:verify
-description: "VERIFY phase — acceptance criteria verification, full test suite, Nyquist compliance check."
-args: "<phase-number>"
+description: "VERIFY phase — check the built work against its acceptance criteria and requirements, run the suite and build, and write a report that states its totals."
+args: ""
 ---
 
-# VERIFY Phase
+# VERIFY
 
-You are running the VERIFY phase. Your goal: confirm that what was built matches what was planned.
+Check that what was built does what the plan and the requirements said, in a report a reader can check.
 
-## 0. Tier-gating preamble (run before anything else)
+Every `tools/lib/`, `skills/`, `references/` and `commands/` path in this file is under `${CLAUDE_PLUGIN_ROOT}/`:
+import from there, never from another copy of Signal. `baseDir` is the project root; `planningDir` is
+`.planning/` in it; `currentEpic` is `current_epic` from `readState` (`tools/lib/state.js`).
 
-Read the **effective profile** before any other workflow step: `readEffectiveProfile(baseDir, { currentEpic })` (`tools/lib/profile.js`), where `currentEpic` is `current_epic` from STATE.md (via `readState`). In **Epic mode** (a strict `current_epic`) an Epic-scoped `.planning/{EpicID}-PROFILE.md` shadows the project PROFILE for this Epic's phases; in **linear mode** (null / absent / non-strict `current_epic`) it reads `.planning/PROFILE.md` unchanged — byte-identical to pre-E11. Fail-open on the STATE value: a hand-edited or garbage `current_epic` degrades to the project PROFILE, never throws.
+## 1. Check VERIFY can run (writes nothing)
 
-- **If neither PROFILE.md is present:** `readEffectiveProfile` throws the same not-found error — halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:verify`."* Do not proceed.
-- **If `VERIFY` is in `phases_skipped`:** exit with *"This tier ({tier}) skips VERIFY. Run `/sig:review` next (or `/sig:ship` if REVIEW is also skipped), or `/sig:escalate` if scope has grown and VERIFY should run."* Do not proceed. (No v1 tier currently skips VERIFY.)
-- **Apply `rigor_overrides`** from PROFILE.md:
+`readEffectiveProfile(baseDir, { currentEpic })` (`tools/lib/profile.js`):
 
-| Override | Effect on this phase |
+- It throws because no profile exists: stop with *"No PROFILE.md found at .planning/PROFILE.md. Run
+  `/sig:calibrate` first to tier this project, then re-run `/sig:verify`."*
+- `VERIFY` is in `phases_skipped`: the profile is malformed (no tier skips VERIFY). Stop and say so.
+- `resolveArtifactPath(planningDir, 'PLAN', { currentEpic, phase: 'PLAN' })` (`tools/lib/resume.js`)
+  finds no plan: stop and say to run `/sig:plan`.
+
+`applyRigorOverrides({}, profile)` gives the `gates` used below, and these overrides:
+
+| Override | Effect |
 |---|---|
-| `nyquist_enforcement: off` | Skip Step 3 (Nyquist Compliance) entirely. |
-| `nyquist_enforcement: basic` | Run Step 3 — check that planned tests exist and cover specified scenarios; do not require evidence each test failed before passing. |
-| `nyquist_enforcement: strict` | Run Step 3 with full strictness — every test must have a documented "failed before fixed" record. **Two valid evidence forms (either is sufficient):** (a) per-test red→green git evidence — a commit where only the test was added and CI showed red, followed by the implementation commit that turned it green; or (b) explicit attestation in `{phase}-VERIFICATION.md` that the test was written *before* the implementation, naming the file and the implementation commit it predates. (b) is the lighter-weight default that EXECUTE's atomic-commit-per-slice workflow naturally supports; (a) is required only if a stricter audit trail is being kept. **Permanent gap warning:** code that shipped before strict mode was active is structurally non-recoverable for strict Nyquist (see `references/tier-definitions.md` § "Recoverable vs. permanent backfills"). Surface this as a known limit if escalation enabled strict mode mid-flight. |
-| `attention: unattended` | Auto-advance through verification; no per-step confirmation. |
-| `attention: checkpointed` | No end-of-phase confirm: announce what the phase produced and continue. Gray-area decisions are still asked (`drive.md` § 3b). |
-| `attention: attended` | Confirm at every step inside the phase (`gates.confirm_in_phase`). |
-| `gate_strictness: strict` | Runs the anti-rationalization check at the gate. **That is all `gate_strictness` does to gates** (`v0.1.31`) — it no longer sets confirm cadence. |
+| `nyquist_enforcement` | `off` skips step 6. `basic`: every mapped test exists and covers its scenario. `strict`: also, each new test failed before its code. |
+| `gate_strictness: strict` | Runs the Anti-Rationalization Check in step 9. |
 
-Tooling: `tools/lib/profile.js` exposes `readProfile`, `readEffectiveProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
+| `attention` | How decisions are confirmed |
+|---|---|
+| `attended` | Ask each decision as you reach it (`gates.confirm_in_phase`), approve the results (`gates.confirm_verify`), and choose the path on a FAIL. |
+| `checkpointed` | No approval at the end: say what the phase found and go on. On a FAIL under the loop ceiling, loop back and say so. |
+| `unattended` | As `checkpointed`; a decision that is hard to undo is still asked. |
 
-## Skill Loading
+## 2. Record the phase
 
-Load from `${CLAUDE_PLUGIN_ROOT}/skills/verify/`:
-- `browser-testing-with-devtools/SKILL.md`
-- `debugging-and-error-recovery/SKILL.md`
+Only if step 1 let the command through. Call `await transitionPhase(baseDir, 'VERIFY')`
+(`tools/lib/state.js`) first: it records the phase being left and sets `phase: VERIFY`. If it
+refuses, show its message and stop. Show any `quarantined` entries it returns.
+Call it on a re-run too: a re-run while VERIFY is current counts as a new pass, so the loop ceiling
+can only come sooner. The one exception: skip it if `phase` is already `VERIFY` and the report step 7
+writes does not exist yet. The earlier run stopped before writing it, so the call would refuse and
+there is nothing to record.
 
-## Phase entry — record the phase (M5.E9 FR6, `B41`)
+## 3. Load skills and inputs
 
-**Call this only if every precondition above passed.** The tier gate must have let this command through, and any halt condition in it must not have fired. If this command is halting — wrong tier, a missing prerequisite artifact, a failed gate — **do not call `transitionPhase`**: return the halt instead.
+Read and apply `skills/verify/debugging-and-error-recovery/SKILL.md`, and
+`skills/verify/browser-testing-with-devtools/SKILL.md` if the work changed a user interface.
 
-**Then, before any Workflow step**, call `await transitionPhase(baseDir, 'VERIFY')` (`tools/lib/state.js`). It appends the phase being **left** to `completed_phases` and sets `phase: VERIFY`.
+Read the plan from step 1; the requirements,
+`resolveArtifactPath(planningDir, 'REQUIREMENTS', { currentEpic, phase: 'DISCUSS' })`; the
+validation file, `resolveArtifactPath(planningDir, 'VALIDATION', { currentEpic, phase: 'PLAN' })`
+(none at `nyquist_enforcement: off`); and the progress file,
+`artifactName('PROGRESS', { currentEpic, planningDir })`. Do each check yourself: this command
+dispatches no verifier agent.
 
-**Why the condition (M5.E13, `B48`).** This instruction used to be unconditional, and an agent running `/sig:execute` against a project with no PLAN artifact **correctly refused it** — obeying would have recorded `phase: EXECUTE` for a project with nothing to execute, writing a false entry into the ledger M5.E9 had just made honest. Obeying corrupted the record; disobeying reproduced `B41`. The instruction was the thing that was wrong. `transitionPhase` now also refuses to record a phase that produced no artifact, so the text and the code agree rather than one relying on the other.
+## 4. Check each acceptance criterion
 
-**Why this exists.** Until M5.E9 only `calibrate` / `discuss` / `ship` ever called `transitionPhase`. `plan`, `execute`, `verify` and `review` advanced nothing — so a command-driven project finished a full build with `completed_phases: [DISCUSS]`, `phase: SHIP`, and **PLAN / EXECUTE / VERIFY / REVIEW never recorded at all**, while `/sig:status` and `/sig:resume` reported `DISCUSS` for the entire run. `markFresh` then stamped a fresh timestamp over that stale position, turning *stale-and-flagged* into *stale-and-silent*. It survived eleven releases because Signal's own repo maintained these fields **by hand**.
+For each task in the plan, check the code against each acceptance criterion and record pass or fail
+with evidence: the test that covers it, a command and its output, or a file and line.
 
-**At entry, not exit** — the position must be true *while* the phase runs, which is what any "current phase is VERIFY" precondition depends on. Surface the returned `{quarantined}` list if non-empty: malformed ledger entries are relocated, never silently dropped.
+## 5. Run the suite and the build
 
-## Workflow
+Run the full test suite, the build and the linter, where the project has them. Every test passes,
+the build is clean, and no new warnings appear.
 
-**Artifact naming (M4.5.E11).** Name each artifact this phase writes with `artifactName(ARTIFACT, { currentEpic, planningDir })` (`tools/lib/resume.js`), and resolve ones it reads with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` — `currentEpic` is `current_epic` from STATE. **Epic mode** → `{EpicID}-{ARTIFACT}.md` (e.g. `M4.5.E11-VERIFICATION.md`); **linear mode** → the `{phase}-{ARTIFACT}.md` forms below, byte-identical to pre-E11. Substitute the `artifactName` result wherever this file writes a literal `.planning/{phase}-*.md` path.
+## 6. Check the test map
 
-### 1. Acceptance Criteria Verification
+Compare the validation file's map with the tests that exist: is every mapped test written, and does
+it cover its scenario? Name each gap.
 
-For each task in `{phase}-PLAN.md`:
-1. Read the acceptance criteria
-2. Verify the implementation satisfies each criterion
-3. Record pass/fail with evidence
+At `strict`, each new test also needs proof it failed before its code: the parent-run line the
+progress file records for its task, or a line in the report naming the test and the commit it came
+before. A progress entry with a stated gap has no proof: report it. Code built before `strict` was
+on cannot get that proof afterwards (`references/tier-definitions.md`): say so as a limit.
 
-### 1b. Requirement coverage — derived, never recalled (M5.E10 FR1 / FR6)
+## 7. Write the report
 
-**Step 1 above enumerates `{phase}-PLAN.md` tasks. That is structurally incomplete**, and it is the
-gap this step closes: a requirement that never became a task acceptance criterion is invisible to a
-loop over tasks. `REQUIREMENTS.md` is the declaration; the PLAN is one reading of it.
+1. Draft `artifactName('VERIFICATION', { currentEpic, planningDir })` from
+   `references/verification-template.md`, with the tier's headings. In the coverage section, cite
+   each requirement by its id (`AC1.2`, `FR3`): the coverage check finds only the ids the report
+   cites, so a report that cites none cannot be checked.
+2. Run `diffRequirementCoverage({ requirementsText, verificationText })`
+   (`tools/lib/requirement-coverage.js`) on the requirements and the draft, and
+   `checkValidationConsistency(validationText)` (`tools/lib/validation-consistency.js`) on the
+   validation file. Both are read-only and never throw.
+3. Put their results in the report, including at zero:
+   - `missing`: requirements declared and not verified. **Name them.** Any `missing` makes the
+     verdict FAIL.
+   - `deferred`: requirements the requirements file struck out.
+   - what the check could not look at: a `cannot-evaluate` outcome with its `reason`, and
+     `unattributableGroups`. Never report these as clean.
+   - each coverage claim as `{n} of {total}`, with where the total came from (the diff's `basis`).
+     A claim with no denominator cannot be checked.
+4. Write the file, then run `validateVerificationContent(content, profile.tier)`
+   (`tools/lib/verification-template.js`). Fix the report until it passes. It checks that the
+   report answers each heading, not that the answers are right: steps 4 to 6 and the coverage
+   check do that.
 
-Call `diffRequirementCoverage({requirementsText, verificationText})` from
-`tools/lib/requirement-coverage.js`, resolving `{Unit}-REQUIREMENTS.md` with `resolveArtifactPath`.
-Then call `checkValidationConsistency(validationText)` from `tools/lib/validation-consistency.js` on
-`{Unit}-VALIDATION.md`. Both are read-only, offline, deterministic, and never throw.
+## 8. Record the pass
 
-Record all three fields in the report, **including at zero**:
+Decide the verdict and write it in the report:
 
-- `missing` — requirements declared and not verified. **Name them.** A count is a completeness claim
-  wearing a number.
-- `deferred` — requirements the REQUIREMENTS artifact itself struck out of the unit. Reported, never
-  silently dropped.
-- `unattributableGroups` / `cannot-evaluate` reasons — **what the check could not look at.** This is
-  not optional detail: *"could not evaluate"* rendered as *"checked and clean"* is `B39`'s shape, and
-  the reason a detector earns the mute that makes it useless.
+- **PASS**: every check passed. PASS with documented limits is recorded as
+  `recordPass(baseDir, 'VERIFY', 'PASS')`: the limits live in the report.
+- **PASS-WITH-FIXES**: a check failed, you fixed it in this phase with a commit per fix, and every
+  check passed when run again.
+- **FAIL**: anything still fails, including any `missing` requirement. List each failure as a fix to
+  make: on a loop back, `/sig:execute` builds those.
 
-**Write the denominator, not just the numerator (FR6 / AC6.1).** Every coverage statement in the
-report reads `{n} of {total}` and says where `{total}` came from — the diff returns `basis`, which
-names the requirement groups it scoped to and whether it scoped at all. *"All criteria verified"* with
-no denominator is the exact sentence this Epic exists to stop, and it is unfalsifiable by
-construction: a reader cannot check a total that was never stated.
+Then call `recordPass(baseDir, 'VERIFY', verdict)` (`tools/lib/state.js`), before the Loop Back.
 
-**A `missing` result is a FAIL, not a note.** Loop back rather than recording it as a known limit.
-
-### 2. Full Test Suite
-
-Run the complete test suite. All tests must pass.
-
-### 3. Nyquist Compliance
-
-Compare `{phase}-VALIDATION.md` test mapping against actual tests:
-- Are all mapped tests implemented?
-- Do tests cover the specified scenarios?
-- Any gaps between planned and actual coverage?
-
-### 4. Build Verification
-
-- Clean build succeeds
-- No new warnings introduced
-- Linter passes
-
-### 5. Write Verification Report
-
-Generate the VERIFICATION artifact (`artifactName('VERIFICATION', { currentEpic, planningDir })` — `{phase}-VERIFICATION.md` linear / `{EpicID}-VERIFICATION.md` Epic) with results.
-
-**Write it from `references/verification-template.md`** — per-tier locked headings, a denominator
-table, and a required `## What this could not establish` section.
-
-**Then validate it before the phase closes (M5.E10 FR3).** Call `validateVerificationContent(content,
-tier)` from `tools/lib/verification-template.js`. **A failure blocks the gate** — fix the report and
-re-run rather than recording the failure as a note.
-
-Three ways it fails, all deliberate:
-
-- a required heading is **missing**;
-- a required heading is present with an **empty body**;
-- `## What this could not establish` is present, non-empty, and **says nothing** — *"None"*, *"N/A"*,
-  one word. Structural presence was never the requirement (`AC3.2`). If a limit genuinely does not
-  apply, write the sentence explaining why; that sentence is the content.
-
-It also fails when **no denominator appears anywhere** in the report. *"All criteria verified"* is
-unfalsifiable by construction.
-
-**What this validation does not do**, so nobody reads a green result as more than it is: it checks
-that the report **asked** the questions. It cannot check the answers — a denominator can be wrong,
-and a limits section can omit the limit that mattered. Step 1b's `diffRequirementCoverage` is the
-half that compares the report against the requirements. **The structure without the derived check is
-theatre; the check without the structure lets a run report a number with no stated total.**
-
-### 5a. Record the pass (`D-M6E17-5`)
-
-**At the end of every pass, once the verdict is decided:** call `recordPass(baseDir, 'VERIFY', verdict)`
-from `tools/lib/state.js`, with `verdict` as `PASS`, `PASS-WITH-FIXES` or `FAIL`. A verdict of PASS
-with documented limits is recorded with `recordPass(baseDir, 'VERIFY', 'PASS')`: the limits live in
-the report, and the ceiling needs only whether the pass passed. Do this before the Loop Back ask and
-before the transition out of VERIFY. The loop ceiling (`loopStatusFor` in
-`tools/lib/loop-ceiling.js`) counts the larger of these recorded passes and VERIFY's exits in
-`completed_phases`, so a pass whose fixes stayed inside VERIFY is still counted. A FAIL never lifts
-the ceiling; the count decides as before. Re-running `/sig:verify` while VERIFY is current is a re-entry: it records an exit and begins a
-new visit, so restarting can only bring the ceiling sooner (`D-M6E18-9`). While VERIFY is the current phase and the last entry of
-the whole `phase_passes` list is its own PASS or PASS-WITH-FIXES, written in this visit (at or after
-`phase_pass_mark`), VERIFY is moving on and is not held (`SIG-349`).
-
-### 5b. Mark STATE.md fresh (M4.5.E6.S4)
-
-**SKETCH tier:** skip this step. STATE.md updates only via manual `/sig:checkpoint`.
-
-**FEATURE/SPIKE/FULL:** after the VERIFY artifacts (`{phase}-VERIFICATION.md`) are committed, call `markFresh(baseDir, {commit: <git HEAD>})` from `tools/lib/state.js`. This advances `last_updated` + `last_updated_commit` to the phase-close commit so the staleness banner in `/sig:resume` reads fresh after VERIFY. Run it **after** the commit — passing a pre-commit HEAD records a stale sha and silently defeats the freshness check (AC3.4).
-
-If `markFresh` fails (lock contention, git unavailable, etc.):
-- Under `gate_strictness: strict`, surface the failure to the user but **do not halt phase exit** — the work is already done; the state-write blip is a recovery item, not a verification failure.
-- Under `light` / `off`, log to stderr and continue.
-
-## Phase Gate
+## 9. Phase Gate
 
 ### Anti-Rationalization Check
+
+At `gate_strictness: strict`, answer each:
+
 | Temptation | Check |
 |---|---|
 | "The tests pass, so it must work" | Tests verify code, not user experience. Check the actual behavior |
@@ -165,34 +126,35 @@ If `markFresh` fails (lock contention, git unavailable, etc.):
 | "It's close enough" | Close enough is not done. Either it meets criteria or it doesn't |
 
 ### Exit Criteria
-- [ ] All acceptance criteria verified with evidence
-- [ ] Full test suite passes
-- [ ] Nyquist compliance check passes
-- [ ] Requirement coverage run (Step 1b): `missing` is empty, `deferred` and the un-evaluable set are
-      stated in the report, and every coverage claim carries its denominator
-- [ ] `validateVerificationContent` passes on the report (Step 5) — locked headings present and
-      filled, a denominator stated, and `## What this could not establish` says something
-- [ ] Build succeeds cleanly
-- [ ] The pass is recorded with `recordPass(baseDir, 'VERIFY', verdict)` (Step 5a)
-- [ ] User approves verification results — **when `gates.confirm_verify` is set** (`attention: attended`). Checkpointed and unattended: no ask; the transition is recorded, not approved (`B74`).
+- [ ] Every acceptance criterion checked, with evidence
+- [ ] The full test suite passes and the build is clean
+- [ ] The test map is checked (unless `nyquist_enforcement: off`)
+- [ ] Requirement coverage run (step 7): `missing` is empty, `deferred` and what could not be
+      checked are in the report, and every coverage claim has its denominator
+- [ ] `validateVerificationContent` passes on the report
+- [ ] The verdict is recorded with `recordPass` (step 8)
+- [ ] User approves the results — only when `gates.confirm_verify` is set (`attended`)
 
 ### Loop Back
 
-If verification fails, ask the user using the **3-options-plus-other** pattern (see `references/question-patterns.md`). **Render via `AskUserQuestion(multiSelect: false)` per § Rendering — the option content (name / "Pick this if" / recommendation) flows into the per-option `description`, not as literal markdown output.**
+On a FAIL, call `loopStatusFor(await readState(baseDir), 'VERIFY')` (`tools/lib/loop-ceiling.js`).
+It returns `null` when the count cannot be read: say so and stop. When `atCeiling`, show
+`formatLoopCeilingHalt(status)` and stop: a person decides. Otherwise, at `attended`, ask with the
+3-options-plus-other pattern (`references/question-patterns.md`, via `AskUserQuestion`); at
+`checkpointed` and `unattended`, take A and say so.
 
-A. **Loop back to EXECUTE.** Fix the specific failures and re-run VERIFY.
-   Pick this if: the gap is small, fixes are well-scoped, and you've looped <3 times for this phase. Default for first/second loops.
+A. **Loop back to EXECUTE** (recommended). `/sig:execute` builds the fixes the report lists.
+B. **Change the tier with `/sig:escalate`**, when the failure shows the work was calibrated too low.
+C. **Accept it as a known limit**: record the failed criteria as limits in the report, to ship with
+   that caveat.
 
-B. **Escalate the loop ceiling via `/sig:escalate`.** If the third loop is approaching and the project's stakes have shifted (e.g., the gap reveals a missing dimension of the work), escalate the tier and re-plan.
-   Pick this if: the third loop is imminent and the failure pattern suggests the original calibration was too low.
+Write the path chosen in the report.
 
-C. **Accept the failure and document it.** Mark the failed criteria as known limits in `{phase}-VERIFICATION.md`; ship with explicit caveats.
-   Pick this if: the failure is real but the cost of fixing exceeds the cost of shipping with a documented limit (rare; defaults to A or B).
+## 10. Finish
 
-If none of these fit, describe what you'd prefer and capture the reasoning in `{phase}-VERIFICATION.md` for downstream phases.
+Commit the report and every `.planning/` file the phase changed (`STATE.md`, `INDEX.md`). This
+command sets no next phase: `/sig:execute` records leaving VERIFY on a loop back, and on a pass the
+next command does (`/sig:review`, or `/sig:ship` where the tier skips REVIEW; SPIKE skips both).
 
-**Recommendation:** A for the first 2 loops; reassess at loop 3 — typically B if calibration looks too low, C if the failure is genuinely de-scope-able.
-
-After choosing:
-1. Document the failure (and the chosen path) in `{phase}-VERIFICATION.md`.
-2. Execute the chosen path.
+Except at SKETCH, after the commit call `markFresh(baseDir, { commit: <HEAD> })`
+(`tools/lib/state.js`). Wrap it in a catch-all: on any error, warn and continue.

@@ -24,11 +24,11 @@ const read = (f) => readFileSync(join(CMD, `${f}.md`), 'utf-8');
 describe('M5.E13 S2.t4 — the phase-entry instruction is conditional and shared (AC1.1)', () => {
   const CONDITION = '**Call this only if every precondition above passed.**';
 
-  // plan.md and execute.md were rewritten as numbered steps
-  // (archive/tests/plan-wording.test.js, archive/tests/execute-wording.test.js):
+  // plan.md, execute.md and verify.md were rewritten as numbered steps
+  // (archive/tests/plan-wording.test.js, execute-wording.test.js, verify-wording.test.js):
   // their own wording, still conditional. The others keep the shared paragraph
   // until their own rewrite.
-  const REWRITTEN = ['plan', 'execute'];
+  const REWRITTEN = ['plan', 'execute', 'verify'];
   const SHARED = MIDDLE.filter((f) => !REWRITTEN.includes(f));
 
   it('all four middle commands make the phase-entry call conditional', () => {
