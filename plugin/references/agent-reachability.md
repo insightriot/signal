@@ -54,13 +54,13 @@ Each carries the trigger that would make wiring it worth the build.
 
 - `executor.md` — **dormant.** Executes plan tasks with TDD and atomic commits, one per task in a wave
   with fresh context. **Trigger:** `execute.md` grows a `subagent_type` dispatch step. Named in `execute.md`
-  and `plan.md` **prose** (*"the executor agent handles 2-5"*), which reads as a wiring
+  **prose** (*"the executor agent handles 2-5"*), which reads as a wiring
   claim and is not one.
 
 ### `agents/planners/` (2)
 
 - `planner.md` — **dormant.** Creates the executable phase plan — task breakdown, dependency analysis,
-  vertical slicing — at PLAN § 3. **Trigger:** `plan.md` grows a `subagent_type` dispatch step.
+  vertical slicing — at PLAN step 6. **Trigger:** `plan.md` grows a `subagent_type` dispatch step.
 - `roadmapper.md` — **dormant.** Builds project roadmaps — phase breakdown, requirement mapping,
   milestone definition — at project init. **Trigger:** a decision to let an agent write the baseline
   `PROJECT.md` rather than the command writing it inline. ⚠ **Considered for wiring in `M6.E9` and declined on

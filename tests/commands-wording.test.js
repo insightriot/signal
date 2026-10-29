@@ -24,8 +24,14 @@ const read = (f) => readFileSync(join(CMD, `${f}.md`), 'utf-8');
 describe('M5.E13 S2.t4 — the phase-entry instruction is conditional and shared (AC1.1)', () => {
   const CONDITION = '**Call this only if every precondition above passed.**';
 
-  it('all four middle commands carry the conditional clause', () => {
-    for (const f of MIDDLE) expect(read(f), f).toContain(CONDITION);
+  // plan.md was rewritten as numbered steps (archive/tests/plan-wording.test.js):
+  // its own wording, still conditional. The others keep the shared paragraph
+  // until their own rewrite.
+  const SHARED = MIDDLE.filter((f) => f !== 'plan');
+
+  it('all four middle commands make the phase-entry call conditional', () => {
+    for (const f of SHARED) expect(read(f), f).toContain(CONDITION);
+    expect(read('plan')).toMatch(/Only if step 1 let the command through\. Call `await transitionPhase\(baseDir, 'PLAN'\)`/);
   });
 
   it('the old UNCONDITIONAL phrasing is gone from every command', () => {
@@ -35,10 +41,10 @@ describe('M5.E13 S2.t4 — the phase-entry instruction is conditional and shared
     }
   });
 
-  it('the four wordings are IDENTICAL apart from the phase name — drift is caught, not trusted', () => {
+  it('the shared wordings are IDENTICAL apart from the phase name — drift is caught, not trusted', () => {
     // A single shared wording was the requirement (FR1.1) precisely so the four
     // cannot diverge. Normalising the phase token is what makes them comparable.
-    const normalised = MIDDLE.map((f) => {
+    const normalised = SHARED.map((f) => {
       const src = read(f);
       const start = src.indexOf(CONDITION);
       expect(start, `${f}: conditional clause missing`).toBeGreaterThan(-1);
@@ -362,12 +368,12 @@ describe('M5.E17 S4 — plan.md schedules what the Epic does for the FIRST TIME 
     expect(denorm(plan()).toLowerCase()).toContain('first wave');
   });
 
-  it('names a worked example so a reader knows what counts (AC1.2)', () => {
-    const text = denorm(plan());
-    expect(text).toMatch(/worked example/i);
-    // The example must distinguish a NEW thing from a FIRST-RUN thing — the
-    // distinction the instruction turns on.
-    expect(text.toLowerCase()).toMatch(/never (been )?run|real purpose|not previously/);
+  it('says what counts: what the Epic runs, not what it builds (AC1.2)', () => {
+    // The worked example went with the rewrite (archive/tests/plan-wording.test.js);
+    // the distinction it illustrated is stated directly.
+    const text = denorm(plan()).toLowerCase();
+    expect(text).toMatch(/not what\s+it builds/);
+    expect(text).toMatch(/real purpose/);
   });
 });
 

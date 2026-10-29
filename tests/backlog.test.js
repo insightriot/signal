@@ -541,15 +541,15 @@ describe('createBacklogIfMissing snapshot-seed branch (S4.t6 — create-if-missi
 
 describe('commands/plan.md classify step (S4.t3 — FR2 wiring in Step 1b)', () => {
   it('classifies with a strict-enum [work, bug] routing to promoteToBacklog / promoteToBugs', () => {
-    expect(planMd).toMatch(/\[work, bug\]/);
+    expect(planMd).toMatch(/classified `work`[^.]*`BACKLOG\.md`[^.]*`bug`[^.]*`BUGS\.md`/);
     expect(planMd).toContain('promoteToBacklog');
     expect(planMd).toContain('promoteToBugs');
     expect(planMd).toContain('promoteDrainEntry');
   });
 
   it('a work promote takes a [roadmap, hygiene] tag and may retitle', () => {
-    expect(planMd).toMatch(/\[roadmap, hygiene\]/);
-    expect(planMd.toLowerCase()).toContain('retitle');
+    expect(planMd).toMatch(/tagged `roadmap` or `hygiene`/);
+    expect(planMd).toMatch(/cleaned-up title \(a blank keeps the source heading\)/);
   });
 
   it('reads the inbox via the resolver, not a hardcoded FUTURE-IDEAS', () => {

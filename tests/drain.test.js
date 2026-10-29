@@ -502,23 +502,15 @@ describe('applyDispositions (batch — "defer all remaining")', () => {
 });
 
 describe('commands/plan.md drain step (S5.t3 — FR7.1-7.4, R1 hard gate)', () => {
-  it('inserts `### 1b.` between Step 1 and Step 2 without renumbering Steps 2-6', () => {
-    expect(planMd).toMatch(/^### 1b\. /m);
-    // Untouched, numerically-referenced steps still present. Matched on the
-    // NUMBER, not the title — this test is about renumbering, and pinning the
-    // full heading made it fail on `M6.E9`'s rename of Step 2's title (FR5:
-    // "Research (Parallel Agents)" -> "Research (parallel angles)", because the
-    // section no longer names agents). Over-specification, loosened to what the
-    // test is actually for.
-    expect(planMd).toMatch(/^### 2\. Research /m);
-    expect(planMd).toContain('### 4. Plan Validation (8 Dimensions)');
-    // 1b. sits between Step 1 and Step 2.
-    const i1 = planMd.indexOf('### 1. Load Context');
-    const i1b = planMd.search(/^### 1b\. /m);
-    const i2 = planMd.search(/^### 2\. Research /m);
-    expect(i1).toBeGreaterThan(-1);
-    expect(i1b).toBeGreaterThan(i1);
-    expect(i2).toBeGreaterThan(i1b);
+  // Rewritten 2026-10-28 against plan.md's numbered steps; the old wording
+  // checks are in archive/tests/plan-wording.test.js.
+  it('the inbox step comes after loading context and before research', () => {
+    const iCtx = planMd.search(/^## \d+\. Load skills and context/m);
+    const iInbox = planMd.search(/^## \d+\. Sort the inbox \(required\)/m);
+    const iRes = planMd.search(/^## \d+\. Research/m);
+    expect(iCtx).toBeGreaterThan(-1);
+    expect(iInbox).toBeGreaterThan(iCtx);
+    expect(iRes).toBeGreaterThan(iInbox);
   });
 
   it('FR7.1: reads candidates via the drain helper, all un-dispositioned (no window)', () => {
@@ -527,40 +519,34 @@ describe('commands/plan.md drain step (S5.t3 — FR7.1-7.4, R1 hard gate)', () =
     expect(planMd).toMatch(/FUTURE-IDEAS\.md/);
   });
 
-  it('FR7.2: advisory + skippable + "defer all remaining" batch', () => {
-    expect(planMd.toLowerCase()).toContain('advisory');
-    expect(planMd.toLowerCase()).toMatch(/skip the whole step|fully skippable|skippable/);
-    expect(planMd).toMatch(/defer all remaining/i);
+  it('FR7.2: required, with "defer all remaining" always offered', () => {
+    expect(planMd).toMatch(/always offer "defer all remaining"/);
+    expect(planMd).not.toMatch(/skippable/i);
   });
 
-  it('FR7.2/7.3: per-entry strict-enum offers promote/defer/merge/delete + explicit skip', () => {
-    expect(planMd).toMatch(/strict-enum/);
-    for (const verb of ['promote', 'defer', 'merge', 'delete']) {
-      expect(planMd, `drain step must offer "${verb}"`).toContain(verb);
+  it('FR7.2/7.3: offers promote/defer/shipped/merge/delete + explicit skip', () => {
+    for (const verb of ['promote', 'defer', 'shipped', 'merge', 'delete', 'skip']) {
+      expect(planMd, `drain step must offer "${verb}"`).toMatch(new RegExp(`\\|\\s*\\*\\*${verb}\\*\\*\\s*\\|`));
     }
   });
 
-  it('FR7.3 + R5: delete/merge confirm regardless of gate_strictness; keep preserves', () => {
-    expect(planMd).toMatch(/\[confirm, keep\]/);
-    expect(planMd).toMatch(/regardless of `?gate_strictness`?/);
+  it('FR7.3 + R5: delete/merge confirm per entry at every setting; keep preserves', () => {
+    expect(planMd).toMatch(/\*\*delete\*\* and \*\*merge\*\* also need a\s+per-entry \*confirm\* or \*keep\*; \*keep\* leaves the file unchanged/);
+    expect(planMd).toMatch(/Never propose delete or merge here/);
   });
 
-  it('R1 HARD GATE: previews the diff before any disposition write', () => {
-    expect(planMd).toMatch(/HARD GATE/);
-    expect(planMd.toLowerCase()).toContain('preview');
-    expect(planMd).toContain('applyDispositionToFile');
+  it('R1 HARD GATE: previews the diff before any disposition write, at every attention setting', () => {
+    expect(planMd).toMatch(/Every write is previewed, at every attention setting/);
+    expect(planMd).toMatch(/show the diff, and write with\s+`applyDispositionToFile` only after it is accepted/);
   });
 
   it('FR7.4: empty candidate set emits a one-line note and continues', () => {
-    // M5.E3.S4.t3: the note was reworded FUTURE-IDEAS → inbox as the drain now
-    // reads the resolved inbox (ISSUES-INBOX.md, back-compat FUTURE-IDEAS.md).
     expect(planMd).toContain('(no inbox candidates to drain)');
   });
 
   it('FR3 (M5.E1): wires evictTerminalToLedger with a dry-run preview; DEFERRED stays', () => {
     expect(planMd).toContain('evictTerminalToLedger');
     expect(planMd).toMatch(/dryRun:\s*true/);
-    expect(planMd.toLowerCase()).toContain('preview');
     expect(planMd).toMatch(/DEFERRED[^\n]*stays/i);
     expect(planMd).toMatch(/danglingFence/);
   });
@@ -579,7 +565,7 @@ describe('S5.t4 docs + anti-rationalization (FR7.5 / FR8.2)', () => {
     // pinning which noun the row uses for the file tests the spelling instead,
     // and would fail again at the next rename.
     expect(table).toMatch(/skip the (?:[A-Za-z-]+ )?drain/i);
-    expect(table.toLowerCase()).toContain('rot');
+    expect(table).toMatch(/skip the inbox drain" \| No\b/);
     // The row must also point at the legitimate alternative — a refusal with no
     // permitted move is what made the original contradiction survivable.
     expect(table).toContain('defer all remaining');
@@ -982,12 +968,9 @@ describe('applyDisposition — the `shipped` verb', () => {
 });
 
 describe('commands/plan.md offers the verb it now has', () => {
-  it('lists `shipped` in the drain enum — a verb no command offers is unreachable', () => {
-    // The B39/B46 class, applied to this change on the day it shipped: a
-    // capability with no caller. plan.md is the only surface that offers
-    // disposition verbs to a user.
+  it('lists `shipped` in the drain verbs — a verb no command offers is unreachable', () => {
     const planMd = readFileSync(join(ROOT, 'plugin/commands/plan.md'), 'utf-8');
-    expect(planMd).toContain('[promote, defer, shipped, merge, delete]');
     expect(planMd).toMatch(/\|\s*\*\*shipped\*\*\s*\|/);
+    expect(planMd).toMatch(/Finished work is \*\*shipped\*\*, never deferred or deleted/);
   });
 });
