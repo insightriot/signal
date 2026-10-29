@@ -396,6 +396,16 @@ describe('applyRigorOverrides', () => {
     },
   };
 
+  it('a config whose sections are plain flags (`parallelization: true`) is read, not a crash', () => {
+    // GSD's older config form, found on the test project: every phase command
+    // calls this to get its gates, and it threw on assigning into `true`.
+    const config = { ...baseConfig, parallelization: true, workflow: false, gates: null };
+    const merged = applyRigorOverrides(config, featureOverrides);
+    expect(merged.parallelization).toEqual({ enabled: true, max_concurrent_agents: 2 });
+    expect(merged.workflow.research).toBe(true);
+    expect(merged.gates.confirm_plan).toBe(false);
+  });
+
   it('does not mutate the input config', () => {
     const before = JSON.parse(JSON.stringify(baseConfig));
     applyRigorOverrides(baseConfig, fullOverrides);
