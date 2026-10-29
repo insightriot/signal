@@ -1,0 +1,19 @@
+{
+  "id": "SIG-372",
+  "type": "BUG",
+  "title": "/sig:execute: an interrupted loop back drops its unstarted fixes, and a linear project's resumed first task can start from the previous run's commit",
+  "priority": "P3",
+  "source": "execute rewrite review",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-29T11:50:32.380Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-29T11:50:32.380Z",
+      "by": "claude"
+    }
+  ]
+}
