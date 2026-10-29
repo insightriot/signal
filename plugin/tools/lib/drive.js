@@ -62,12 +62,12 @@ export const FLOORS = Object.freeze([
   {
     id: 'plan-drain-preview',
     at: 'PLAN',
-    why: 'A drain write mutates the idea database; the diff is previewed and accepted before any write (`plan.md` R1 hard gate).',
+    why: 'A drain write mutates the idea database; the diff is previewed and accepted before any write (`plan.md` step 4).',
   },
   {
     id: 'plan-drain-destructive',
     at: 'PLAN',
-    why: 'delete/merge remove text and confirm per entry regardless of gate_strictness (`plan.md` R5 sub-gate).',
+    why: 'delete/merge remove text and confirm per entry at every attention setting (`plan.md` step 4).',
   },
   {
     id: 'resume-orphans',

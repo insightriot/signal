@@ -211,7 +211,7 @@ describe('M6.E4 S2 — the mechanism is REACHED, not merely exported', () => {
   it('commands/plan.md tells the reader no disposition verb applies', () => {
     const planMd = readFileSync(join(repoRoot, 'plugin/commands/plan.md'), 'utf8');
     expect(planMd).toMatch(/standing/i);
-    expect(planMd).toMatch(/never promote, merge, or delete/);
+    expect(planMd).toMatch(/no disposition verb applies to it, so offer none/);
   });
 });
 

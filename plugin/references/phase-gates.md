@@ -67,8 +67,8 @@ than omission (`B39`):
 - **It counts nothing.** It answers *"were you asked anything at all during this phase?"* — total
   omission and no finer. A count is impossible to derive honestly, because `confirm_in_phase` means
   a different quantity in each command: **countable** in `execute.md` (every wave boundary) and
-  `ship.md` (every checklist step), **discovered as you go** in `discuss.md` (one per gray area),
-  and **undefined** in `plan.md`, `verify.md` and `review.md`, which say "every step" without ever
+  `ship.md` (every checklist step), **discovered as you go** in `discuss.md` and `plan.md` (one per open
+  decision), and **undefined** in `verify.md` and `review.md`, which say "every step" without ever
   saying what a step is. Comparing against a number would fabricate one for four of six phases.
 - **It cannot tell a real ask from a box-ticking one.** A single irrelevant question satisfies it.
 

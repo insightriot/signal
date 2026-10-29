@@ -73,8 +73,10 @@ describe('B93 — the Epic roll precedes the tier read', () => {
     // grows --epic, this fails and the carve-out has to travel with it.
     const siblings = ['plan', 'execute', 'verify', 'review', 'ship'];
 
-    it.each(siblings)('%s.md carries the tier preamble', (name) => {
-      expect(read(name)).toMatch(/^## 0\. Tier-gating preamble/m);
+    it.each(siblings)('%s.md reads the tier first', (name) => {
+      // `## 0. Tier-gating preamble`, or `## 1. Check <PHASE> can run` in a
+      // command rewritten as numbered steps (archive/tests/plan-wording.test.js).
+      expect(read(name)).toMatch(/^## (?:0\. Tier-gating preamble|1\. Check [A-Z]+ can run)/m);
     });
 
     it.each(siblings)('%s.md does NOT accept --epic, so it never rolls an Epic', (name) => {

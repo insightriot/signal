@@ -65,38 +65,20 @@ function liveText(src) {
 }
 
 describe('B89 — no command file both permits and forbids the same skip', () => {
+  // Rewritten 2026-10-28 for plan.md's numbered steps; the old checks, including
+  // the one that kept the retired wording quoted in the file, are in
+  // archive/tests/plan-wording.test.js.
   it('plan.md requires the drain, and does not also call it skippable', () => {
-    const src = readFileSync(join(COMMANDS, 'plan.md'), 'utf8');
-    const live = liveText(src);
-
-    // The permission that contradicted the table. Gone from the live text.
+    const live = liveText(readFileSync(join(COMMANDS, 'plan.md'), 'utf8'));
     expect(live).not.toMatch(/advisory and fully skippable/i);
     expect(live).not.toMatch(/skip the whole step and planning proceeds unchanged/i);
-
-    // The requirement, and the bounded escape it depends on.
-    expect(live).toMatch(/###\s*1b\..*\(required/i);
-    expect(live).toMatch(/This step is required\./);
+    expect(live).toMatch(/^## \d+\. Sort the inbox \(required\)/m);
+    expect(live).toMatch(/this step always runs/);
     expect(live).toContain('defer all remaining');
-  });
-
-  it('the retired permission survives as a quotation, and is marked retired', () => {
-    // Deleting the old wording outright would pass every check above and lose
-    // the only in-file record of why the rule changed. Keeping it unmarked is
-    // what makes it indistinguishable from a live instruction. It must be both
-    // present and marked — this test fails if either half is dropped.
-    const src = readFileSync(join(COMMANDS, 'plan.md'), 'utf8');
-    const quoted = src
-      .split('\n')
-      .filter((l) => /advisory and fully skippable/i.test(l));
-    expect(quoted.length, 'the retired wording should be quoted exactly once').toBe(1);
-    expect(quoted[0]).toMatch(/\[RETIRED\b/i);
-    expect(quoted[0]).toMatch(/no longer in force/i);
   });
 
   it('the bounded escape is offered unconditionally, not above some size threshold', () => {
     const src = liveText(readFileSync(join(COMMANDS, 'plan.md'), 'utf8'));
-    // A required step whose only escape appears "on a large first run" is a
-    // step with no escape on a small one.
     expect(src).not.toMatch(/On a large first run, offer \*\*"defer all remaining"\*\*/);
     expect(src).toMatch(/Always offer "defer all remaining"/i);
   });

@@ -85,6 +85,9 @@ describe('FR6 — phase recording (B41)', () => {
   });
 
   // PRESENCE ONLY — see the file header. Not an obedience check.
+  // PRESENCE ONLY — see the file header. Not an obedience check.
+  // plan.md is rewritten as numbered steps (old checks: archive/tests/plan-wording.test.js):
+  // its entry step is `## 2. Record the phase`, before the work in `## 3.`.
   it('every middle phase command documents its entry transition (presence, not obedience)', async () => {
     for (const cmd of MIDDLE_COMMANDS) {
       const src = await readFile(join(process.cwd(), 'plugin', 'commands', `${cmd}.md`), 'utf-8');
@@ -92,24 +95,18 @@ describe('FR6 — phase recording (B41)', () => {
         new RegExp(`transitionPhase\\(baseDir, '${cmd.toUpperCase()}'\\)`)
       );
       // At ENTRY, not exit: the position must be true WHILE the phase runs.
-      const idx = src.indexOf('## Phase entry');
+      const numbered = src.search(/^## 2\. Record the phase/m);
+      const idx = numbered > -1 ? numbered : src.indexOf('## Phase entry');
+      const work = numbered > -1 ? src.search(/^## 3\. /m) : src.indexOf('## Workflow');
       expect(idx, `${cmd}.md phase-entry step must precede the Workflow`).toBeGreaterThan(0);
-      expect(idx).toBeLessThan(src.indexOf('## Workflow'));
+      expect(idx).toBeLessThan(work);
     }
   });
 
   it('no longer states a precondition no command can satisfy (AC6.1)', async () => {
     const src = await readFile(join(process.cwd(), 'plugin', 'commands', 'plan.md'), 'utf-8');
-    // plan.md:50 used to read "verify current phase is PLAN" while nothing in
-    // Signal could ever make that true — the bug written into the spec.
-    //
-    // Matched on the BULLET form specifically, not the bare phrase: the
-    // corrected line quotes the old wording to explain what changed, and a
-    // naive `not.toMatch(/verify current phase is PLAN/)` fails on that
-    // explanation. A test that forbids a project from describing its own
-    // history is a bad test — it pressures the fix toward deleting the record.
     expect(src).not.toMatch(/^- `STATE\.md` — verify current phase is PLAN\s*$/m);
-    expect(src).toMatch(/^- `STATE\.md` — current phase is `PLAN`, set by the phase-entry step/m);
+    expect(src).toMatch(/sets\s+`phase: PLAN`, so the position is true while PLAN runs/);
   });
 });
 
