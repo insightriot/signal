@@ -49,8 +49,8 @@ non-empty `quarantined` list, show it; those ledger entries were moved, not drop
 ## 3. Load skills and context
 
 Read and apply `skills/plan/planning-and-task-breakdown/SKILL.md`,
-`skills/build/api-and-interface-design/SKILL.md` (contracts before code) and
-`skills/ship/deprecation-and-migration/SKILL.md` (deprecations planned at design time).
+`skills/build/api-and-interface-design/SKILL.md` and
+`skills/ship/deprecation-and-migration/SKILL.md`.
 
 Read `PROJECT.md`, `ROADMAP.md`, and the requirements:
 `resolveArtifactPath(planningDir, 'REQUIREMENTS', { currentEpic, phase: 'DISCUSS' })`
@@ -73,16 +73,16 @@ follows the attention setting. On a v1 store it refuses and names
 1. `listDrainCandidatesWithRecovery(content)` returns `{candidates, danglingFence, recoveredCount}`:
    every top-level `## ` entry not yet dispositioned. If `danglingFence`, say so first: an unclosed
    code fence hid `{recoveredCount}` entries. Those carry `recovered: true`: list them, offer no
-   disposition and leave them out of any batch. Every write names an entry by `entryIndex`: its
-   position in `parseEntries(content)`, not in this list (match on `range.start`).
+   disposition and leave them out of any batch. Before each write, read the file again and take
+   `entryIndex` (its position in `parseEntries(content)`, not in this list) and `block` from that read.
 2. `listStandingEntries(content)`: state the count beside the candidates, e.g. *"(1 standing
    entry not counted)"*. A standing entry is permanent: no disposition verb applies to it, so offer none.
    No candidates: say *(no inbox candidates to drain)* and go to step 5.
-3. For each candidate, one of:
+3. For each candidate, one of (every stamp's `reason` is `'{Epic} drain'`; the code ignores others):
 
 | Verb | Effect |
 |---|---|
-| **promote** | A candidate task for step 6, routed to a home (below). Stamped `→ Promoted {date} ({Epic} drain).` |
+| **promote** | A candidate task for the plan (step 6), routed to a home (below). Stamped `→ Promoted {date} ({Epic} drain).` |
 | **defer** | Left for a later pass. Stamped `→ Deferred {date} ({Epic} drain).` |
 | **shipped** | Already done. Stamped `→ Shipped {date} ({Epic} drain).`; the block stays (it holds the reasoning). |
 | **merge** | Folded into another entry; the block is removed. |
@@ -93,7 +93,7 @@ follows the attention setting. On a v1 store it refuses and names
 
    A promote is classified `work` (to `BACKLOG.md`, tagged `roadmap` or `hygiene`) or `bug` (to
    `BUGS.md`), with an offered cleaned-up title (a blank keeps the source heading). Route it with
-   `promoteDrainEntry(baseDir, { classification, block, tag, title, entryIndex, reason: '{Epic} drain', date })`,
+   `promoteDrainEntry(baseDir, { classification, block, tag, title, entryIndex, reason, date })`,
    where `block` is `content.slice(range.start, range.end)`. It writes the destination
    (`promoteToBacklog` or `promoteToBugs`) before it stamps the entry.
 
@@ -102,7 +102,7 @@ follows the attention setting. On a v1 store it refuses and names
    `applyDispositionToFile` only after it is accepted, one call per entry. A **promote** is always written by
    `promoteDrainEntry`, never by those two, which only stamp the inbox: keep it out of the batch
    and show its destination write in the preview. **delete** and **merge** also need a per-entry
-   *confirm* or *keep*; *keep* leaves the file unchanged. After either, parse the file again.
+   *confirm* or *keep*; *keep* leaves the file unchanged.
 
 | `attention` | How the drain asks |
 |---|---|

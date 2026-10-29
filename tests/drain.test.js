@@ -545,10 +545,13 @@ describe('commands/plan.md drain step (S5.t3 — FR7.1-7.4, R1 hard gate)', () =
     expect(planMd).toMatch(/keep it out of the batch/);
   });
 
-  it('entryIndex is the position in parseEntries, not in the candidate list; one write call per entry', () => {
-    expect(planMd).toMatch(/`entryIndex`: its\s+position in `parseEntries\(content\)`, not in this list/);
+  it('entryIndex and block come from a fresh read before each write; one write call per entry', () => {
+    expect(planMd).toMatch(/Before each write, read the file again and take\s+`entryIndex` \(its position in `parseEntries\(content\)`, not in this list\) and `block` from that read/);
     expect(planMd).toMatch(/only after it is accepted, one call per entry/);
-    expect(planMd).toMatch(/After either, parse the file again/);
+  });
+
+  it('every stamp carries a reason the code counts (STATUS_DISPOSED_RE wants "drain")', () => {
+    expect(planMd).toMatch(/every stamp's `reason` is `'\{Epic\} drain'`/);
   });
 
   it('the environment check runs at every tier, even when research_parallelism: 0 skips the research', () => {
