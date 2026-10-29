@@ -1,0 +1,26 @@
+{
+  "id": "SIG-368",
+  "type": "BUG",
+  "title": "applyRigorOverrides crashes when a project config section is a plain flag (parallelization: true)",
+  "priority": "P2",
+  "source": "test project measurement",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-29T00:29:23.333Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-29T00:29:23.333Z",
+      "by": "claude"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-29T00:29:35.888Z",
+      "by": "claude",
+      "reason": "fixed",
+      "proof": "da894dfbbdf143c3071cd5de235393cff699532e"
+    }
+  ]
+}
