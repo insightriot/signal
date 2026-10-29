@@ -124,5 +124,7 @@
 | SIG-358 | `confirmed` | P3 | **parent-run.test.js flakes in CI: a SIGKILLed run leaves a half-made worktree entry** |
 | SIG-367 | `confirmed` | P3 | **The next Epic ID ignores Epics a milestone file already plans, so /sig:discuss --epic can take a planned Epic's number** |
 | SIG-368 | `closing` | P2 | **applyRigorOverrides crashes when a project config section is a plain flag (parallelization: true)** |
+| SIG-369 | `confirmed` | P3 | **An approved per-Epic calibrate is never run: DISCUSS lists it as a next step, PLAN notes it and keeps the project tier** |
+| SIG-370 | `confirmed` | P3 | **Work-store migration turns a list file's preamble text into inbox items** |
 
-*0 needs-triage · 80 confirmed · 1 closing · 138 closed (219 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 82 confirmed · 1 closing · 138 closed (221 total) · closes more than 30 days before the newest event are in `work/history/`*
