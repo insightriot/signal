@@ -1,0 +1,19 @@
+{
+  "id": "SIG-369",
+  "type": "BUG",
+  "title": "An approved per-Epic calibrate is never run: DISCUSS lists it as a next step, PLAN notes it and keeps the project tier",
+  "priority": "P3",
+  "source": "test project measurement",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-29T00:31:08.989Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-29T00:31:08.989Z",
+      "by": "claude"
+    }
+  ]
+}

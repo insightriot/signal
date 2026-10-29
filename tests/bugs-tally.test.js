@@ -273,8 +273,9 @@ describe('BUGS.md table shape', () => {
     expect(rows.length).toBeGreaterThan(50); // the population is real, not empty
     expect(rows.filter((r) => cellCount(r) > cellCount(header)).map((r) => r.match(/^\| (SIG-\d+)/)[1])).toEqual([]);
     for (const id of KNOWN_OVERFLOW.map((b) => `SIG-${b.slice(1)}`)) {
-      // In BUGS.md, or in work/history/ once its close leaves the window.
-      expect(lines.some((l) => l.startsWith(`| ${id} |`)), `${id} row present`).toBe(true);
+      // In BUGS.md, or in work/history/ once its close leaves the window,
+      // where the ID is a link: `| [SIG-63](../items/00/SIG-63.md) |`.
+      expect(lines.some((l) => l.startsWith(`| ${id} |`) || l.startsWith(`| [${id}](`)), `${id} row present`).toBe(true);
     }
   });
 });
