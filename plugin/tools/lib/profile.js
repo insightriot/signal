@@ -426,9 +426,14 @@ export function applyRigorOverrides(config, profile) {
 
   merged.rigor_overrides = { ...overrides };
 
-  merged.workflow = merged.workflow ?? {};
-  merged.gates = merged.gates ?? {};
-  merged.parallelization = merged.parallelization ?? {};
+  // A section may be a plain flag in older GSD configs (`"parallelization": true`);
+  // it is kept as `enabled` so the keys below have an object to land in.
+  for (const key of ['workflow', 'gates', 'parallelization']) {
+    const v = merged[key];
+    if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+      merged[key] = typeof v === 'boolean' ? { enabled: v } : {};
+    }
+  }
 
   merged.workflow.nyquist_validation = overrides.nyquist_enforcement !== 'off';
 

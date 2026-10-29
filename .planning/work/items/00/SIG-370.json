@@ -1,0 +1,19 @@
+{
+  "id": "SIG-370",
+  "type": "BUG",
+  "title": "Work-store migration turns a list file's preamble text into inbox items",
+  "priority": "P3",
+  "source": "test project measurement",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-29T00:31:09.245Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-29T00:31:09.245Z",
+      "by": "claude"
+    }
+  ]
+}
