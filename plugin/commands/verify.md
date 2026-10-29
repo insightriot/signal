@@ -42,24 +42,23 @@ Only if step 1 let the command through. Call `await transitionPhase(baseDir, 'VE
 (`tools/lib/state.js`) first: it records the phase being left and sets `phase: VERIFY`. If it
 refuses, show its message and stop. Show any `quarantined` entries it returns.
 Call it on a re-run too (it counts as a pass, so the loop ceiling comes sooner), except: skip it
-if `phase` is already `VERIFY` and no report exists yet (step 8 writes it), as the call would refuse.
+if `phase` is already `VERIFY` and no VERIFICATION file is on disk yet, as the call would refuse.
 
 ## 3. Load skills and inputs
 
 Read and apply `skills/verify/debugging-and-error-recovery/SKILL.md`, and
-`skills/verify/browser-testing-with-devtools/SKILL.md` if the work changed a user interface.
+`skills/verify/browser-testing-with-devtools/SKILL.md` for user-interface work.
 
 Read the plan from step 1; the requirements,
 `resolveArtifactPath(planningDir, 'REQUIREMENTS', { currentEpic, phase: 'DISCUSS' })`; the
 validation file, `resolveArtifactPath(planningDir, 'VALIDATION', { currentEpic, phase: 'PLAN' })`
 (none at `nyquist_enforcement: off`); and the progress file, `artifactName('PROGRESS', { currentEpic,
-planningDir })`, where it exists (`strict` requires it). Do each check yourself: this command
+planningDir })`, where it exists. Do each check yourself: this command
 dispatches no verifier agent.
 
 ## 4. Check each acceptance criterion
 
-For each task in the plan, check the code against each acceptance criterion and record pass or fail
-with evidence: a test, a command and its output, or a file and line.
+Check the code against each task's acceptance criteria and record pass or fail with evidence: a test, a command and its output, or a file and line.
 
 ## 5. Run the suite and the build
 
@@ -82,15 +81,15 @@ on cannot get it afterwards: say so as a limit.
    every pass (not edited from an earlier one), and keep it in memory. Cite by id (`AC1.2`, `FR3`)
    only the requirements you verified: the check counts every id the text names as covered.
 2. Run `diffRequirementCoverage({ requirementsText, verificationText })`
-   (`tools/lib/requirement-coverage.js`) on the requirements and that draft, once, and
+   (`tools/lib/requirement-coverage.js`) on the requirements and that draft (never the written file), and
    `checkValidationConsistency(validationText)` (`tools/lib/validation-consistency.js`) on the
    validation file.
 3. Put their results in the report, including at zero:
    - `missing`: requirements declared and not verified. **Name them.** Any `missing` makes the
      verdict FAIL.
    - `deferred`: requirements the requirements file struck out.
-   - what the check could not look at: a `cannot-evaluate` outcome with its `reason`, and
-     `unattributableGroups`. Never report these as clean.
+   - what the check could not look at: a `cannot-evaluate` outcome with its `reason`, and each of
+     `unattributableGroups`, saying if it is this unit's: then it is missing too. Never report these as clean.
    - each coverage claim as `{n} of {total}`, with where the total came from (the diff's `basis`).
    - the validation file's `assignedNotMapped` and `mappedNotAssigned`, as test-map gaps.
 
@@ -144,7 +143,7 @@ On a FAIL, call `loopStatusFor(await readState(baseDir), 'VERIFY')` (`tools/lib/
 
 A. **Loop back to EXECUTE** (recommended under the ceiling). This command ends after step 10, and the next command is
    `/sig:execute`, not `/sig:review`.
-B. **Change the tier with `/sig:escalate`**, when the failure shows the work was calibrated too low.
+B. **Change the tier with `/sig:escalate`**, when the tier proves too low.
 C. **Accept it as a known limit**: list the failed criteria as limits in the report; then go on as on a pass.
 
 Write the path chosen in the report, keeping every heading filled.

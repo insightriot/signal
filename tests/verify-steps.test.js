@@ -83,7 +83,15 @@ describe('verify.md runs the coverage check on the report, not before it', () =>
   it('the draft is fresh each pass and cites only the requirements verified, because the check counts every id named', () => {
     expect(flat).toMatch(/fresh on every pass \(not edited from an earlier one\)/);
     expect(flat).toMatch(/Cite by id \(`AC1\.2`, `FR3`\) only the requirements you verified/);
-    expect(flat).toMatch(/on the requirements and that draft, once,/);
+    expect(flat).toMatch(/on the requirements and that draft \(never the written file\)/);
+    // Review round 3: a group with nothing verified drops out of the total, so it is named.
+    expect(flat).toMatch(/each of `unattributableGroups`, saying if it is this unit's: then it is missing too/);
+    const groupless = diffRequirementCoverage({
+      requirementsText: '## FR-1\n- AC1.1 a\n## FR-2\n- AC2.1 b\n',
+      verificationText: 'AC1.1 passes.\n',
+    });
+    expect(groupless.missing).toEqual([]);
+    expect(groupless.unattributableGroups.length).toBeGreaterThan(0);
     // Review round 2: a report that names a missing id (as a limit, or a
     // previous pass's "missing" line) reads as covering it.
     const reqs = '## Requirements\n- AC1.1 a\n- AC1.2 b\n';
@@ -116,7 +124,7 @@ describe('verify.md runs the coverage check on the report, not before it', () =>
   it('at strict, the failed-first proof is the parent-run line /sig:execute records', () => {
     expect(flat).toMatch(/At `strict`, each new test also needs proof it failed before its code: the parent-run line the progress file records/);
     // The name /sig:execute writes. The lookup's older names can be another unit's file (review round 2).
-    expect(flat).toContain("`artifactName('PROGRESS', { currentEpic, planningDir })`, where it exists (`strict` requires it)");
+    expect(flat).toContain("`artifactName('PROGRESS', { currentEpic, planningDir })`, where it exists.");
     expect(verify).not.toContain("'PROGRESS', { currentEpic, phase:");
   });
 
@@ -132,7 +140,7 @@ describe('verify.md re-entry and the loop ceiling', () => {
     const step2 = verify.slice(verify.indexOf('## 2. Record the phase'), verify.indexOf('## 3. ')).replace(/\s+/g, ' ');
     expect(step2).not.toMatch(/Skip this step/);
     expect(step2).toMatch(/Call it on a re-run too/);
-    expect(step2).toMatch(/skip it if `phase` is already `VERIFY` and no report exists yet \(step 8 writes it\)/);
+    expect(step2).toMatch(/skip it if `phase` is already `VERIFY` and no VERIFICATION file is on disk yet/);
     const base = await mkdtemp(join(tmpdir(), 'sig-verify-reentry-'));
     try {
       await initState(base, 'DISCUSS');
