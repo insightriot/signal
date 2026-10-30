@@ -122,7 +122,7 @@
 | SIG-354 | `confirmed` | P2 | **Re-running /sig:verify or /sig:review after a crash before its report exists is refused, and nothing gets out** |
 | SIG-355 | `confirmed` | P3 | **Re-entering REVIEW moves the visit mark past a PASS this visit recorded, so the halt message reads as if nothing passed** |
 | SIG-358 | `confirmed` | P3 | **parent-run.test.js flakes in CI: a SIGKILLed run leaves a half-made worktree entry** |
-| SIG-367 | `confirmed` | P3 | **The next Epic ID ignores Epics a milestone file already plans, so /sig:discuss --epic can take a planned Epic's number** |
+| SIG-367 | `closing` | P3 | **The next Epic ID ignores Epics a milestone file already plans, so /sig:discuss --epic can take a planned Epic's number** |
 | SIG-368 | `closing` | P2 | **applyRigorOverrides crashes when a project config section is a plain flag (parallelization: true)** |
 | SIG-369 | `confirmed` | P3 | **An approved per-Epic calibrate is never run: DISCUSS lists it as a next step, PLAN notes it and keeps the project tier** |
 | SIG-370 | `confirmed` | P3 | **Work-store migration turns a list file's preamble text into inbox items** |
@@ -132,4 +132,4 @@
 | SIG-374 | `confirmed` | P3 | **Loop ceiling counts a VERIFY PASS visit, so the first real VERIFY failure after a REVIEW loop stops at the ceiling** |
 | SIG-375 | `confirmed` | P3 | **parent-run summary line counts test files but does not say so; an agent read "1 of 1 failed" as one test** |
 
-*0 needs-triage · 87 confirmed · 1 closing · 138 closed (226 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 86 confirmed · 2 closing · 138 closed (226 total) · closes more than 30 days before the newest event are in `work/history/`*

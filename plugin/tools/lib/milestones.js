@@ -8,7 +8,7 @@
 //
 // No new runtime deps — node:fs/promises + node:path only.
 
-import { readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import { readState, unitArchiveDirFor } from './state.js';
@@ -93,6 +93,9 @@ export async function listMilestones(baseDir) {
  * `milestone` arg AND no strict `current_epic`) — the caller must then supply
  * an explicit `--milestone` or pass a literal Epic ID to `--epic`.
  *
+ * Numbers the milestone's own file plans (`MILESTONE-{m}.md` or
+ * `MILESTONE-M{m}.md`, in a status row or a heading) count too (SIG-367).
+ *
  * On a project with unit records (`unitRecordsOn`, `unit-records.js`) the
  * highest `E{N}` among that milestone's records, open or closed, counts as
  * well, and the higher of the two is used (M6.E16 AC3.2). Without unit
@@ -150,6 +153,19 @@ export async function deriveNextEpicId(baseDir, { milestone } = {}) {
       }
     }
   }
+  // Numbers the milestone's own file plans, in a status row or a heading
+  // (SIG-367): a planned Epic may have no file or record yet, and is often
+  // being built on another branch. Both file names are read (`MILESTONE-M3.0.md`
+  // is the other spelling, SIG-363). A number counted by mistake only skips one.
+  for (const name of [`MILESTONE-${ms}.md`, `MILESTONE-M${ms}.md`]) {
+    let text;
+    try {
+      text = await readFile(join(baseDir, PLANNING_DIR, name), 'utf-8');
+    } catch {
+      continue;
+    }
+    for (const n of plannedEpicNumbers(text, ms)) if (n > maxN) maxN = n;
+  }
   // With unit records (M6.E16 t3.2, AC3.2): an Epic's record takes its
   // number whether it is open or closed, and whether or not it has a file —
   // a dropped Epic never had one. The filename number above still counts
@@ -171,6 +187,34 @@ export async function deriveNextEpicId(baseDir, { milestone } = {}) {
     }
   }
   return `M${ms}.E${maxN + 1}`;
+}
+
+// An Epic named in a heading: `M5.E3`, or a bare `E3` meaning this milestone.
+const HEADING_EPIC_RE = /(?:\bM(\d+(?:\.\d+)?)\.)?\bE(\d+)\b/g;
+
+/**
+ * The Epic numbers a milestone file plans under milestone `ms`: its status
+ * rows (`parseEpicStatusRows`) and the Epics its headings name, outside code
+ * fences. Another milestone's Epics are left out.
+ *
+ * @param {string} text — a MILESTONE file body
+ * @param {string} ms — milestone id, e.g. `'3.0'`
+ * @returns {number[]}
+ */
+function plannedEpicNumbers(text, ms) {
+  const out = parseEpicStatusRows(text, { milestone: ms })
+    .filter((r) => r.milestone === `M${ms}`)
+    .map((r) => r.epicNumber);
+  let inFence = false;
+  for (const line of String(text).split('\n')) {
+    const t = line.trimStart();
+    if (t.startsWith('```') || t.startsWith('~~~')) inFence = !inFence;
+    if (inFence || !/^#{1,6}\s/.test(t)) continue;
+    for (const m of t.matchAll(HEADING_EPIC_RE)) {
+      if ((m[1] ?? ms) === ms) out.push(parseInt(m[2], 10));
+    }
+  }
+  return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
