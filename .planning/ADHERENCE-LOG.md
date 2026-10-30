@@ -53,7 +53,7 @@ rewrites only between the `adherence:ceiling` markers, so this survives every re
 <!-- adherence:ceiling:begin -->
 ## The coverage ceiling
 
-**Computed:** 2026-10-30 · **Commit:** `a21de03e` · **Corpus:** 21 `commands/*.md` files
+**Computed:** 2026-10-30 · **Commit:** `8c368a6c` · **Corpus:** 21 `commands/*.md` files
 
 This is the bound on everything the adherence harness can ever report. It is computed
 directly from the command corpus by `tools/lib/directive-classifier.js`, whose split
@@ -62,15 +62,15 @@ by line.
 
 | | count | share |
 |---|---:|---:|
-| Directive lines | **596** | 100% |
-| …naming a real `tools/lib` export | 104 | 17.4% |
-| …writing a named artifact | 21 | 3.5% |
-| **Trace-measurable (either)** | **125** | **21.0%** |
-| **No observable trace** | **471** | **79.0%** |
+| Directive lines | **591** | 100% |
+| …naming a real `tools/lib` export | 104 | 17.6% |
+| …writing a named artifact | 21 | 3.6% |
+| **Trace-measurable (either)** | **125** | **21.2%** |
+| **No observable trace** | **466** | **78.8%** |
 
 ### What the remainder is, stated plainly
 
-The 471 directives with no observable trace are **unmeasured, not passing.**
+The 466 directives with no observable trace are **unmeasured, not passing.**
 
 They are not "probably fine", not "covered by the test suite", and not "verified by the
 fact that Signal works". Nothing in this repository establishes whether an agent follows
@@ -83,7 +83,7 @@ harness run as evidence about the whole corpus will not find it here.
 
 | File | directives | measurable | unmeasured |
 |---|---:|---:|---:|
-| `ship.md` | 71 | 24 | 47 |
+| `ship.md` | 70 | 24 | 46 |
 | `status.md` | 28 | 13 | 15 |
 | `add.md` | 42 | 11 | 31 |
 | `resume.md` | 31 | 10 | 21 |
@@ -95,14 +95,14 @@ harness run as evidence about the whole corpus will not find it here.
 | `docs-sweep.md` | 17 | 5 | 12 |
 | `drive.md` | 42 | 5 | 37 |
 | `calibrate.md` | 28 | 4 | 24 |
-| `execute.md` | 18 | 4 | 14 |
+| `execute.md` | 17 | 4 | 13 |
 | `review.md` | 56 | 4 | 52 |
-| `verify.md` | 25 | 3 | 22 |
+| `verify.md` | 24 | 3 | 21 |
 | `advise.md` | 22 | 2 | 20 |
 | `docs-archive.md` | 23 | 2 | 21 |
 | `docs-index.md` | 7 | 2 | 5 |
-| `discuss.md` | 19 | 1 | 18 |
-| `plan.md` | 21 | 1 | 20 |
+| `discuss.md` | 18 | 1 | 17 |
+| `plan.md` | 20 | 1 | 19 |
 | `escalate.md` | 16 | 0 | 16 |
 <!-- adherence:ceiling:end -->
 
