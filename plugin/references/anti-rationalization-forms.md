@@ -5,7 +5,7 @@
 > and the corpus disagree. A hand-kept list of what a corpus contains is a completeness claim,
 > and this repository is done writing those.
 
-**109 entries: 95 discipline, 14 shaping.**
+**103 entries: 90 discipline, 13 shaping.**
 
 ## The rule (`B38`)
 
@@ -36,10 +36,6 @@ shaping failure does not merely underperform — **it backfires**.
 ### `commands/calibrate.md`
 
 - **`PROFILE.md` carries all ten `rigor_overrides` keys with explicit values, every run.** A downstream command reads a key; an absent key is a different answer from a stated default.
-
-### `commands/checkpoint.md`
-
-- **The diff renders through `renderStateDiff`, unchanged.** One renderer means a reader who has seen one checkpoint can read every checkpoint.
 
 ### `commands/escalate.md`
 
@@ -106,10 +102,6 @@ output. Listed so the classification is complete rather than asserted.
 ### `commands/calibrate.md`
 
 - **`PROFILE.md` carries all ten `rigor_overrides` keys with explicit values, every run.** A downstream command reads a key; an absent key is a different answer from a stated default.
-
-### `commands/checkpoint.md`
-
-- **The diff renders through `renderStateDiff`, unchanged.** One renderer means a reader who has seen one checkpoint can read every checkpoint.
 
 ### `commands/escalate.md`
 
@@ -178,14 +170,6 @@ output. Listed so the classification is complete rather than asserted.
 - "I know this is a FULL project, skip the questions."
 - "This feels like SKETCH but I should say FEATURE to be safe."
 - "The user said to skip the .gitignore check."
-
-### `commands/checkpoint.md` (5)
-
-- "Auto-apply the refresh without confirming — saves a step."
-- "Skip the orphan prompt under strict — too chatty."
-- "Auto-redact sensitive data in `--context` capture."
-- "If `--context` is given, skip the quick-mode refresh."
-- "Don't bother running pre-CALIBRATE — just emit empty diff."
 
 ### `commands/discuss.md` (4)
 

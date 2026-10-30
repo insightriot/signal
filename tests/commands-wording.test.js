@@ -12,7 +12,7 @@
 // exactly as much pinning. M5.E8 established the technique on ADHERENCE-LOG.md.
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -141,17 +141,31 @@ describe('step 4 — STATE.md goes in the phase commit, with no markFresh after 
     }
   );
 
-  // /sig:checkpoint still calls markFresh, but that rewrites only the stored
-  // last_updated_commit. With STATE.md committed, the baseline is STATE.md's
-  // last commit, so the refresh clears nothing until it is committed (PR #326
-  // review).
-  it('checkpoint.md commits STATE.md after markFresh, before reporting fresh', () => {
-    const text = readFileSync(join(CMD, 'checkpoint.md'), 'utf-8');
-    const fresh = text.indexOf('Call `markFresh(baseDir)`');
-    const commit = text.indexOf('**Commit `STATE.md`**');
-    expect(fresh).toBeGreaterThan(-1);
-    expect(commit).toBeGreaterThan(fresh);
-    expect(commit).toBeLessThan(text.indexOf('Now fresh at:'));
+  // Step 4b: /sig:checkpoint is archived (archive/commands/checkpoint.md). Its
+  // own ordering check moved to archive/tests/checkpoint-commit-step.test.js.
+  // No live instruction may send a user to it, and resume's stale banner names
+  // the remedy that works: commit STATE.md (tests/is-state-stale.test.js).
+  it('no command, reference, skill or the README tells anyone to run /sig:checkpoint', () => {
+    const PLUGIN = join(CMD, '..');
+    const files = [];
+    const walk = (dir) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (e.name.endsWith('.md')) files.push(p);
+      }
+    };
+    for (const d of ['commands', 'references', 'skills']) walk(join(PLUGIN, d));
+    files.push(join(PLUGIN, '..', 'README.md'));
+    const hits = files.filter((f) => /\/sig:checkpoint\b/.test(readFileSync(f, 'utf-8').replace(/`\/sig:checkpoint`, the old manual refresh, was archived/g, '')));
+    expect(hits).toEqual([]);
+    expect(existsSync(join(CMD, 'checkpoint.md'))).toBe(false);
+  });
+
+  it("resume.md shows the stale banner's remedy as the code prints it", () => {
+    const line = 'Update STATE.md to match and commit it, or continue with potentially stale info.';
+    expect(readFileSync(join(CMD, 'resume.md'), 'utf-8')).toContain(line);
+    expect(readFileSync(join(CMD, '..', 'tools', 'lib', 'resume.js'), 'utf-8')).toContain(line);
   });
 
   it.each(['discuss.md', 'plan.md', 'review.md'])('%s commits STATE.md with the phase\'s files', (file) => {

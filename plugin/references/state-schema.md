@@ -273,7 +273,7 @@ A commit counts as state-affecting if it touches any of these paths (D6 path sco
 
 Editing FUTURE-IDEAS.md / OPEN-QUESTIONS.md / DECISIONS.md / MILESTONE-*.md / PROJECT.md / LANDSCAPE.md does **not** trigger staleness — those are metadata curation, not "ground state has moved."
 
-`isStateStale` skips the range walk when the baseline is HEAD. `/sig:checkpoint` passes `bypassGrace: true` because the user is explicitly asking "what changed?"
+`isStateStale` skips the range walk when the baseline is HEAD.
 
 ---
 
@@ -284,7 +284,7 @@ Editing FUTURE-IDEAS.md / OPEN-QUESTIONS.md / DECISIONS.md / MILESTONE-*.md / PR
 - Have aged past `thresholdMs` (default 30 minutes) and
 - Have no matching commit subject since `startedAt` referencing the task's ID.
 
-Used by `/sig:resume`'s `handleOrphansAtResume` and `/sig:checkpoint`'s `handleCheckpointOrphans`. The prompt fires regardless of `gate_strictness` — the prompt IS the recovery mechanism; suppressing it re-introduces the failure mode that motivated this Epic.
+Used by `/sig:resume`'s `handleOrphansAtResume`. The prompt fires regardless of `gate_strictness` — the prompt IS the recovery mechanism; suppressing it re-introduces the failure mode that motivated this Epic.
 
 ---
 
@@ -294,7 +294,7 @@ Used by `/sig:resume`'s `handleOrphansAtResume` and `/sig:checkpoint`'s `handleC
 
 | Tier | `gate_strictness` | Behavior on `setCurrentTask` failure |
 |---|---|---|
-| SKETCH | off | **Auto-protocol entirely disabled.** STATE.md updates only via manual `/sig:checkpoint`. |
+| SKETCH | off | **No task records.** The phase is still recorded, and `STATE.md` is committed with the phase's work. |
 | FEATURE / SPIKE | light | Log stderr warning; dispatch anyway. State-tracking for that task is skipped; clearCurrentTask doesn't run. |
 | FULL | strict | Halt: throw before agent runs. State integrity wins over progress under strict. |
 
@@ -320,7 +320,6 @@ Used by `/sig:resume`'s `handleOrphansAtResume` and `/sig:checkpoint`'s `handleC
 | `/sig:execute` | (orchestrator delegates) | `setCurrentTask` → agent dispatch → `clearCurrentTask` |
 | `/sig:verify` | (any prior fields) | `transitionPhase` / `recordPass`, committed with the report |
 | `/sig:review` | (any prior fields) | `transitionPhase` / `recordPass`, committed with the report |
-| `/sig:checkpoint` | All fields | `setCurrentTask` / `clearCurrentTask` for proposed transitions; `markFresh` on apply |
 | `/sig:calibrate`, `/sig:discuss`, etc. | (state.phase only) | `initState` / `transitionPhase` |
 
 ---

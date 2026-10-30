@@ -518,7 +518,7 @@ export function renderResumeBriefing(params = {}) {
         isStaleResult.commitCount === 1 ? '' : 's'
       } behind work history.`
     );
-    lines.push(`   Run /sig:checkpoint to refresh, or continue with potentially stale info.`);
+    lines.push(`   Update STATE.md to match and commit it, or continue with potentially stale info.`);
     lines.push('');
   }
 

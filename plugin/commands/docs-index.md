@@ -6,7 +6,7 @@ args: ""
 
 # `/sig:docs-index` — Regenerate the Documentation Map
 
-You are running `/sig:docs-index`, a not-phase-gated meta command. Same class as `/sig:status`, `/sig:checkpoint`, `/sig:add` — no tier-gating preamble, no skill loading, no agent spawning. Its one job: regenerate `.planning/INDEX.md` from disk so the documentation map never drifts from the corpus it indexes.
+You are running `/sig:docs-index`, a not-phase-gated meta command. Same class as `/sig:status`, `/sig:add` — no tier-gating preamble, no skill loading, no agent spawning. Its one job: regenerate `.planning/INDEX.md` from disk so the documentation map never drifts from the corpus it indexes.
 
 **You rarely need to run this by hand.** Since M5.E16 (FR5) the index regenerates on **every phase transition** — `transitionPhase` calls the regenerator, so any `/sig:` phase command refreshes the map as a side effect. Before that it ran only at `/sig:ship` and here, which meant the docs map was accurate at the moment an Epic *finished* and drifted through the whole span of work — the span when someone is actually re-orienting from it. All four projects surveyed on 2026-08-01 had a stale, missing or foreign `INDEX.md`. This command stays for the cases the transition does not cover: a dormant project you have returned to, or a corpus you edited without running a phase command.
 

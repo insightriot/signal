@@ -90,7 +90,7 @@ unit is moved. Unit records are added with `/sig:docs-migrate --work-store`.
 - Resolve the project root (cwd). If `.planning/` is absent → `No project detected. Run
   /sig:new-project or /sig:init first.` Exit.
 - Parse args: `--apply` writes; anything else is ignored with a one-line note (unknown args are
-  forgivable, same as `/sig:checkpoint`).
+  forgivable).
 
 ### 2. Build the report — one read, no writes
 

@@ -806,13 +806,6 @@ const COMMANDS = [
         flags: [],
       },
       {
-        name: '/sig:checkpoint',
-        summary: 'Manual state refresh: diffs git log against STATE.md and refreshes it. Quick mode by default.',
-        flags: [
-          { f: '--context', d: 'Also capture decisions + open questions so a later context-clear can re-orient cleanly.' },
-        ],
-      },
-      {
         name: '/sig:escalate',
         summary: 'Escape hatch: re-run calibration carrying current context, bump the PROFILE.md tier, and append to escalation_history. Use when scope, stakes, or risk grows.',
         flags: [],

@@ -55,8 +55,8 @@ export async function clearOrphansBeforeDispatch(baseDir, nextTaskId) {
  * @returns {Promise<any>} whatever task.dispatch resolves to
  */
 export async function dispatchTaskWithState(baseDir, task, profile) {
-  // SKETCH tier opts out entirely — STATE.md updates only via manual
-  // /sig:checkpoint per the SKETCH preamble in commands/execute.md.
+  // SKETCH keeps no task records (commands/execute.md); the phase itself is
+  // still recorded and committed with STATE.md.
   if (profile?.tier === 'SKETCH') {
     return await task.dispatch();
   }

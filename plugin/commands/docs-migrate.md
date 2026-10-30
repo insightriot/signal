@@ -115,7 +115,7 @@ When the project's `docs_layout_version` stamp is **below** `CURRENT_LAYOUT_VERS
 
 - **Inbox/ledger rename**: `FUTURE-IDEAS.md` → `ISSUES-INBOX.md` (and `FUTURE-IDEAS-LEDGER.md` → `ISSUES-INBOX-LEDGER.md`), with every referrer link/prose rewritten. Existence-gated → idempotent (an already-renamed repo plans nothing).
 - **BACKLOG create-if-missing**: seeds `BACKLOG.md` (from a `BACKLOG-REVIEW` snapshot when present, else a skeleton). A born-v3 / already-migrated project already has it → no-op.
-- **Append-log evict (FR5)**: closed-milestone `DECISIONS.md` date-sections relocate **verbatim** to `archive/M{n}/DECISIONS.md` behind a dated pointer, with **every `D-…` anchor preserved** (resolvable via `/sig:docs-index`). A section that can't be routed to a milestone (its date predates the open-date map) is **detect-only** — nothing evicted (fail-safe). The live `DECISIONS.md` keeps the current milestone's decisions; new decisions still append there (`/sig:checkpoint`).
+- **Append-log evict (FR5)**: closed-milestone `DECISIONS.md` date-sections relocate **verbatim** to `archive/M{n}/DECISIONS.md` behind a dated pointer, with **every `D-…` anchor preserved** (resolvable via `/sig:docs-index`). A section that can't be routed to a milestone (its date predates the open-date map) is **detect-only** — nothing evicted (fail-safe). The live `DECISIONS.md` keeps the current milestone's decisions; new decisions still append there.
 
 The `docs_layout_version` stamp is written **only** at the tail, gated on full v3-conformance (inbox renamed, BACKLOG present, evict done) — a partial run stays unstamped so the banner keeps nagging and a re-run continues safely.
 
