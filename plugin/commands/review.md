@@ -302,7 +302,7 @@ REVIEW ran four full passes that way, and the count read 0 throughout.
 ### Loop Back (`B76`)
 
 **A FAIL is not a silent return to EXECUTE.** Ask the user with the
-**3-options-plus-other** pattern (`references/question-patterns.md`), exactly as `verify.md` does —
+**3-options-plus-other** pattern (`references/question-patterns.md`) —
 **render via `AskUserQuestion(multiSelect: false)`**, with each option's name / "Pick this if" /
 recommendation flowing into the per-option `description` rather than being printed as markdown.
 
@@ -333,7 +333,7 @@ alone missed every pass whose fixes stayed inside REVIEW. Both records are per E
 resets them on a roll (`B9`). Two re-entries run; **the third stops for a person**. A re-run of
 `/sig:review` while REVIEW is current is a re-entry too: it records an exit and begins a new visit,
 so restarting can only bring the ceiling sooner (`D-M6E18-9`). That is
-`verify.md`'s existing rule (*"A for the first 2 loops; reassess at loop 3"*), now enforceable rather
+the rule `verify.md` follows too, enforced rather
 than re-tuned. A FAIL never lifts the ceiling. While REVIEW is the current phase and the last entry
 of the whole `phase_passes` list is its own PASS or PASS-WITH-FIXES, REVIEW is moving on and is not
 held. That entry must be this visit's: entering REVIEW writes `phase_pass_mark`, the length of
@@ -344,7 +344,7 @@ and the last entry counts as before; a mark that does not read stops the driver.
 Render the halt with `formatLoopCeilingHalt(status)` so this file and `/sig:drive` cannot describe
 the same stop two ways.
 
-> **Why this is code and not a sentence.** `verify.md` has carried this ceiling as prose since v1,
+> **Why this is code and not a sentence.** `verify.md` carried this ceiling as prose from v1,
 > enforced by nothing — a reader counts loops from memory. Attended, that is survivable. Unattended
 > it is not: `B76` was filed 2026-08-03 warning that *any driver built on top inherits an unbounded
 > loop on day one*, `/sig:drive` shipped in `v0.1.31`, and it did. Writing the rule more carefully is

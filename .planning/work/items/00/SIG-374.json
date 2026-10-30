@@ -1,0 +1,19 @@
+{
+  "id": "SIG-374",
+  "type": "BUG",
+  "title": "Loop ceiling counts a VERIFY PASS visit, so the first real VERIFY failure after a REVIEW loop stops at the ceiling",
+  "priority": "P3",
+  "source": "verify rewrite review",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-29T13:34:45.357Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-29T13:34:45.357Z",
+      "by": "claude"
+    }
+  ]
+}
