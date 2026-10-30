@@ -105,6 +105,8 @@ const ALLOWED = [
     why: 'the `milestone rows` source without unit records; with them it carries the units and opens no milestone file (t5.3)' },
   { file: 'plugin/tools/lib/work-migrate-units.js', decl: 'readMilestoneRows', name: 'parseEpicStatusRows',
     why: 'the migration proposes unit records from the hand-kept rows; it returns no row once the project has unit records (t7.2)' },
+  { file: 'plugin/tools/lib/milestones.js', decl: 'plannedEpicNumbers', name: 'parseEpicStatusRows', exempt: true,
+    why: 'reads only which Epic numbers the file plans, so the next ID skips them, never a status; a planned Epic can have no record yet, as on the test project (SIG-367), and a number read by mistake only skips one' },
   { file: 'tools/unit-baseline.mjs', decl: 'readMilestoneRows', name: 'parseEpicStatusRows', exempt: true,
     why: 'a development tool, not shipped in the plugin: it snapshots what the hand-kept tables said BEFORE the cutover (S0)' },
 ];
@@ -148,9 +150,10 @@ describe('every call site that is not exempt sits behind the unit-records switch
     expect(site.guarded, `${site.file}:${site.line} uses ${site.name} with no ${SWITCH}…) before it in ${site.decl}`).toBe(true);
   });
 
-  it('the exempt sites are the two listed, and no more', () => {
+  it('the exempt sites are the three listed, and no more', () => {
     expect(ALLOWED.filter((a) => a.exempt).map(key)).toEqual([
       'plugin/tools/lib/retrospective.js · isEpicCloseShip · findEpicStatusRow',
+      'plugin/tools/lib/milestones.js · plannedEpicNumbers · parseEpicStatusRows',
       'tools/unit-baseline.mjs · readMilestoneRows · parseEpicStatusRows',
     ]);
   });
