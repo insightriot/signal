@@ -1272,18 +1272,21 @@ const COMMIT_TOKEN_RE = /^[0-9A-Za-z][0-9A-Za-z._/-]*$/;
 // `.planning/STATE.md`, read from git. Each phase commits STATE.md with its own
 // work, so that commit is the point STATE reflects and nothing has to record
 // it (course correction Step 1, step 4: no separate commit to mark STATE fresh).
-// Falls back to the stored `last_updated_commit` only when STATE.md has never
-// been committed. Null when neither gives a usable commit.
+// Falls back to the stored `last_updated_commit` when STATE.md is not tracked:
+// never committed, or untracked since (the newest commit is then the one that
+// removed it). Null when neither gives a usable commit.
 function stateBaselineCommit(baseDir, state, execFn) {
+  const stdio = ['ignore', 'pipe', 'ignore'];
   try {
     const out = String(
-      execFn('git', ['log', '-1', '--format=%H', '--', '.planning/STATE.md'], {
-        cwd: baseDir,
-        stdio: ['ignore', 'pipe', 'ignore'],
-        env: gitEnv(baseDir),
-      })
+      execFn('git', ['log', '-1', '--format=%H', '--', '.planning/STATE.md'], { cwd: baseDir, stdio, env: gitEnv(baseDir) })
     ).trim();
-    if (/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(out)) return out;
+    if (
+      /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(out) &&
+      String(execFn('git', ['ls-files', '--', '.planning/STATE.md'], { cwd: baseDir, stdio, env: gitEnv(baseDir) })).trim() !== ''
+    ) {
+      return out;
+    }
   } catch {
     // fall through to the stored baseline
   }

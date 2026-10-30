@@ -278,6 +278,25 @@ describe('isStateStale', () => {
     expect((await isStateStale(tempDir)).stale).toBe(false);
   }, 30000); // real-git fixture: generous timeout for parallel-suite load
 
+  // PR #326 review: a STATE.md committed once and untracked later still has a
+  // newest commit (the one that removed it). The stored commit is the baseline
+  // then, so a refresh clears staleness without a commit.
+  it('step 4: a STATE.md untracked after being committed falls back to last_updated_commit', async () => {
+    initRepo(tempDir);
+    await plantState(tempDir, {});
+    commitAll(tempDir, 'phase: work + STATE');
+    await writeFile(join(tempDir, '.gitignore'), '.planning/STATE.md\n', 'utf-8');
+    git(tempDir, ['rm', '-q', '--cached', '.planning/STATE.md']);
+    commitAll(tempDir, 'stop tracking STATE.md');
+    await writeFile(join(tempDir, '.planning', 'M5-PLAN.md'), '# plan\n', 'utf-8');
+    commitPath(tempDir, '.planning/M5-PLAN.md', 'plan: artifact');
+    await markFresh(tempDir);
+    expect((await isStateStale(tempDir)).stale).toBe(false);
+    await writeFile(join(tempDir, '.planning', 'M5-PROGRESS.md'), '# progress\n', 'utf-8');
+    commitPath(tempDir, '.planning/M5-PROGRESS.md', 'execute: progress');
+    expect((await isStateStale(tempDir)).stale).toBe(true);
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
   it('step 4: a code-only commit after STATE.md\'s commit is NOT stale', async () => {
     initRepo(tempDir);
     await plantState(tempDir, {});

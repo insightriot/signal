@@ -664,8 +664,8 @@ export const checkEpicWithoutRetro = defineCheck({
  * `isStateStale`'s job, and two findings for one condition is its own kind of
  * noise (the requirements' open question 2).
  *
- * Only asked when STATE.md has never been committed (a project that keeps
- * `.planning/` out of git). Otherwise the staleness baseline is the commit that
+ * Only asked when STATE.md is not tracked (a project that keeps `.planning/`
+ * out of git, or untracked it later). Otherwise the staleness baseline is the commit that
  * last touched STATE.md (`isStateStale`), which is always in this history, and
  * this field is not read.
  *
@@ -690,18 +690,18 @@ export const checkBaselineCommitOffHistory = defineCheck({
     // would fail, and that would read as "the commit is not in this repository".
     const unusable = gitUnusableReason();
     if (unusable !== null) return { status: APPLICABILITY.NA, reason: unusable };
+    // Committed AND still tracked: a STATE.md untracked since has history too,
+    // and then the stored field is the baseline again.
     let committed = '';
     try {
-      committed = String(execFileSync('git', ['log', '-1', '--format=%H', '--', `${PLANNING_DIR}/STATE.md`], {
-        cwd: baseDir,
-        stdio: ['ignore', 'pipe', 'ignore'],
-        env: gitEnv(baseDir),
-      })).trim();
+      const stdio = ['ignore', 'pipe', 'ignore'];
+      const tracked = String(execFileSync('git', ['ls-files', '--', `${PLANNING_DIR}/STATE.md`], { cwd: baseDir, stdio, env: gitEnv(baseDir) })).trim();
+      if (tracked) committed = String(execFileSync('git', ['log', '-1', '--format=%H', '--', `${PLANNING_DIR}/STATE.md`], { cwd: baseDir, stdio, env: gitEnv(baseDir) })).trim();
     } catch {
       committed = '';
     }
     if (committed) {
-      return { status: APPLICABILITY.NA, reason: 'STATE.md is committed, so the baseline is its last commit, not last_updated_commit' };
+      return { status: APPLICABILITY.NA, reason: 'STATE.md is committed and tracked, so the baseline is its last commit, not last_updated_commit' };
     }
     return APPLICABILITY.EVAL;
   },

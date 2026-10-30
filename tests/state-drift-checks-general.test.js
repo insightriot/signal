@@ -329,6 +329,27 @@ describe('M5.E16 S2.t2 — (d) the STATE baseline commit is not in this history'
   // last_updated_commit, so an old value goes off-history after any rebase.
   // With STATE.md committed the baseline is its last commit; the field is not
   // read, and an off-history value in it is no finding.
+  it('asked again when STATE.md was committed once and is untracked now', async () => {
+    const dir = await makeRepo();
+    try {
+      const base = git(dir, 'rev-parse', 'HEAD');
+      await writeFile(join(dir, 'f.txt'), 'orphan');
+      git(dir, 'add', '-A');
+      git(dir, 'commit', '-q', '-m', 'orphan');
+      const orphan = git(dir, 'rev-parse', '--short', 'HEAD');
+      git(dir, 'reset', '-q', '--hard', base);
+      await writeFile(join(dir, '.gitignore'), '.planning/STATE.md\n');
+      git(dir, 'rm', '-q', '--cached', '.planning/STATE.md');
+      git(dir, 'add', '-A');
+      git(dir, 'commit', '-q', '-m', 'stop tracking STATE.md');
+      await writeFile(join(dir, '.planning', 'STATE.md'), STATE({ last_updated_commit: `'${orphan}'` }));
+
+      expect((await statusOf(dir, checkBaselineCommitOffHistory)).status).toBe(STATUS.FINDINGS);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it('not-applicable when STATE.md is committed, even over an off-history last_updated_commit', async () => {
     const dir = await makeRepo();
     try {
