@@ -141,6 +141,19 @@ describe('step 4 — STATE.md goes in the phase commit, with no markFresh after 
     }
   );
 
+  // /sig:checkpoint still calls markFresh, but that rewrites only the stored
+  // last_updated_commit. With STATE.md committed, the baseline is STATE.md's
+  // last commit, so the refresh clears nothing until it is committed (PR #326
+  // review).
+  it('checkpoint.md commits STATE.md after markFresh, before reporting fresh', () => {
+    const text = readFileSync(join(CMD, 'checkpoint.md'), 'utf-8');
+    const fresh = text.indexOf('Call `markFresh(baseDir)`');
+    const commit = text.indexOf('**Commit `STATE.md`**');
+    expect(fresh).toBeGreaterThan(-1);
+    expect(commit).toBeGreaterThan(fresh);
+    expect(commit).toBeLessThan(text.indexOf('Now fresh at:'));
+  });
+
   it.each(['discuss.md', 'plan.md', 'review.md'])('%s commits STATE.md with the phase\'s files', (file) => {
     expect(readFileSync(join(CMD, file), 'utf-8')).toMatch(/`STATE\.md` with them/);
   });

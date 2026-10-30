@@ -15,7 +15,7 @@ Authoritative references:
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/checkpoint.js` — `parseCheckpointArgs`, `detectStateChanges`, `renderStateDiff`, `captureCheckpointContext`, `handleCheckpointOrphans`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/state.js` — `readState`, `markFresh`, `detectOrphans`, `clearCurrentTask`, `touchDecisionTimestamp`, `isStaleVsOrigin`
 - `${CLAUDE_PLUGIN_ROOT}/tools/lib/status.js` — `readStateSizeBannerForTier`
-- `${CLAUDE_PLUGIN_ROOT}/tools/lib/evict.js` — `evictEpicNarrative` (M5.E1 FR2b evict-on-close tidy)
+- `${CLAUDE_PLUGIN_ROOT}/tools/lib/evict.js` — `evictEpicNarrative` (evict-on-close tidy)
 - `${CLAUDE_PLUGIN_ROOT}/references/question-patterns.md` — strict-enum used for `apply` / `discard` and orphan `clear` / `keep` prompts
 
 ## Workflow
@@ -55,7 +55,8 @@ Read `gate_strictness` from PROFILE.md (via `readProfile`):
 When applying:
 1. For each `taskId` in `diff.taskIdsInCommits` that's currently in `state.current_tasks`, call `clearCurrentTask(baseDir, {id, status: 'done', commit: <first matching commit sha>})`. This removes the in-flight task and records the completion metadata.
 2. Call `markFresh(baseDir)` so `last_updated` + `last_updated_commit` advance to HEAD.
-3. **Evict-on-close tidy (M5.E1 FR2b).** If `state.current_epic` is set, call `evictEpicNarrative(baseDir, state.current_epic)` from `tools/lib/evict.js`. It **self-guards** — returns `{evicted:false, reason:'not-closed'}` and changes nothing unless that Epic is genuinely closed (its `{EpicID}-RETROSPECTIVE.md` exists; on a project with unit records, an Epic that has a record is closed when the record is — a requested close is not one, and a held Epic returns `{reason:'held'}` and keeps its narrative) and still has body narrative to evict, so a routine checkpoint on an in-flight Epic is a no-op. When it does evict (`{evicted:true}`), it moves the closed narrative to `.planning/archive/<milestone>/<epic>/STATE-NARRATIVE.md` + leaves a pointer + lifts carry-overs UP; add a `- Evicted: {archivePath}` line to the refresh banner and stage the archive file. On `{reason:'lossy-card'}`, surface the `missing` items and do **not** force — the ordered gate (`references/doc-runtime-model.md` §5) proves no-loss, not faithfulness; fix the retrospective, then re-run.
+3. **Evict-on-close tidy.** If `state.current_epic` is set, call `evictEpicNarrative(baseDir, state.current_epic)` from `tools/lib/evict.js`. It **self-guards** — returns `{evicted:false, reason:'not-closed'}` and changes nothing unless that Epic is genuinely closed (its `{EpicID}-RETROSPECTIVE.md` exists; on a project with unit records, an Epic that has a record is closed when the record is — a requested close is not one, and a held Epic returns `{reason:'held'}` and keeps its narrative) and still has body narrative to evict, so a routine checkpoint on an in-flight Epic is a no-op. When it does evict (`{evicted:true}`), it moves the closed narrative to `.planning/archive/<milestone>/<epic>/STATE-NARRATIVE.md` + leaves a pointer + lifts carry-overs UP; add a `- Evicted: {archivePath}` line to the refresh banner and stage the archive file. On `{reason:'lossy-card'}`, surface the `missing` items and do **not** force — the ordered gate (`references/doc-runtime-model.md` §5) proves no-loss, not faithfulness; fix the retrospective, then re-run.
+4. **Commit `STATE.md`** with anything step 3 staged. Staleness is measured from the last commit that touched `STATE.md`, so the refresh counts only once committed. Where `.planning/` is not in git, skip this: `last_updated_commit` is the baseline there.
 
 After writes, emit the **D2 mitigation banner** verbatim (the explicit "what was refreshed" readout that prevents silent-no-op confusion):
 
@@ -66,7 +67,7 @@ After writes, emit the **D2 mitigation banner** verbatim (the explicit "what was
   - Now fresh at: {HEAD sha (short)}
 ```
 
-Then call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js` (after `markFresh`, so the baseline is the just-advanced HEAD). If it returns `{stale: true}`, append one advisory line — the refresh made STATE.md match local reality, but the *remote* is still ahead, so a `git pull` is the next move:
+Then call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js` (after the commit). If it returns `{stale: true}`, append one advisory line — the refresh made STATE.md match local reality, but the *remote* is still ahead, so a `git pull` is the next move:
 
 ```
 ⚠ origin is {aheadCount} commit(s) ahead — git pull to sync{ (includes .planning/) if touchedPlanning}.
@@ -74,7 +75,7 @@ Then call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js` (after `markFresh
 
 `isStaleVsOrigin` is **fail-open** (offline / no-remote / auth-hang / timeout → `{stale:false}`, never throws) with a bounded hardened fetch; if it returns `{stale:false}`, skip the line silently — unless the result carries `cannotCheck` (git older than 2.38): then print that sentence. The fetch writes `.git/`, not `.planning/`.
 
-Then (v0.1.6, FR2; tier-aware M5.E1.S2, FR2d) call `readStateSizeBannerForTier(baseDir)` from `tools/lib/status.js`. If it returns a string, append it as a final advisory line — a checkpoint is exactly when a growing STATE.md is worth flagging (`/sig:checkpoint` is the refresh surface). If `null`, skip silently. Read-only + fail-open whole-file `statSync`; the threshold is resolved from the project tier (SKETCH 75 KB < FEATURE/SPIKE 150 KB < FULL 300 KB, flat 150 KB fallback when no PROFILE).
+Then call `readStateSizeBannerForTier(baseDir)` from `tools/lib/status.js`. If it returns a string, append it as a final advisory line — a checkpoint is exactly when a growing STATE.md is worth flagging (`/sig:checkpoint` is the refresh surface). If `null`, skip silently. Read-only + fail-open whole-file `statSync`; the threshold is resolved from the project tier (SKETCH 75 KB < FEATURE/SPIKE 150 KB < FULL 300 KB, flat 150 KB fallback when no PROFILE).
 
 ### 6. Orphan check
 
@@ -124,7 +125,7 @@ Emit a one-screen summary:
 
 | Temptation | Check |
 |---|---|
-| "Auto-apply the refresh without confirming — saves a step." | No. **`attention` ≠ `unattended` requires explicit user approval before any state mutation** — that is the point of the dial. *(Was written against `gate_strictness: strict`; corrected in `B108` — since `v0.1.31` `gate_strictness` sets only whether anti-rationalization runs, not confirm cadence.)* |
+| "Auto-apply the refresh without confirming — saves a step." | No. **`attention` ≠ `unattended` requires explicit user approval before any state mutation** — that is the point of the dial. |
 | "Skip the orphan prompt under strict — too chatty." | D12 specifically rules orphan detection in. Without it, a crashed mid-task wedges `current_tasks[]` forever — `/sig:resume` can't recover. |
 | "Auto-redact sensitive data in `--context` capture." | Never. Same rule as `/sig:add`: surface the hits, let the user decide. Auto-redact corrupts the captured decision. |
 | "If `--context` is given, skip the quick-mode refresh." | No. `--context` is **additive**, not exclusive. The quick refresh has to run for the captured decisions to be situated against a fresh STATE.md. |
