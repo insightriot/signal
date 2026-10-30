@@ -1239,9 +1239,9 @@ const EPIC_FOLDER_ARTIFACT_PATHS = [
 
 // B6/FR4 (M5.E5.T4) — the true "bookkeeping" subset of STATE_AFFECTING_PATHS:
 // curated orientation files that do NOT represent ground-state movement.
-// STATE.md is markFresh's own "+1" (it records last_updated_commit = HEAD, then
-// the caller commits that STATE write, so HEAD sits one STATE-only commit ahead
-// of the recorded baseline); CONTEXT.md is likewise curated bookkeeping (D4).
+// A STATE.md-only commit is a refresh, not work (a stored `last_updated_commit`
+// baseline sits one such commit behind HEAD); CONTEXT.md is likewise curated
+// bookkeeping (D4).
 // Deliberately SMALLER than STATE_AFFECTING_PATHS: a committed-but-unrolled
 // *-PLAN/*-PROGRESS/*-VERIFICATION/*-REVIEW.md is real work worth a nudge, so it
 // stays OUT of this set and is not swallowed by Walk 2's suppression.
@@ -1268,13 +1268,37 @@ const BOOKKEEPING_EXCLUDES = BOOKKEEPING_PATHS.map((p) =>
 // git-option injection from a hostile `.planning/STATE.md`.
 const COMMIT_TOKEN_RE = /^[0-9A-Za-z][0-9A-Za-z._/-]*$/;
 
+// The commit STATE.md was last written in: the newest commit that touched
+// `.planning/STATE.md`, read from git. Each phase commits STATE.md with its own
+// work, so that commit is the point STATE reflects and nothing has to record
+// it (course correction Step 1, step 4: no separate commit to mark STATE fresh).
+// Falls back to the stored `last_updated_commit` only when STATE.md has never
+// been committed. Null when neither gives a usable commit.
+function stateBaselineCommit(baseDir, state, execFn) {
+  try {
+    const out = String(
+      execFn('git', ['log', '-1', '--format=%H', '--', '.planning/STATE.md'], {
+        cwd: baseDir,
+        stdio: ['ignore', 'pipe', 'ignore'],
+        env: gitEnv(baseDir),
+      })
+    ).trim();
+    if (/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(out)) return out;
+  } catch {
+    // fall through to the stored baseline
+  }
+  const stored = state.last_updated_commit;
+  if (!stored || !COMMIT_TOKEN_RE.test(stored)) return null; // Sec-2: reject option-like tokens
+  return stored;
+}
+
 /**
  * D11 staleness check: did any state-affecting file get committed since the
- * commit recorded as `last_updated_commit`? Returns commit count + subjects
+ * commit STATE.md was last written in (`stateBaselineCommit`)? Returns commit count + subjects
  * so callers (resume.md S4 banner, checkpoint.md S2 diff) can render useful
  * UI rather than a bare boolean.
  *
- * Hash short-circuit (S6.t3 — REVIEW IMPORTANT-4): if `last_updated_commit`
+ * Hash short-circuit (S6.t3 — REVIEW IMPORTANT-4): if the baseline
  * equals HEAD, no git log call is needed — there can be no commits between
  * a commit and itself. The earlier implementation used a 60s wall-clock
  * grace window, which D11 explicitly rejected for clock-skew reasons.
@@ -1306,11 +1330,10 @@ export async function isStateStale(baseDir, opts = {}) {
     return empty;
   }
   if (!state) return empty;
-  const lastCommit = state.last_updated_commit;
+  const lastCommit = stateBaselineCommit(baseDir, state, execFn);
   if (!lastCommit) return empty; // no baseline — can't measure
-  if (!COMMIT_TOKEN_RE.test(lastCommit)) return empty; // Sec-2: reject option-like tokens
 
-  // Hash short-circuit: HEAD === last_updated_commit means no new commits
+  // Hash short-circuit: HEAD === the baseline means no new commits
   // can exist in the rev range. Same optimization intent as the old
   // wall-clock grace, no clock dependency.
   if (!opts.bypassGrace) {
@@ -1400,8 +1423,8 @@ const ORIGIN_FETCH_ENV = {
 };
 
 /**
- * Detect whether the remote default branch is ahead of the commit recorded
- * in STATE.md (`last_updated_commit`) — i.e. someone (or another machine)
+ * Detect whether the remote default branch is ahead of local HEAD, given a
+ * STATE.md baseline (`stateBaselineCommit`) — i.e. someone (or another machine)
  * pushed work the local STATE.md doesn't reflect. Distinct from
  * `isStateStale` (which compares against local HEAD); this reaches the
  * network via a hardened, bounded `git fetch`.
@@ -1409,7 +1432,7 @@ const ORIGIN_FETCH_ENV = {
  * **Fail-open by construction.** Every failure mode — non-git dir, no
  * remote, offline, fetch timeout/auth-hang, unset `origin/HEAD`, diverged
  * or force-pushed history, null baseline, **a schema-drifted/malformed
- * STATE.md** (readState throws), or an option-like `last_updated_commit` —
+ * STATE.md** (readState throws), or no usable baseline —
  * resolves to `{stale:false}` and never throws. The fetch writes `.git/`
  * (FETCH_HEAD, remote refs), NOT `.planning/`, so callers that advertise a
  * read-only `.planning/` contract (`/sig:status`) still hold.
@@ -1438,9 +1461,7 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
     return notStale;
   }
   if (!state) return notStale;
-  const stored = state.last_updated_commit;
-  if (!stored) return notStale; // no baseline — can't measure
-  if (!COMMIT_TOKEN_RE.test(stored)) return notStale; // Sec-2: reject option-like tokens
+  if (!stateBaselineCommit(baseDir, state, execFn)) return notStale; // no baseline — can't measure
 
   // 1. Resolve the remote default branch from the stored `origin/HEAD`
   //    (`resolveDefaultBranch`, `branch-guard.js`), which reads full refs: a
@@ -1474,10 +1495,9 @@ export async function isStaleVsOrigin(baseDir, opts = {}) {
   }
 
   // 3. How many commits is the remote branch ahead of local HEAD? B6/FR4: this
-  //    is measured HEAD..tracking, NOT stored..tracking. `stored`
-  //    (last_updated_commit) lags HEAD by exactly the bookkeeping STATE-write
-  //    commit, so a stored-based range counts that local "+1" as origin drift
-  //    even when HEAD == origin. Measuring from HEAD reports the genuine push
+  //    is measured HEAD..tracking, NOT baseline..tracking: a baseline can lag
+  //    HEAD by local commits, and a baseline-based range counts them as origin
+  //    drift even when HEAD == origin. Measuring from HEAD reports the genuine push
   //    count. A missing sha or diverged history → `fatal: bad revision`
   //    (exit 128) → catch → fail open.
   let aheadCount;

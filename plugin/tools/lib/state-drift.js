@@ -410,9 +410,8 @@ export async function runDriftChecks(baseDir, checks = STATE_DRIFT_CHECKS) {
  *
  * The category-1/2 heading is deliberately tier-independent. "Clears the next
  * time Signal writes STATE here" is true whether the project's next STATE write
- * comes from a phase-close `markFresh` (FEATURE/SPIKE/FULL) or from a manual
- * `/sig:checkpoint` (SKETCH, where four command files skip `markFresh`). A
- * heading that promised "heals on next phase command" would be false at SKETCH.
+ * comes from a phase commit or from an EXECUTE task close. A heading that
+ * promised "heals on next phase command" would be false for some checks.
  *
  * PURE — no I/O. Two renders of equal input are byte-identical (AC1.3).
  *
@@ -665,20 +664,20 @@ export const checkEpicWithoutRetro = defineCheck({
  * `isStateStale`'s job, and two findings for one condition is its own kind of
  * noise (the requirements' open question 2).
  *
+ * Only asked when STATE.md has never been committed (a project that keeps
+ * `.planning/` out of git). Otherwise the staleness baseline is the commit that
+ * last touched STATE.md (`isStateStale`), which is always in this history, and
+ * this field is not read.
+ *
  * Category 1 — self-healing. The next STATE write re-stamps the field, and that
  * promise is EXERCISED in the tests rather than asserted: a fixture whose
  * baseline is off-history goes clean after a `markFresh`.
- *
- * The heal mechanism is worded tier-independently on purpose. At
- * FEATURE/SPIKE/FULL the next write is a phase-close `markFresh`; at SKETCH four
- * command files skip `markFresh`, so it is a manual `/sig:checkpoint`. A promise
- * of "heals on next phase command" would be false at SKETCH — `B42`'s shape.
  */
 export const checkBaselineCommitOffHistory = defineCheck({
   id: 'baseline-commit-off-history',
   describe: 'STATE.md\'s last_updated_commit is not an ancestor of HEAD',
   healCategory: HEAL.SELF_HEALING,
-  healMechanism: 'the next STATE write — a phase-close markFresh, or /sig:checkpoint at SKETCH',
+  healMechanism: 'committing STATE.md (that commit becomes the baseline), or the next EXECUTE task close',
   applicability: ({ baseDir, state }) => {
     const commit = state.last_updated_commit;
     if (!commit || !/^[0-9a-f]{7,40}$/.test(String(commit))) {
@@ -691,6 +690,19 @@ export const checkBaselineCommitOffHistory = defineCheck({
     // would fail, and that would read as "the commit is not in this repository".
     const unusable = gitUnusableReason();
     if (unusable !== null) return { status: APPLICABILITY.NA, reason: unusable };
+    let committed = '';
+    try {
+      committed = String(execFileSync('git', ['log', '-1', '--format=%H', '--', `${PLANNING_DIR}/STATE.md`], {
+        cwd: baseDir,
+        stdio: ['ignore', 'pipe', 'ignore'],
+        env: gitEnv(baseDir),
+      })).trim();
+    } catch {
+      committed = '';
+    }
+    if (committed) {
+      return { status: APPLICABILITY.NA, reason: 'STATE.md is committed, so the baseline is its last commit, not last_updated_commit' };
+    }
     return APPLICABILITY.EVAL;
   },
   run: ({ baseDir, state }) => {

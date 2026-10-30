@@ -252,12 +252,12 @@ describe('isStaleVsOrigin', () => {
   });
 
   // Null baseline: no last_updated_commit -> can't measure, no git calls.
-  it('returns {stale:false} with no git calls when last_updated_commit is null', async () => {
+  it('returns {stale:false} without fetching when STATE.md was never committed and last_updated_commit is null', async () => {
     await plantState(tempDir, { last_updated_commit: null });
     const execFn = makeExec({ originHead: 'refs/remotes/origin/main', fetch: '', revListCount: '5' });
     const result = await isStaleVsOrigin(tempDir, { execFn });
     expect(result).toEqual({ stale: false, aheadCount: 0, commits: [], touchedPlanning: false });
-    expect(execFn.calls).toHaveLength(0);
+    expect(execFn.calls).toHaveLength(1); // only the baseline lookup
   });
 
   // No STATE.md at all -> fail open, no throw.
@@ -326,7 +326,8 @@ describe('isStaleVsOrigin', () => {
     const execFn = makeExec({ originHead: 'refs/remotes/origin/main', fetch: '', revListCount: '3', log: 'x', revListPlanning: '1' });
     const result = await isStaleVsOrigin(tempDir, { execFn });
     expect(result).toEqual({ stale: false, aheadCount: 0, commits: [], touchedPlanning: false });
-    expect(execFn.calls).toHaveLength(0);
+    expect(execFn.calls).toHaveLength(1); // only the baseline lookup
+    expect(JSON.stringify(execFn.calls)).not.toContain('--output');
   });
 
   // --- B6/FR4: gate on genuine origin drift, not the bookkeeping "+1" (real
@@ -394,6 +395,39 @@ describe('isStaleVsOrigin', () => {
       const result = await isStaleVsOrigin(tempDir, { execFn: realGitExceptFetch });
       expect(result.stale).toBe(true);
       expect(result.aheadCount).toBe(2);
+    } finally {
+      await rm(bare, { recursive: true, force: true });
+      await rm(otherParent, { recursive: true, force: true });
+    }
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
+  // Step 4: a project whose phases commit STATE.md with their work never
+  // records last_updated_commit. The committed STATE.md is the baseline, so the
+  // origin check still runs. Before step 4 it returned not-stale here, unasked.
+  it('step 4: a committed STATE.md with no last_updated_commit still reports a remote push', async () => {
+    const bare = await mkdtemp(join(tmpdir(), 'signal-origin-bare-'));
+    git(bare, ['init', '--bare', '-q', '-b', 'main']);
+    const otherParent = await mkdtemp(join(tmpdir(), 'signal-origin-other-'));
+    const other = join(otherParent, 'wc');
+    try {
+      initRepo(tempDir);
+      git(tempDir, ['remote', 'add', 'origin', bare]);
+      await plantState(tempDir, { last_updated_commit: null });
+      commitAll(tempDir, 'phase: work + STATE');
+      git(tempDir, ['push', '-q', 'origin', 'main']);
+
+      execFileSync('git', ['clone', '-q', bare, other], { stdio: ['ignore', 'pipe', 'ignore'] });
+      git(other, ['config', 'user.email', 't@t.co']);
+      git(other, ['config', 'user.name', 'T']);
+      git(other, ['config', 'commit.gpgsign', 'false']);
+      await writeFile(join(other, 'feature.js'), 'a\n', 'utf-8');
+      commitAll(other, 'feat: remote one');
+      git(other, ['push', '-q', 'origin', 'main']);
+
+      git(tempDir, ['fetch', '-q', 'origin', 'main']);
+      const result = await isStaleVsOrigin(tempDir, { execFn: realGitExceptFetch });
+      expect(result.stale).toBe(true);
+      expect(result.aheadCount).toBe(1);
     } finally {
       await rm(bare, { recursive: true, force: true });
       await rm(otherParent, { recursive: true, force: true });

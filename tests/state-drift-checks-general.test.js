@@ -273,22 +273,26 @@ describe('M5.E16 C1 (REVIEW) — (c) must not report clean on a project it canno
 // ───────────────────────────── (d) ─────────────────────────────
 
 describe('M5.E16 S2.t2 — (d) the STATE baseline commit is not in this history', () => {
-  async function makeRepo(lastUpdatedCommit) {
+  // `ignorePlanning`: the project keeps `.planning/` out of git, so STATE.md is
+  // never committed and last_updated_commit is the staleness baseline.
+  async function makeRepo(lastUpdatedCommit, { ignorePlanning = false } = {}) {
     const dir = await mkdtemp(join(tmpdir(), 'sig-s2-git-'));
     await mkdir(join(dir, '.planning'), { recursive: true });
     git(dir, 'init', '-q', '-b', 'main');
+    if (ignorePlanning) await writeFile(join(dir, '.gitignore'), '.planning/\n');
     await writeFile(join(dir, 'f.txt'), 'one');
     git(dir, 'add', '-A');
     git(dir, 'commit', '-q', '-m', 'one');
     const head = git(dir, 'rev-parse', '--short', 'HEAD');
     await writeFile(join(dir, '.planning', 'STATE.md'), STATE({ last_updated_commit: `'${lastUpdatedCommit ?? head}'` }));
+    if (ignorePlanning) return dir;
     git(dir, 'add', '-A');
     git(dir, 'commit', '-q', '-m', 'state');
     return dir;
   }
 
   it('RED: fires when the baseline is a real commit on no branch', async () => {
-    const dir = await makeRepo();
+    const dir = await makeRepo(undefined, { ignorePlanning: true });
     try {
       // Create a commit, then reset away from it — the object survives, but no
       // ref reaches it. This is eval-project-D's exact situation.
@@ -313,9 +317,34 @@ describe('M5.E16 S2.t2 — (d) the STATE baseline commit is not in this history'
   });
 
   it('GREEN: silent when the baseline is an ancestor of HEAD', async () => {
-    const dir = await makeRepo();
+    const dir = await makeRepo(undefined, { ignorePlanning: true });
     try {
       expect((await statusOf(dir, checkBaselineCommitOffHistory)).status).toBe(STATUS.CLEAN);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  // Step 4: phases commit STATE.md with their work and no longer re-stamp
+  // last_updated_commit, so an old value goes off-history after any rebase.
+  // With STATE.md committed the baseline is its last commit; the field is not
+  // read, and an off-history value in it is no finding.
+  it('not-applicable when STATE.md is committed, even over an off-history last_updated_commit', async () => {
+    const dir = await makeRepo();
+    try {
+      const base = git(dir, 'rev-parse', 'HEAD');
+      await writeFile(join(dir, 'f.txt'), 'orphan');
+      git(dir, 'add', '-A');
+      git(dir, 'commit', '-q', '-m', 'orphan');
+      const orphan = git(dir, 'rev-parse', '--short', 'HEAD');
+      git(dir, 'reset', '-q', '--hard', base);
+      await writeFile(join(dir, '.planning', 'STATE.md'), STATE({ last_updated_commit: `'${orphan}'` }));
+      git(dir, 'add', '-A');
+      git(dir, 'commit', '-q', '-m', 'phase: work + STATE');
+
+      const r = await statusOf(dir, checkBaselineCommitOffHistory);
+      expect(r.status).toBe(STATUS.NOT_APPLICABLE);
+      expect(JSON.stringify(r)).toContain('STATE.md is committed');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -351,7 +380,7 @@ describe('M5.E16 S2.t2 — (d) the STATE baseline commit is not in this history'
   it('THE PROMISE COMES TRUE: a markFresh clears the finding, unaided', async () => {
     // (d) is category 1 — it tells the user this clears itself. S1.t5 requires
     // that promise be exercised, not asserted. This is the exercise.
-    const dir = await makeRepo();
+    const dir = await makeRepo(undefined, { ignorePlanning: true });
     try {
       const base = git(dir, 'rev-parse', 'HEAD');
       await writeFile(join(dir, 'f.txt'), 'orphan');

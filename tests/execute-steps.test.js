@@ -30,7 +30,6 @@ describe('execute.md names only calls that exist', () => {
     readState: 'state.js',
     setCurrentTask: 'state.js',
     clearCurrentTask: 'state.js',
-    markFresh: 'state.js',
     clearOrphansBeforeDispatch: 'execute.js',
     resolveArtifactPath: 'resume.js',
     artifactName: 'resume.js',

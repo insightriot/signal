@@ -34,7 +34,6 @@ describe('verify.md names only calls that exist', () => {
     transitionPhase: 'state.js',
     readState: 'state.js',
     recordPass: 'state.js',
-    markFresh: 'state.js',
     diffRequirementCoverage: 'requirement-coverage.js',
     checkValidationConsistency: 'validation-consistency.js',
     validateVerificationContent: 'verification-template.js',
@@ -218,8 +217,9 @@ describe('verify.md re-entry and the loop ceiling', () => {
     expect(execute).toMatch(/the tasks are the fixes in that phase's report \(`'VERIFICATION'`/);
   });
 
-  it('sets no next phase itself; the report and STATE are committed before markFresh', () => {
+  it('sets no next phase itself; the report and STATE are committed together, with no markFresh after', () => {
     expect(flat).toMatch(/This command sets no next phase/);
-    expect(at('Commit the report and every `.planning/` file')).toBeLessThan(at('after the commit call `markFresh('));
+    expect(flat).toMatch(/Commit the report and every `\.planning\/` file the phase changed \(`STATE\.md`/);
+    expect(flat).not.toMatch(/markFresh/);
   });
 });

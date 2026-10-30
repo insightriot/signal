@@ -129,40 +129,21 @@ describe('M5.E13 S2.t5 — no command sets a phase the next command also sets (A
  *  input gets "fixed" by weakening it. Found by running the assertion at PLAN. */
 const denorm = (s) => s.replace(/\*\*|__|\*|_/g, '');
 
-describe("M5.E17 S2 — every markFresh call site states its ordering (AC3.1', FR3)", () => {
-  // A file "instructs a markFresh call" iff it uses CALL syntax (open paren).
-  // A bare mention is not a call site.
-  const CALL_RE = /markFresh\(/;
-  // Explicit, reasoned exclusion — NOT a regex tuned until it happens to miss.
-  // /sig:checkpoint IS the manual refresh command; markFresh against HEAD is
-  // its purpose, not a phase-close stamp, so "after the commit" does not apply.
-  const EXEMPT = new Set(['checkpoint.md']);
-
-  const callSites = readdirSync(CMD)
-    .filter((f) => f.endsWith('.md'))
-    .filter((f) => CALL_RE.test(readFileSync(join(CMD, f), 'utf-8')))
-    .filter((f) => !EXEMPT.has(f));
-
-  it('enumerates call sites dynamically (a NEW command that calls markFresh is caught)', () => {
-    // Not asserted against a hardcoded list — the predicate does the work, so a
-    // future command is covered without anyone remembering to add it here.
-    expect(callSites.length).toBeGreaterThanOrEqual(5);
-    expect(callSites).toContain('ship.md');
-    // execute.md calls it too since its rewrite (old check: archive/tests/execute-wording.test.js).
-    expect(callSites).toContain('execute.md');
-  });
-
-  it.each(['discuss.md', 'execute.md', 'plan.md', 'review.md', 'ship.md', 'verify.md'])(
-    '%s states that markFresh runs AFTER the commit it stamps',
+// Step 4 (course correction Step 1): a phase commits STATE.md with its own
+// work, and freshness is read from that commit (`isStateStale`). No phase
+// command calls markFresh, so no phase leaves a second, STATE-only commit.
+// The ordering checks this replaces: archive/tests/mark-fresh-ordering.test.js.
+describe('step 4 — STATE.md goes in the phase commit, with no markFresh after it', () => {
+  it.each(['discuss.md', 'plan.md', 'execute.md', 'verify.md', 'review.md', 'ship.md'])(
+    '%s calls no markFresh',
     (file) => {
-      const text = denorm(readFileSync(join(CMD, file), 'utf-8'));
-      expect(
-        /after\s+the\s+commit/i.test(text),
-        `${file}: markFresh call site states no ordering. Silence is the defect — ` +
-          `the agent picks, and ship.md picked wrong on 2026-07-30 (FR3).`
-      ).toBe(true);
+      expect(readFileSync(join(CMD, file), 'utf-8')).not.toMatch(/markFresh\(/);
     }
   );
+
+  it.each(['discuss.md', 'plan.md', 'review.md'])('%s commits STATE.md with the phase\'s files', (file) => {
+    expect(readFileSync(join(CMD, file), 'utf-8')).toMatch(/`STATE\.md` with them/);
+  });
 
   it('ship.md instructs an actual commit — four steps stage into one nothing creates', () => {
     const ship = readFileSync(join(CMD, 'ship.md'), 'utf-8');
@@ -177,26 +158,6 @@ describe("M5.E17 S2 — every markFresh call site states its ordering (AC3.1', F
     ).toBe(true);
   });
 
-  it('AUDIT — markFresh ordering across all call sites (recorded either way, AC3.2)', () => {
-    // Checked 2026-07-31. Result at PLAN: 2 explicit / 2 silent / 1 wrong.
-    //   plan.md:173, discuss.md:168 — explicit and correct, wording reused below
-    //   verify.md:84, review.md:137 — SILENT (no ordering stated)
-    //   ship.md:100                 — WRONG (§5.3, ahead of four staging steps)
-    //   execute.md:50               — not a call site (prose mention)
-    //   checkpoint.md:57            — different contract, exempt above
-    // FR3.2 named three siblings to check; the sweep found five call sites.
-    // "Checked, nothing to change" is a result, not a skip (M5.E13 AC1.5).
-    const wording = 'after the commit';
-    for (const f of ['plan', 'discuss']) {
-      expect(denorm(read(f)), `${f}: the reference wording regressed`).toContain(wording);
-    }
-    // B55 NOTE: making all four match byte-for-byte puts four copies of this
-    // instruction in the corpus, which the adherence canary's per-file control
-    // arm cannot isolate. Drift is the worse failure so this is deliberate —
-    // but any future canary on THIS instruction inherits B55 and is untrusted
-    // until M5.E15 fixes the control arm corpus-wide.
-    expect(true).toBe(true);
-  });
 });
 
 describe("M5.E17 S3 — review.md's three Critical statements express one rule (AC2.1', FR2)", () => {

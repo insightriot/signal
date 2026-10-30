@@ -132,7 +132,4 @@ At `gate_strictness: strict`, answer each:
 
 ## 8. Finish
 
-Commit the phase's files. Do not set `phase: PLAN`: `/sig:plan` sets it when it starts.
-
-Except at SKETCH, after the commit call `markFresh(baseDir, { commit: <HEAD> })`
-(`tools/lib/state.js`). In a catch-all: on any error, warn and continue.
+Commit the phase's files, `STATE.md` with them. Do not set `phase: PLAN`: `/sig:plan` sets it when it starts.

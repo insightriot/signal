@@ -320,10 +320,12 @@ async function readerResults(root) {
     preflight[String(epic)] = normalize(await collectPreflight(root, { epic }), roots);
   }
   // isStateStale's git calls, recorded through the execFn seam: the pathspec
-  // is the behaviour, and no repository is needed to see it.
+  // is the behaviour, and no repository is needed to see it. The baseline
+  // lookup (`log -1 -- .planning/STATE.md`, step 4) is not recorded: its
+  // pathspec is fixed and the store does not change it.
   const calls = [];
   const execFn = (cmd, args) => {
-    calls.push([cmd, ...args]);
+    if (!args.includes('-1')) calls.push([cmd, ...args]);
     return '';
   };
   const stale = await isStateStale(root, { execFn, bypassGrace: true });

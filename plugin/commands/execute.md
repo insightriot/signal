@@ -135,6 +135,3 @@ At `gate_strictness: strict`, answer each:
 
 Commit every `.planning/` file the phase changed (progress, `STATE.md`, `INDEX.md`). `/sig:verify`,
 not this command, sets `phase: VERIFY`.
-
-Except at SKETCH, after the commit call `markFresh(baseDir, { commit: <HEAD> })`
-(`tools/lib/state.js`). Wrap it in a catch-all: on any error, warn and continue.
