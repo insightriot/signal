@@ -21,19 +21,13 @@ const CMD = join(ROOT, 'plugin', 'commands');
 const MIDDLE = ['plan', 'execute', 'verify', 'review'];
 const read = (f) => readFileSync(join(CMD, `${f}.md`), 'utf-8');
 
-describe('M5.E13 S2.t4 — the phase-entry instruction is conditional and shared (AC1.1)', () => {
-  const CONDITION = '**Call this only if every precondition above passed.**';
-
-  // plan.md, execute.md and verify.md were rewritten as numbered steps
-  // (archive/tests/plan-wording.test.js, execute-wording.test.js, verify-wording.test.js):
-  // their own wording, still conditional. The others keep the shared paragraph
-  // until their own rewrite.
-  const REWRITTEN = ['plan', 'execute', 'verify'];
-  const SHARED = MIDDLE.filter((f) => !REWRITTEN.includes(f));
-
+describe('M5.E13 S2.t4 — the phase-entry instruction is conditional (AC1.1)', () => {
+  // All four middle commands were rewritten as numbered steps
+  // (archive/tests/plan-wording.test.js, execute-wording.test.js,
+  // verify-wording.test.js, review-wording.test.js): each states the call in its
+  // own step 2, conditional on step 1. The shared paragraph they used to copy is gone.
   it('all four middle commands make the phase-entry call conditional', () => {
-    for (const f of SHARED) expect(read(f), f).toContain(CONDITION);
-    for (const f of REWRITTEN) {
+    for (const f of MIDDLE) {
       expect(read(f), f).toMatch(
         new RegExp(`Only if step 1 let the command through\\. Call \`await transitionPhase\\(baseDir, '${f.toUpperCase()}'\\)\``)
       );
@@ -45,21 +39,6 @@ describe('M5.E13 S2.t4 — the phase-entry instruction is conditional and shared
     for (const f of MIDDLE) {
       expect(read(f), f).not.toMatch(/\*\*Before any Workflow step\*\*, call `await transitionPhase/);
     }
-  });
-
-  it('the shared wordings are IDENTICAL apart from the phase name — drift is caught, not trusted', () => {
-    // A single shared wording was the requirement (FR1.1) precisely so the four
-    // cannot diverge. Normalising the phase token is what makes them comparable.
-    const normalised = SHARED.map((f) => {
-      const src = read(f);
-      const start = src.indexOf(CONDITION);
-      expect(start, `${f}: conditional clause missing`).toBeGreaterThan(-1);
-      const end = src.indexOf('\n## ', start);
-      return src
-        .slice(start, end === -1 ? undefined : end)
-        .replace(/\b(PLAN|EXECUTE|VERIFY|REVIEW)\b/g, '{PHASE}');
-    });
-    for (const n of normalised.slice(1)) expect(n).toBe(normalised[0]);
   });
 
   it('each command still names its OWN phase in the call (normalisation did not hide a copy-paste bug)', () => {

@@ -1,206 +1,139 @@
 ---
 name: sig:review
-description: "REVIEW phase — code quality, security hardening, performance optimization, and code simplification. Agent Skills' key contribution."
-args: "<phase-number>"
+description: "REVIEW phase — review the built change for quality, security, performance and simplicity, have fresh-context agents read it, fix what they find, and record a verdict."
+args: ""
 ---
 
-# REVIEW Phase
+# REVIEW
 
-You are running the REVIEW phase — the bridge between "does it work?" (VERIFY) and "is it good?" (SHIP). This is Agent Skills' primary contribution to the Signal workflow.
+Check that what VERIFY passed is good: correct, secure, fast enough and simple, read by someone other
+than its author before the verdict.
 
-## 0. Tier-gating preamble (run before anything else)
+Every `tools/lib/`, `skills/`, `references/` and `agents/` path in this file is under
+`${CLAUDE_PLUGIN_ROOT}/`: import from there, never from another copy of Signal. `baseDir` is the
+project root; `planningDir` is `.planning/` in it; `currentEpic` is `current_epic` from `readState`
+(`tools/lib/state.js`). `artifactName` returns a path inside `planningDir`.
 
-Read the **effective profile** before any other workflow step: `readEffectiveProfile(baseDir, { currentEpic })` (`tools/lib/profile.js`), where `currentEpic` is `current_epic` from STATE.md (via `readState`). In **Epic mode** (a strict `current_epic`) an Epic-scoped `.planning/{EpicID}-PROFILE.md` shadows the project PROFILE for this Epic's phases; in **linear mode** (null / absent / non-strict `current_epic`) it reads `.planning/PROFILE.md` unchanged — byte-identical to pre-E11. Fail-open on the STATE value: a hand-edited or garbage `current_epic` degrades to the project PROFILE, never throws.
+## 1. Check REVIEW can run (writes nothing)
 
-- **If neither PROFILE.md is present:** `readEffectiveProfile` throws the same not-found error — halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:review`."* Do not proceed.
-- **If `REVIEW` is in `phases_skipped`:** exit with *"This tier ({tier}) skips REVIEW. Run `/sig:ship` next, or `/sig:escalate` if scope has grown and REVIEW should run."* Do not proceed. (SKETCH and SPIKE tiers skip REVIEW by default.)
-- **Apply `rigor_overrides`** from PROFILE.md — REVIEW has the most overrides of any phase. **Precedence rule: `review_depth` is the master switch.** When `review_depth: none`, REVIEW is in `phases_skipped` and the preamble exits above. When `review_depth: quality-only`, only Step 1 runs — Steps 2/3/4 are skipped regardless of what `security_audit` / `performance_pass` / `simplification_pass` say. Those three flags **only matter when `review_depth: full`**. (FEATURE tier sets `review_depth: quality-only` AND `security_audit: basic` etc.; the `quality-only` master switch wins, the others are inert at that tier.)
+`readEffectiveProfile(baseDir, { currentEpic })` (`tools/lib/profile.js`):
 
-| Override | Effect on this phase |
+- It throws because no profile exists: stop with *"No PROFILE.md found at .planning/PROFILE.md. Run
+  `/sig:calibrate` first to tier this project, then re-run `/sig:review`."*
+- `REVIEW` is in `phases_skipped`: stop with *"This tier ({tier}) skips REVIEW. Run `/sig:ship`
+  next, or `/sig:escalate` if REVIEW should run."*
+
+`applyRigorOverrides({}, profile)` gives the `gates` used below, and these overrides.
+`review_depth` decides first: at `quality-only` only step 4.1 of 4.1–4.4 runs, whatever the other three say.
+
+| Override | Effect |
 |---|---|
-| `review_depth: none` | Phase is in `phases_skipped` — exit triggered above. |
-| `review_depth: quality-only` | Load only `code-review-and-quality`. Skip Steps 2 (security), 3 (performance), 4 (simplification). Lighter token load. |
-| `review_depth: full` | Load all four review skills (default). |
-| `security_audit: none` | Skip Step 2 (Security Hardening) entirely. |
-| `security_audit: basic` | Step 2 = OWASP Top 10 checklist only. |
-| `security_audit: full` | Step 2 = OWASP + ASVS Level 2 audit. |
-| `performance_pass: false` | Skip Step 3 (Performance Analysis). |
-| `simplification_pass: false` | Skip Step 4 (Simplification Pass). |
-| `attention: unattended` | Auto-advance through review; no per-step confirmation. |
-| `attention: checkpointed` | No end-of-phase confirm: announce what the phase produced and continue. Gray-area decisions are still asked (`drive.md` § 3b). |
-| `attention: attended` | Confirm at every step inside the phase (`gates.confirm_in_phase`). |
-| `gate_strictness: strict` | Runs the anti-rationalization check at the gate. **That is all `gate_strictness` does to gates** (`v0.1.31`) — it no longer sets confirm cadence. |
+| `review_depth` | `quality-only`: step 4.1 only. `full`: 4.1–4.4. (`none` skips the phase, above.) |
+| `security_audit` | `none` skips 4.2; `basic` is the OWASP Top 10 checklist; `full` adds ASVS Level 2. |
+| `performance_pass: false` | Skips 4.3. |
+| `simplification_pass: false` | Skips 4.4. |
 
-Skill loading below assumes `review_depth: full`. If `review_depth: quality-only`, only load the first skill in the list.
+| `attention` | How decisions are confirmed |
+|---|---|
+| `attended` | Ask each decision as you reach it (`gates.confirm_in_phase`), and approve the results (`gates.confirm_review`). |
+| `checkpointed` | No approval at the end: say what the phase found and go on. A decision the plan leaves open is still asked. On a FAIL under the loop ceiling, take A and say so. |
+| `unattended` | As `checkpointed`; a decision that is hard to undo is still asked. |
 
-Tooling: `tools/lib/profile.js` exposes `readProfile`, `readEffectiveProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`. Question convention: `references/question-patterns.md`.
+Steps 4.5 and 4.6 run at every depth.
 
-## Skill Loading
+## 2. Record the phase
 
-Load review skills from `${CLAUDE_PLUGIN_ROOT}/skills/review/` per `review_depth` (see preamble):
-- `code-review-and-quality/SKILL.md` (always loaded if REVIEW runs)
-- `security-and-hardening/SKILL.md` (loaded if `review_depth: full`)
-- `performance-optimization/SKILL.md` (loaded if `review_depth: full`)
-- `code-simplification/SKILL.md` (loaded if `review_depth: full`)
+Only if step 1 let the command through. Call `await transitionPhase(baseDir, 'REVIEW')`
+(`tools/lib/state.js`) first: it records the phase being left and sets `phase: REVIEW`. If it
+refuses, show its message and stop. Show any `quarantined` entries it returns.
+Call it on a re-run too (it counts as a pass, so the loop ceiling comes sooner), except: skip it
+if `phase` is already `REVIEW` and no REVIEW file is on disk yet, as the call would refuse.
 
-Full load (~12,700 tokens) is the heaviest in the workflow but token-budget analysis confirmed it fits comfortably. `quality-only` cuts the load substantially for FEATURE-tier work.
+## 3. Load skills and inputs
 
-## Phase entry — record the phase (M5.E9 FR6, `B41`)
+From `skills/review/`, read and apply `code-review-and-quality/SKILL.md`, and at `review_depth: full`
+also `security-and-hardening/SKILL.md`, `performance-optimization/SKILL.md` and
+`code-simplification/SKILL.md`.
 
-**Call this only if every precondition above passed.** The tier gate must have let this command through, and any halt condition in it must not have fired. If this command is halting — wrong tier, a missing prerequisite artifact, a failed gate — **do not call `transitionPhase`**: return the halt instead.
+**The change under review** is `git diff <base>..HEAD`. The base is
+`git merge-base HEAD origin/<branch>`, where `<branch>` is `resolveDefaultBranch(baseDir)`
+(`tools/lib/branch-guard.js`). When that returns `null`, or the merge-base is HEAD itself (the work
+is on the default branch), the base is the commit that first added the plan:
+`git log --diff-filter=A --format=%H -- <plan>`, its last line, with the plan from
+`resolveArtifactPath(planningDir, 'PLAN', { currentEpic, phase: 'PLAN' })` (`tools/lib/resume.js`).
+Write the base you used in the report.
 
-**Then, before any Workflow step**, call `await transitionPhase(baseDir, 'REVIEW')` (`tools/lib/state.js`). It appends the phase being **left** to `completed_phases` and sets `phase: REVIEW`.
+Read the requirements, `resolveArtifactPath(planningDir, 'REQUIREMENTS', { currentEpic, phase: 'DISCUSS' })`,
+and the VERIFY report, `resolveArtifactPath(planningDir, 'VERIFICATION', { currentEpic, phase: 'VERIFY' })`,
+for the suite result.
 
-**Why the condition (M5.E13, `B48`).** This instruction used to be unconditional, and an agent running `/sig:execute` against a project with no PLAN artifact **correctly refused it** — obeying would have recorded `phase: EXECUTE` for a project with nothing to execute, writing a false entry into the ledger M5.E9 had just made honest. Obeying corrupted the record; disobeying reproduced `B41`. The instruction was the thing that was wrong. `transitionPhase` now also refuses to record a phase that produced no artifact, so the text and the code agree rather than one relying on the other.
+## 4. Review the change
 
-**Why this exists.** Until M5.E9 only `calibrate` / `discuss` / `ship` ever called `transitionPhase`. `plan`, `execute`, `verify` and `review` advanced nothing — so a command-driven project finished a full build with `completed_phases: [DISCUSS]`, `phase: SHIP`, and **PLAN / EXECUTE / VERIFY / REVIEW never recorded at all**, while `/sig:status` and `/sig:resume` reported `DISCUSS` for the entire run. `markFresh` then stamped a fresh timestamp over that stale position, turning *stale-and-flagged* into *stale-and-silent*. It survived eleven releases because Signal's own repo maintained these fields **by hand**.
+**Open this pass's section first.** The report is `artifactName('REVIEW', { currentEpic, planningDir })`.
+Append `## Pass N — {date}, at {sha}` to it (the first pass creates the file), with HEAD as `{sha}`.
+If the report already ends with a pass heading that has no verdict recorded (the session that wrote
+it ended before `recordPass`), that heading is this pass: continue under it rather than appending
+another. Never rewrite an earlier pass.
 
-**At entry, not exit** — the position must be true *while* the phase runs, which is what any "current phase is REVIEW" precondition depends on. Surface the returned `{quarantined}` list if non-empty: malformed ledger entries are relocated, never silently dropped.
+Categorise every finding in 4.1–4.5 as Critical, Important, Suggestion or Nit.
 
-## Workflow
+### 4.1 Quality
 
-**Artifact naming (M4.5.E11).** Name each artifact this phase writes with `artifactName(ARTIFACT, { currentEpic, planningDir })` (`tools/lib/resume.js`), and resolve ones it reads with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` — `currentEpic` is `current_epic` from STATE. **Epic mode** → `{EpicID}-{ARTIFACT}.md` (e.g. `M4.5.E11-REVIEW.md`); **linear mode** → the `{phase}-{ARTIFACT}.md` forms below, byte-identical to pre-E11. Substitute the `artifactName` result wherever this file writes a literal `.planning/{phase}-*.md` path.
+Correctness, readability, architecture, security and performance of the change.
 
-### 1. Code Quality Review
+### 4.2 Security
 
-Using the code-review skill, evaluate all changes across five axes:
-- Correctness, Readability, Architecture, Security, Performance
-- Categorize findings: Critical / Important / Suggestion / Nit
+At `security_audit: basic`, the OWASP Top 10 checklist; at `full`, ASVS Level 2 as well. Check input
+validation at every boundary, secrets handling, security headers and CORS, and dependencies.
 
-### 2. Security Hardening
+### 4.3 Performance
 
-Using the security skill:
-- Run through the OWASP Top 10 prevention checklist
-- Check input validation at all system boundaries
-- Verify secrets management
-- Check security headers and CORS configuration
-- Audit dependencies
+N+1 queries, unpaginated list endpoints, bundle size, caching, needless re-renders.
 
-### 3. Performance Analysis
+### 4.4 Simplification
 
-Using the performance skill:
-- Check for N+1 queries
-- Verify pagination on list endpoints
-- Check bundle size impact (frontend)
-- Verify caching strategy
-- Check for unnecessary re-renders (React)
+Needless complexity, dead code and unused imports, redundant abstractions, unclear names, and
+departures from the project's conventions.
 
-### 4. Simplification Pass
+### 4.5 Fresh-context reviewers (required, before the verdict)
 
-Using the code-simplification skill:
-- Identify unnecessarily complex code
-- Check for dead code, unused imports, redundant abstractions
-- Verify naming clarity
-- Ensure project conventions are followed
+Dispatch all three through the Task tool, **in one message so they run in parallel**:
 
-### 4.5 Fresh-context adversarial review — REQUIRED, and it runs before the verdict
+| Agent | `subagent_type` | Reads |
+|---|---|---|
+| Fresh-context reviewer | `code-reviewer` | the change (step 3) and the requirements |
+| Security auditor | `security-auditor` | the change and the requirements |
+| Test engineer | `test-engineer` | the change, the requirements and the suite result. Tell it in the prompt that it reports only and must not write: an edit would change the diff the others read. |
 
-**Steps 1–4 are performed by the session that wrote the code. This step is not.** Dispatch
-**all three agents in the table below** through the Task tool as sub-agents, **in a single message
-so they run in parallel**, each reading the change with none of this session's context:
+Give each nothing else: no `CONTEXT.md`, no `DECISIONS.md`, no plan reasoning, no summary of intent.
+Context is what would talk a reviewer out of the problem it is there to find; if it misreads the code
+without it, that is a finding about the code. Their findings go into the same categories: a Critical
+from them is a Critical.
 
-| Agent | `subagent_type` | Reads | Writes |
-|---|---|---|---|
-| Fresh-context reviewer | `code-reviewer` | the diff + the unit's `*-REQUIREMENTS.md` | its findings back to this session |
-| Security auditor | `security-auditor` | the diff + the unit's `*-REQUIREMENTS.md` | its findings back to this session |
-| Test engineer | `test-engineer` | the diff + the unit's `*-REQUIREMENTS.md` + the suite result | its findings back to this session — **report-only at REVIEW; it must not write** |
+If a `subagent_type` does not resolve (a development checkout does not register plugin agents),
+dispatch a general-purpose agent for each instead, give it that agent's file under `agents/specialists/`
+as its instructions with the same inputs, and put "you are read-only: do not modify any file" in its
+prompt. Say in the report that this is a request to an agent that has every tool, not a limit on it.
+If an agent cannot be dispatched at all, write `cannot-dispatch`, with what was tried, in the report:
+it makes the verdict FAIL.
 
-**All three are dispatched together, in one message, and all three are REQUIRED** — the same
-fresh-context property is what makes each useful. `security-auditor` and `test-engineer` were wired
-here on 2026-09-08 (`M6.E9`); they had existed as files nobody invoked, alongside `code-reviewer`,
-which stayed unwired for four months and was the capability PR `#243` needed and did not get. Steps
-1–4 above already name security and test concerns — this step is what makes someone other than the
-author check them.
+### 4.6 Fix rounds
 
-⚠ **`test-engineer` reports at REVIEW; it does not write.** Its frontmatter grants `Write, Edit` and
-its own body tells it to write failing tests — correct for its other uses, wrong here. A review step
-that edits the tree invalidates the diff the other two agents were handed and stales the suite result
-VERIFY already recorded, and those edits would reach SHIP unverified. **Put the constraint in its
-dispatch prompt**; the frontmatter will not do it on the fallback path.
-
-> #### ⚠ Why this step exists, measured rather than argued
->
-> `M6.E7`'s retrospective asked for it in these words: *"A fresh-context reviewer should be a phase
-> step, not a judgement call."* Two of them were the highest-yield actions in that Epic — **9 of 11
-> Important issues** — and nothing in this file asked for either. `review_depth` describes *what* to
-> review and says nothing about *who*.
->
-> Then `#243` measured it again on a four-file fix: **two PR-reviewer passes found six issues, two of
-> them regressions introduced by the fix itself, and the in-session review found none of the six.**
-> One was a guard assertion that could not fail; one was a halt that damaged the project it refused
-> to run on. Neither is a knowledge gap — both are assumptions the author could not see because they
-> were the author's.
-
-**What it is given, and the omissions are the mechanism.** The diff and the requirements. **Not**
-`CONTEXT.md`, **not** `DECISIONS.md`, **not** the plan's reasoning, **not** a summary of intent, and
-**not** an explanation of why a choice was made. Every one of those is an opportunity to talk the
-reviewer into the blind spot it was dispatched to find. If it misreads something because it lacks
-context, that is a finding about the code's legibility, not a reason to brief it better.
-
-**Its findings enter the ordinary taxonomy — no new mechanism.** They are categorised Critical /
-Important / Suggestion / Nit exactly like Step 1's, they appear in the same report sections, and the
-verdict table below already says what each means. **A Critical it raises is a Critical.**
-
-**The ordering is the point.** These findings used to arrive at PR-open, *after* REVIEW returned PASS
-— which is how `M6.E7` shipped an advisory whose every citation was five lines wrong. Dispatched from
-here, the same findings are **discovered inside REVIEW**, where PASS-WITH-FIXES can absorb them and
-the loop-back path still exists. This step does not add a gate; it moves an existing one earlier.
-
-⚠ **Dev-mode fallback, and it applies to all three.** In a development checkout — which is what
-Signal-on-Signal is — plugin agents do not auto-register with the Task tool (`commands/init.md` § 2
-records this and its workaround). If a `subagent_type` above does not resolve, dispatch a
-general-purpose sub-agent **per agent** and give it that agent's own file to read as its
-instructions, with **the inputs its row names** — three for `test-engineer`, two for the other two —
-and the same omissions.
-
-⚠ **On the fallback path the agent's `tools:` frontmatter is INERT, and that is not a detail.** A
-general-purpose sub-agent runs with the full tool set; the specialist file's `tools:` line is prose
-inside a prompt, not an enforced allowlist. So state the ceiling in the dispatch prompt itself —
-**"you are read-only: do not modify any file"** — the way `init.md` already does for its scanners
-(`init.md` § 2). **Say plainly that this is a prose ceiling on an unconstrained agent, not
-enforcement**, so nobody reads it as a control it is not. Found by `security-auditor` on its own
-first dispatch, which enumerated the write and network tools it could reach and did not use. **What must not happen is skipping the step because the dispatch was awkward** — that
-is how it stayed unwired for four months.
-
-⚠ **A `cannot-dispatch` outcome is a FAIL condition for this step, not a silent pass.** Record it in
-the report under its own line, naming what was attempted. An unreviewed change that reads as reviewed
-is the failure this whole step exists to stop.
-
-### 4.6 Fix rounds — a fresh read of every round of fixes, until one reads clean (`D-M6E17-2`)
-
-**A fix round** is the set of commits made to close the findings of one read: the in-phase fixes
-PASS-WITH-FIXES absorbs, or the fixes made in EXECUTE after a FAIL loop-back. **Every round gets its
-own fresh read.** The § 4.5 pass found the issues; nobody has yet read the code that fixes them, and
-fixes to fixes are where M6.E14's worst defect and three of M6.E16's were.
-
-**The pass's section is written first.** When the pass begins, before § 4.5 is dispatched, append its
-`## Pass N — {date}, at {sha}` heading to the report (the first pass creates the file, § 5). Every
-round of this pass is recorded under that heading, so `checkFixRounds` counts it for this pass and
-not the one before. If the report already ends with a pass
-heading that has no verdict recorded (the session that wrote it ended before `recordPass`), that
-heading is this pass: continue under it rather than appending another, since the check counts one
-section per recorded pass plus this one.
-
-For each round:
+A fix round is the commits that close the findings of one read: fixes made in this phase, or the fixes
+`/sig:execute` made after a FAIL. Every round gets its own fresh read, because fixes to fixes are where
+new defects come from. For each round:
 
 1. **Fix it under the fixer brief** ([`references/fixer-brief.md`](../references/fixer-brief.md)),
-   whether this session or a sub-agent writes the fix. Write the test first, commit, then run
-   `parent-run.js` (`tools/lib/parent-run.js`) with `--base` set to **the round's base**: for the
-   first round of the run, the HEAD at the pass that found the issues; for every later round, the
-   previous round's head, the commit its fresh read ended at. Rounds chain in the order they are
-   written, across `## Pass N` sections, so a loop-back round in pass N+1 starts at the head of the
-   last round recorded in pass N or before it, and at pass N's HEAD only when no earlier round exists
-   in this run. Commits made between the two (the report's own, say) are in the range.
-   `checkFixRounds` refuses a parent run on any commit but its round's base, and a later round whose
-   base is not the previous round's head; the first round's base is not checked against the pass
-   heading's commit. A sub-agent gets the brief's
-   instructions in its dispatch prompt.
-2. **Dispatch one fresh-context reviewer** (`code-reviewer`, with the same dev-mode fallback as
-   § 4.5). Give it **only that round's diff** (`git diff <base>..<head>`, where the base is the round's
-   base from step 1: the base of a later round is the previous round's head, where the read that
-   found its issues ended) and the unit's `*-REQUIREMENTS.md`. It works under the **same
-   omissions as § 4.5**: no `CONTEXT.md`, no `DECISIONS.md`, no reasoning, no summary of intent.
-3. **Record the round** in the report, under its own heading, with exactly these two lines:
+   whether this session or a sub-agent writes it (a sub-agent gets the brief in its prompt). Write the
+   test first, commit, then run `node "${CLAUDE_PLUGIN_ROOT}/tools/lib/parent-run.js"` with `--base`
+   set to **the round's base**: for the first round of the run, the HEAD at the pass that found the
+   issues; for every later round, the previous round's head, where its fresh read ended. Rounds chain
+   in the order they are written, across `## Pass N` sections, so a loop-back round in pass N+1 starts
+   at the head of the last round recorded before it.
+2. **Dispatch one fresh-context reviewer** (`code-reviewer`, with the fallback in 4.5). Give it only
+   that round's diff, `git diff <base>..<head>` with the round's base, and the requirements, under the
+   same omissions as 4.5.
+3. **Record the round** under this pass's heading, with exactly these two lines:
 
    ```markdown
    ### Fix round N
@@ -208,70 +141,37 @@ For each round:
    **Parent run:** <the summary line parent-run.js printed, unchanged>
    ```
 
-   If the parent run could not be done, the line reads `**Parent run:** gap — <why>`. A gap is stated,
-   never left blank, and is never counted as proof.
+   If the parent run could not be done, the line reads `**Parent run:** gap — <why>`: stated, never
+   blank, never counted as proof.
 
-**The stop rule.** The chain ends when a fresh read of a round finds **0 Critical and 0 Important**
-(`stop: yes`), or at the loop ceiling, **whichever comes first**. The ceiling is counted two ways,
-because a chain runs inside one pass and the passes are counted across the unit:
-- **Inside a pass:** at most `DEFAULT_LOOP_CEILING` (3) rounds. Nothing is written to STATE between
-  rounds, so `loopStatusFor` cannot see them; `checkFixRounds` counts the rounds under each
-  `## Pass N` heading and refuses a fourth.
-- **Across passes:** `loopStatusFor` from `tools/lib/loop-ceiling.js`, as in the Loop Back below.
+**Stop** when a round's fresh read finds 0 Critical and 0 Important (`stop: yes`), or at three rounds
+in this pass, whichever comes first. A read that finds issues starts the next round. A chain that
+ends at three rounds with findings open is a FAIL.
 
-A read that finds issues starts the next round: fix them, read that round fresh, and so on. A chain
-that ends at the ceiling with findings still open is a FAIL, and the Loop Back below asks a person.
+## 5. Write the report and check it
 
-**Before the verdict, run the check** on the report as it is on disk, with this pass's section filled
-in (§ 5). Call `checkFixRounds(reportContent, verdict, { phasePasses, cwd: baseDir })`
-from `tools/lib/review-rounds.js` with the verdict you are about to declare, and `phasePasses` set to
-`phase_passes` from STATE (`readState`), or `[]` when STATE has none. Leaving it out is itself a
-refusal for PASS and PASS-WITH-FIXES. `cwd` is where the check asks git about the commits each round
-names; without it, or where git cannot answer, every round is listed as a gap whose commits were not
-checked. A refusal means the verdict cannot stand. Its reasons are the
-cases: a round missing either line, a PASS-WITH-FIXES with no round in its own pass, a PASS / PASS-WITH-FIXES whose
-last round reads `stop: no`, more than three rounds in one pass, a count of `## Pass N` sections other than the recorded REVIEW
-passes plus this one (a report with no such heading has none), a round above the first `## Pass` heading,
-no round in this pass after a recorded REVIEW FAIL, a parent run that is not on its round's base, a
-round that does not start at the previous round's head, a commit that does not resolve, a commit not written as its sha (7 to 40 lowercase hex characters), or too few rounds for the recorded
-REVIEW FAILs (one per FAIL, plus one for a PASS-WITH-FIXES's own fixes). That last one is a floor, not
-a match: it sees a report with too few rounds, and cannot tell which round belongs to which FAIL. So the
-REVIEW report keeps every earlier pass's rounds, each pass under its own `## Pass N` heading: append
-each pass, never rewrite the file. A `### Fix round` inside a code fence or an HTML comment (one whose `<!--` opens a line) is not counted. Fix the
-report or the verdict. Do not write around the check. List its `gaps` in the report: rounds whose parent run is a stated gap, did
-not fail on the base for every file, counted new tests that passed on the base, or counted tests that
-failed there only on a missing file, and commits the check could not ask git about. List its
-`uncovered` too: the commits after the newest `## Pass N, at {sha}` heading that no round's range
-covers. They are reported, not refused: name each, and say what it is, or record it as a round.
+Fill in this pass's section:
 
-### 5. Write Review Report
-
-Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir })` — `{phase}-REVIEW.md` linear / `{EpicID}-REVIEW.md` Epic). The first pass creates it under a `## Pass 1` heading; every later pass appends a `## Pass N` section with this shape and leaves the earlier ones as they are. The heading is written when the pass begins (§ 4.6); this step fills the section in, and the check runs after it. A linear project keeps one report for every run: its SHIP appends `## Run ended — {date}`, the next run's first pass appends `## Pass 1` below it, and the check reads only what follows the last `## Run ended` line. Never write that line by hand; call `markRunEnded(baseDir)` from `tools/lib/state.js` when SHIP reported it could not write it (`runEnded?.ok === false`), once the cause is fixed. If this run's passes are already appended below it, call `markRunEnded(baseDir, { keep })` instead, `keep` being this run's pass sections, so the line goes above them; the check's refusal gives the number. The section's shape:
 ```markdown
-# Review Report — Phase {n}
-
 ## Pass {n} — {date}, at {sha}
 
+**Reviewed:** <base>..<head>
+
 ## Critical Issues (must fix before SHIP)
-{list with file:line references}
+{each with file:line}
 
 ## Important Issues (should fix)
-{list}
 
 ## Suggestions (optional improvements)
-{list}
 
 ## Security Findings
-{OWASP checklist results}
 
 ## Performance Findings
-{bottleneck analysis}
 
 ## Simplification Opportunities
-{list}
 
 ## Fix rounds
-{one `### Fix round N` per round, § 4.6 — or "None in this pass"}
+{one `### Fix round N` per round (4.6), or "None in this pass"}
 
 ## Verdict
 - [ ] PASS — ready for SHIP
@@ -279,9 +179,7 @@ Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir
 - [ ] FAIL — issues must be addressed (return to EXECUTE)
 ```
 
-**PASS-WITH-FIXES guidance.** Use this verdict when REVIEW found Important issues — **or a Critical** — but the fix is small enough to land in REVIEW itself rather than ceremonially looping back to EXECUTE. The conditions are **conjunctive, and every one is load-bearing**: the issue was *discovered and closed inside REVIEW*, **and** the change totals **≤ 50 LOC of non-test source** (insertions plus deletions), **and** all tests still pass, **and** the fix carries **new coverage** for the defect where none existed — written in-phase and green — **and** there is no design impact. Failing any one of them is FAIL. **The required coverage does not count against the cap:** the 50 is non-test source precisely so that writing the regression test cannot push a qualifying fix into FAIL. A rule that penalises the reviewer who tests is a rule that trains reviewers not to test. Document each fix in the report (path, summary, why fix-in-phase was chosen). A fix that touches architecture or ripples beyond a single file is *showing you design impact* — that is the last condition failing, not a separate one — and it means FAIL and a loop back to EXECUTE; that's what the loop is for.
-
-**Why a Critical can qualify (D-M5E17-1).** A Critical *discovered and closed inside REVIEW*, with a small diff and green tests, is not the same event as a Critical discovered at ship or one needing re-planning. This table used to read *"FAIL | Any Critical"* while practice went the other way twice — M5.E9 and M5.E13 both shipped PASS-WITH-FIXES with an in-phase Critical — so the rule and the work disagreed for two releases and only a live REVIEW surfaced it. The rule was miscalibrated, not the practice. **The counter-argument is recorded because it is real:** "Critical" exists to force a harder stop, and *"the diff was small"* is exactly how a Critical gets under-fixed — which is why the conditions above are conjunctive rather than a rule of thumb.
+Decide the verdict:
 
 | Verdict | When |
 |---|---|
@@ -289,80 +187,41 @@ Generate the REVIEW artifact (`artifactName('REVIEW', { currentEpic, planningDir
 | PASS-WITH-FIXES | Important issues **or a Critical** found AND closed in-phase AND total fix ≤ 50 LOC of non-test source AND tests still green AND new coverage written for the defect AND no design impact. |
 | FAIL | A Critical **not** fixed in-phase, OR any fix > 50 LOC of non-test source, OR a fix that needs new coverage and does not get it, OR tests can't stay green without re-planning. |
 
-### Record the pass — before the Loop Back ask (`D-M6E17-1`)
+**PASS-WITH-FIXES guidance.** Every condition must hold: the issue was found and closed inside
+REVIEW, the fix is ≤ 50 LOC of non-test source, all tests still pass, it carries new coverage for the
+defect, and it has no design impact. A Critical can qualify, but only under all of them, because "the
+diff was small" is how a Critical gets under-fixed. The new coverage does not count toward the 50 LOC.
+A fix that changes the architecture or reaches beyond one file has design impact: FAIL, back to
+EXECUTE. List each in-phase fix in the report: path, what it changed, and why it was fixed here.
 
-**At the end of every pass, once the verdict is decided:** call
-`recordPass(baseDir, 'REVIEW', verdict, { fixRounds })` from `tools/lib/state.js`, with `verdict` as one of `PASS` /
-`PASS-WITH-FIXES` / `FAIL` and `fixRounds` the result `checkFixRounds` returned for that verdict
-(§ 4.6). A PASS or PASS-WITH-FIXES is refused with no `fixRounds`, with a result computed for
-another verdict, or with one the check did not accept (its reasons are given). A FAIL needs none. Do this before the ask below and before the transition out of REVIEW, for
-every verdict. This is what lets the ceiling count a pass whose fixes never left REVIEW. M6.E16's
-REVIEW ran four full passes that way, and the count read 0 throughout.
+**Then check the report** as it is on disk: `checkFixRounds(reportContent, verdict, { phasePasses, cwd: baseDir })`
+(`tools/lib/review-rounds.js`), with the verdict you are about to record and `phasePasses` set to
+`phase_passes` from `readState` (`[]` when STATE has none). `cwd` lets it ask git about each round's
+commits. If it refuses, its reasons say what is wrong with the report or the verdict: fix that, and
+never write around the check. Put its `gaps` in the report (rounds with no proof, and commits git
+could not check), and its `uncovered` commits (after this pass's heading, in no round's range): name
+each and say what it is, or record it as a round.
 
-### Loop Back (`B76`)
+The report holds every pass: append, never rewrite. A `### Fix round` inside a code fence, or inside an HTML comment whose `<!--` opens a line, is not counted. A linear project keeps one report for every
+run: its SHIP appends `## Run ended — {date}`, and the check reads only what follows the last
+`## Run ended` line. Never write that line by hand; call `markRunEnded(baseDir)` (`tools/lib/state.js`)
+when SHIP said it could not write it (`runEnded?.ok === false`), once the cause is fixed. If this run's
+passes already follow, call `markRunEnded(baseDir, { keep })`, `keep` being their number (the check's
+refusal gives it), so the line goes above them.
 
-**A FAIL is not a silent return to EXECUTE.** Ask the user with the
-**3-options-plus-other** pattern (`references/question-patterns.md`) —
-**render via `AskUserQuestion(multiSelect: false)`**, with each option's name / "Pick this if" /
-recommendation flowing into the per-option `description` rather than being printed as markdown.
+## 6. Record the pass
 
-A. **Loop back to EXECUTE.** Fix the Critical/Important issues and re-run REVIEW.
-   Pick this if: the issues are well-scoped and this would be pass 1 or 2 for REVIEW on this unit.
+Call `recordPass(baseDir, 'REVIEW', verdict, { fixRounds })` (`tools/lib/state.js`) once, before
+the Loop Back, with `fixRounds` the result `checkFixRounds` returned for this verdict. A PASS or
+PASS-WITH-FIXES is refused with no `fixRounds`, with one computed for another verdict, or with one
+the check did not accept. A FAIL needs none. If it refuses, show why, do step 8, and stop.
 
-B. **Escalate via `/sig:escalate`.** If the ceiling is in reach and the findings reveal a missing
-   dimension of the work, move the tier and re-plan.
-   Pick this if: the failure pattern says the original calibration was too low.
-
-C. **Accept and document.** Record the unfixed issues as known limits in `{phase}-REVIEW.md` and
-   ship with explicit caveats.
-   Pick this if: the issue is real but the cost of fixing exceeds the cost of shipping a documented
-   limit (rare; defaults to A or B).
-
-If none fit, describe what you'd prefer and capture the reasoning in `{phase}-REVIEW.md`.
-
-**The ceiling is counted, not remembered.**
-
-Call `loopStatusFor(state, 'REVIEW')` from `tools/lib/loop-ceiling.js` to get the count.
-The count is **the larger of** two records:
-- the passes recorded in `phase_passes` by the step above;
-- the `REVIEW` exits in `completed_phases`, which is **append-only** and records the phase being
-  *left* (`B44`).
-
-It takes the larger, not the sum, because a pass that ends and then leaves REVIEW is in both. Exits
-alone missed every pass whose fixes stayed inside REVIEW. Both records are per Epic: `setCurrentEpic`
-resets them on a roll (`B9`). Two re-entries run; **the third stops for a person**. A re-run of
-`/sig:review` while REVIEW is current is a re-entry too: it records an exit and begins a new visit,
-so restarting can only bring the ceiling sooner (`D-M6E18-9`). That is
-the rule `verify.md` follows too, enforced rather
-than re-tuned. A FAIL never lifts the ceiling. While REVIEW is the current phase and the last entry
-of the whole `phase_passes` list is its own PASS or PASS-WITH-FIXES, REVIEW is moving on and is not
-held. That entry must be this visit's: entering REVIEW writes `phase_pass_mark`, the length of
-`phase_passes` at entry, and only an entry at or after it lifts the hold, so an earlier visit's PASS
-does not (`SIG-349`). With no mark (STATE written before M6.E18), which visit wrote it cannot be told,
-and the last entry counts as before; a mark that does not read stops the driver.
-
-Render the halt with `formatLoopCeilingHalt(status)` so this file and `/sig:drive` cannot describe
-the same stop two ways.
-
-> **Why this is code and not a sentence.** `verify.md` carried this ceiling as prose from v1,
-> enforced by nothing — a reader counts loops from memory. Attended, that is survivable. Unattended
-> it is not: `B76` was filed 2026-08-03 warning that *any driver built on top inherits an unbounded
-> loop on day one*, `/sig:drive` shipped in `v0.1.31`, and it did. Writing the rule more carefully is
-> the remedy that produced that outcome — `UNREACHED-MECHANISM-ANALYSIS.md`'s named class. So
-> `canProceedUnattended` **refuses** on the count, and refuses equally when it cannot read the count
-> at all (`loop-unknown`): an actor that cannot tell should stop.
-
-After choosing:
-1. Document the FAIL, the loop count, and the chosen path in `{phase}-REVIEW.md`.
-2. Execute the chosen path.
-
-### 5b. Commit
-
-Commit the REVIEW artifacts (`{phase}-REVIEW.md`), `STATE.md` with them.
-
-## Phase Gate
+## 7. Phase Gate
 
 ### Anti-Rationalization Check
+
+At `gate_strictness: strict`, answer each:
+
 | Temptation | Check |
 |---|---|
 | "The code works and tests pass, review is redundant" | Working code can be insecure, slow, and unmaintainable. Review catches what tests can't |
@@ -371,13 +230,33 @@ Commit the REVIEW artifacts (`{phase}-REVIEW.md`), `STATE.md` with them.
 | "Simplification is just bikeshedding" | Code clarity directly impacts long-term maintenance cost |
 
 ### Exit Criteria
-- [ ] All Critical issues resolved
-- [ ] All Important issues resolved or explicitly deferred with justification
-- [ ] Security checklist completed
-- [ ] Performance anti-patterns addressed
-- [ ] Simplification pass completed
-- [ ] **Fresh-context reviewer dispatched (§ 4.5) and its findings triaged into the taxonomy** — or a `cannot-dispatch` recorded in the report naming what was attempted. Not satisfiable by "the change looked fine to me": the point of the step is that the author is not the reader.
-- [ ] **Every fix round has its own fresh read and a parent run (§ 4.6)**, and `checkFixRounds` accepted the report for the declared verdict
-- [ ] The pass is recorded with `recordPass(baseDir, 'REVIEW', verdict, { fixRounds })`
-- [ ] Review report written
-- [ ] User approves review results — **when `gates.confirm_review` is set** (`attention: attended`). Checkpointed and unattended: no ask; the transition is recorded, not approved (`B74`).
+- [ ] Each review step the profile runs (4.1–4.4) is done
+- [ ] The fresh-context reviewers (4.5) were dispatched and their findings categorised, or `cannot-dispatch` is in the report
+- [ ] Every fix round has its own fresh read and parent run (4.6), and `checkFixRounds` accepted the report for the verdict
+- [ ] All Critical issues resolved; Important ones resolved or deferred with a reason
+- [ ] The verdict is recorded with `recordPass` (step 6)
+- [ ] User approves the results — only when `gates.confirm_review` is set (`attended`)
+
+### Loop Back
+
+On a FAIL, call `loopStatusFor(await readState(baseDir), 'REVIEW')` (`tools/lib/loop-ceiling.js`).
+
+- It returns `null`: a list or mark in `STATE.md` it counts from is damaged. Say so, do step 8, and
+  stop for the user to fix it.
+- `atCeiling`: show `formatLoopCeilingHalt(status)`. At `attended`, ask the options below with it; at
+  `checkpointed` and `unattended`, do step 8 and stop: a person decides.
+- Otherwise: at `attended`, ask with the 3-options-plus-other pattern (`references/question-patterns.md`,
+  via `AskUserQuestion`); at `checkpointed` and `unattended`, take A and say so.
+
+A. **Loop back to EXECUTE** (recommended under the ceiling). List each Critical and Important issue as
+   a fix to make: `/sig:execute` builds those. This command ends after step 8.
+B. **Change the tier with `/sig:escalate`**, when the findings show the tier was too low.
+C. **Accept it as a known limit**: list the open issues as limits in the report; then go on as on a pass.
+
+Write the path chosen in the report.
+
+## 8. Finish
+
+Commit the report and every `.planning/` file the phase changed, `STATE.md` with them. This command
+sets no next phase; the next command records leaving REVIEW: `/sig:execute` after a loop back, else
+`/sig:ship`.

@@ -29,11 +29,17 @@ const BRIEF = 'plugin/references/fixer-brief.md';
 const fixRoundStep = (() => {
   const start = review.search(/^### 4\.6 Fix rounds/m);
   if (start < 0) return '';
-  const rest = review.slice(start + 1);
-  const next = rest.search(/^### /m);
+  const rest = review.slice(review.indexOf('\n', start) + 1);
+  const next = rest.search(/^#{2,3} /m);
   // Line wrapping in the markdown is not content: collapse it.
   return (next < 0 ? rest : rest.slice(0, next)).replace(/\s+/g, ' ');
 })();
+
+// Step 4's opening, where the pass heading is written, and step 5, where the
+// report is written and checked (review.md rewrite, 2026-10-30).
+const flatReview = review.replace(/\s+/g, ' ');
+const stepOpen = flatReview.slice(flatReview.search(/## 4\. Review the change/), flatReview.search(/### 4\.1 /));
+const step5 = flatReview.slice(flatReview.search(/## 5\. Write the report/), flatReview.search(/## 6\. Record the pass/));
 
 describe('every symbol the loop names is an export', () => {
   it.each([
@@ -59,7 +65,7 @@ describe('AC1.6 — a pass is recorded before the Loop Back ask', () => {
   // Exit Criteria line names the same call before the Loop Back, so deleting
   // the step passed the first form of this test (M6.E17 REVIEW I7).
   it.each([
-    ['review.md', review, /^### Record the pass\b.*$/m, "recordPass(baseDir, 'REVIEW'"],
+    ['review.md', review, /^## 6\. Record the pass\b.*$/m, "recordPass(baseDir, 'REVIEW'"],
     ['verify.md', verify, /^## 8\. Record the pass\b.*$/m, "recordPass(baseDir, 'VERIFY'"],
   ])('%s', (_name, text, heading, call) => {
     const start = text.search(heading);
@@ -81,46 +87,41 @@ describe('AC1.6 — a pass is recorded before the Loop Back ask', () => {
     expect(step.replace(/\s+/g, ' ')).toMatch(/PASS with documented limits[^.]*recordPass\(baseDir, 'VERIFY', 'PASS'\)/);
   });
 
-  it('review.md says the count is the larger of passes and exits', () => {
-    expect(review).toMatch(/larger of/);
-    expect(review).toContain('phase_passes');
-  });
 });
 
 describe('AC2.1 / AC2.2 — the fix-round step', () => {
   it('exists as a numbered step before the report is written', () => {
     expect(fixRoundStep).not.toBe('');
-    expect(review.search(/^### 4\.6 Fix rounds/m)).toBeLessThan(review.search(/^### 5\. Write Review Report/m));
+    expect(review.search(/^### 4\.6 Fix rounds/m)).toBeLessThan(review.search(/^## 5\. Write the report/m));
   });
 
   it('gives one fresh reviewer only that round\'s diff and the requirements, under § 4.5\'s omissions', () => {
     expect(fixRoundStep).toMatch(/one fresh-context reviewer/i);
     expect(fixRoundStep).toMatch(/only that round's diff/);
-    expect(fixRoundStep).toMatch(/same omissions as § 4\.5/);
+    expect(fixRoundStep).toMatch(/same omissions as 4\.5/);
   });
 
   it('states the stop rule', () => {
     expect(fixRoundStep).toMatch(/0 Critical and 0 Important/);
-    expect(fixRoundStep).toMatch(/loop ceiling/);
+    // Inside a pass the ceiling is three rounds; checkFixRounds refuses a fourth.
+    expect(fixRoundStep).toMatch(/three rounds in this pass/);
     expect(fixRoundStep).toMatch(/whichever comes first/);
   });
 
-  it('names the record lines checkFixRounds reads, and runs it before the verdict', () => {
+  it('names the record lines checkFixRounds reads, and runs it before the verdict is recorded', () => {
     expect(fixRoundStep).toContain('**Fresh read:**');
     expect(fixRoundStep).toContain('**Parent run:**');
-    expect(fixRoundStep).toContain('checkFixRounds');
     // VERIFY D2: the check is given the recorded passes, or an unwritten round is invisible to it.
-    expect(fixRoundStep).toContain('checkFixRounds(reportContent, verdict, { phasePasses');
+    expect(step5).toContain('checkFixRounds(reportContent, verdict, { phasePasses');
   });
 
   // REVIEW pass 2, P2-I7: rounds were recorded "in the report" before § 5 wrote this
   // pass's heading, so on pass 2+ they landed under the previous pass's section.
-  it('P2-I7: writes the pass heading before any round, and checks the report as written', () => {
-    const heading = fixRoundStep.search(/append its `## Pass N — \{date\}, at \{sha\}` heading/);
-    expect(heading).toBeGreaterThanOrEqual(0);
-    expect(fixRoundStep).toMatch(/before § 4\.5 is dispatched/);
-    expect(heading).toBeLessThan(fixRoundStep.indexOf('For each round'));
-    expect(fixRoundStep).toMatch(/run the check\*\* on the report as it is on disk/);
+  it('P2-I7: writes the pass heading before any review step or round, and checks the report as written', () => {
+    expect(stepOpen).toMatch(/Open this pass's section first/);
+    expect(stepOpen).toMatch(/Append `## Pass N — \{date\}, at \{sha\}`/);
+    expect(review.search(/^## 4\. Review the change/m)).toBeLessThan(review.search(/^### 4\.5 /m));
+    expect(step5).toMatch(/check the report\*\* as it is on disk/);
   });
 });
 
@@ -151,7 +152,6 @@ describe('AC3.3 / AC3.4 — the parent run and the fixer brief', () => {
 // reading a linear report knows where a run begins.
 describe('P3-I5 — the report format names the run boundary', () => {
   it('review.md § 5 names the "## Run ended" line and that the check reads only what follows it', () => {
-    const step5 = review.slice(review.search(/^### 5\. Write Review Report/m)).replace(/\s+/g, ' ');
     expect(step5).toMatch(/SHIP appends `## Run ended — \{date\}`/);
     expect(step5).toMatch(/reads only what follows the last `## Run ended` line/);
   });
@@ -170,7 +170,6 @@ describe('P4-I1 — a missing run boundary is reported and has a way out', () =>
     expect(s5).toMatch(/markRunEnded/);
   });
   it('review.md § 5 names markRunEnded as the one way to write the line SHIP could not', () => {
-    const step5 = flat.slice(flat.search(/### 5\. Write Review Report/));
     expect(step5).toMatch(/Never write that line by hand[^.]*markRunEnded/);
   });
   // REVIEW pass 5, P5-I1: the recovery must work after the next run has begun.
@@ -180,12 +179,10 @@ describe('P4-I1 — a missing run boundary is reported and has a way out', () =>
     const s5 = ship.slice(ship.search(/### 5\. Update State/));
     expect(s5).not.toMatch(/re-invoked `\/sig:ship` writes it/);
     expect(s5).toMatch(/re-running `\/sig:ship` does not write it/);
-    const step5 = flat.slice(flat.search(/### 5\. Write Review Report/));
     expect(step5).toMatch(/markRunEnded\(baseDir, \{ keep \}\)/);
   });
-  it('review.md § 4.6 says a pass heading with no verdict recorded is continued, not appended again', () => {
-    const s46 = flat.slice(flat.search(/### 4\.6 Fix rounds/), flat.search(/### 5\. Write Review Report/));
-    expect(s46).toMatch(/no verdict recorded[^.]*continue under it/i);
+  it('review.md step 4 says a pass heading with no verdict recorded is continued, not appended again', () => {
+    expect(stepOpen).toMatch(/no verdict recorded[^.]*continue under it/i);
   });
 });
 
@@ -193,7 +190,7 @@ describe('P4-I1 — a missing run boundary is reported and has a way out', () =>
 describe('M6.E18 S4 — the fix-round check reads commits, and the pass record takes its result', () => {
   const flat = review.replace(/\s+/g, ' ');
   it('AC4.2: § 4.6 says a later round\'s base is the previous round\'s head', () => {
-    expect(fixRoundStep).toMatch(/base of a later round is the previous round's head/);
+    expect(fixRoundStep).toMatch(/every later round, the previous round's head/);
   });
   // REVIEW pass 1, I1: step 1 and the brief gave every round the pass's HEAD as
   // its parent-run base, so checkFixRounds refused every round after the first.
@@ -207,20 +204,15 @@ describe('M6.E18 S4 — the fix-round check reads commits, and the pass record t
     expect(brief).toMatch(/every later round, the previous round's head/);
   });
   it('AC4.1 / AC4.4: § 4.6 passes the project folder so the check can ask git, and surfaces `uncovered`', () => {
-    expect(fixRoundStep).toContain('checkFixRounds(reportContent, verdict, { phasePasses, cwd: baseDir })');
-    expect(fixRoundStep).toMatch(/`uncovered`/);
-    expect(fixRoundStep).toMatch(/HTML comment/);
+    expect(step5).toContain('checkFixRounds(reportContent, verdict, { phasePasses, cwd: baseDir })');
+    expect(step5).toMatch(/`uncovered`/);
+    expect(step5).toMatch(/HTML comment/);
   });
   it('AC3.5: the Record step passes the check\'s result to recordPass', () => {
-    const start = flat.search(/### Record the pass\b/);
+    const start = flat.search(/## 6\. Record the pass\b/);
     const step = flat.slice(start, flat.search(/### Loop Back/));
     expect(step).toContain("recordPass(baseDir, 'REVIEW', verdict, { fixRounds })");
     // REVIEW pass 1, I3: the record refuses a passing verdict with no result.
     expect(step).toMatch(/refused with no `fixRounds`/);
-  });
-  it('the ceiling paragraph describes the visit marker, no longer "not checked (SIG-349)"', () => {
-    const para = flat.slice(flat.search(/\*\*The ceiling is counted, not remembered\.\*\*/), flat.search(/Render the halt with/));
-    expect(para).not.toMatch(/which visit wrote that entry is not checked/);
-    expect(para).toMatch(/phase_pass_mark/);
   });
 });

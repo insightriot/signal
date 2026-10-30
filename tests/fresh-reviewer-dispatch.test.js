@@ -51,10 +51,10 @@ describe('REVIEW dispatches a fresh-context reviewer', () => {
     // PR-open, after REVIEW returned PASS. A step that runs after the verdict
     // reproduces exactly the problem it was added to fix.
     const dispatch = doc.indexOf('### 4.5');
-    const report = doc.indexOf('### 5. Write Review Report');
+    const report = doc.indexOf('## 5. Write the report');
     const verdict = doc.indexOf('## Verdict');
     expect(dispatch, 'review.md has no § 4.5 dispatch step').toBeGreaterThan(-1);
-    expect(report, 'review.md has no § 5 report step').toBeGreaterThan(-1);
+    expect(report, 'review.md has no step 5 report step').toBeGreaterThan(-1);
     expect(verdict, 'review.md has no Verdict section').toBeGreaterThan(-1);
     expect(dispatch).toBeLessThan(report);
     expect(dispatch).toBeLessThan(verdict);
@@ -74,7 +74,7 @@ describe('REVIEW dispatches a fresh-context reviewer', () => {
     // Dev-mode checkouts do not auto-register plugin agents (init.md § 2), and
     // Signal-on-Signal IS dev mode. Awkward dispatch is how this agent stayed
     // unwired for four months.
-    const step = doc.slice(doc.indexOf('### 4.5'), doc.indexOf('### 5. Write Review Report'));
+    const step = doc.slice(doc.indexOf('### 4.5'), doc.indexOf('## 5. Write the report'));
     expect(step, 'no § 4.5 step body to check').toBeTruthy();
     expect(step).toMatch(/cannot-dispatch/);
     expect(step, 'the step must name the dev-mode fallback, or it fails in this very repo').toMatch(
@@ -84,7 +84,7 @@ describe('REVIEW dispatches a fresh-context reviewer', () => {
 
   describe('the brief is starved of context ON PURPOSE, in both files', () => {
     const agent = readFileSync(AGENT_MD, 'utf8');
-    const step = doc.slice(doc.indexOf('### 4.5'), doc.indexOf('### 5. Write Review Report'));
+    const step = doc.slice(doc.indexOf('### 4.5'), doc.indexOf('## 5. Write the report'));
 
     // Named individually so a future edit that quietly starts passing one of
     // these fails here rather than degrading the reviewer into a second opinion
@@ -94,7 +94,9 @@ describe('REVIEW dispatches a fresh-context reviewer', () => {
     it.each(forbidden)('review.md § 4.5 explicitly withholds %s', (doc_name) => {
       const re = new RegExp(`\\*\\*[Nn]ot\\*\\*[^\\n]*\`${doc_name}\`|\`${doc_name}\`[^\\n]*`);
       expect(re.test(step), `§ 4.5 must say ${doc_name} is withheld`).toBe(true);
-      expect(step).toMatch(/omissions are the mechanism/);
+      // review.md rewrite (2026-10-30): the old phrase "omissions are the
+      // mechanism" became this instruction (archive/tests/review-wording.test.js).
+      expect(step).toMatch(/Give each nothing else/);
     });
 
     it('the agent file tells the reviewer not to ask for more context', () => {
