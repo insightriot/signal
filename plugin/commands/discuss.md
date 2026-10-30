@@ -37,9 +37,8 @@ Both come before step 2 because `current_epic` cannot be cleared once set.
 Run this step once. Never come back to it later in the phase: deriving again opens a second Epic.
 
 **Done-Epic guard.** Without `--epic`, call
-`isEpicDone(baseDir, current_epic)` (`tools/lib/retrospective.js`). It returns `{status, reason}`
-with three answers: `done`, `not-done` or `cannot-evaluate`. Continue only on `not-done`. On `done`
-or `cannot-evaluate`, stop and print the `reason`, and tell the user to run
+`isEpicDone(baseDir, current_epic)` (`tools/lib/retrospective.js`). Continue only if its `status` is
+`not-done`. On `done` or `cannot-evaluate`, stop, print its `reason`, and tell the user to run
 `/sig:discuss --epic <name>` for new work: `cannot-evaluate` is not permission to proceed. A stub
 retrospective still holding `[FILL IN]` reads `not-done`. On a project with unit records the answer
 comes from the Epic's unit record: closed, or *closing* (its close requested at SHIP), is `done`;
@@ -51,9 +50,10 @@ open is `not-done`; the retrospective is not read.
 `{EpicID}-PROFILE.md` if it has one, else the project's. If `DISCUSS` is in its `phases_skipped`,
 stop with the message in step 1. `applyRigorOverrides` gives the `gates` used below.
 
-If this Epic is clearly smaller or larger than the project's tier, say so and recommend running
-`/sig:calibrate` for it (it writes `{EpicID}-PROFILE.md`), then read the profile again. Otherwise say
-it inherits the project's tier.
+If this Epic is clearly smaller or larger than the project's tier, ask now, even at `checkpointed`
+(the tier sets what step 6 writes): run `/sig:calibrate` for it?
+On yes, run it, then read the profile again. At `unattended`, keep the project's tier and note the
+recommendation in `## Deferred`. Otherwise it inherits the project's tier.
 
 | `attention` | How decisions are confirmed |
 |---|---|
@@ -128,11 +128,11 @@ At `gate_strictness: strict`, answer each:
 - [ ] The requirements file exists, with acceptance criteria
 - [ ] At FULL and FEATURE: `checkOutcomeOracle(content, tier)` returns `ok`
 - [ ] No open decision would block PLAN
-- [ ] User approves moving to PLAN — only when `gates.confirm_discuss` is set (`attended`); otherwise the move is recorded, not approved
+- [ ] User approves moving to PLAN — only when `gates.confirm_discuss` is set (`attended`)
 
 ## 8. Finish
 
 Commit the phase's files. Do not set `phase: PLAN`: `/sig:plan` sets it when it starts.
 
 Except at SKETCH, after the commit call `markFresh(baseDir, { commit: <HEAD> })`
-(`tools/lib/state.js`). Wrap it in a catch-all: on any error, warn and continue.
+(`tools/lib/state.js`). In a catch-all: on any error, warn and continue.
