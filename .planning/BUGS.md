@@ -128,8 +128,8 @@
 | SIG-370 | `confirmed` | P3 | **Work-store migration turns a list file's preamble text into inbox items** |
 | SIG-371 | `confirmed` | P3 | **parent-run: after a killed run, the next run sometimes leaves the killed run's temp folder behind (test fails ~1 in 6)** |
 | SIG-372 | `confirmed` | P3 | **/sig:execute: an interrupted loop back drops its unstarted fixes, and a linear project's resumed first task can start from the previous run's commit** |
-| SIG-373 | `confirmed` | P2 | **/sig:drive runs /sig:review after a VERIFY FAIL, with the failures unfixed** |
+| SIG-373 | `closing` | P2 | **/sig:drive runs /sig:review after a VERIFY FAIL, with the failures unfixed** |
 | SIG-374 | `confirmed` | P3 | **Loop ceiling counts a VERIFY PASS visit, so the first real VERIFY failure after a REVIEW loop stops at the ceiling** |
 | SIG-375 | `confirmed` | P3 | **parent-run summary line counts test files but does not say so; an agent read "1 of 1 failed" as one test** |
 
-*0 needs-triage · 85 confirmed · 3 closing · 138 closed (226 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 84 confirmed · 4 closing · 138 closed (226 total) · closes more than 30 days before the newest event are in `work/history/`*
