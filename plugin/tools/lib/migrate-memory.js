@@ -1307,7 +1307,7 @@ export const LEGACY_STATE_REFUSAL =
   'this command migrates only files that do.\n\n' +
   'Nothing is stuck, and there is nothing to do by hand: the conversion is automatic. ' +
   'The next Signal command that writes state (/sig:discuss, /sig:plan, /sig:execute, ' +
-  '/sig:checkpoint, …) upgrades STATE.md in place — the existing narrative is relocated ' +
+  '/sig:verify, …) upgrades STATE.md in place — the existing narrative is relocated ' +
   'verbatim to a sibling .planning/STATE-HISTORY.md and STATE.md keeps a pointer to it. ' +
   'Re-run /sig:docs-migrate afterwards for the layout migration this command does handle.';
 

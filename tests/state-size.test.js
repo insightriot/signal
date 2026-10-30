@@ -77,9 +77,10 @@ describe('detectStateSize (FR2, pure)', () => {
     const f = detectStateSize(200 * KB, 150 * KB);
     expect(f).not.toBeNull();
     expect(f.bytes).toBe(200 * KB);
-    // M5.E1.S2.t3: message now points at the /sig:checkpoint|/sig:ship eviction
-    // path (built in this Epic) rather than "eviction is planned for M5".
-    expect(f.message).toMatch(/checkpoint/i);
+    // M5.E1.S2.t3: message points at the eviction path rather than "eviction is
+    // planned for M5". /sig:checkpoint was archived 2026-10-30; /sig:ship remains.
+    expect(f.message).toMatch(/\/sig:ship/);
+    expect(f.message).not.toMatch(/checkpoint/i);
   });
 
   it('is exclusive at the boundary (exactly at threshold → null)', () => {

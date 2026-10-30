@@ -128,7 +128,8 @@ describe('M5.E2 REVIEW — fence-less STATE.md refuses cleanly (Fix 2)', () => {
     // The remedy has to be nameable by a reader who has never opened the source.
     expect(r.reason).toMatch(/automatic/i);
     expect(r.reason).toMatch(/STATE-HISTORY\.md/);
-    expect(r.reason).toMatch(/\/sig:checkpoint/);
+    expect(r.reason).toMatch(/\/sig:verify/);
+    expect(r.reason).not.toMatch(/\/sig:checkpoint/); // archived 2026-10-30
   });
 
   it('render and apply give byte-identical refusal text (no preview/apply drift)', async () => {

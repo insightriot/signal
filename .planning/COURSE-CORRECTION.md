@@ -136,8 +136,9 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
 4. **Checkpoint goes.** Each phase command updates the state file itself, at every tier, in the same
    commit as the phase's work. No separate commits to mark it fresh (records problem 6).
    **Phase commands done 2026-10-29:** freshness is read from the last commit that touched STATE.md.
-   verify on the test project: one commit, clean tree, reads fresh (`main`'s code: stale). The
-   checkpoint command itself is archived next.
+   verify on the test project: one commit, clean tree, reads fresh (`main`'s code: stale).
+   **Checkpoint archived 2026-10-30.** `/sig:resume`'s stale warning now says to commit STATE.md, and
+   a test fails if any live instruction names checkpoint. Unused: 0 runs in 652 sessions since 08-09.
 
 **Step 2 — build the loop.** Each piece is code, not instructions:
 1. EXECUTE starts a fresh executor agent per task.
@@ -158,9 +159,8 @@ doesn't clearly win by 2026-12-04, keep only what earned its place and stop.
   Signal's own records or on made-up fixtures.
 - **Commands are archived, never deleted.** They move to `archive/commands/` at the repo root, outside
   `plugin/`, so Claude Code stops loading them and nothing is lost. Brett will revisit them once things
-  are cleaner. First batch, done: doctor, update, permissions. Checkpoint and advise stay until the
-  rewrite, because ten phase commands tell users to run checkpoint and drive follows advise's steps to
-  pick work. The four docs commands and `item` wait for the rewrite, which decides what replaces them (see *Records*). Folding escalate into
+  are cleaner. First batch, done: doctor, update, permissions; checkpoint followed on 2026-10-30 (step 4).
+  Advise stays until the rewrite, because drive follows advise's steps to pick work. The four docs commands and `item` wait for the rewrite, which decides what replaces them (see *Records*). Folding escalate into
   calibrate and merging init with new-project happen during the rewrite.
 - **Step 3 deadline: 2026-12-04.** Step 3 means building one real feature on the test project twice,
   once with Signal and once with plain Claude Code, and comparing. The date allows about a week for

@@ -28,3 +28,9 @@ stops; tests re-proved red; coverage 5 of 5 by the check; a separate commit to m
 **verify again, 2026-10-29, step 4's branch, from the same post-execute copy:** one commit (report,
 STATE.md, INDEX.md), working tree clean, no markFresh call; the branch's `isStateStale` reads fresh
 on it, `main`'s reads stale (2 commits). Same verdict as before (5 of 5); $3.10, 23 turns, 4.3 minutes.
+**resume, 2026-10-30, step 4b's branch (checkpoint archived), on a copy of the post-verify project
+with one plan-file commit made after it, without STATE.md:** branch code imported; the stale banner
+named the new remedy (commit STATE.md), and the session found the plan change on its own and
+proposed going back to EXECUTE for it; nothing written. $1.16, 11 turns, 1.5 minutes. Updating
+STATE.md left it stale until committed; the commit cleared it. A fresh session given
+`/sig:checkpoint` was told no such command exists, and nothing ran.

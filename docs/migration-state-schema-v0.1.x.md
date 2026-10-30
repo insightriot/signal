@@ -2,7 +2,7 @@
 
 If you have a Signal-managed project with a pre-M4.5.E6 `.planning/STATE.md`, this migration brings it onto the locked schema_version 1 (YAML frontmatter + freeform body) shape introduced in M4.5.E6.
 
-**Short version: you don't have to do anything.** Signal auto-migrates your STATE.md on the next mutating write — typically the first time `/sig:execute` / `/sig:checkpoint` / `/sig:verify` / `/sig:review` runs against the project after you've upgraded Signal. The original content is preserved verbatim under an HTML comment marker.
+**Short version: you don't have to do anything.** Signal auto-migrates your STATE.md on the next mutating write — typically the first time `/sig:execute` / `/sig:verify` / `/sig:review` runs against the project after you've upgraded Signal. The original content is preserved verbatim under an HTML comment marker.
 
 ---
 
@@ -74,9 +74,8 @@ Migration is **strictly additive**. Nothing is deleted, rewritten, or paraphrase
 The first Signal command that mutates STATE.md will detect the absence of frontmatter and call `upgradeStateFile` automatically. Mutating commands include:
 
 - `/sig:execute` — at the first `setCurrentTask` (start of each task).
-- `/sig:checkpoint` — at the first state write.
-- `/sig:verify` — at `markFresh` (phase exit).
-- `/sig:review` — at `markFresh` (phase exit).
+- `/sig:verify` — at `transitionPhase` (phase entry).
+- `/sig:review` — at `transitionPhase` (phase entry).
 - `/sig:discuss`, `/sig:calibrate`, etc. — at `transitionPhase` or `initState`.
 
 Read-only commands (`/sig:status`, `/sig:resume`) detect the legacy shape and read through a fallback parser without writing — so opening a stale project to look around won't trigger the migration. Only an intentional mutation will.
@@ -128,7 +127,7 @@ Or simply edit the file: delete the frontmatter block (`---` … `---`) and the 
 
 It will leave them at sensible defaults — usually `null` or `[]`. The two most common gaps:
 
-- **`current_epic` / `current_wave`** — legacy STATE.md doesn't have machine-readable fields for these; the legacy "Current Milestone" / "Active" sections are freeform narrative. Migration sets both to `null`. You can hand-edit them once after migration if you want `/sig:resume` to display them; alternatively, run `/sig:checkpoint` and let it populate them from your commit log going forward.
+- **`current_epic` / `current_wave`** — legacy STATE.md doesn't have machine-readable fields for these; the legacy "Current Milestone" / "Active" sections are freeform narrative. Migration sets both to `null`. You can hand-edit them once after migration if you want `/sig:resume` to display them.
 - **`last_updated_commit`** — populated from `git rev-parse HEAD` at migration time. If you ran migration in a non-git directory (rare), this stays `null` and the staleness banner won't fire until the next `markFresh` resolves it.
 
 Neither gap blocks functionality. They're cosmetic enhancements to `/sig:resume`.

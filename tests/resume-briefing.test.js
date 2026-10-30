@@ -202,7 +202,9 @@ describe('renderResumeBriefing — staleness banner (S4.t2)', () => {
     });
     expect(out.startsWith('⚠')).toBe(true);
     expect(out).toMatch(/7 commits behind/);
-    expect(out).toMatch(/\/sig:checkpoint/);
+    // Step 4b: checkpoint is archived; the remedy is committing STATE.md.
+    expect(out).toContain('Update STATE.md to match and commit it');
+    expect(out).not.toMatch(/\/sig:checkpoint/);
   });
 
   it('uses singular "commit" when commitCount === 1', () => {

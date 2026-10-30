@@ -67,7 +67,7 @@ If it returns `null`, emit a one-line note: `Note: expected artifact for {state.
 
 Two pre-render checks routed through `tools/lib/state.js` + `tools/lib/resume.js`:
 
-1. **Staleness (local)** — call `isStateStale(baseDir)`. If `stale: true`, capture the result and pass to `renderResumeBriefing` so the banner prepends to the output (D11 + D6 scope). The 60s grace window is intentionally kept for resume (a write-then-resume burst shouldn't flag stale); the user wants the explicit "what changed?" view via `/sig:checkpoint` (which passes `bypassGrace: true`).
+1. **Staleness (local)** — call `isStateStale(baseDir)`. If `stale: true`, capture the result and pass to `renderResumeBriefing` so the banner prepends to the output (D11 + D6 scope). The baseline is the last commit that touched `STATE.md`, so a phase that commits `STATE.md` with its work reads fresh.
 
 1a. **Staleness (origin)** — call `isStaleVsOrigin(baseDir)` from `tools/lib/state.js` and pass the result to `renderResumeBriefing` as `originDriftResult`. This reaches the network via a **bounded, hardened `git fetch`** (2s timeout + SIGKILL, `GIT_TERMINAL_PROMPT=0`, neutralized askpass, SSH BatchMode) and is **fail-open**: any failure (offline, no remote, auth-hang, timeout, diverged history) returns `{stale:false}` and renders no banner — it never blocks the briefing. The fetch writes `.git/` (FETCH_HEAD, remote refs), **not** `.planning/`, so the read-only-`.planning/` posture holds. The origin banner is **distinct** from the local one (D-E10-8): local = "your working tree moved past STATE.md"; origin = "someone pushed work you don't have" (the multi-machine case). On a git older than 2.38 the result carries `cannotCheck`, and the briefing prints one line saying STATE.md was not compared with the work history or with origin, and why.
 
@@ -163,7 +163,7 @@ The rendered briefing has these blocks (in order):
 
 {If local-staleness banner active (S4.t2):}
 ⚠ STATE.md is {N} commit(s) behind work history.
-   Run /sig:checkpoint to refresh, or continue with potentially stale info.
+   Update STATE.md to match and commit it, or continue with potentially stale info.
 
 {If origin-drift banner active (S1.t3):}
 ⚠ origin is {N} commit(s) ahead of your STATE.md baseline — someone pushed work you don't have.

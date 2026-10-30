@@ -20,7 +20,7 @@ const COMMANDS = join(ROOT, 'plugin', 'commands');
 const LIB = join(ROOT, 'plugin', 'tools', 'lib');
 
 const AC34 = [
-  'advise', 'add', 'checkpoint', 'plan', 'ship', 'status', 'resume', 'drive',
+  'advise', 'add', 'plan', 'ship', 'status', 'resume', 'drive',
   'item', 'docs-sweep', 'docs-migrate', 'new-project',
 ];
 const read = (name) => readFileSync(join(COMMANDS, `${name}.md`), 'utf-8');
@@ -45,7 +45,7 @@ describe('AC3.4 — commands direct store-on work to /sig:item and the library',
     expect(/\/sig:item\b/.test(text) || text.includes('work-records.js'), `${name}.md`).toBe(true);
   });
 
-  it.each(['item', 'plan', 'checkpoint', 'add'])('%s.md names no v1 status folder as where an item lives', (name) => {
+  it.each(['item', 'plan', 'add'])('%s.md names no v1 status folder as where an item lives', (name) => {
     const text = read(name);
     expect(text).not.toMatch(/\.planning\/work\/(inbox|backlog|done)\//);
     expect(text).not.toMatch(/folder is its status/i);
@@ -81,7 +81,7 @@ describe('AC3.4 — commands direct store-on work to /sig:item and the library',
   });
 
   it('the v1 refusal is named where a store-on write can meet a v1 store', () => {
-    for (const name of ['item', 'add', 'checkpoint', 'plan']) {
+    for (const name of ['item', 'add', 'plan']) {
       expect(read(name), `${name}.md`).toContain('node tools/work-migrate-v2.mjs');
     }
   });
@@ -132,7 +132,7 @@ describe('M6.E16 AC3.1 — the commands that open an Epic name openEpic', () => 
 // file), and one part that pins the wording t9.0 and t9.1 corrected.
 describe('M6.E16 t9.1 — the command files name real unit-record functions, and say what the library does', () => {
   const UNIT_COMMANDS = [
-    'discuss', 'new-project', 'item', 'ship', 'docs-sweep', 'resume', 'docs-archive', 'checkpoint', 'drive', 'docs-migrate',
+    'discuss', 'new-project', 'item', 'ship', 'docs-sweep', 'resume', 'docs-archive', 'drive', 'docs-migrate',
   ];
   // Exports by module, read from source as EXPORTS is.
   const EXPORTS_BY_MODULE = new Map();
@@ -214,7 +214,9 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
   it('ship.md § 5.5: with unit records the narrative is not evicted at SHIP, and the file says when it is', () => {
     const text = sectionOf('ship', '### 5.5 Evict-on-close', '\n### 6');
     expect(text).toMatch(/With unit records/);
-    expect(text).toMatch(/\/sig:checkpoint/);
+    // Names the step that evicts later; /sig:checkpoint was archived 2026-10-30.
+    expect(text).toMatch(/\/sig:docs-sweep/);
+    expect(text).not.toMatch(/\/sig:checkpoint/);
     for (const reason of ['not-closed', 'held', 'no-card', 'unit-record-unreadable']) expect(text, reason).toContain(`\`${reason}\``);
   });
 

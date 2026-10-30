@@ -1725,7 +1725,7 @@ function detectStateSize(bytes, threshold = STATE_SIZE_WARN_BYTES) {
     threshold,
     message:
       `STATE.md is ${kb} KB (over the ${budgetKb} KB budget) — closed-work history ` +
-      `is accumulating. Run /sig:checkpoint or /sig:ship to evict closed-Epic ` +
+      `is accumulating. Run /sig:ship to evict closed-Epic ` +
       `narrative to archive (M5.E1 FR2b), or move closed-slice narrative into an ` +
       `archive/RETROSPECTIVES pointer to trim it.`,
   };

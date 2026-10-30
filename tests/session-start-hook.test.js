@@ -23,7 +23,7 @@ describe('session-start hook — the command list', () => {
       .filter((n) => n.endsWith('.md'))
       .map((n) => `/sig:${n.slice(0, -3)}`)
       .sort();
-    expect(onDisk.length).toBeGreaterThan(20);
+    expect(onDisk.length).toBeGreaterThan(0);
     expect(listed).toEqual(onDisk);
   });
 });

@@ -262,10 +262,10 @@ describe('isStateStale', () => {
   // Step 4: STATE.md is committed with the phase's work, so the commit that last
   // touched STATE.md is the baseline. A code-only commit after it is outside the
   // D6 scope (app.js is not a state-affecting path): not stale.
-  // PR #326 review: /sig:checkpoint refreshes through markFresh, which only
-  // rewrites the stored commit. With STATE.md committed, that alone clears
-  // nothing; committing STATE.md does (checkpoint.md step 5.4).
-  it('step 4: a checkpoint refresh clears staleness once STATE.md is committed, not before', async () => {
+  // markFresh only rewrites the stored commit. With STATE.md committed, that
+  // alone clears nothing; committing STATE.md does. That is the remedy
+  // /sig:resume's stale banner names (step 4b).
+  it('step 4: a refresh clears staleness once STATE.md is committed, not before', async () => {
     initRepo(tempDir);
     await plantState(tempDir, {});
     commitAll(tempDir, 'phase: work + STATE');
@@ -274,7 +274,7 @@ describe('isStateStale', () => {
     expect((await isStateStale(tempDir)).stale).toBe(true);
     await markFresh(tempDir);
     expect((await isStateStale(tempDir)).stale).toBe(true);
-    commitPath(tempDir, '.planning/STATE.md', 'checkpoint: refresh STATE');
+    commitPath(tempDir, '.planning/STATE.md', 'refresh STATE');
     expect((await isStateStale(tempDir)).stale).toBe(false);
   }, 30000); // real-git fixture: generous timeout for parallel-suite load
 

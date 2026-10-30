@@ -47,10 +47,9 @@ command that edited state would break the trust that makes these safe to run ref
 
 ### 3. Capture — records something you said
 
-`add` · `checkpoint` · `item`
+`add` · `item`
 
-Takes input from the user (or from git history) and files it. `add` routes an idea to its home;
-`checkpoint` reconciles `STATE.md` against reality; `item` records each change to a work item as an
+Takes input from the user and files it. `add` routes an idea to its home; `item` records each change to a work item as an
 event on its record, which never moves (new, triage, move, close, reopen, edit, show, list —
 `M6.E11`, records since `M6.E13`).
 
