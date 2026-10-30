@@ -192,4 +192,10 @@ describe('review.md re-entry and the loop ceiling', () => {
     expect(flat).toMatch(/Commit the report and every `\.planning\/` file the phase changed, `STATE\.md` with them/);
     expect(flat).not.toMatch(/markFresh/);
   });
+
+  it('commits once and does not re-run the check after that commit (measured on the test project)', () => {
+    // A fresh run re-ran checkFixRounds after its commit, found that commit
+    // "uncovered", and committed the report again without STATE.md, so STATE read stale.
+    expect(flat).toMatch(/`STATE\.md` with them, in one commit\. Do not run `checkFixRounds` again after it/);
+  });
 });

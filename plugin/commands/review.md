@@ -257,6 +257,7 @@ Write the path chosen in the report.
 
 ## 8. Finish
 
-Commit the report and every `.planning/` file the phase changed, `STATE.md` with them. This command
-sets no next phase; the next command records leaving REVIEW: `/sig:execute` after a loop back, else
+Commit the report and every `.planning/` file the phase changed, `STATE.md` with them, in one commit.
+Do not run `checkFixRounds` again after it: that commit is not in any round, so the check lists it as
+uncovered, and editing the report for it leaves `STATE.md` behind. This command sets no next phase; the next command records leaving REVIEW: `/sig:execute` after a loop back, else
 `/sig:ship`.
