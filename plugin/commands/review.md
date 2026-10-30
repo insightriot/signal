@@ -356,15 +356,9 @@ After choosing:
 1. Document the FAIL, the loop count, and the chosen path in `{phase}-REVIEW.md`.
 2. Execute the chosen path.
 
-### 5b. Mark STATE.md fresh (M4.5.E6.S4)
+### 5b. Commit
 
-**SKETCH tier:** skip — REVIEW is in `phases_skipped` for SKETCH anyway, but if a re-calibration brought REVIEW back, STATE.md updates only via manual `/sig:checkpoint`.
-
-**FEATURE/SPIKE/FULL:** after the REVIEW artifacts (`{phase}-REVIEW.md`) are committed, call `markFresh(baseDir, {commit: <git HEAD>})` from `tools/lib/state.js`. This advances `last_updated` + `last_updated_commit` to the phase-close commit so `/sig:resume` reads fresh after REVIEW. Run it **after** the commit — passing a pre-commit HEAD records a stale sha and silently defeats the freshness check (AC3.4).
-
-If `markFresh` fails (lock contention, git unavailable):
-- Under `gate_strictness: strict`, surface but **do not halt phase exit** — the review is already written; the state-write blip is a recovery item, not a review failure.
-- Under `light` / `off`, log to stderr and continue.
+Commit the REVIEW artifacts (`{phase}-REVIEW.md`), `STATE.md` with them.
 
 ## Phase Gate
 

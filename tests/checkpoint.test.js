@@ -224,9 +224,10 @@ describe('detectStateChanges — baseline edge', () => {
     );
     const execFn = vi.fn(() => gitOutput('sha1 anything'));
     const result = await detectStateChanges(tempDir, { execFn });
-    // isStateStale skips git call → diff reflects fresh.
+    // No commit hash for STATE.md and no stored baseline: only the baseline
+    // lookup runs, and the diff reflects fresh.
     expect(result.diff.commitsBehind).toBe(0);
-    expect(execFn).not.toHaveBeenCalled();
+    expect(execFn.mock.calls.filter((c) => c[1].some((a) => String(a).includes('..HEAD')))).toEqual([]);
   });
 });
 

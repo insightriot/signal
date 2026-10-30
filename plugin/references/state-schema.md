@@ -130,7 +130,7 @@ skeleton is the recommended structure that the eviction mechanics (FR2b) are des
 | `phase_pass_mark` | integer \| absent | `transitionPhase` entering VERIFY or REVIEW | The length of `phase_passes` when the visit began (`0` when the list is absent); entering any other phase leaves it alone. **Optional; absent reads as before M6.E18** (no visit can be told), so no `schema_version` change. `loopStatusFor` lifts the ceiling only for an entry at or after this index (`SIG-349`, `D-M6E18-3`), and `recordPass` refuses a mark that does not read. Re-entering the phase STATE is already in is a new visit too: its exit is recorded and the mark moves to the list's length (`D-M6E18-9`). A value that is not a whole number from 0 to the list's length makes the status unreadable and `/sig:drive` stops (`loop-unknown`). Removed on an Epic roll and at a linear project's SHIP, with `phase_passes`. |
 | `blockers` | array of `Blocker` | When blocked | See `Blocker` below. |
 | `last_decision_at` | ISO 8601 timestamp \| null | After `touchDecisionTimestamp` / `clearCurrentTask` | When the last decision-shaped event happened. |
-| `last_updated_commit` | string (git sha) \| null | After `markFresh` / `clearCurrentTask({commit})` / `upgradeStateFile` | The commit hash relative to which staleness is measured. |
+| `last_updated_commit` | string (git sha) \| null | After `markFresh` / `clearCurrentTask({commit})` / `upgradeStateFile` | The staleness baseline only while STATE.md is not tracked (never committed, or untracked since); otherwise the baseline is the commit that last touched STATE.md (§ Staleness check) and this field is not read. |
 | `last_updated` | ISO 8601 timestamp | Always (any mutation) | When STATE.md was last written. |
 | `last_completed_task` | `Task` shape \| absent | After first `clearCurrentTask` | Single-entry (not array) — only the most recent. Read by `renderResumeBriefing` for the "Last completed" line. |
 
@@ -247,7 +247,10 @@ Migration is idempotent. Re-running on an already-upgraded file returns `{upgrad
 
 ## Staleness check (D11 + D6)
 
-`tools/lib/state.js#isStateStale(baseDir, {bypassGrace})` returns:
+`tools/lib/state.js#isStateStale(baseDir, {bypassGrace})` asks whether a state-affecting commit landed
+after the baseline: the newest commit that touched `.planning/STATE.md`. Each phase commits STATE.md
+with its own work, so it reads fresh straight after that commit, with no second commit. A
+STATE.md that is not tracked falls back to `last_updated_commit`. It returns:
 
 ```ts
 {
@@ -270,7 +273,7 @@ A commit counts as state-affecting if it touches any of these paths (D6 path sco
 
 Editing FUTURE-IDEAS.md / OPEN-QUESTIONS.md / DECISIONS.md / MILESTONE-*.md / PROJECT.md / LANDSCAPE.md does **not** trigger staleness — those are metadata curation, not "ground state has moved."
 
-`isStateStale` skips the git call entirely when `last_updated` is within 60s of now (resume-after-write isn't stale). `/sig:checkpoint` passes `bypassGrace: true` because the user is explicitly asking "what changed?"
+`isStateStale` skips the range walk when the baseline is HEAD. `/sig:checkpoint` passes `bypassGrace: true` because the user is explicitly asking "what changed?"
 
 ---
 
@@ -295,8 +298,6 @@ Used by `/sig:resume`'s `handleOrphansAtResume` and `/sig:checkpoint`'s `handleC
 | FEATURE / SPIKE | light | Log stderr warning; dispatch anyway. State-tracking for that task is skipped; clearCurrentTask doesn't run. |
 | FULL | strict | Halt: throw before agent runs. State integrity wins over progress under strict. |
 
-`markFresh` calls in `commands/verify.md` + `commands/review.md` follow the same SKETCH-opt-out rule but never halt phase exit on failure — the verification / review work is already done; a state-write blip is a recovery item, not a phase failure.
-
 ---
 
 ## Validation rules
@@ -317,8 +318,8 @@ Used by `/sig:resume`'s `handleOrphansAtResume` and `/sig:checkpoint`'s `handleC
 | `/sig:status` | `state.phase`, `state.completed_phases`, `state.blockers`, `state.current_tasks` | (read-only) |
 | `/sig:resume` | All fields + `last_completed_task` for "Last completed" line | (read-only) |
 | `/sig:execute` | (orchestrator delegates) | `setCurrentTask` → agent dispatch → `clearCurrentTask` |
-| `/sig:verify` | (any prior fields) | `markFresh` at phase exit |
-| `/sig:review` | (any prior fields) | `markFresh` at phase exit |
+| `/sig:verify` | (any prior fields) | `transitionPhase` / `recordPass`, committed with the report |
+| `/sig:review` | (any prior fields) | `transitionPhase` / `recordPass`, committed with the report |
 | `/sig:checkpoint` | All fields | `setCurrentTask` / `clearCurrentTask` for proposed transitions; `markFresh` on apply |
 | `/sig:calibrate`, `/sig:discuss`, etc. | (state.phase only) | `initState` / `transitionPhase` |
 

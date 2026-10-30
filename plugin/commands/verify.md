@@ -153,6 +153,3 @@ Write the path chosen in the report, keeping every heading filled.
 Commit the report and every `.planning/` file the phase changed (`STATE.md`, `INDEX.md`). This
 command sets no next phase; the next command records leaving VERIFY: `/sig:execute` after a loop
 back, else `/sig:review` (`/sig:ship` where the tier skips REVIEW; SPIKE skips both).
-
-Except at SKETCH, after the commit call `markFresh(baseDir, { commit: <HEAD> })`
-(`tools/lib/state.js`). In a catch-all: on any error, warn and continue.

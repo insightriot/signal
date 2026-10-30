@@ -54,7 +54,7 @@
         "times. The re-run under that scope returned treatment 3/3, control 1/3 = INDETERMINATE.",
         "",
         "ship.md is declared by LINE, not section, and the difference is load-bearing: its",
-        "`### 5. Update State` heading also orders `completePhase` and discusses `markFresh`.",
+        "`### 5. Update State` heading also orders `completePhase` and stages files.",
         "A section delete there would remove instructions the experiment is not measuring —",
         "over-deletion, which invalidates a verdict just as surely as under-deletion.",
         "Both mentions of the function in ship.md sit on that one line, so the line delete",

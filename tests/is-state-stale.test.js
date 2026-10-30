@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process';
 
 import {
   isStateStale,
+  markFresh,
   stringifyFrontmatter,
 } from '../plugin/tools/lib/state.js';
 
@@ -115,21 +116,22 @@ describe('isStateStale', () => {
     });
     const execSpy = vi.fn((cmd, args) => {
       if (args[0] === 'rev-parse') return Buffer.from('abc123\n');
-      // log should never be reached under the short-circuit.
+      if (args.includes('-1')) return Buffer.from(''); // STATE.md never committed
+      // the range walk should never be reached under the short-circuit.
       throw new Error('git log should not be called when HEAD matches');
     });
     const result = await isStateStale(tempDir, { execFn: execSpy });
     expect(result).toEqual({ stale: false, commitCount: 0, commits: [] });
-    expect(execSpy).toHaveBeenCalledTimes(1);
-    expect(execSpy.mock.calls[0][1]).toEqual(['rev-parse', 'HEAD']);
+    expect(execSpy).toHaveBeenCalledTimes(2);
+    expect(execSpy.mock.calls[1][1]).toEqual(['rev-parse', 'HEAD']);
   });
 
   it('S6.t3: always hits git log when bypassGrace: true even if HEAD matches', async () => {
     await plantState(tempDir, { last_updated_commit: 'abc123' });
     // bypassGrace skips the short-circuit; rev-parse is also skipped because we
-    // know we're going to log anyway. Two log calls now: the filtered
-    // STATE-affecting walk, then the B6/FR4 genuine-work walk (both return the
-    // flat 'sha1 fresh commit' -> genuine work present -> not suppressed).
+    // know we're going to log anyway. Three log calls: the baseline lookup
+    // (its 'sha1 ...' answer is no commit hash, so the stored one is used), the
+    // filtered STATE-affecting walk, then the B6/FR4 genuine-work walk.
     const execSpy = vi.fn(() => gitOutput('sha1 fresh commit'));
     const result = await isStateStale(tempDir, {
       execFn: execSpy,
@@ -137,8 +139,8 @@ describe('isStateStale', () => {
     });
     expect(result.stale).toBe(true);
     expect(result.commitCount).toBe(1);
-    expect(execSpy).toHaveBeenCalledTimes(2);
-    expect(execSpy.mock.calls[0][1]).toContain('abc123..HEAD');
+    expect(execSpy).toHaveBeenCalledTimes(3);
+    expect(execSpy.mock.calls[1][1]).toContain('abc123..HEAD');
   });
 
   it('uses git rev-range <sha>..HEAD with D6 state-affecting pathspec', async () => {
@@ -147,8 +149,8 @@ describe('isStateStale', () => {
     // bypassGrace skips the rev-parse short-circuit so we test the log call
     // in isolation. (S6.t3: the short-circuit path is exercised by its own test.)
     await isStateStale(tempDir, { execFn: execSpy, bypassGrace: true });
-    expect(execSpy).toHaveBeenCalledTimes(1);
-    const [cmd, args] = execSpy.mock.calls[0];
+    expect(execSpy).toHaveBeenCalledTimes(2); // the baseline lookup, then the range walk
+    const [cmd, args] = execSpy.mock.calls[1];
     expect(cmd).toBe('git');
     // rev range "<sha>..HEAD"
     expect(args).toContain('deadbeef..HEAD');
@@ -184,12 +186,12 @@ describe('isStateStale', () => {
     }
   });
 
-  it('returns {stale: false, commits: []} when STATE.md has no last_updated_commit baseline', async () => {
+  it('returns {stale: false, commits: []} when STATE.md was never committed and has no last_updated_commit', async () => {
     await plantState(tempDir, { last_updated_commit: null });
     const execSpy = vi.fn(() => gitOutput('sha1 anything'));
     const result = await isStateStale(tempDir, { execFn: execSpy });
     expect(result).toEqual({ stale: false, commitCount: 0, commits: [] });
-    expect(execSpy).not.toHaveBeenCalled();
+    expect(execSpy).toHaveBeenCalledTimes(1); // only the baseline lookup
   });
 
   // REVIEW F1: isStateStale runs BEFORE isStaleVsOrigin in /sig:resume +
@@ -213,7 +215,8 @@ describe('isStateStale', () => {
     const execSpy = vi.fn(() => gitOutput('sha1 anything'));
     const result = await isStateStale(tempDir, { execFn: execSpy });
     expect(result).toEqual({ stale: false, commitCount: 0, commits: [] });
-    expect(execSpy).not.toHaveBeenCalled();
+    expect(execSpy).toHaveBeenCalledTimes(1); // only the baseline lookup
+    expect(execSpy.mock.calls.flatMap((c) => c[1]).some((a) => String(a).includes('--output'))).toBe(false);
   });
 
   // --- B6/FR4: the bookkeeping-"+1" suppression (real git fixtures) ---
@@ -243,32 +246,90 @@ describe('isStateStale', () => {
   // 3-case, case 2: a real work commit (touches a non-STATE file) after the +1
   // -> fires. Green before-and-after guard: proves the suppression doesn't over-
   // reach a range that also contains genuine work.
-  it('B6: a real work commit (non-STATE file) after the +1 IS stale', async () => {
+  it('B6: a phase artifact committed after the +1 IS stale', async () => {
     initRepo(tempDir);
     await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
     commitAll(tempDir, 'base: initial work');
     const base = headSha(tempDir);
     await plantState(tempDir, { last_updated_commit: base });
     commitAll(tempDir, 'chore: refresh STATE.md'); // STATE-only "+1"
-    await writeFile(join(tempDir, 'app.js'), 'v1\n', 'utf-8'); // genuine work
-    commitAll(tempDir, 'feat: real work');
+    await writeFile(join(tempDir, '.planning', 'M5-PLAN.md'), '# plan\n', 'utf-8'); // genuine work
+    commitAll(tempDir, 'plan: M5 plan');
     const result = await isStateStale(tempDir);
     expect(result.stale).toBe(true);
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
+  // Step 4: STATE.md is committed with the phase's work, so the commit that last
+  // touched STATE.md is the baseline. A code-only commit after it is outside the
+  // D6 scope (app.js is not a state-affecting path): not stale.
+  // PR #326 review: /sig:checkpoint refreshes through markFresh, which only
+  // rewrites the stored commit. With STATE.md committed, that alone clears
+  // nothing; committing STATE.md does (checkpoint.md step 5.4).
+  it('step 4: a checkpoint refresh clears staleness once STATE.md is committed, not before', async () => {
+    initRepo(tempDir);
+    await plantState(tempDir, {});
+    commitAll(tempDir, 'phase: work + STATE');
+    await writeFile(join(tempDir, '.planning', 'M5-PLAN.md'), '# plan\n', 'utf-8');
+    commitPath(tempDir, '.planning/M5-PLAN.md', 'plan: artifact without STATE');
+    expect((await isStateStale(tempDir)).stale).toBe(true);
+    await markFresh(tempDir);
+    expect((await isStateStale(tempDir)).stale).toBe(true);
+    commitPath(tempDir, '.planning/STATE.md', 'checkpoint: refresh STATE');
+    expect((await isStateStale(tempDir)).stale).toBe(false);
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
+  // PR #326 review: a STATE.md committed once and untracked later still has a
+  // newest commit (the one that removed it). The stored commit is the baseline
+  // then, so a refresh clears staleness without a commit.
+  it('step 4: a STATE.md untracked after being committed falls back to last_updated_commit', async () => {
+    initRepo(tempDir);
+    await plantState(tempDir, {});
+    commitAll(tempDir, 'phase: work + STATE');
+    await writeFile(join(tempDir, '.gitignore'), '.planning/STATE.md\n', 'utf-8');
+    git(tempDir, ['rm', '-q', '--cached', '.planning/STATE.md']);
+    commitAll(tempDir, 'stop tracking STATE.md');
+    await writeFile(join(tempDir, '.planning', 'M5-PLAN.md'), '# plan\n', 'utf-8');
+    commitPath(tempDir, '.planning/M5-PLAN.md', 'plan: artifact');
+    await markFresh(tempDir);
+    expect((await isStateStale(tempDir)).stale).toBe(false);
+    await writeFile(join(tempDir, '.planning', 'M5-PROGRESS.md'), '# progress\n', 'utf-8');
+    commitPath(tempDir, '.planning/M5-PROGRESS.md', 'execute: progress');
+    expect((await isStateStale(tempDir)).stale).toBe(true);
+  }, 30000); // real-git fixture: generous timeout for parallel-suite load
+
+  it('step 4: a code-only commit after STATE.md\'s commit is NOT stale', async () => {
+    initRepo(tempDir);
+    await plantState(tempDir, {});
+    commitAll(tempDir, 'phase: work + STATE');
+    await writeFile(join(tempDir, 'app.js'), 'v1\n', 'utf-8');
+    commitAll(tempDir, 'feat: code only');
+    const result = await isStateStale(tempDir);
+    expect(result.stale).toBe(false);
   }, 30000); // real-git fixture: generous timeout for parallel-suite load
 
   // 3-case, case 3: a mixed commit (STATE.md AND a non-STATE file) -> fires.
   // Green before-and-after guard distinguishing a pure-bookkeeping commit from a
   // real work commit that also happens to touch STATE.md.
-  it('B6: a mixed commit (STATE.md + a non-STATE file) IS stale', async () => {
+  // Step 4: a phase commits its artifact and STATE.md together, and reads fresh
+  // straight after with no second commit, even over an older stored
+  // last_updated_commit. Before step 4 this read stale until a separate commit
+  // re-stamped the stored baseline.
+  it('step 4: a phase commit carrying STATE.md with its PLAN is NOT stale, with no second commit', async () => {
     initRepo(tempDir);
     await writeFile(join(tempDir, 'app.js'), 'v0\n', 'utf-8');
     commitAll(tempDir, 'base: initial work');
     const base = headSha(tempDir);
     await plantState(tempDir, { last_updated_commit: base });
-    await writeFile(join(tempDir, 'app.js'), 'v1\n', 'utf-8'); // non-STATE work
-    commitAll(tempDir, 'feat: work + STATE refresh'); // mixed: STATE.md + app.js
-    const result = await isStateStale(tempDir);
-    expect(result.stale).toBe(true);
+    await writeFile(join(tempDir, '.planning', 'M5-PLAN.md'), '# plan\n', 'utf-8');
+    commitAll(tempDir, 'plan: M5 plan + STATE'); // one commit: PLAN + STATE.md
+    expect((await isStateStale(tempDir)).stale).toBe(false);
+    expect((await isStateStale(tempDir, { bypassGrace: true })).stale).toBe(false);
+    // ...and a phase artifact committed after it, without STATE.md, still nudges.
+    await writeFile(join(tempDir, '.planning', 'M5-PROGRESS.md'), '# progress\n', 'utf-8');
+    commitPath(tempDir, '.planning/M5-PROGRESS.md', 'execute: progress only');
+    const after = await isStateStale(tempDir);
+    expect(after.stale).toBe(true);
+    expect(after.commitCount).toBe(1);
   }, 30000); // real-git fixture: generous timeout for parallel-suite load
 
   // --- B6/FR4 refinement (M5.E5.T4): file-identity, not commit count ---
