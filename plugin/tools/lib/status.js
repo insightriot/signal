@@ -21,6 +21,7 @@ import { listRecords } from './work-records.js';
 import { storeQuestions } from './advise-corpus.js';
 import { senseProject, CURRENT_LAYOUT_VERSION } from './migrate-memory.js';
 import { readCappedPrefix, readLayoutStampFromPrefix } from './layout-stamp.js';
+import { lastVerdictThisVisit } from './loop-ceiling.js';
 import {
   readInstallState,
   runAllDetectors,
@@ -91,13 +92,22 @@ export function nextActionForPhase(currentPhase, phasesSkipped = []) {
  * its meaning — a command or `'done'` — because `/sig:drive` reads it. No
  * argument, `closed`, or any other phase → exactly the result before this.
  *
+ * **After a FAIL (`SIG-373`).** The optional fourth argument is the state. When
+ * this visit's newest recorded pass is a VERIFY or REVIEW FAIL
+ * (`lastVerdictThisVisit`), `action` is `/sig:execute`, which builds the fixes
+ * the report lists, and `loopBack` names the phase and the command a report
+ * that accepts the failures as limits goes on to. By phase alone the next
+ * command after VERIFY is `/sig:review`, so `/sig:drive` ran REVIEW over
+ * unfixed failures. A state it cannot read gives the phase-only answer.
+ *
  * @param {string} currentPhase - canonical phase, or anything at all
  * @param {string[]} phasesSkipped - phases the current tier skips
  * @param {{unitStatus?: 'open'|'closing'|'closed'|null, pr?: string|number|null}|null} [unit]
+ * @param {object|null} [state] - STATE frontmatter, for `phase_passes` and `phase_pass_mark`
  * @returns {{recognized: boolean, action: string|null, rawPhase: string, valid: string[],
- *   owed?: {unitStatus: 'open'|'closing', pr: string|number|null}}}
+ *   owed?: {unitStatus: 'open'|'closing', pr: string|number|null}, loopBack?: {phase: 'VERIFY'|'REVIEW', ifAccepted: string}}}
  */
-export function describeNextAction(currentPhase, phasesSkipped = [], unit = null) {
+export function describeNextAction(currentPhase, phasesSkipped = [], unit = null, state = null) {
   const valid = [...PHASES];
   if (typeof currentPhase !== 'string' || !PHASES.includes(currentPhase)) {
     return {
@@ -116,6 +126,10 @@ export function describeNextAction(currentPhase, phasesSkipped = [], unit = null
   const unitStatus = unit?.unitStatus;
   if (currentPhase === 'SHIP' && (unitStatus === 'open' || unitStatus === 'closing')) {
     desc.owed = { unitStatus, pr: unit.pr ?? null };
+  }
+  if ((currentPhase === 'VERIFY' || currentPhase === 'REVIEW') && lastVerdictThisVisit(state, currentPhase) === 'FAIL') {
+    desc.loopBack = { phase: currentPhase, ifAccepted: desc.action };
+    desc.action = '/sig:execute';
   }
   return desc;
 }
@@ -193,6 +207,10 @@ const RAW_PHASE_EXCERPT_MAX = 60;
 export function formatNextActionCopy(desc) {
   if (!desc || typeof desc !== 'object') return '';
   if (desc.recognized && desc.owed) return `Next phase: none — still owed at SHIP: ${formatShipOwed(desc.owed)}`;
+  if (desc.recognized && desc.loopBack) {
+    const { phase, ifAccepted } = desc.loopBack;
+    return `Next phase: ${desc.action} — this ${phase} recorded a FAIL, so it builds the fixes the report lists. If the report accepts the failures as limits instead: ${ifAccepted}`;
+  }
   if (desc.recognized) return `Next phase: ${desc.action}`;
 
   const collapsed = String(desc.rawPhase ?? '')

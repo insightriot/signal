@@ -201,10 +201,33 @@ export function loopStatusFor(state, phase, { ceiling = DEFAULT_LOOP_CEILING, to
   // held by the count as before. With a mark, the record must also be this
   // visit's — at or after the mark — so an earlier visit's PASS does not lift
   // it (SIG-349). With no mark, which visit wrote it cannot be told.
-  const current = !marked || list.length - 1 >= mark;
-  const newest = state?.phase === phase && passes > 0 && current ? PASS_ENTRY_RE.exec(list.at(-1)) : null;
-  const passed = newest !== null && newest[1] === phase && newest[2] !== 'FAIL';
+  const verdict = lastVerdictThisVisit(state, phase);
+  const passed = verdict !== null && verdict !== 'FAIL';
   return { phase, count, ceiling, nextAttempt, atCeiling: !passed && nextAttempt >= ceiling };
+}
+
+/**
+ * The verdict of the newest `phase_passes` entry, when `phase` is the current
+ * phase and that entry is its own and written in this visit (at or after
+ * `phase_pass_mark`; with no mark, whichever visit wrote it). Else `null`,
+ * including for a list or mark it cannot read. The one reading of "this
+ * visit" that `loopStatusFor` and `describeNextAction` share (`SIG-373`).
+ *
+ * @param {object|null|undefined} state
+ * @param {string} phase
+ * @returns {'PASS'|'PASS-WITH-FIXES'|'FAIL'|null}
+ */
+export function lastVerdictThisVisit(state, phase) {
+  if (!state || typeof state !== 'object' || state.phase !== phase) return null;
+  const list = state.phase_passes;
+  if (!Array.isArray(list) || list.length === 0) return null;
+  const mark = state.phase_pass_mark;
+  if ('phase_pass_mark' in state && mark !== undefined) {
+    if (!(Number.isInteger(mark) && mark >= 0 && mark <= list.length)) return null;
+    if (list.length - 1 < mark) return null;
+  }
+  const newest = typeof list.at(-1) === 'string' ? PASS_ENTRY_RE.exec(list.at(-1)) : null;
+  return newest !== null && newest[1] === phase ? newest[2] : null;
 }
 
 /**

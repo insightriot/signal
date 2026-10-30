@@ -188,9 +188,10 @@ Landscape: captured {capturedOn or "date unknown"}
 
 #### 2.6 Next action
 
-Compute `desc = describeNextAction(state.phase, profile.phases_skipped, readCurrentUnitStatus(baseDir, state.current_epic))` — the **fail-open** read (`B70`). The third argument is the current unit's record (`null` with no unit records, no current unit, or a record that cannot be read, which gives the output below unchanged); it matters only at SHIP (M6.E18, `SIG-319`). `nextActionForPhase` **throws** on a `phase` outside the canonical seven, which is 5 of 12 real projects; every neighbouring optional read here is fail-open and this one was not. Then:
+Compute `desc = describeNextAction(state.phase, profile.phases_skipped, readCurrentUnitStatus(baseDir, state.current_epic), state)` — the **fail-open** read (`B70`). The third argument is the current unit's record (`null` with no unit records, no current unit, or a record that cannot be read, which gives the output below unchanged); it matters only at SHIP (M6.E18, `SIG-319`). The fourth makes the next command `/sig:execute` after this visit's VERIFY or REVIEW FAIL. Then:
 
 - If `desc.recognized` is `false` → emit `formatNextActionCopy(desc)`: the phase is not one Signal recognizes, a one-line excerpt of what STATE.md holds, and the seven valid values. **Emit the rest of the report normally** — an unrecognized phase invalidates the next-action line, not the whole status.
+- Else if `desc.loopBack` is set → emit `Next: {desc.action} — this {desc.loopBack.phase} recorded a FAIL, so it builds the fixes the report lists. If the report accepts the failures as limits instead: {desc.loopBack.ifAccepted}`.
 - Else if `desc.action` starts with `/sig:` → emit `Next: {desc.action}`.
 - Else if `desc.owed` is set (SHIP, the unit's record open or *closing*) → emit `Next: still owed at SHIP — {formatShipOwed(desc.owed)}`: the merge, then the close confirm. Never `done` here: the PR may be unmerged and the close unconfirmed.
 - Else if `desc.action === 'done'`:

@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { describeNextAction, formatNextActionCopy, formatShipOwed } from '../plugin/tools/lib/status.js';
 
 const read = (name) => readFileSync(new URL(`../plugin/commands/${name}`, import.meta.url), 'utf8').replace(/\s+/g, ' ');
-const CALL = 'describeNextAction(state.phase, profile.phases_skipped, readCurrentUnitStatus(baseDir, state.current_epic))';
+const CALL = 'describeNextAction(state.phase, profile.phases_skipped, readCurrentUnitStatus(baseDir, state.current_epic), state)';
 
 describe('the briefings pass the unit record to describeNextAction (SIG-319)', () => {
   for (const name of ['resume.md', 'status.md']) {
