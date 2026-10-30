@@ -53,9 +53,8 @@ Each carries the trigger that would make wiring it worth the build.
 ### `agents/executors/` (1)
 
 - `executor.md` — **dormant.** Executes plan tasks with TDD and atomic commits, one per task in a wave
-  with fresh context. **Trigger:** `execute.md` grows a `subagent_type` dispatch step. Named in `execute.md`
-  **prose** (*"the executor agent handles 2-5"*), which reads as a wiring
-  claim and is not one.
+  with fresh context. **Trigger:** `execute.md` grows a `subagent_type` dispatch step. Until then
+  `execute.md` says the session does each task itself and dispatches no executor agent.
 
 ### `agents/planners/` (2)
 

@@ -131,7 +131,7 @@ Then walk the phases:
 |---|---|---|
 | `/sig:discuss` | Lock implementation decisions; produces `CONTEXT.md` (and `REQUIREMENTS.md` for FULL). | Never. |
 | `/sig:plan` | Required drain of the captured-ideas inbox (`ISSUES-INBOX.md`, or the older `FUTURE-IDEAS.md`; `/sig:item triage` when the work store is on) → research by up to 4 angles → RESEARCH → vertical-slice plan → plan validation → test map for every acceptance criterion. | Research angles, validation dimensions and the test map scale with tier. "Defer all remaining" is always offered. |
-| `/sig:execute` | Wave-based execution; TDD where required; atomic commit per task; per-phase progress in `1-PROGRESS.md`. | Never. |
+| `/sig:execute` | Tasks in waves from the plan's dependencies, done one at a time in the session; tests first where required; one commit per task, with a check that each new test fails without the change; progress in PROGRESS. | Never. |
 | `/sig:verify` | Run the full test suite; check acceptance criteria; Nyquist compliance pass at strict. | Never. |
 | `/sig:review` | Specialist passes — code quality, security hardening, performance, simplification. Produces `1-REVIEW.md`. | SKETCH and SPIKE tiers skip REVIEW entirely. |
 | `/sig:ship` | Pre-ship checklist; clean git history; PR creation; final anti-rationalization. | SPIKE skips SHIP (its output is internal — a finding doc, not a deliverable). |
@@ -206,7 +206,7 @@ A feature that adds a call adds a line here. `node tools/audit-network-calls.js`
 - **`/sig:escalate`** — re-runs calibration with prior answers as defaults, preserves `escalation_history`, and surfaces backfill warnings (e.g., strict Nyquist is one-way: code shipped before strict mode was active is structurally non-recoverable for strict Nyquist).
 - **`/sig:discuss`** — DISCUSS phase. Loads `idea-refine` + `spec-driven-development` skills. Identifies gray-area decisions; locks them via 3-options-plus-other. Output: `CONTEXT.md`, `REQUIREMENTS.md` (FULL).
 - **`/sig:plan`** — PLAN phase. Opens with a required drain of the captured-ideas inbox (`.planning/ISSUES-INBOX.md`, or the older `FUTURE-IDEAS.md`) — every un-dispositioned idea is promoted into this plan, deferred, marked shipped, merged or deleted, with a preview diff before any write; "defer all remaining" is always offered. Then research by up to 4 angles, plan validation, and a test mapped to every acceptance criterion. Output: RESEARCH, PLAN and VALIDATION, in the Epic's folder.
-- **`/sig:execute`** — EXECUTE phase. Wave-based parallel execution. TDD where `tdd_required`. Atomic commit per task. Output: `{phase}-PROGRESS.md` + the actual code.
+- **`/sig:execute`** — EXECUTE phase. Groups the plan's tasks into waves by their dependencies and does them one at a time in the session (no executor agent is started yet). Tests first where `tdd_required`. One commit per task, then a run of its new tests on the commit before it, to show they fail without the change. Output: PROGRESS, in the Epic's folder, and the code.
 - **`/sig:verify`** — VERIFY phase. Acceptance-criteria walkthrough; full test suite; Nyquist compliance check at strict. Output: `{phase}-VERIFICATION.md`.
 - **`/sig:review`** — REVIEW phase. Code quality, security hardening (OWASP / ASVS), performance, simplification. Output: `{phase}-REVIEW.md` with critical/important/suggestion/nit findings. (Skipped for SKETCH and SPIKE.)
 - **`/sig:ship`** — SHIP phase. Pre-ship checklist, git history hygiene, PR creation. Output: `{phase}-SHIP.md`. (Skipped for SPIKE.)

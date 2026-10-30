@@ -157,7 +157,7 @@ reads is missing here.
 | `plan_validation_dims` | enum `none | core | all` | Plan-checker dimensions. `none` = skip plan check. `core` = 3 dimensions (goal alignment, completeness, testability). `all` = 8 dimensions. |
 | `research_parallelism` | integer | Number of parallel research agents PLAN spawns. `0` disables the research step. Typical: `0` / `2` / `4`. |
 | `gate_strictness` | enum `off | light | strict` | **Rigor only, since `v0.1.31`: whether the anti-rationalization check runs at a gate** (`strict` = yes; `off`/`light` = no). It no longer sets approval cadence — that moved to `attention`. ⚠ The pre-split description ("explicit approval at every gate") survived here for four releases after the behaviour changed. When `attention` is absent this key still *derives* it (`off`→`unattended`, `light`→`checkpointed`, `strict`→`attended`), which is the only remaining way it touches cadence. |
-| `context_rot_reread` | boolean | Whether EXECUTE re-reads `CONTEXT.md` every ~45 minutes to prevent drift. |
+| `context_rot_reread` | boolean | Whether EXECUTE re-reads the task's acceptance criteria and the requirements' decisions before each task, to prevent drift. |
 | `review_depth` | enum `none | quality-only | full` | REVIEW phase depth. `none` = skip phase entirely (also implied if REVIEW is in `phases_skipped`). `quality-only` = code-review skill only. `full` = all four review skills (code-review, security, perf, simplification). |
 
 ### `rigor_overrides.attention` (optional)

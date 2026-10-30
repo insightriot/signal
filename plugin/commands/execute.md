@@ -1,120 +1,121 @@
 ---
 name: sig:execute
-description: "EXECUTE phase — wave-based parallel execution with fresh context per task, atomic commits, and context rot prevention."
-args: "<phase-number>"
+description: "EXECUTE phase — build the plan's tasks wave by wave, tests first where required, one commit each."
+args: ""
 ---
 
-# EXECUTE Phase
+# EXECUTE
 
-You are running the EXECUTE phase of the Signal workflow. Your goal: implement every task in the plan with atomic commits and passing tests.
+Build the plan's tasks, one commit each, the suite green after each.
 
-## 0. Tier-gating preamble (run before anything else)
+Every `tools/lib/`, `skills/`, `references/` and `commands/` path in this file is under `${CLAUDE_PLUGIN_ROOT}/`:
+import from there, never from another copy of Signal. `baseDir` is the project root; `planningDir` is
+`.planning/` in it; `currentEpic` is `current_epic` from `readState` (`tools/lib/state.js`).
 
-Read the **effective profile** before any other workflow step: `readEffectiveProfile(baseDir, { currentEpic })` (`tools/lib/profile.js`), where `currentEpic` is `current_epic` from STATE.md (via `readState`). In **Epic mode** (a strict `current_epic`) an Epic-scoped `.planning/{EpicID}-PROFILE.md` shadows the project PROFILE for this Epic's phases; in **linear mode** (null / absent / non-strict `current_epic`) it reads `.planning/PROFILE.md` unchanged — byte-identical to pre-E11. Fail-open on the STATE value: a hand-edited or garbage `current_epic` degrades to the project PROFILE, never throws.
+## 1. Check EXECUTE can run (writes nothing)
 
-- **If neither PROFILE.md is present:** `readEffectiveProfile` throws the same not-found error — halt with *"No PROFILE.md found at .planning/PROFILE.md. Run `/sig:calibrate` first to tier this project, then re-run `/sig:execute`."* Do not proceed.
-- **EXECUTE is never in `phases_skipped`.** No tier is zero-work; even SKETCH and SPIKE run EXECUTE. This guard is therefore a sanity check — if you somehow see EXECUTE in `phases_skipped`, treat the PROFILE.md as malformed and halt.
-- **Apply `rigor_overrides`** from PROFILE.md:
+`readEffectiveProfile(baseDir, { currentEpic })` (`tools/lib/profile.js`):
 
-| Override | Effect on this phase |
+- It throws because no profile exists: stop with *"No PROFILE.md found at .planning/PROFILE.md. Run
+  `/sig:calibrate` first to tier this project, then re-run `/sig:execute`."*
+- `EXECUTE` is in `phases_skipped`: the profile is malformed. Stop and say so.
+- `resolveArtifactPath(planningDir, 'PLAN', { currentEpic, phase: 'PLAN' })` (`tools/lib/resume.js`)
+  finds no plan: stop and say to run `/sig:plan`.
+
+Then the branch: `checkBranchPosture(baseDir, { tier: profile.tier, override })`
+(`tools/lib/branch-guard.js`), where `override` is whether the user passed
+`--allow-default-branch`.
+
+| Result | Do |
 |---|---|
-| `tdd_required: false` | TDD-first is optional. Test-after or no-tests is permitted (e.g., SKETCH). Step 2 sub-step 2 ("write tests first") becomes optional. |
-| `tdd_required: true` | TDD-first is required. Step 2 sub-step 2 enforced — write a failing test before any implementation code. |
-| `context_rot_reread: false` | Skip Step 3 (45-min CONTEXT.md re-read). |
-| `context_rot_reread: true` | Run Step 3 every ~45 minutes (default). |
-| `attention: unattended` | Auto-advance — through wave transitions; no per-wave confirmation. |
-| `attention: checkpointed` | No end-of-phase confirm: announce what the phase produced and continue. Gray-area decisions are still asked (`drive.md` § 3b). Waves run without interruption. |
-| `attention: attended` | Confirm at **every wave boundary** (`gates.confirm_in_phase`) — this is the in-phase ceremony the dial exists to meter. |
-| `gate_strictness: strict` | Runs the anti-rationalization check at the gate. **That is all `gate_strictness` does to gates** (`v0.1.31`) — it no longer sets confirm cadence. |
+| `ok`, `not-applicable` | Continue. |
+| `on-default` | Stop, showing `formatBranchHalt(result, { command: '/sig:execute' })`. |
+| `overridden` | Show `formatBranchLine(result)` and continue. |
+| `cannot-determine` | Show `formatBranchUnknown(result)` and continue. |
 
-Tooling: `tools/lib/profile.js` exposes `readProfile`, `readEffectiveProfile`, `isPhaseEnabled`, `applyRigorOverrides`. Schema reference: `references/profile-schema.md`.
+`applyRigorOverrides({}, profile)` gives the `gates` used below, and these overrides:
 
-**Auto-state-protocol (M4.5.E6 onward).** Each dispatched task is wrapped by `dispatchTaskWithState` in `tools/lib/execute.js`, which calls `setCurrentTask` before the agent runs and `clearCurrentTask({status})` after — so `/sig:resume` can recover from a context-clear mid-EXECUTE. **SKETCH tier disables the auto-protocol entirely; STATE.md updates only via manual `/sig:checkpoint`.** FEATURE/SPIKE tiers run it under `gate_strictness: light` (state-write failures warn + continue). FULL tier runs it under `strict` (state-write failures halt the dispatch). See `tools/lib/execute.js` + `tools/lib/state.js`.
+| Override | Effect |
+|---|---|
+| `tdd_required` | `true`: a failing test before the code. `false`: test after, or none. |
+| `context_rot_reread` | `false` skips the re-read in step 5. |
+| `gate_strictness: strict` | Runs the Anti-Rationalization Check in step 7. |
 
-## Skill Loading
+| `attention` | How decisions are confirmed |
+|---|---|
+| `attended` | Confirm before each wave after the first (`gates.confirm_in_phase`), and the finished phase (`gates.confirm_execute`). |
+| `checkpointed` | Waves run on; a decision the plan leaves open is still asked. At the end, say what was done and go on. |
+| `unattended` | As `checkpointed`, but take each recommendation and record it; ask only if it is hard to undo. |
 
-Load from `${CLAUDE_PLUGIN_ROOT}/skills/build/`:
-- `incremental-implementation/SKILL.md`
-- `test-driven-development/SKILL.md` (skill loaded for reference even when `tdd_required: false`; rigor toggles enforcement, not knowledge)
-- `context-engineering/SKILL.md`
-- `source-driven-development/SKILL.md`
-- `frontend-ui-engineering/SKILL.md` (load only if the project has a frontend; conditional loading is a v1.5 candidate — see `.planning/FUTURE-IDEAS.md`)
+## 2. Record the phase
 
-## Precondition — you must be on a branch (`B88`)
+Skip this step if `phase` is already `EXECUTE` (a resumed run).
+Only if step 1 let the command through. Call `await transitionPhase(baseDir, 'EXECUTE')`
+(`tools/lib/state.js`) first: it records the phase being left and sets `phase: EXECUTE`. If it
+refuses, show its message and stop.
+Show any `quarantined` entries it returns.
 
-**Run before the phase-entry step below.** A halt here is a halt condition in exactly the sense that section already defines — its rule for a *"failed gate"* governs this one, and is deliberately **not restated here**. Two copies of one instruction is how the `B89` class starts, and a restatement outside the phase-entry heading would also sit outside the `B41-phase-entry` canary's deletion scope, leaving the control arm carrying the instruction it is supposed to have removed (`B55`).
+## 3. Load skills and the plan
 
-Call `checkBranchPosture(baseDir, { tier: profile.tier, override })` from `tools/lib/branch-guard.js`; `override` is true only if the user passed `--allow-default-branch`. Read-only, offline, never throws.
+Read and apply each `skills/build/<name>/SKILL.md`: `incremental-implementation`,
+`test-driven-development`, `context-engineering`, `source-driven-development`, and
+`frontend-ui-engineering` if the project has a frontend.
 
-- **`ok`** — continue silently.
-- **`on-default`** — **HALT.** Emit `formatBranchHalt(result, { command: '/sig:execute' })` verbatim.
-- **`overridden`** — continue and emit `formatBranchLine(result)`, so a deliberate deviation is recorded rather than invisible.
-- **`not-applicable`** — continue silently (SKETCH / SPIKE, no git, or no remote).
-- **`cannot-determine`** — emit `formatBranchUnknown(result)` and **continue**.
+Read the plan from step 1, and
+`resolveArtifactPath(planningDir, 'VALIDATION', { currentEpic, phase: 'PLAN' })` (none at
+`nyquist_enforcement: off`). Every task needs acceptance criteria, and a mapped test where there is a
+validation file. Fix the plan where a task lacks them.
 
-**Why here.** This command's Step 2 says *"create an atomic git commit"* and, before this gate existed, **the word "branch" appeared in this file zero times** — so every commit went to whatever branch the operator happened to be standing on. EXECUTE is the earliest moment that matters: a slice that cannot *begin* on the default branch cannot strand commits there, whereas catching it at SHIP means recovering after the fact.
+## 4. Group the tasks into waves
 
-**Tier-gated deliberately.** SKETCH has gates off by definition, and SPIKE's own tier definition says its output is *"A findings document… Not a PR."* Halting a spike for lacking a branch, in a tier documented to produce no PR, would be a fresh instance of `B89` — one instruction contradicting another. Enforcement is FEATURE and FULL, the two tiers that end at a pull request.
+Wave 1: tasks with no dependencies; wave N: those whose dependencies are in earlier waves. Keep the
+plan's first-run work in wave 1. Do each task yourself, one at a time: this
+command dispatches no executor agent.
 
-## Phase entry — record the phase (M5.E9 FR6, `B41`)
+## 5. Build each task
 
-**Call this only if every precondition above passed.** The tier gate must have let this command through, and any halt condition in it must not have fired. If this command is halting — wrong tier, a missing prerequisite artifact, a failed gate — **do not call `transitionPhase`**: return the halt instead.
+For each task, in wave order. On a resumed run (step 2 skipped), skip tasks the progress file or
+`last_completed_task` marks done, and resume the one still in `current_tasks`. On a loop back (`phase`
+was VERIFY or REVIEW), the tasks are the fixes in that phase's report (`'VERIFICATION'` or `'REVIEW'`),
+and a REVIEW round's parent run follows `commands/review.md` § 4.6 instead of sub-step 6:
 
-**Then, before any Workflow step**, call `await transitionPhase(baseDir, 'EXECUTE')` (`tools/lib/state.js`). It appends the phase being **left** to `completed_phases` and sets `phase: EXECUTE`.
+1. **Record it** (not at SKETCH): `clearOrphansBeforeDispatch(baseDir, id)` (`tools/lib/execute.js`),
+   then `setCurrentTask(baseDir, { id, epic: currentEpic, wave })` (`tools/lib/state.js`).
+   If either write fails: stop at `gate_strictness: strict`, else warn.
+2. Note the commit the task starts from: `git rev-parse HEAD`, or for a resumed task
+   `last_completed_task.commit` (HEAD if it has none).
+3. Re-read the task's acceptance criteria and mapped tests, and the `## Decisions` in the
+   requirements (`resolveArtifactPath(planningDir, 'REQUIREMENTS', { currentEpic, phase: 'DISCUSS' })`;
+   `CONTEXT.md` for an Epic planned before that), unless `context_rot_reread: false`.
+4. Write the tests first (required when `tdd_required: true`), then the least code that passes them.
+5. Run the test suite. Commit the task on its own, staging only its files.
+6. Prove the task's new tests fail on its start commit (`references/fixer-brief.md`):
+   `node "${CLAUDE_PLUGIN_ROOT}/tools/lib/parent-run.js" --base <start commit> <each new or changed test file>`.
+   It runs vitest only; on another runner, or with no new test, write a stated gap with why.
+7. **Close it** (not at SKETCH): `clearCurrentTask(baseDir, { id, status: 'done', commit })`, or
+   `status: 'aborted'` for a task you cannot finish; then say why in the progress file, skip Finish
+   (step 8), and stop: the user fixes the cause and runs `/sig:execute` again. A failed write here only warns.
+8. Add the task to the progress file (step 6), with the parent-run summary line, or a stated gap
+   with its reason for a missing or `could-not-run` result: never blank, never read as a pass.
 
-**Why the condition (M5.E13, `B48`).** This instruction used to be unconditional, and an agent running `/sig:execute` against a project with no PLAN artifact **correctly refused it** — obeying would have recorded `phase: EXECUTE` for a project with nothing to execute, writing a false entry into the ledger M5.E9 had just made honest. Obeying corrupted the record; disobeying reproduced `B41`. The instruction was the thing that was wrong. `transitionPhase` now also refuses to record a phase that produced no artifact, so the text and the code agree rather than one relying on the other.
+## 6. Track progress
 
-**Why this exists.** Until M5.E9 only `calibrate` / `discuss` / `ship` ever called `transitionPhase`. `plan`, `execute`, `verify` and `review` advanced nothing — so a command-driven project finished a full build with `completed_phases: [DISCUSS]`, `phase: SHIP`, and **PLAN / EXECUTE / VERIFY / REVIEW never recorded at all**, while `/sig:status` and `/sig:resume` reported `DISCUSS` for the entire run. `markFresh` then stamped a fresh timestamp over that stale position, turning *stale-and-flagged* into *stale-and-silent*. It survived eleven releases because Signal's own repo maintained these fields **by hand**.
+After each task, update `artifactName('PROGRESS', { currentEpic, planningDir })`:
 
-**At entry, not exit** — the position must be true *while* the phase runs, which is what any "current phase is EXECUTE" precondition depends on. Surface the returned `{quarantined}` list if non-empty: malformed ledger entries are relocated, never silently dropped.
-
-## Workflow
-
-**Artifact naming (M4.5.E11).** Name each artifact this phase writes with `artifactName(ARTIFACT, { currentEpic, planningDir })` (`tools/lib/resume.js`), and resolve ones it reads with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` — `currentEpic` is `current_epic` from STATE. **Epic mode** → `{EpicID}-{ARTIFACT}.md` (e.g. `M4.5.E11-PROGRESS.md`); **linear mode** → the `{phase}-{ARTIFACT}.md` forms below, byte-identical to pre-E11. Substitute the `artifactName` result wherever this file writes a literal `.planning/{phase}-*.md` path.
-
-### 1. Load Plan
-
-Read the PLAN and VALIDATION artifacts — resolve each with `resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` (`{phase}-*.md` linear / `{EpicID}-*.md` Epic).
-Verify all tasks have acceptance criteria and test mappings.
-
-### 2. Wave-Based Execution
-
-Group tasks into waves based on dependencies:
-- **Wave 1**: Tasks with no dependencies (can run in parallel)
-- **Wave 2**: Tasks depending only on Wave 1 outputs
-- **Wave N**: Continue until all tasks are scheduled
-
-For each task in a wave, the orchestrator drives the work through `dispatchTaskWithState(baseDir, task, profile)` (from `tools/lib/execute.js`). The wrapper handles steps 1 + 6 automatically; the executor agent handles 2–5:
-
-1. **(orchestrator)** `clearOrphansBeforeDispatch` + `setCurrentTask({id, epic, wave})` — records the task as `in_progress` in `STATE.md` before the agent runs. SKETCH skips this entirely; FULL/strict halts on state-write failure; FEATURE/light warns + continues.
-2. **(agent)** Read the task's acceptance criteria and test mapping.
-3. **(agent)** Write tests first (TDD) where applicable.
-4. **(agent)** Implement the minimum code to pass tests.
-5. **(agent)** Run the test suite, then create an atomic git commit with a descriptive message. Then run the task's new tests against the commit the task started from with `parent-run.js` (`tools/lib/parent-run.js`), under [`references/fixer-brief.md`](../references/fixer-brief.md). Return the commit sha and the tool's output, unchanged, to the orchestrator.
-6. **(orchestrator)** `clearCurrentTask({id, status: 'done', commit})` on success; `clearCurrentTask({id, status: 'aborted'})` on agent throw (re-thrown to the caller). Then update `.planning/{phase}-PROGRESS.md` if applicable. **The task's PROGRESS entry carries the parent-run summary line**. A missing or `could-not-run` result is written there as a stated gap, with its reason, and never left blank or read as a pass (`D-M6E17-3`).
-
-### 3. Context Rot Prevention
-
-Every ~45 minutes of execution:
-- Re-read `.planning/CONTEXT.md` to refresh locked decisions
-- Re-read the current task's acceptance criteria
-- Check context budget (warn at 35% remaining, critical at 25%)
-
-### 4. Progress Tracking
-
-After each task, update the PROGRESS artifact (`artifactName('PROGRESS', { currentEpic, planningDir })` — `{phase}-PROGRESS.md` linear / `{EpicID}-PROGRESS.md` Epic):
 ```markdown
 ## Wave {n}
-- [x] Task 1 — commit {hash}
+- [x] Task 1 — commit {hash} — parent run: {summary line}
 - [ ] Task 2 — in progress
-- [ ] Task 3 — pending
 ```
 
-**Optional for single-task plans.** When the plan has only one task (typical at SKETCH tier), `{phase}-PROGRESS.md` is informational and the commit log substitutes for it. Skip without ceremony — the SKETCH dogfood (T3 Task 3) confirmed this works cleanly. At gate_strictness:off, progress tracking is informational only; at strict, write the file even for a single task so the artifact exists for downstream phases to reference.
+One task: the progress file is optional, except at `gate_strictness: strict`.
 
-## Phase Gate
+## 7. Phase Gate
 
 ### Anti-Rationalization Check
+
+At `gate_strictness: strict`, answer each:
+
 | Temptation | Check |
 |---|---|
 | "The tests are too slow, I'll skip them for now" | Skipped tests compound — write them now |
@@ -127,4 +128,13 @@ After each task, update the PROGRESS artifact (`artifactName('PROGRESS', { curre
 - [ ] All tests pass
 - [ ] Build succeeds
 - [ ] No silently skipped tasks
-- [ ] Progress file reflects completion
+- [ ] Progress file reflects completion (where step 6 writes one)
+- [ ] User accepts the phase — only when `gates.confirm_execute` is set (`attended`)
+
+## 8. Finish
+
+Commit every `.planning/` file the phase changed (progress, `STATE.md`, `INDEX.md`). `/sig:verify`,
+not this command, sets `phase: VERIFY`.
+
+Except at SKETCH, after the commit call `markFresh(baseDir, { commit: <HEAD> })`
+(`tools/lib/state.js`). Wrap it in a catch-all: on any error, warn and continue.

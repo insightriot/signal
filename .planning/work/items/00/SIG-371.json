@@ -1,0 +1,19 @@
+{
+  "id": "SIG-371",
+  "type": "BUG",
+  "title": "parent-run: after a killed run, the next run sometimes leaves the killed run's temp folder behind (test fails ~1 in 6)",
+  "priority": "P3",
+  "source": "execute rewrite, full-suite runs",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-29T11:21:27.910Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-29T11:21:27.910Z",
+      "by": "claude"
+    }
+  ]
+}

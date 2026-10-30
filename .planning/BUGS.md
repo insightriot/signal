@@ -126,5 +126,7 @@
 | SIG-368 | `closing` | P2 | **applyRigorOverrides crashes when a project config section is a plain flag (parallelization: true)** |
 | SIG-369 | `confirmed` | P3 | **An approved per-Epic calibrate is never run: DISCUSS lists it as a next step, PLAN notes it and keeps the project tier** |
 | SIG-370 | `confirmed` | P3 | **Work-store migration turns a list file's preamble text into inbox items** |
+| SIG-371 | `confirmed` | P3 | **parent-run: after a killed run, the next run sometimes leaves the killed run's temp folder behind (test fails ~1 in 6)** |
+| SIG-372 | `confirmed` | P3 | **/sig:execute: an interrupted loop back drops its unstarted fixes, and a linear project's resumed first task can start from the previous run's commit** |
 
-*0 needs-triage · 82 confirmed · 1 closing · 138 closed (221 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 84 confirmed · 1 closing · 138 closed (223 total) · closes more than 30 days before the newest event are in `work/history/`*

@@ -24,14 +24,20 @@ const read = (f) => readFileSync(join(CMD, `${f}.md`), 'utf-8');
 describe('M5.E13 S2.t4 — the phase-entry instruction is conditional and shared (AC1.1)', () => {
   const CONDITION = '**Call this only if every precondition above passed.**';
 
-  // plan.md was rewritten as numbered steps (archive/tests/plan-wording.test.js):
-  // its own wording, still conditional. The others keep the shared paragraph
+  // plan.md and execute.md were rewritten as numbered steps
+  // (archive/tests/plan-wording.test.js, archive/tests/execute-wording.test.js):
+  // their own wording, still conditional. The others keep the shared paragraph
   // until their own rewrite.
-  const SHARED = MIDDLE.filter((f) => f !== 'plan');
+  const REWRITTEN = ['plan', 'execute'];
+  const SHARED = MIDDLE.filter((f) => !REWRITTEN.includes(f));
 
   it('all four middle commands make the phase-entry call conditional', () => {
     for (const f of SHARED) expect(read(f), f).toContain(CONDITION);
-    expect(read('plan')).toMatch(/Only if step 1 let the command through\. Call `await transitionPhase\(baseDir, 'PLAN'\)`/);
+    for (const f of REWRITTEN) {
+      expect(read(f), f).toMatch(
+        new RegExp(`Only if step 1 let the command through\\. Call \`await transitionPhase\\(baseDir, '${f.toUpperCase()}'\\)\``)
+      );
+    }
   });
 
   it('the old UNCONDITIONAL phrasing is gone from every command', () => {
@@ -125,8 +131,7 @@ const denorm = (s) => s.replace(/\*\*|__|\*|_/g, '');
 
 describe("M5.E17 S2 — every markFresh call site states its ordering (AC3.1', FR3)", () => {
   // A file "instructs a markFresh call" iff it uses CALL syntax (open paren).
-  // A bare mention is not a call site: execute.md names `markFresh` only in its
-  // "Why this exists" prose paragraph, describing the M5.E9 bug.
+  // A bare mention is not a call site.
   const CALL_RE = /markFresh\(/;
   // Explicit, reasoned exclusion — NOT a regex tuned until it happens to miss.
   // /sig:checkpoint IS the manual refresh command; markFresh against HEAD is
@@ -143,13 +148,11 @@ describe("M5.E17 S2 — every markFresh call site states its ordering (AC3.1', F
     // future command is covered without anyone remembering to add it here.
     expect(callSites.length).toBeGreaterThanOrEqual(5);
     expect(callSites).toContain('ship.md');
-    // The predicate must exclude the prose-only mention.
-    expect(callSites, 'execute.md names markFresh in prose, not as a call').not.toContain(
-      'execute.md'
-    );
+    // execute.md calls it too since its rewrite (old check: archive/tests/execute-wording.test.js).
+    expect(callSites).toContain('execute.md');
   });
 
-  it.each(['discuss.md', 'plan.md', 'review.md', 'ship.md', 'verify.md'])(
+  it.each(['discuss.md', 'execute.md', 'plan.md', 'review.md', 'ship.md', 'verify.md'])(
     '%s states that markFresh runs AFTER the commit it stamps',
     (file) => {
       const text = denorm(readFileSync(join(CMD, file), 'utf-8'));
