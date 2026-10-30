@@ -14,6 +14,13 @@
       "type": "triaged",
       "at": "2026-10-28T14:01:02.931Z",
       "by": "claude (course-correction rewrite)"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-10-30T01:30:34.698Z",
+      "by": "claude",
+      "reason": "fixed",
+      "proof": "5d0c395198a92927e1295bb69751562d0305b2e4"
     }
   ]
 }

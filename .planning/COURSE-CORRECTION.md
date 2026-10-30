@@ -133,21 +133,24 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
    **discuss, 2026-10-28, on that bug:** 25.8 KB to 7.5 KB; branch code imported; 4 questions, all
    saying what they decide and what was checked, with a recommendation; 5 plumbing calls stated, not
    asked; files in the Epic's folder, none loose; one stop for batch approval (`checkpointed`, as
-   designed; "approve all" was typed by the agent running the test, not Brett); STATE written twice,
+   designed; answered by the test agent); STATE written twice,
    the second left uncommitted (step 4); $6.27, 28 turns, 4.5 minutes. It caught a planned Epic's
-   number being handed out (`SIG-367`). An approved per-Epic calibrate was left as a next step.
+   number being handed out (`SIG-367`). An approved calibrate was left undone.
    **plan, 2026-10-29, same bug, from where discuss left it:** 30.5 KB to 11.4 KB; branch code
    imported; no questions about the work, one stop to confirm inbox triage (`checkpointed`, as
-   designed; the reply was typed by the agent running the test); plan, research and validation in the
+   designed; answered by the test agent); plan, research and validation in the
    Epic's folder, none loose; one task, test first, its fake-timer assumption checked by a throwaway
    test; STATE in the plan commit plus a separate commit to mark it fresh (step 4); $4.29, 38 turns,
-   7 minutes. It hit a crash on the project's config (`SIG-368`, fixed). The three inbox items were
-   list headers the store migration had made into items (`SIG-370`). The approved calibrate again
+   7 minutes. It hit a crash on the project's config (`SIG-368`, fixed). Its inbox items were
+   migration leftovers (`SIG-370`). The approved calibrate again
    did not run (`SIG-369`).
    **execute, 2026-10-29, from where plan left it (final file):** 12.1 KB to 7.0 KB; branch code
    imported; no questions or stops; the task recorded before its work and closed after its commit;
    tests red first; the parent run in the progress file; a separate commit to mark STATE fresh
    (step 4); $2.88, 32 turns, 3.7 minutes.
+   **verify, 2026-10-29, after execute:** 15.2 KB to 8.5 KB; branch code imported; no questions or
+   stops; tests re-proved red; coverage 5 of 5 by the check; a separate commit to mark STATE fresh
+   (step 4); $2.91, 20 turns, 3.6 minutes.
 4. **Checkpoint goes.** Each phase command updates the state file itself, at every tier, in the same
    commit as the phase's work. No separate commits to mark it fresh (records problem 6).
 

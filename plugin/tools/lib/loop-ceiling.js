@@ -74,7 +74,7 @@ export const LOOP_BOUNDED_PHASES = Object.freeze(['VERIFY', 'REVIEW']);
  * The verdicts a recorded pass may carry: the three `review.md` returns. VERIFY's
  * report says PASS / FAIL / PASS with documented limits; the last is recorded as
  * PASS, because the limits live in the report and the ceiling needs only
- * "passed or not" (`verify.md` § 5a, M6.E18 AC3.4).
+ * "passed or not" (`verify.md` § 8, M6.E18 AC3.4).
  */
 export const PASS_VERDICTS = Object.freeze(['PASS', 'PASS-WITH-FIXES', 'FAIL']);
 

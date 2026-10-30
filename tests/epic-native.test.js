@@ -256,6 +256,30 @@ describe('S1.t7 deriveNextEpicId', () => {
     const next = await deriveNextEpicId(baseDir);
     expect(EPIC_ID_STRICT_RE.test(next)).toBe(true);
   });
+
+  // SIG-367: measured on the test project, whose milestone file planned E3 and
+  // E4 with no file or record yet, so the next ID came out as E3.
+  it('skips an Epic number the milestone file plans, in either file name and row form', async () => {
+    await writeState(baseDir, { epic: 'M3.0.E2' });
+    await touch('M3.0.E1-PLAN.md', 'M3.0.E2-PLAN.md');
+    await writeFile(
+      join(baseDir, '.planning', 'MILESTONE-M3.0.md'),
+      '| Epic | Status |\n|---|---|\n| E1 — a | Shipped |\n| E2 — b | Shipped |\n| E3 — c | In progress |\n| E4 — d | planned |\n',
+    );
+    expect(await deriveNextEpicId(baseDir)).toBe('M3.0.E5');
+    await writeFile(join(baseDir, '.planning', 'MILESTONE-3.0.md'), '| `M3.0.E6` | planned |\n');
+    expect(await deriveNextEpicId(baseDir)).toBe('M3.0.E7');
+  });
+
+  it('skips a number a milestone heading plans, and ignores another milestone\'s Epics', async () => {
+    await writeState(baseDir, { epic: 'M5.E1' });
+    await touch('M5.E1-PLAN.md');
+    await writeFile(
+      join(baseDir, '.planning', 'MILESTONE-5.md'),
+      '## M5.E3 — planned work\n\n### E2: next, after M6.E9\n\nSee M7.E30 and `M4.E12`.\n\n```\n| E20 | in a code block |\n```\n',
+    );
+    expect(await deriveNextEpicId(baseDir)).toBe('M5.E4');
+  });
 });
 
 // ---- M6.E16.S3.t3.2 — deriveNextEpicId reads unit records when the project has them ----

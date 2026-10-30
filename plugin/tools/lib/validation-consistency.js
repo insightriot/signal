@@ -95,7 +95,7 @@ function resolveShorthand(text, knownByGroup) {
     //
     // Without this, every bare decimal became a requirement id: a Notes cell
     // reading `took 3.4 seconds` became `AC-3.4`, landed in `mappedNotAssigned`,
-    // and the artifact was reported `inconsistent`. `verify.md` §1b orders this
+    // and the artifact was reported `inconsistent`. `verify.md` § 7 orders this
     // call on every VERIFY run and treats the result as a FAIL to loop back on,
     // so the check MANUFACTURED a contradiction and blocked the phase on it —
     // this module's own stated defect, committed by the module.

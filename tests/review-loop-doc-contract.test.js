@@ -60,7 +60,7 @@ describe('AC1.6 — a pass is recorded before the Loop Back ask', () => {
   // the step passed the first form of this test (M6.E17 REVIEW I7).
   it.each([
     ['review.md', review, /^### Record the pass\b.*$/m, "recordPass(baseDir, 'REVIEW'"],
-    ['verify.md', verify, /^### 5a\. Record the pass\b.*$/m, "recordPass(baseDir, 'VERIFY'"],
+    ['verify.md', verify, /^## 8\. Record the pass\b.*$/m, "recordPass(baseDir, 'VERIFY'"],
   ])('%s', (_name, text, heading, call) => {
     const start = text.search(heading);
     expect(start, 'the recording step has its own heading').toBeGreaterThan(-1);
@@ -75,7 +75,7 @@ describe('AC1.6 — a pass is recorded before the Loop Back ask', () => {
   // M6.E18 AC3.4 (P4-S6): VERIFY's report says "PASS with documented limits",
   // which is not a recordPass verdict. The step says which value it records.
   it("verify.md's step names the value recorded for PASS with documented limits", () => {
-    const start = verify.search(/^### 5a\. Record the pass\b.*$/m);
+    const start = verify.search(/^## 8\. Record the pass\b.*$/m);
     const rest = verify.slice(verify.indexOf('\n', start) + 1);
     const step = rest.slice(0, rest.search(/^#{1,3} /m));
     expect(step.replace(/\s+/g, ' ')).toMatch(/PASS with documented limits[^.]*recordPass\(baseDir, 'VERIFY', 'PASS'\)/);
