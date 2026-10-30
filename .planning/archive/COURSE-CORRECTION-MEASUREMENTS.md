@@ -34,3 +34,13 @@ named the new remedy (commit STATE.md), and the session found the plan change on
 proposed going back to EXECUTE for it; nothing written. $1.16, 11 turns, 1.5 minutes. Updating
 STATE.md left it stale until committed; the commit cleared it. A fresh session given
 `/sig:checkpoint` was told no such command exists, and nothing ran.
+**review, 2026-10-30, the rewrite's branch, on a copy of the post-verify project (`3c9b6aa`):**
+29.5 KB to 13.8 KB; branch code imported; no questions or stops (FEATURE, `quality-only`). The
+change was diffed from the commit that added the plan (no remote). All three reviewers dispatched in
+one message as `sig:specialists:*` (no fallback needed). The test engineer found an Important: no
+test caught the 30 s refresh stopping after its first tick (a one-shot timer passed every test). One
+fix round, test only, fresh read clean, `checkFixRounds` accepted, PASS-WITH-FIXES recorded; the
+parent run was a stated gap, since the code already worked. $8.57, 6 minutes. It then re-ran the check
+after its commit, saw that commit as uncovered, and committed the report again without STATE.md, so
+STATE read stale. Step 8 now says not to. **Second run, same start, after that fix:** the same
+Important found and fixed the same way, one commit, STATE fresh; $5.35, 6 minutes.
