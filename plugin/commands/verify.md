@@ -19,7 +19,8 @@ import from there, never from another copy of Signal. `baseDir` is the project r
 
 - It throws because no profile exists: stop with *"No PROFILE.md found at .planning/PROFILE.md. Run
   `/sig:calibrate` first to tier this project, then re-run `/sig:verify`."*
-- `VERIFY` is in `phases_skipped`: the profile is malformed. Stop and say so.
+- `VERIFY` is in `phases_skipped`: stop with *"This tier ({tier}) skips VERIFY. Run `/sig:review`
+  next (`/sig:ship` if REVIEW is skipped), or `/sig:escalate` if VERIFY should run."*
 - `resolveArtifactPath(planningDir, 'PLAN', { currentEpic, phase: 'PLAN' })` (`tools/lib/resume.js`)
   finds no plan: stop and say to run `/sig:plan`.
 
@@ -28,7 +29,6 @@ import from there, never from another copy of Signal. `baseDir` is the project r
 | Override | Effect |
 |---|---|
 | `nyquist_enforcement` | `off` skips step 6; `strict` adds its failed-first proof. |
-| `gate_strictness: strict` | Runs the Anti-Rationalization Check in step 9. |
 
 | `attention` | How decisions are confirmed |
 |---|---|
@@ -97,8 +97,8 @@ on cannot get it afterwards: say so as a limit.
 
 Decide the verdict:
 
-- **PASS**: every check passed. PASS with documented limits is a PASS (the value
-  `recordPass(baseDir, 'VERIFY', 'PASS')` below records): the limits live in the report.
+- **PASS**: every check passed. PASS with documented limits is recorded as
+  `recordPass(baseDir, 'VERIFY', 'PASS')`; the limits live in the report.
 - **PASS-WITH-FIXES**: a check failed, was fixed in this phase (a commit per fix) and then passed.
 - **FAIL**: anything still fails, including any `missing` requirement. List each failure as a fix to
   make: on a loop back, `/sig:execute` builds those.
@@ -155,4 +155,4 @@ command sets no next phase; the next command records leaving VERIFY: `/sig:execu
 back, else `/sig:review` (`/sig:ship` where the tier skips REVIEW; SPIKE skips both).
 
 Except at SKETCH, after the commit call `markFresh(baseDir, { commit: <HEAD> })`
-(`tools/lib/state.js`). Wrap it in a catch-all: on any error, warn and continue.
+(`tools/lib/state.js`). In a catch-all: on any error, warn and continue.

@@ -128,6 +128,14 @@ describe('verify.md runs the coverage check on the report, not before it', () =>
     expect(verify).not.toContain("'PROGRESS', { currentEpic, phase:");
   });
 
+  it('a profile that skips VERIFY is valid, so step 1 routes on instead of calling it malformed (PR review)', async () => {
+    const { collectProfileIssues, isPhaseEnabled } = await import(join(LIB, 'profile.js'));
+    expect(collectProfileIssues({ phases_skipped: ['VERIFY'] }).filter((i) => /phases_skipped/.test(i))).toEqual([]);
+    expect(isPhaseEnabled({ phases_skipped: ['VERIFY'] }, 'VERIFY')).toBe(false);
+    expect(flat).toMatch(/`VERIFY` is in `phases_skipped`: stop with \*"This tier \(\{tier\}\) skips VERIFY\. Run `\/sig:review` next/);
+    expect(flat).not.toMatch(/the profile is malformed/);
+  });
+
   it('a missing plan stops the run in step 1, before the phase is recorded', () => {
     const noPlan = verify.indexOf('finds no plan: stop and say to run `/sig:plan`');
     expect(noPlan).toBeGreaterThan(-1);
