@@ -36,7 +36,7 @@ project root; `planningDir` is `.planning/` in it; `currentEpic` is `current_epi
 | `attention` | How decisions are confirmed |
 |---|---|
 | `attended` | Ask each decision as you reach it (`gates.confirm_in_phase`), and approve the results (`gates.confirm_review`). |
-| `checkpointed` | No approval at the end: say what the phase found and go on. A decision the plan leaves open is still asked. On a FAIL under the loop ceiling, take A and say so. |
+| `checkpointed` | No approval at the end: say what the phase found and go on. A decision the plan leaves open is still asked. On a FAIL under the loop ceiling that lists fixes, take A and say so. |
 | `unattended` | As `checkpointed`; a decision that is hard to undo is still asked. |
 
 Steps 4.5 and 4.6 run at every depth.
@@ -73,10 +73,11 @@ for the suite result.
 
 **Open this pass's section first.** The report is `artifactName('REVIEW', { currentEpic, planningDir })`.
 Append `## Pass N — {date}, at {sha}` to it (the first pass creates the file), with HEAD's sha as
-`{sha}`. If the report already ends with a pass heading that has no verdict recorded, meaning it has
-more `## Pass` sections than `phase_passes` has REVIEW entries (a session ended, or `recordPass`
-refused, before the pass was recorded), that heading is this pass: continue under it rather than
-appending another. Never rewrite an earlier pass. Write every commit in the report as its sha (7 to
+`{sha}`. Count only the `## Pass` sections after the report's last `## Run ended` line. If there are
+more of them than `phase_passes` has REVIEW entries (a session ended, or `recordPass` refused, before
+the pass was recorded), the last one is this pass: continue under it rather than appending another.
+A section whose `{sha}` comes before this run's base (step 3) is an earlier run's whose `## Run ended`
+line is missing: call `markRunEnded` (step 5) first. Never rewrite an earlier pass. Write every commit in the report as its sha (7 to
 40 lowercase hex characters), never `HEAD` or a tag: the check refuses those.
 
 Categorise every finding in 4.1–4.5 as Critical, Important, Suggestion or Nit.
@@ -273,4 +274,5 @@ Commit the report and every `.planning/` file the phase changed, `STATE.md` with
 Do not run `checkFixRounds` again after it: that commit is not in any round, so the check lists it as
 uncovered, and editing the report for it leaves `STATE.md` behind. This command sets no next phase;
 the next command records leaving REVIEW: `/sig:execute` after a loop back (then `/sig:verify`, then
-`/sig:review` again), else `/sig:ship`.
+`/sig:review` again); `/sig:review` again after a refused `recordPass`, once its cause is fixed; else
+`/sig:ship`.

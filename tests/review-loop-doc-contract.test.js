@@ -182,7 +182,7 @@ describe('P4-I1 — a missing run boundary is reported and has a way out', () =>
     expect(step5).toMatch(/markRunEnded\(baseDir, \{ keep \}\)/);
   });
   it('review.md step 4 says a pass heading with no verdict recorded is continued, not appended again', () => {
-    expect(stepOpen).toMatch(/no verdict recorded[^.]*continue under it/i);
+    expect(stepOpen).toMatch(/than `phase_passes` has REVIEW entries[^.]*the last one is this pass: continue under it/i);
   });
 });
 

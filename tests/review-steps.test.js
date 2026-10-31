@@ -182,7 +182,7 @@ describe('review.md re-entry and the loop ceiling', () => {
       // What /sig:drive, /sig:status and /sig:resume read (SIG-373).
       expect(describeNextAction(state.phase, [], null, state).action).toBe('/sig:execute');
     });
-    expect(flat).toMatch(/the next command records leaving REVIEW: `\/sig:execute` after a loop back \(then `\/sig:verify`, then `\/sig:review` again\), else `\/sig:ship`/);
+    expect(flat).toMatch(/the next command records leaving REVIEW: `\/sig:execute` after a loop back \(then `\/sig:verify`, then `\/sig:review` again\); `\/sig:review` again after a refused `recordPass`, once its cause is fixed; else `\/sig:ship`/);
   });
 
   it('a FAIL lists its fixes, which /sig:execute builds on a loop back', () => {
@@ -243,15 +243,17 @@ describe('review.md after a loop back: the fixes EXECUTE made are this pass\'s f
     }
   });
 
-  it('a FAIL with no fix to make stops for a person, since the next pass could record no round', () => {
-    const report = '# Review\n\n## Pass 1 — 2026-10-01, at abc1234\n\n## Pass 2 — 2026-10-01, at def5678\n\n## Verdict\nPASS\n';
-    const r = checkFixRounds(report, 'PASS', { phasePasses: ['REVIEW FAIL (2026-10-01)'] });
-    expect(r.ok).toBe(false);
+  it('a FAIL with no fix to make stops for a person: EXECUTE would have nothing to build', () => {
+    // The attention table agrees: it loops back on its own only on a FAIL that lists fixes.
+    expect(flat).toMatch(/\| `checkpointed` \| [^|]*On a FAIL under the loop ceiling that lists fixes, take A and say so/);
     expect(flat).toMatch(/The FAIL lists no fix to make \(a `cannot-dispatch`, or work that needs re-planning\): at `attended`, ask the options below; at `checkpointed` and `unattended`, do step 8 and stop: a person decides/);
   });
 
   it('a pass heading with no verdict recorded is one `phase_passes` does not count, and commits are shas', () => {
-    expect(flat).toMatch(/more `## Pass` sections than `phase_passes` has REVIEW entries/);
+    // Only this run's sections: a linear SHIP clears phase_passes and appends "## Run ended",
+    // and checkFixRounds reads only what follows that line (second fresh read).
+    expect(flat).toMatch(/Count only the `## Pass` sections after the report's last `## Run ended` line\. If there are more of them than `phase_passes` has REVIEW entries/);
+    expect(flat).toMatch(/A section whose `\{sha\}` comes before this run's base \(step 3\) is an earlier run's whose `## Run ended` line is missing: call `markRunEnded`/);
     expect(flat).toMatch(/Write every commit in the report as its sha \(7 to 40 lowercase hex characters\), never `HEAD` or a tag/);
     // Step 5 fills in the section under step 4's heading; it does not write the heading again.
     const step5 = review.slice(review.indexOf('## 5. Write the report'), review.indexOf('## 6. Record the pass'));
