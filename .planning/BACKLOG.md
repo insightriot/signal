@@ -73,9 +73,9 @@ Candidates, from `analysis/TYPESAFE-JEV-ASSESSMENT.md` §3, in its order:
 
 **Not candidates:** anything numeric (counts, dates) — Jev's documented weak spots.
 
-### DISCUSS silently auto-adopts irreversible decisions at `unattended` · **roadmap** · small · **filed 2026-09-03** · SIG-151 · closing
+### DISCUSS silently auto-adopts irreversible decisions at `unattended` · **roadmap** · small · **filed 2026-09-03** · SIG-151 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-31 (fixed)
 
 *Plain: at `unattended`, DISCUSS decides everything for you — including the calls you can't take back.*
 
@@ -1427,9 +1427,9 @@ Found by /sig:docs-migrate --work-store on the test project (records test on the
 
 Found by /sig:docs-migrate --work-store on the test project (records test on the test project, 2026-10-26). The project names milestone files MILESTONE-M3.0.md; the tool looks for MILESTONE-3.0.md, so no Epic table is written. Accept both spellings.
 
-### tests/quiet-git.test.js: the control case ("without those settings the same commit packs") fails some runs — git does not always pack inside git commit · SIG-365 · closing
+### tests/quiet-git.test.js: the control case ("without those settings the same commit packs") fails some runs — git does not always pack inside git commit · SIG-365 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-31 (fixed)
 
 Failed once in a local full-suite run on 2026-10-27 (both #313 and #314 merged onto main in a scratch copy; that run did not name the test) and once on PR #315 CI, run 40612972215 attempt 1 (AssertionError: expected 0 to be greater than 0 — no pack after the commit). Passed on rerun, on three more local runs, and on PR #316 CI. Not root-caused. A guess, unverified: the auto-gc ran detached on some git version despite gc.autoDetach/maintenance.autoDetach false, so the pack appears after the check. It turns a PR red with nothing wrong in the change.
 
