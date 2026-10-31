@@ -58,6 +58,7 @@ import { listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 // another name because this module keeps its own, which names the views.
 import {
   ancestryFailure,
+  landedAs,
   landedFailure,
   commitsStartingWith,
   confine,
@@ -1645,7 +1646,7 @@ function assertFullCommit(baseDir, what, proof, execFn) {
 
 // One item's re-request, built and checked under the lock, nothing written.
 // `offHead`: `notInHead`'s.
-function planRerequest(handle, id, { proof, by, at = nowIso() }, offHead) {
+function planRerequest(handle, id, { proof, by, at = nowIso() }, offHead, why = null) {
   const { entry, text } = readForWrite(handle, id);
   if (entry.status !== 'closing') {
     throw new WorkStoreError('CONFLICT', `${id}: no close is outstanding (the item is ${entry.status === 'C' ? 'closed' : `at ${entry.status}`}) — `
@@ -1663,7 +1664,7 @@ function planRerequest(handle, id, { proof, by, at = nowIso() }, offHead) {
   // out of its unit, so it is put back the way it was in.
   const before = { ...entry.record, events: events.slice(0, at0) };
   const was = deriveStatus(before);
-  const reason = `the close was requested again with the commit ${proof}; the earlier request named ${previous}, which never reached this branch`;
+  const reason = why ?? `the close was requested again with the commit ${proof}; the earlier request named ${previous}, which never reached this branch`;
   let next = withEvent(entry, { type: 'reopened', at, by, reason });
   if (entry.epic !== null && entry.epic !== undefined) {
     next = withEvent({ record: next }, epicEvent(was === 'P' ? 'started' : 'queued', { at, by, epic: entry.epic }));
@@ -1917,7 +1918,13 @@ export async function confirmCloses(baseDir, opts = {}) {
           still.set(c.id, { reason: 'changed', req });
           continue;
         }
-        const next = withEvent(entry, { type: 'closed', at, by: CONFIRM_BY, reason: 'fixed', proof: req.proof });
+        // SIG-380: a rebase merge landed the proof as another commit. The close
+        // is asked again with that commit, as the recovery would ask it, then
+        // confirmed: the record then names a commit on the default branch,
+        // which any clone can check.
+        const base = c.landedAs === undefined ? entry
+          : { record: planRerequest(handle, c.id, { proof: c.landedAs, by: CONFIRM_BY, at }, () => true, landedWords(req.proof, c.landedAs)).next };
+        const next = withEvent(base, { type: 'closed', at, by: CONFIRM_BY, reason: 'fixed', proof: c.landedAs ?? req.proof });
         planned.push({ next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) });
       }
       // The unit closes, built and checked by the unit library and written with
@@ -1927,7 +1934,7 @@ export async function confirmCloses(baseDir, opts = {}) {
         refuseBroken(units.listUnits(handle.baseDir));
         // The unit's items, read again under the lock: closed, or confirmed in this same write.
         const openItems = itemsNotClosed(listedNow.records, planned.map((p) => ({ id: p.next.id })));
-        const plan = units.planUnitConfirms(handle, unitSide.ok.map((c) => ({ id: c.id, proof: c.req.proof })), { at, by: CONFIRM_BY, openItems });
+        const plan = units.planUnitConfirms(handle, unitSide.ok.map((c) => ({ id: c.id, proof: c.req.proof, landedAs: c.landedAs, why: c.landedAs && landedWords(c.req.proof, c.landedAs) })), { at, by: CONFIRM_BY, openItems });
         const reqOf = (id) => unitSide.ok.find((c) => c.id === id).req;
         for (const id of plan.changed) unitSide.still.set(id, { reason: 'changed', req: reqOf(id) });
         for (const { id } of plan.openItems) unitSide.still.set(id, { reason: OPEN_ITEMS_REASON, req: reqOf(id) });
@@ -1949,6 +1956,11 @@ export async function confirmCloses(baseDir, opts = {}) {
 
 const byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
+// The reopen reason when a confirm finds the proof's change landed as another
+// commit (SIG-380); unit-records.js's confirm is passed the same words.
+const landedWords = (previous, landed) =>
+  `the change of ${previous} reached the default branch as ${landed} (a rebase merge gives commits new IDs); the close was requested again with it`;
+
 // `(candidates, still) => ok`: which candidates' proof commits are on the
 // default branch now; the others go to `still` with the reason. The ref is
 // resolved once, on the first call with a candidate, and shared by every call
@@ -1962,10 +1974,13 @@ function ancestrySplit(baseDir, execFn) {
     target ??= defaultBranchRef(baseDir, execFn);
     isShallow ??= shallowProbe(baseDir, execFn);
     for (const c of candidates) {
-      // A commit whose change is on the default branch counts: a rebase
-      // merge rewrites the commit and keeps the change (SIG-380).
-      const reason = target.reason ?? landedFailure(baseDir, c.req.proof, target.ref, execFn, isShallow);
+      const reason = target.reason ?? ancestryFailure(baseDir, c.req.proof, target.ref, execFn, isShallow);
+      // A commit whose change is on the default branch counts, and the close
+      // records the commit it landed as: a rebase merge rewrites the commit
+      // and keeps the change (SIG-380).
+      const landed = reason === 'not-on-default-branch' ? landedAs(baseDir, c.req.proof, target.ref, execFn) : null;
       if (reason === null) ok.push(c);
+      else if (landed !== null) ok.push({ ...c, landedAs: landed });
       else still.set(c.id, { reason, req: c.req });
     }
     return ok;

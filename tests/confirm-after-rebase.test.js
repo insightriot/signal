@@ -3,7 +3,8 @@
 // never an ancestor of the default branch; before this, such a close stayed
 // *closing* until a person walked ship.md's recovery for every Epic. The
 // confirm now also counts a commit whose change the default branch holds
-// (`landedFailure`, work-write.js: `git cherry`'s patch-id match). Measured on a
+// (`landedAs`, work-write.js: a patch-id match after the branch point), and the
+// close records the commit it landed as, so any clone reads it as proven. Measured on a
 // real project that merges by rebase: its last four PRs' branch commits each
 // had the same patch-id as their copy on main.
 //
@@ -16,7 +17,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import * as records from '../plugin/tools/lib/work-records.js';
-import { landedFailure, shallowProbe } from '../plugin/tools/lib/work-write.js';
+import { landedAs, landedFailure, shallowProbe } from '../plugin/tools/lib/work-write.js';
 import { serializeRecord } from '../plugin/tools/lib/work-record.js';
 import { execFileSync } from 'node:child_process';
 
@@ -108,6 +109,15 @@ describe('SIG-380 — a close confirms after a rebase merge', () => {
     const out = await records.confirmCloses(work, { now: NOW });
     expect(out.confirmed).toEqual(['SIG-1']);
     expect(records.getRecord(work, 'SIG-1').status).toBe('C');
+    // The close records the commit the rebase made, which is on main.
+    const landed = g(work, 'log', '--format=%H', '-1', '--grep=^fix$', 'origin/main');
+    expect(landed).not.toBe(fix);
+    const events = records.getRecord(work, 'SIG-1').record.events;
+    expect(events.at(-1).proof).toBe(landed);
+    // As the recovery writes it: the close asked again with the landed commit, then confirmed.
+    expect(events.map((e) => e.type)).toEqual(['created', 'close_requested', 'reopened', 'close_requested', 'closed']);
+    expect(events[2].reason).toContain(fix);
+    expect(events[2].reason).toContain(landed);
   }, 60_000);
 
   it('the read-only probe says the same, and the closed-proof check does not flag it afterwards', async () => {
@@ -117,6 +127,15 @@ describe('SIG-380 — a close confirms after a rebase merge', () => {
     expect(records.probeCloses(work, { now: NOW })).toMatchObject({ confirmable: ['SIG-1'], stillClosing: [] });
     await records.confirmCloses(work, { now: NOW });
     expect(records.probeClosedProofs(work).notThere).toEqual([]);
+    // A clone that never had the branch commit reads the close as proven too.
+    g(work, 'add', '-A');
+    g(work, 'commit', '-q', '-m', 'records');
+    g(work, 'push', '-q', 'origin', 'main');
+    const fresh = join(root, 'fresh');
+    g(root, 'clone', '-q', join(root, 'remote.git'), fresh);
+    expect(spawnSync('git', ['cat-file', '-e', fix], { cwd: fresh }).status).not.toBe(0);
+    expect(records.probeClosedProofs(fresh).notThere).toEqual([]);
+    expect(records.getRecord(fresh, 'SIG-1').status).toBe('C');
   }, 60_000);
 
   it('a branch nobody merged stays closing (not-on-default-branch)', async () => {
@@ -136,7 +155,7 @@ describe('SIG-380 — a close confirms after a rebase merge', () => {
     expect(out.stillClosing).toEqual([{ id: 'SIG-1', reason: 'not-on-default-branch' }]);
   }, 60_000);
 
-  it('an empty commit never matches, though git cherry reads any two empty commits as the same change', async () => {
+  it('an empty commit never matches, though every empty commit has the same patch', async () => {
     const { work } = await project();
     g(work, 'commit', '-q', '--allow-empty', '-m', 'empty on main');
     g(work, 'push', '-q', 'origin', 'main');
@@ -144,8 +163,9 @@ describe('SIG-380 — a close confirms after a rebase merge', () => {
     g(work, 'commit', '-q', '--allow-empty', '-m', 'empty on feat');
     const empty = g(work, 'rev-parse', 'HEAD');
     g(work, 'fetch', '-q', 'origin');
-    // git cherry itself says "-": the guard is what keeps it closing.
+    // git cherry would say "-" (every empty commit has the same patch): the guard is what keeps it closing.
     expect(g(work, 'cherry', 'origin/main', empty, `${empty}^`)).toBe(`- ${empty}`);
+    expect(landedAs(work, empty, 'refs/remotes/origin/main', execFileSync)).toBe(null);
     expect(landedFailure(work, empty, 'refs/remotes/origin/main', execFileSync, shallowProbe(work, execFileSync))).toBe('not-on-default-branch');
   }, 60_000);
 });
