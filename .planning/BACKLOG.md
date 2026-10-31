@@ -1434,3 +1434,21 @@ Found by /sig:docs-migrate --work-store on the test project (records test on the
 Failed once in a local full-suite run on 2026-10-27 (both #313 and #314 merged onto main in a scratch copy; that run did not name the test) and once on PR #315 CI, run 40612972215 attempt 1 (AssertionError: expected 0 to be greater than 0 — no pack after the commit). Passed on rerun, on three more local runs, and on PR #316 CI. Not root-caused. A guess, unverified: the auto-gc ran detached on some git version despite gc.autoDetach/maintenance.autoDetach false, so the pack appears after the check. It turns a PR red with nothing wrong in the change.
 
 Root cause, 2026-10-27 (the guess above was wrong): CI runners are moving from git 2.55 to 2.56. Every failing run printed `git version 2.56.0` at checkout and every passing one `2.55.0` (seven runs checked). Git 2.56 defaults to the geometric maintenance strategy, which turns the gc task off, so a commit never packs whatever gc.auto says. Reproduced in a container with git 2.56: the control setup packed in 0 of 30 commits; with `maintenance.gc.enabled true` added, 30 of 30; with that and the suite's quiet settings, 0 of 30. Fix: the test sets `maintenance.gc.enabled true`.
+
+### Cut a release: nothing since 0.1.53 has reached a user · SIG-379
+
+**Status:** triaged (T)
+
+plugin.json has said 0.1.53 since 2026-10-23, so the course correction (49 plugin commits: five rewritten phase commands, SIG-373, STATE committed with each phase instead of a second commit) is on main but no installed copy has it. A real project was still making a separate "STATE marked fresh" commit at every phase close, which main no longer needs. Plan: cut 0.1.54 with tools/cut-release.js after the ship rewrite, so the release carries the whole set; the CHANGELOG says what was removed (checkpoint, doctor, update, permissions). Checked: the state file format did not change (new fields optional), and work-records.js, work-record.js and unit-records.js are byte-identical to 0.1.53.
+
+### Ship: a pull request merged by rebase or squash should confirm its closes without the manual recovery · SIG-380
+
+**Status:** triaged (T)
+
+confirmCloses confirms a close only when its exact commit is an ancestor of the remote default branch (merge-base --is-ancestor). A real project merges by rebase (merge commits allowed, squash off, rebase used), which gives every commit a new ID on main, so every Epic it ships would land in ship.md's six-step recovery, with a person confirming each item. Not yet observed there (its tracker was turned on 2026-10-30); it follows from the check. Input for the ship rewrite: treat rebase and squash merges as ordinary.
+
+### Ship: the pull request says how to undo it · SIG-381
+
+**Status:** triaged (T)
+
+A real project running Signal at FULL added its own rule that every PR states how to undo it, alongside failing-first tests and twin-first rehearsal of risky changes. Small, and belongs in the ship rewrite's PR body.

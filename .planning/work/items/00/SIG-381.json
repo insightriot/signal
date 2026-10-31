@@ -1,0 +1,19 @@
+{
+  "id": "SIG-381",
+  "type": "FEAT",
+  "title": "Ship: the pull request says how to undo it",
+  "priority": "P3",
+  "source": "read of a real Signal project, 2026-10-31",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-31T19:02:08.473Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-31T19:02:08.473Z",
+      "by": "claude"
+    }
+  ]
+}

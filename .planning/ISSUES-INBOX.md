@@ -51,3 +51,11 @@ Found 2026-10-27 measuring /sig:docs-archive on a copy of the test project with 
 Still affected: advise.md and drive.md name `${CLAUDE_PLUGIN_ROOT}` nowhere (checked by grep, 2026-10-27). Installed users get a search of the plugin cache on each run, and a stale version if the agent picks wrong; a --plugin-dir measurement of either command runs the installed code, not the branch. Fix: one line in each saying where `tools/lib/` lives, paid for by cutting history from the same file (the command size limit is at its ceiling). drive.md is in Step 2's path.
 
 ---
+
+## Step 2 idea: a second reviewer from a different model
+
+**Status:** untriaged (N) · SIG-383
+
+A real project ran the same review prompt through Claude and Codex independently and reconciled the two reports against the code; the reconciliation caught a wrong "fixed" verdict. Signal's REVIEW uses only Claude reviewers. A candidate for the loop in Step 2, where review quality decides how long it can run alone.
+
+---
