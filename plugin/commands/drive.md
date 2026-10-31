@@ -146,9 +146,7 @@ or pulls.
 
 **Choosing the work and not saying where it starts leaves the dead end the front end exists to
 remove, one step later** — steps 1–3 read `state.phase`, so a run that has just picked something
-still keys on whatever the file holds. On the second real run that value was `EXPLORING`;
-`describeNextAction` returned `recognized: false`, and there was no command to run **at any
-attention level**.
+still keys on whatever the file holds.
 
 - Resuming an open Epic at a canonical phase → continue there, no write.
 - Newly chosen work → **DISCUSS**, whatever the file says. The recorded phase belongs to
@@ -280,12 +278,6 @@ This file never calls `setCurrentEpic` — deliberately, because opening an Epic
 Epic. If that Epic left a `{PrevEpic}-PROFILE.md` behind, its tier and its `attention` govern the
 whole of this run, and the Epic actually being driven never gets a say.
 
-**Not hypothetical:** `M6.E4`, `M6.E5`, `M6.E6` and `M6.E7` each wrote a per-Epic `PROFILE.md`, so
-four consecutive Epics are on disk ready to shadow the next run's dial read. A run that reads
-`checkpointed` from a finished Epic while the live one derives `attended` advances phases the user
-expected to be asked about — the failure direction that matters, since the other way round only costs
-a question.
-
 Two further ways `currentEpic` moves mid-run, both ordinary rather than exotic: DISCUSS rolls the
 Epic on its first pass, and `/sig:calibrate` may write a per-Epic profile immediately after that roll.
 
@@ -296,7 +288,8 @@ Until a stop:
    work. If the resolved attention **changed** since the previous pass, say so out loud with both
    values and the Epic each came from — a loop that silently re-tiers itself is worse than one that
    halts.
-1. `describeNextAction(state.phase, profile.phases_skipped)` → the next command (fail-open, `B70`).
+1. `describeNextAction(state.phase, profile.phases_skipped, null, state)` → the next command:
+   `/sig:execute` after this visit's VERIFY or REVIEW FAIL (fail-open, `B70`).
 2. `loopStatusFor(state, state.phase)` → the loop count for a bounded phase, `null` elsewhere.
 3. **`await resolveFloors(state.phase, baseDir)`** → which floors at this phase are *live right now*.
 4. `canProceedUnattended(state.phase, profile, { hasFloor: live.length > 0, liveFloors: live, cannotCheck, loopStatus })`

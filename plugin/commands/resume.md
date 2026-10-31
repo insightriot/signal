@@ -144,7 +144,7 @@ renderResumeBriefing({
   archivedRun,                   // last linear run string[]|null — from Step 3b(1g); only read after a linear ship
   jevResult,                     // Jev STATE.md check report|null — from Step 3b(1h); advisory, one line
   nextAction: formatNextActionCopy(describeNextAction(state.phase, profile.phases_skipped,
-    readCurrentUnitStatus(baseDir, state.current_epic))), // fail-open (B70); the unit record at SHIP (SIG-319)
+    readCurrentUnitStatus(baseDir, state.current_epic), state)), // fail-open (B70); the unit record at SHIP (SIG-319); state for a FAIL
   retroSummary,                   // {total, complete, stub} — see Step 3c
 });
 ```
