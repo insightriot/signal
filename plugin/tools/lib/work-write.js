@@ -379,3 +379,57 @@ export function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
     return 'git-failed';
   }
 }
+
+// `ancestryFailure`, except that a commit whose change `ref` already holds
+// counts as landed (SIG-380): see `landedAs`.
+export function landedFailure(baseDir, sha, ref, execFn, isShallow) {
+  const why = ancestryFailure(baseDir, sha, ref, execFn, isShallow);
+  if (why !== 'not-on-default-branch') return why;
+  return landedAs(baseDir, sha, ref, execFn) === null ? why : null;
+}
+
+// The commit on `ref` that carries `sha`'s change, or null (SIG-380). A rebase
+// merge gives every commit a new ID and keeps its change, so the branch commit
+// a close names never becomes an ancestor of the default branch. This finds
+// its copy: a commit after the branch point (`<sha>^..<ref>`) with the same
+// patch-id. Only a commit with exactly one parent and a non-empty change is
+// matched: a merge or a root has no single change, and every empty commit has
+// the same (empty) patch. A squash of several commits is a different change
+// and finds nothing. Any git failure answers null. The caller records the
+// commit it returns, so the close's proof is on the default branch in any
+// clone, not only in one that still has the branch commit.
+export function landedAs(baseDir, sha, ref, execFn) {
+  try {
+    const full = runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${sha}^{commit}`], execFn).trim().toLowerCase();
+    const parents = runGit(baseDir, ['rev-list', '--parents', '-n', '1', full], execFn).trim().split(/\s+/).length - 1;
+    if (parents !== 1) return null;
+    // `diff-tree --quiet` exits 0 when the commit changes nothing (runGit throws on 1).
+    try {
+      runGit(baseDir, ['diff-tree', '--quiet', '--no-commit-id', '-r', full], execFn);
+      return null;
+    } catch (err) {
+      if (err?.status !== 1) return null;
+    }
+    const mine = patchIds(baseDir, ['show', '--no-color', '--no-ext-diff', '--format=commit %H', '-p', full], execFn).get(full);
+    if (mine === undefined) return null;
+    const theirs = patchIds(baseDir, ['log', '--no-color', '--no-ext-diff', '--no-merges', '--format=commit %H', '-p', `${full}^..${ref}`], execFn);
+    for (const [commit, id] of theirs) if (id === mine) return commit;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// commit → patch-id, from `git patch-id --stable` over the diff text `args` prints.
+function patchIds(baseDir, args, execFn) {
+  const diff = runGit(baseDir, args, execFn);
+  const out = String(execFn('git', ['patch-id', '--stable'], {
+    cwd: baseDir, input: diff, stdio: ['pipe', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024, env: gitEnv(baseDir),
+  }));
+  const ids = new Map();
+  for (const line of out.split('\n')) {
+    const [id, commit] = line.trim().split(/\s+/);
+    if (id && commit) ids.set(commit.toLowerCase(), id);
+  }
+  return ids;
+}

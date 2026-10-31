@@ -1222,12 +1222,12 @@ export async function rerequestUnitClose(baseDir, id, request = {}, opts = {}) {
 
 // A closing unit's record with its close asked again: `reopened`, its reason
 // naming both commits, then the new `close_requested`. → {next, previous}.
-function rerequested(id, current, { proof, pr, release, by, at }) {
+function rerequested(id, current, { proof, pr, release, by, at, why = null }) {
   const previous = current.closing_proof;
   if (previous === proof) {
     throw new WorkStoreError('CONFLICT', `${id}: the close was already requested with ${proof} — nothing was written.`);
   }
-  const reason = `the close was requested again with the commit ${proof}; the earlier request named ${previous}`;
+  const reason = why ?? `the close was requested again with the commit ${proof}; the earlier request named ${previous}`;
   const reopened = withEvent(current, { type: 'reopened', at, by, reason });
   return { next: withEvent({ record: reopened }, pruneUndefined({ type: 'close_requested', at, by, proof, pr, release })), previous };
 }
@@ -1317,11 +1317,15 @@ export function planUnitConfirms(handle, candidates, { at, by, openItems, byHand
       continue;
     }
     const request = latestRequest(entry.record);
+    // `landedAs`: the commit a rebase merge made of the proof (SIG-380). The
+    // close is asked again with it (two events), then confirmed with it.
+    const current = c.landedAs === undefined ? entry
+      : { record: rerequested(c.id, entry, { proof: c.landedAs, pr: request?.pr, release: request?.release, by, at, why: c.why }).next };
     const event = pruneUndefined({
-      type: 'closed', at, by, reason: 'shipped', proof: c.proof, pr: request?.pr, release: request?.release,
+      type: 'closed', at, by, reason: 'shipped', proof: c.landedAs ?? c.proof, pr: request?.pr, release: request?.release,
       ...(byHand === undefined ? {} : { confirmed_by: 'person', git_reason: byHand.git_reason, why: clean(byHand.why, CLOSE_WORDS_MAX) }),
     });
-    const next = withEvent(entry, event);
+    const next = withEvent(current, event);
     planned.push({ next, text: recordText(next), oldText: text, abs: join(handle.baseDir, entry.path) });
   }
   return { planned, changed, openItems: held };
