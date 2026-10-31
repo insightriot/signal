@@ -15,6 +15,13 @@
       "by": "claude (course-correction rewrite)",
       "reason": "fixed",
       "proof": "f0555614"
+    },
+    {
+      "type": "closed",
+      "at": "2026-10-31T18:58:43.927Z",
+      "by": "confirmCloses",
+      "reason": "fixed",
+      "proof": "f0555614"
     }
   ]
 }

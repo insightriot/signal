@@ -1,0 +1,19 @@
+{
+  "id": "SIG-378",
+  "type": "BUG",
+  "title": "Migrated items land at T while flagged as needing triage, and triageItem refuses T",
+  "priority": "P3",
+  "source": "read of a Signal project's M2.E1 plan",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-31T18:59:04.943Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-31T18:59:04.943Z",
+      "by": "claude"
+    }
+  ]
+}

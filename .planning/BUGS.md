@@ -122,15 +122,17 @@
 | SIG-354 | `confirmed` | P2 | **Re-running /sig:verify or /sig:review after a crash before its report exists is refused, and nothing gets out** |
 | SIG-355 | `confirmed` | P3 | **Re-entering REVIEW moves the visit mark past a PASS this visit recorded, so the halt message reads as if nothing passed** |
 | SIG-358 | `confirmed` | P3 | **parent-run.test.js flakes in CI: a SIGKILLed run leaves a half-made worktree entry** |
-| SIG-367 | `closing` | P3 | **The next Epic ID ignores Epics a milestone file already plans, so /sig:discuss --epic can take a planned Epic's number** |
-| SIG-368 | `closing` | P2 | **applyRigorOverrides crashes when a project config section is a plain flag (parallelization: true)** |
-| SIG-369 | `closing` | P3 | **An approved per-Epic calibrate is never run: DISCUSS lists it as a next step, PLAN notes it and keeps the project tier** |
+| SIG-367 | `fixed` | P3 | **The next Epic ID ignores Epics a milestone file already plans, so /sig:discuss --epic can take a planned Epic's number** |
+| SIG-368 | `fixed` | P2 | **applyRigorOverrides crashes when a project config section is a plain flag (parallelization: true)** |
+| SIG-369 | `fixed` | P3 | **An approved per-Epic calibrate is never run: DISCUSS lists it as a next step, PLAN notes it and keeps the project tier** |
 | SIG-370 | `confirmed` | P3 | **Work-store migration turns a list file's preamble text into inbox items** |
 | SIG-371 | `confirmed` | P3 | **parent-run: after a killed run, the next run sometimes leaves the killed run's temp folder behind (test fails ~1 in 6)** |
 | SIG-372 | `confirmed` | P3 | **/sig:execute: an interrupted loop back drops its unstarted fixes, and a linear project's resumed first task can start from the previous run's commit** |
-| SIG-373 | `closing` | P2 | **/sig:drive runs /sig:review after a VERIFY FAIL, with the failures unfixed** |
+| SIG-373 | `fixed` | P2 | **/sig:drive runs /sig:review after a VERIFY FAIL, with the failures unfixed** |
 | SIG-374 | `confirmed` | P3 | **Loop ceiling counts a VERIFY PASS visit, so the first real VERIFY failure after a REVIEW loop stops at the ceiling** |
 | SIG-375 | `confirmed` | P3 | **parent-run summary line counts test files but does not say so; an agent read "1 of 1 failed" as one test** |
 | SIG-376 | `confirmed` | P3 | **After a refused REVIEW recordPass, the next command reads as /sig:ship** |
+| SIG-377 | `confirmed` | P3 | **stringifyFrontmatter writes the text "undefined" into STATE.md when body is missing** |
+| SIG-378 | `confirmed` | P3 | **Migrated items land at T while flagged as needing triage, and triageItem refuses T** |
 
-*0 needs-triage · 85 confirmed · 4 closing · 138 closed (227 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 87 confirmed · 0 closing · 142 closed (229 total) · closes more than 30 days before the newest event are in `work/history/`*

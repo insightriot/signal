@@ -1,0 +1,19 @@
+{
+  "id": "SIG-377",
+  "type": "BUG",
+  "title": "stringifyFrontmatter writes the text \"undefined\" into STATE.md when body is missing",
+  "priority": "P3",
+  "source": "read of a Signal project's git history",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-31T18:59:04.942Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-31T18:59:04.942Z",
+      "by": "claude"
+    }
+  ]
+}

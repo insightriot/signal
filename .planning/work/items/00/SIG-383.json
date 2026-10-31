@@ -1,0 +1,13 @@
+{
+  "id": "SIG-383",
+  "type": "NEW",
+  "title": "Step 2 idea: a second reviewer from a different model",
+  "source": "read of a real Signal project, 2026-10-31",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-31T19:02:08.473Z",
+      "by": "claude"
+    }
+  ]
+}

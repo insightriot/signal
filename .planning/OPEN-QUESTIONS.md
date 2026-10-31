@@ -167,3 +167,11 @@ Can Signal's repo become private without breaking installs — and what unpublis
 M6.E17 S2: `setCurrentEpic` archives `completed_phases` before resetting it (D-M5E9-7) but clears the new `phase_passes` with no copy. The passes are also in the REVIEW/VERIFY reports and the retrospective, so nothing is lost that is not written elsewhere; decide whether the archive should carry them too.
 
 ---
+
+## Evidence for the records-shape question: what a real project needed and the tracker could not hold
+
+**Item:** SIG-382
+
+For the open Step 1 question of what records a project needs. Observed in one real project at FULL: (1) no field for evidence, a file:line citation or an outside key (editItem edits type, title, theme, priority, source, source_ref, legacy_id, keep_because, migration_note), so it keeps a side mapping file; (2) it closes a user-visible item only when production shows the fix working (a real event within 7 days, or a recorded production run), and a nightly check reopens an item that recurs; (3) it keeps a table of settings that live outside git (dashboards, environment variables), updated in the same turn they change, and read first at resume; (4) editItem, queueItem and triageItem regenerate every view on each call, which is slow for bulk work. Evidence, not features: the store is frozen.
+
+---

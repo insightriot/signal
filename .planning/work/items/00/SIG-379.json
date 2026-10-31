@@ -1,0 +1,19 @@
+{
+  "id": "SIG-379",
+  "type": "CHORE",
+  "title": "Cut a release: nothing since 0.1.53 has reached a user",
+  "priority": "P1",
+  "source": "read of a real Signal project, 2026-10-31",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-10-31T19:02:08.471Z",
+      "by": "claude"
+    },
+    {
+      "type": "triaged",
+      "at": "2026-10-31T19:02:08.471Z",
+      "by": "claude"
+    }
+  ]
+}
