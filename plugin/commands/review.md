@@ -72,13 +72,12 @@ for the suite result.
 ## 4. Review the change
 
 **Open this pass's section first.** The report is `artifactName('REVIEW', { currentEpic, planningDir })`.
-Append `## Pass N — {date}, at {sha}` to it (the first pass creates the file), with HEAD's sha as
-`{sha}`. Count only the `## Pass` sections after the report's last `## Run ended` line. If there are
-more of them than `phase_passes` has REVIEW entries (a session ended, or `recordPass` refused, before
-the pass was recorded), the last one is this pass: continue under it rather than appending another.
-A section whose `{sha}` comes before this run's base (step 3) is an earlier run's whose `## Run ended`
-line is missing: call `markRunEnded` (step 5) first. Never rewrite an earlier pass. Write every commit in the report as its sha (7 to
-40 lowercase hex characters), never `HEAD` or a tag: the check refuses those.
+Count the `## Pass` sections after its last `## Run ended` line. If there are more of them than
+`phase_passes` has REVIEW entries (a session ended, or `recordPass` refused, before the pass was
+recorded), the last one is this pass: continue under it. Otherwise append `## Pass N — {date}, at {sha}`
+(the first pass creates the file), with HEAD's sha as `{sha}`. Never rewrite an earlier pass. Write
+every commit in the report as its sha (7 to 40 lowercase hex characters), never `HEAD` or a tag: the
+check refuses those.
 
 Categorise every finding in 4.1–4.5 as Critical, Important, Suggestion or Nit.
 
@@ -274,5 +273,5 @@ Commit the report and every `.planning/` file the phase changed, `STATE.md` with
 Do not run `checkFixRounds` again after it: that commit is not in any round, so the check lists it as
 uncovered, and editing the report for it leaves `STATE.md` behind. This command sets no next phase;
 the next command records leaving REVIEW: `/sig:execute` after a loop back (then `/sig:verify`, then
-`/sig:review` again); `/sig:review` again after a refused `recordPass`, once its cause is fixed; else
-`/sig:ship`.
+`/sig:review` again), and `/sig:ship` after a PASS, a PASS-WITH-FIXES or an accepted limit (C). When
+the command stopped for a person, the person decides.

@@ -131,5 +131,6 @@
 | SIG-373 | `closing` | P2 | **/sig:drive runs /sig:review after a VERIFY FAIL, with the failures unfixed** |
 | SIG-374 | `confirmed` | P3 | **Loop ceiling counts a VERIFY PASS visit, so the first real VERIFY failure after a REVIEW loop stops at the ceiling** |
 | SIG-375 | `confirmed` | P3 | **parent-run summary line counts test files but does not say so; an agent read "1 of 1 failed" as one test** |
+| SIG-376 | `confirmed` | P3 | **After a refused REVIEW recordPass, the next command reads as /sig:ship** |
 
-*0 needs-triage · 84 confirmed · 4 closing · 138 closed (226 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 85 confirmed · 4 closing · 138 closed (227 total) · closes more than 30 days before the newest event are in `work/history/`*

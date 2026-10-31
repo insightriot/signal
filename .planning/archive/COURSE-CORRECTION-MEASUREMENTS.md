@@ -49,4 +49,7 @@ after): what the round after a loop back is (its base and head; one reading was 
 `checkFixRounds`), a FAIL with nothing to fix looping back with no way through, the fallback diff
 base reaching back to a linear project's first run, the pass heading written twice, commits written
 as `HEAD`, what follows EXECUTE, and a deferred Important with no verdict. The loop-back path is
-proven by a real-git test against the code, not yet on the test project.
+proven by a real-git test against the code, not yet on the test project. Two more fresh reads of the
+fixes found three, then four, more: each round's new recovery rules made the next defects. Stopped at
+the ceiling of three by removing those rules instead of adding more (15.4 KB); the one code gap left
+is SIG-376 (a refused REVIEW record reads as "next: /sig:ship").

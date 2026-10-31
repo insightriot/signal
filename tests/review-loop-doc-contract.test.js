@@ -119,7 +119,7 @@ describe('AC2.1 / AC2.2 — the fix-round step', () => {
   // pass's heading, so on pass 2+ they landed under the previous pass's section.
   it('P2-I7: writes the pass heading before any review step or round, and checks the report as written', () => {
     expect(stepOpen).toMatch(/Open this pass's section first/);
-    expect(stepOpen).toMatch(/Append `## Pass N — \{date\}, at \{sha\}`/);
+    expect(stepOpen).toMatch(/Otherwise append `## Pass N — \{date\}, at \{sha\}`/);
     expect(review.search(/^## 4\. Review the change/m)).toBeLessThan(review.search(/^### 4\.5 /m));
     expect(step5).toMatch(/check the report\*\* as it is on disk/);
   });

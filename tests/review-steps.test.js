@@ -182,7 +182,7 @@ describe('review.md re-entry and the loop ceiling', () => {
       // What /sig:drive, /sig:status and /sig:resume read (SIG-373).
       expect(describeNextAction(state.phase, [], null, state).action).toBe('/sig:execute');
     });
-    expect(flat).toMatch(/the next command records leaving REVIEW: `\/sig:execute` after a loop back \(then `\/sig:verify`, then `\/sig:review` again\); `\/sig:review` again after a refused `recordPass`, once its cause is fixed; else `\/sig:ship`/);
+    expect(flat).toMatch(/the next command records leaving REVIEW: `\/sig:execute` after a loop back \(then `\/sig:verify`, then `\/sig:review` again\), and `\/sig:ship` after a PASS, a PASS-WITH-FIXES or an accepted limit \(C\)\. When the command stopped for a person, the person decides\./);
   });
 
   it('a FAIL lists its fixes, which /sig:execute builds on a loop back', () => {
@@ -252,8 +252,9 @@ describe('review.md after a loop back: the fixes EXECUTE made are this pass\'s f
   it('a pass heading with no verdict recorded is one `phase_passes` does not count, and commits are shas', () => {
     // Only this run's sections: a linear SHIP clears phase_passes and appends "## Run ended",
     // and checkFixRounds reads only what follows that line (second fresh read).
-    expect(flat).toMatch(/Count only the `## Pass` sections after the report's last `## Run ended` line\. If there are more of them than `phase_passes` has REVIEW entries/);
-    expect(flat).toMatch(/A section whose `\{sha\}` comes before this run's base \(step 3\) is an earlier run's whose `## Run ended` line is missing: call `markRunEnded`/);
+    expect(flat).toMatch(/Count the `## Pass` sections after its last `## Run ended` line\. If there are more of them than `phase_passes` has REVIEW entries/);
+    // Third fresh read: the count comes before the append, or the new heading is counted.
+    expect(at('Count the `## Pass` sections after its last')).toBeLessThan(at('Otherwise append `## Pass N'));
     expect(flat).toMatch(/Write every commit in the report as its sha \(7 to 40 lowercase hex characters\), never `HEAD` or a tag/);
     // Step 5 fills in the section under step 4's heading; it does not write the heading again.
     const step5 = review.slice(review.indexOf('## 5. Write the report'), review.indexOf('## 6. Record the pass'));
