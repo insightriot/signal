@@ -58,10 +58,12 @@ also `security-and-hardening/SKILL.md`, `performance-optimization/SKILL.md` and
 **The change under review** is `git diff <base>..HEAD`. The base is
 `git merge-base HEAD origin/<branch>`, where `<branch>` is `resolveDefaultBranch(baseDir)`
 (`tools/lib/branch-guard.js`). When that returns `null`, or the merge-base is HEAD itself (the work
-is on the default branch), the base is the commit that first added the plan:
-`git log --diff-filter=A --format=%H -- <plan>`, its last line, with the plan from
-`resolveArtifactPath(planningDir, 'PLAN', { currentEpic, phase: 'PLAN' })` (`tools/lib/resume.js`).
-Write the base you used in the report.
+is on the default branch), the base is the newest commit that changed the plan,
+`git log -1 --format=%H -- <plan>`, with the plan from
+`resolveArtifactPath(planningDir, 'PLAN', { currentEpic, phase: 'PLAN' })` (`tools/lib/resume.js`):
+PLAN rewrites it on every run, so this run's work starts there. If the plan was changed after this
+run's first task, use the commit before that task instead (the progress file names each task's
+commit). Write the base you used in the report.
 
 Read the requirements, `resolveArtifactPath(planningDir, 'REQUIREMENTS', { currentEpic, phase: 'DISCUSS' })`,
 and the VERIFY report, `resolveArtifactPath(planningDir, 'VERIFICATION', { currentEpic, phase: 'VERIFY' })`,
@@ -70,10 +72,12 @@ for the suite result.
 ## 4. Review the change
 
 **Open this pass's section first.** The report is `artifactName('REVIEW', { currentEpic, planningDir })`.
-Append `## Pass N — {date}, at {sha}` to it (the first pass creates the file), with HEAD as `{sha}`.
-If the report already ends with a pass heading that has no verdict recorded (the session that wrote
-it ended before `recordPass`), that heading is this pass: continue under it rather than appending
-another. Never rewrite an earlier pass.
+Append `## Pass N — {date}, at {sha}` to it (the first pass creates the file), with HEAD's sha as
+`{sha}`. If the report already ends with a pass heading that has no verdict recorded, meaning it has
+more `## Pass` sections than `phase_passes` has REVIEW entries (a session ended, or `recordPass`
+refused, before the pass was recorded), that heading is this pass: continue under it rather than
+appending another. Never rewrite an earlier pass. Write every commit in the report as its sha (7 to
+40 lowercase hex characters), never `HEAD` or a tag: the check refuses those.
 
 Categorise every finding in 4.1–4.5 as Critical, Important, Suggestion or Nit.
 
@@ -121,7 +125,15 @@ it makes the verdict FAIL.
 
 A fix round is the commits that close the findings of one read: fixes made in this phase, or the fixes
 `/sig:execute` made after a FAIL. Every round gets its own fresh read, because fixes to fixes are where
-new defects come from. For each round:
+new defects come from.
+
+**After a loop back** (the last REVIEW entry in `phase_passes` is a FAIL), the fixes `/sig:execute`
+made are this pass's first round, recorded before any other: its base is the head of the last round
+recorded before it, or the previous pass's `{sha}` if there is none; its head is this pass's `{sha}`.
+Run its parent run (step 1) on that base over the tests the fixes added or changed, and read it
+fresh (step 2). Any round made in this pass then starts at this pass's `{sha}`.
+
+For each round:
 
 1. **Fix it under the fixer brief** ([`references/fixer-brief.md`](../references/fixer-brief.md)),
    whether this session or a sub-agent writes it (a sub-agent gets the brief in its prompt). Write the
@@ -150,11 +162,9 @@ ends at three rounds with findings open is a FAIL.
 
 ## 5. Write the report and check it
 
-Fill in this pass's section:
+Fill in this pass's section, under the heading step 4 wrote:
 
 ```markdown
-## Pass {n} — {date}, at {sha}
-
 **Reviewed:** <base>..<head>
 
 ## Critical Issues (must fix before SHIP)
@@ -233,7 +243,7 @@ At `gate_strictness: strict`, answer each:
 - [ ] Each review step the profile runs (4.1–4.4) is done
 - [ ] The fresh-context reviewers (4.5) were dispatched and their findings categorised, or `cannot-dispatch` is in the report
 - [ ] Every fix round has its own fresh read and parent run (4.6), and `checkFixRounds` accepted the report for the verdict
-- [ ] All Critical issues resolved; Important ones resolved or deferred with a reason
+- [ ] Every Critical and Important issue is resolved, or accepted as a limit through the Loop Back (C)
 - [ ] The verdict is recorded with `recordPass` (step 6)
 - [ ] User approves the results — only when `gates.confirm_review` is set (`attended`)
 
@@ -245,6 +255,8 @@ On a FAIL, call `loopStatusFor(await readState(baseDir), 'REVIEW')` (`tools/lib/
   stop for the user to fix it.
 - `atCeiling`: show `formatLoopCeilingHalt(status)`. At `attended`, ask the options below with it; at
   `checkpointed` and `unattended`, do step 8 and stop: a person decides.
+- The FAIL lists no fix to make (a `cannot-dispatch`, or work that needs re-planning): at `attended`,
+  ask the options below; at `checkpointed` and `unattended`, do step 8 and stop: a person decides.
 - Otherwise: at `attended`, ask with the 3-options-plus-other pattern (`references/question-patterns.md`,
   via `AskUserQuestion`); at `checkpointed` and `unattended`, take A and say so.
 
@@ -259,5 +271,6 @@ Write the path chosen in the report.
 
 Commit the report and every `.planning/` file the phase changed, `STATE.md` with them, in one commit.
 Do not run `checkFixRounds` again after it: that commit is not in any round, so the check lists it as
-uncovered, and editing the report for it leaves `STATE.md` behind. This command sets no next phase; the next command records leaving REVIEW: `/sig:execute` after a loop back, else
-`/sig:ship`.
+uncovered, and editing the report for it leaves `STATE.md` behind. This command sets no next phase;
+the next command records leaving REVIEW: `/sig:execute` after a loop back (then `/sig:verify`, then
+`/sig:review` again), else `/sig:ship`.

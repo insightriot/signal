@@ -7,7 +7,8 @@
 // tests/review-loop-doc-contract.test.js; the dispatch, tests/fresh-reviewer-dispatch.test.js.
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,6 +17,7 @@ import { initState, readState, transitionPhase, recordPass } from '../plugin/too
 import { loopStatusFor } from '../plugin/tools/lib/loop-ceiling.js';
 import { checkFixRounds } from '../plugin/tools/lib/review-rounds.js';
 import { describeNextAction } from '../plugin/tools/lib/status.js';
+import { gitEnv } from '../plugin/tools/lib/git-env.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const LIB = join(ROOT, 'plugin', 'tools', 'lib');
@@ -124,10 +126,12 @@ describe('review.md runs its steps in the order the checks need', () => {
     expect(flat).toMatch(/Steps 4\.5 and 4\.6 run at every depth\./);
   });
 
-  it('names the change under review: the merge-base with the default branch, else the commit that added the plan', () => {
+  it('names the change under review: the merge-base with the default branch, else the newest commit that changed the plan', () => {
     expect(flat).toMatch(/\*\*The change under review\*\* is `git diff <base>\.\.HEAD`/);
     expect(flat).toMatch(/`git merge-base HEAD origin\/<branch>`, where `<branch>` is `resolveDefaultBranch\(baseDir\)`/);
-    expect(flat).toMatch(/the base is the commit that first added the plan/);
+    // Not the plan's first add: a linear project reuses one plan name every run (fresh read).
+    expect(flat).toMatch(/the base is the newest commit that changed the plan, `git log -1 --format=%H -- <plan>`/);
+    expect(flat).not.toMatch(/--diff-filter=A/);
     expect(flat).toMatch(/Write the base you used in the report\./);
   });
 
@@ -178,7 +182,7 @@ describe('review.md re-entry and the loop ceiling', () => {
       // What /sig:drive, /sig:status and /sig:resume read (SIG-373).
       expect(describeNextAction(state.phase, [], null, state).action).toBe('/sig:execute');
     });
-    expect(flat).toMatch(/the next command records leaving REVIEW: `\/sig:execute` after a loop back, else `\/sig:ship`/);
+    expect(flat).toMatch(/the next command records leaving REVIEW: `\/sig:execute` after a loop back \(then `\/sig:verify`, then `\/sig:review` again\), else `\/sig:ship`/);
   });
 
   it('a FAIL lists its fixes, which /sig:execute builds on a loop back', () => {
@@ -199,3 +203,59 @@ describe('review.md re-entry and the loop ceiling', () => {
     expect(flat).toMatch(/`STATE\.md` with them, in one commit\. Do not run `checkFixRounds` again after it/);
   });
 });
+
+// A fresh read of the rewrite: nothing said what the loop-back round's head is,
+// and two readings of the old text gave a chain the check accepts and one it refuses.
+describe('review.md after a loop back: the fixes EXECUTE made are this pass\'s first round', () => {
+  const round = (n, base, head, parent) =>
+    `### Fix round ${n}\n**Fresh read:** ${base}..${head} — Critical 0, Important 0 — stop: yes\n` +
+    `**Parent run:** parent-run ${parent}: 1 of 1 failed on the base\n\n`;
+
+  it('base = the previous pass\'s sha, head = this pass\'s sha; a later round starts there (real git)', () => {
+    const flat46 = flat.slice(flat.indexOf('### 4.6 Fix rounds'), flat.indexOf('## 5. Write the report'));
+    expect(flat46).toMatch(/the fixes `\/sig:execute` made are this pass's first round, recorded before any other: its base is the head of the last round recorded before it, or the previous pass's `\{sha\}` if there is none; its head is this pass's `\{sha\}`/);
+    expect(flat46).toMatch(/Any round made in this pass then starts at this pass's `\{sha\}`/);
+
+    const dir = mkdtempSync(join(tmpdir(), 'sig-review-loopback-'));
+    try {
+      const g = (...args) => execFileSync('git', args, { cwd: dir, env: gitEnv(dir), encoding: 'utf-8' }).trim();
+      g('init', '-q');
+      const sha = [];
+      // pass 1 at c0; EXECUTE's fix c1; VERIFY's report c2 (pass 2 opens here); an in-phase fix c3.
+      for (const n of [0, 1, 2, 3]) {
+        writeFileSync(join(dir, 'f.txt'), `${n}\n`);
+        g('add', 'f.txt');
+        g('-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', `c${n}`);
+        sha.push(g('rev-parse', 'HEAD').slice(0, 8));
+      }
+      const [p1, fix, p2, inPhase] = sha;
+      const head = (pass2) => `# Review\n\n## Pass 1 — 2026-10-01, at ${p1}\n\n## Verdict\nFAIL\n\n## Pass 2 — 2026-10-01, at ${p2}\n\n${pass2}`;
+      const opts = { phasePasses: ['REVIEW FAIL (2026-10-01)'], cwd: dir };
+
+      const asWritten = head(round(1, p1, p2, p1) + round(2, p2, inPhase, p2));
+      expect(checkFixRounds(asWritten, 'PASS-WITH-FIXES', opts).reasons).toEqual([]);
+
+      // The other reading: round 1 ends at the last fix, round 2 starts at the pass's sha.
+      const otherReading = head(round(1, p1, fix, p1) + round(2, p2, inPhase, p2));
+      expect(checkFixRounds(otherReading, 'PASS-WITH-FIXES', opts).ok).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('a FAIL with no fix to make stops for a person, since the next pass could record no round', () => {
+    const report = '# Review\n\n## Pass 1 — 2026-10-01, at abc1234\n\n## Pass 2 — 2026-10-01, at def5678\n\n## Verdict\nPASS\n';
+    const r = checkFixRounds(report, 'PASS', { phasePasses: ['REVIEW FAIL (2026-10-01)'] });
+    expect(r.ok).toBe(false);
+    expect(flat).toMatch(/The FAIL lists no fix to make \(a `cannot-dispatch`, or work that needs re-planning\): at `attended`, ask the options below; at `checkpointed` and `unattended`, do step 8 and stop: a person decides/);
+  });
+
+  it('a pass heading with no verdict recorded is one `phase_passes` does not count, and commits are shas', () => {
+    expect(flat).toMatch(/more `## Pass` sections than `phase_passes` has REVIEW entries/);
+    expect(flat).toMatch(/Write every commit in the report as its sha \(7 to 40 lowercase hex characters\), never `HEAD` or a tag/);
+    // Step 5 fills in the section under step 4's heading; it does not write the heading again.
+    const step5 = review.slice(review.indexOf('## 5. Write the report'), review.indexOf('## 6. Record the pass'));
+    expect(step5).not.toMatch(/^## Pass /m);
+  });
+});
+

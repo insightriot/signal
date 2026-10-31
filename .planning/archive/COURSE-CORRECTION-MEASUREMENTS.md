@@ -44,3 +44,9 @@ parent run was a stated gap, since the code already worked. $8.57, 6 minutes. It
 after its commit, saw that commit as uncovered, and committed the report again without STATE.md, so
 STATE read stale. Step 8 now says not to. **Second run, same start, after that fix:** the same
 Important found and fixed the same way, one commit, STATE fresh; $5.35, 6 minutes.
+A fresh read of the rewrite against the code then found seven gaps, all confirmed and fixed (15.3 KB
+after): what the round after a loop back is (its base and head; one reading was refused by
+`checkFixRounds`), a FAIL with nothing to fix looping back with no way through, the fallback diff
+base reaching back to a linear project's first run, the pass heading written twice, commits written
+as `HEAD`, what follows EXECUTE, and a deferred Important with no verdict. The loop-back path is
+proven by a real-git test against the code, not yet on the test project.
