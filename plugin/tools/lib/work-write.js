@@ -379,3 +379,33 @@ export function ancestryFailure(baseDir, sha, ref, execFn, isShallow) {
     return 'git-failed';
   }
 }
+
+// `ancestryFailure`, except that a commit whose change `ref` already holds
+// counts as landed (SIG-380). A rebase merge gives every commit a new ID and
+// keeps its change, so the branch commit a close names is never an ancestor
+// of the default branch, and its close never confirmed. `git cherry` marks a
+// commit "-" when a commit with the same patch-id is upstream of it. Only a
+// commit with exactly one parent and a non-empty change is matched: a merge or
+// a root has no single change, and git cherry reads any two empty commits as
+// the same change. A squash of several commits has a different change and
+// still reads `not-on-default-branch`. Any git failure keeps that answer.
+export function landedFailure(baseDir, sha, ref, execFn, isShallow) {
+  const why = ancestryFailure(baseDir, sha, ref, execFn, isShallow);
+  if (why !== 'not-on-default-branch') return why;
+  try {
+    const full = runGit(baseDir, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${sha}^{commit}`], execFn).trim().toLowerCase();
+    const parents = runGit(baseDir, ['rev-list', '--parents', '-n', '1', full], execFn).trim().split(/\s+/).length - 1;
+    if (parents !== 1) return why;
+    // `diff-tree --quiet` exits 0 when the commit changes nothing (runGit throws on 1).
+    try {
+      runGit(baseDir, ['diff-tree', '--quiet', '--no-commit-id', '-r', full], execFn);
+      return why;
+    } catch (err) {
+      if (err?.status !== 1) return why;
+    }
+    const out = runGit(baseDir, ['cherry', ref, full, `${full}^`], execFn).trim();
+    return out === `- ${full}` ? null : why;
+  } catch {
+    return why;
+  }
+}

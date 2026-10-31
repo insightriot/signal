@@ -58,6 +58,7 @@ import { listUnits, unitRecordsOn, UNITS_REL } from './unit-records.js';
 // another name because this module keeps its own, which names the views.
 import {
   ancestryFailure,
+  landedFailure,
   commitsStartingWith,
   confine,
   defaultBranchRef,
@@ -1822,7 +1823,7 @@ export function probeClosedProofs(baseDir, opts = {}) {
     // `failure` is kept (r7.2): "not in this history" and "not merged" are
     // different findings, and the words depend on which git gave.
     notThere: asked
-      .map((c) => ({ ...c, failure: ancestryFailure(baseDir, c.proof, target.ref, execFn, isShallow) }))
+      .map((c) => ({ ...c, failure: landedFailure(baseDir, c.proof, target.ref, execFn, isShallow) }))
       .filter((c) => PROOF_NOT_THERE.has(c.failure)),
   };
 }
@@ -1961,7 +1962,9 @@ function ancestrySplit(baseDir, execFn) {
     target ??= defaultBranchRef(baseDir, execFn);
     isShallow ??= shallowProbe(baseDir, execFn);
     for (const c of candidates) {
-      const reason = target.reason ?? ancestryFailure(baseDir, c.req.proof, target.ref, execFn, isShallow);
+      // A commit whose change is on the default branch counts: a rebase
+      // merge rewrites the commit and keeps the change (SIG-380).
+      const reason = target.reason ?? landedFailure(baseDir, c.req.proof, target.ref, execFn, isShallow);
       if (reason === null) ok.push(c);
       else still.set(c.id, { reason, req: c.req });
     }
