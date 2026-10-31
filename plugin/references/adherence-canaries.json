@@ -43,7 +43,7 @@
         { "file": "commands/execute.md", "section": "## 2. Record the phase" },
         { "file": "commands/plan.md", "section": "## 2. Record the phase" },
         { "file": "commands/verify.md", "section": "## 2. Record the phase" },
-        { "file": "commands/review.md", "section": "## Phase entry — record the phase (M5.E9 FR6, `B41`)" },
+        { "file": "commands/review.md", "section": "## 2. Record the phase" },
         { "file": "commands/ship.md", "line": "`await transitionPhase(baseDir, 'SHIP')`" }
       ],
       "$isolationNote": [

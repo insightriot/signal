@@ -34,3 +34,22 @@ named the new remedy (commit STATE.md), and the session found the plan change on
 proposed going back to EXECUTE for it; nothing written. $1.16, 11 turns, 1.5 minutes. Updating
 STATE.md left it stale until committed; the commit cleared it. A fresh session given
 `/sig:checkpoint` was told no such command exists, and nothing ran.
+**review, 2026-10-30, the rewrite's branch, on a copy of the post-verify project (`3c9b6aa`):**
+29.5 KB to 13.8 KB; branch code imported; no questions or stops (FEATURE, `quality-only`). The
+change was diffed from the commit that added the plan (no remote). All three reviewers dispatched in
+one message as `sig:specialists:*` (no fallback needed). The test engineer found an Important: no
+test caught the 30 s refresh stopping after its first tick (a one-shot timer passed every test). One
+fix round, test only, fresh read clean, `checkFixRounds` accepted, PASS-WITH-FIXES recorded; the
+parent run was a stated gap, since the code already worked. $8.57, 6 minutes. It then re-ran the check
+after its commit, saw that commit as uncovered, and committed the report again without STATE.md, so
+STATE read stale. Step 8 now says not to. **Second run, same start, after that fix:** the same
+Important found and fixed the same way, one commit, STATE fresh; $5.35, 6 minutes.
+A fresh read of the rewrite against the code then found seven gaps, all confirmed and fixed (15.3 KB
+after): what the round after a loop back is (its base and head; one reading was refused by
+`checkFixRounds`), a FAIL with nothing to fix looping back with no way through, the fallback diff
+base reaching back to a linear project's first run, the pass heading written twice, commits written
+as `HEAD`, what follows EXECUTE, and a deferred Important with no verdict. The loop-back path is
+proven by a real-git test against the code, not yet on the test project. Two more fresh reads of the
+fixes found three, then four, more: each round's new recovery rules made the next defects. Stopped at
+the ceiling of three by removing those rules instead of adding more (15.4 KB); the one code gap left
+is SIG-376 (a refused REVIEW record reads as "next: /sig:ship").
