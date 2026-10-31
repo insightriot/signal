@@ -202,7 +202,7 @@ Skip with the store off. Otherwise find the unit this SHIP closes:
     - `closed`: this SHIP closes no unit because `current_epic` names a closed one; a person moves `current_epic` to the next unit by hand.
     - no record: run `/sig:docs-migrate --work-store`, then run again.
   - `not-a-unit-id`: say so, showing only `shown`, and close nothing.
-  - `broken-record`, or `broken` on any kind: a unit record does not read, and every write to the store refuses until it is restored. Close nothing; name each record (`/sig:docs-sweep` reports them); restore it with git, never by hand, then run SHIP again.
+  - `broken-record`, or a result carrying `broken`: a unit record does not read, and every write to the store refuses until it is restored. Close nothing; name each record (`/sig:docs-sweep` reports them); restore it with git, never by hand, then run SHIP again.
   - `ask`: `current_epic` is null and some records are not closed (`units`). Show them and ask the person which one, if any, this SHIP finishes; close that one, or nothing.
   - `none`: say that no unit is closed by this SHIP.
 
@@ -250,8 +250,8 @@ branch and pull, so HEAD is the merged commit and the tree is clean:
   git cannot tell for them. Then call `closeEpic(baseDir, '<EpicID>', {by, pr, release, rerequest: [{id, proof}]})` with only those. It returns `re-requested` with the merged commit; an item not confirmed stays open (`OPEN_ITEMS`).
 - Without unit records, `closeEpicCheck(baseDir, '<EpicID>', { rerequest: true })` lists the candidates and writes nothing. Ask the same question, then call `rerequestCloses(baseDir, [{id, proof, by}])` for the items the person confirms, with the merged commit's full hash as `proof`.
 
-A backlog row step 7.4 closed that is not in the Epic is not on either list: ask again for it the
-same way, by ID. Commit the changed records and views, through a branch and a pull request where the
+A backlog row step 7.4 closed that is not in the Epic is not on either list: ask again for it with
+`rerequestCloses`, by ID. Commit the changed records and views, through a branch and a pull request where the
 default branch is protected; step 7.7 or `/sig:docs-sweep` then confirms them.
 
 ### 7.7 Confirm closes whose commit reached the default branch (every SHIP)
