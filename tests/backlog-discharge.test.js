@@ -371,7 +371,7 @@ describe('commands/ship.md wires the discharge (AC9.3)', () => {
 
   it('the step is Epic-close only, like the inbox sweep beside it', () => {
     // ship.md rewrite (2026-10-31): the heading says so, as step 7.3's does.
-    expect(ship).toMatch(/^### 7\.4 Close the backlog rows this Epic finished \(Epic-close SHIP only\)$/m);
+    expect(ship).toMatch(/^### 7\.4 Close the items this Epic finished \(Epic-close SHIP only\)$/m);
     expect(ship).toMatch(/^### 7\.3 Sweep the capture inbox \(Epic-close SHIP only\)$/m);
     expect(ship).toMatch(/isEpicClose: true[^\n]*\n[^\n]*\*\*Epic-close SHIP\*\*/);
   });

@@ -20,6 +20,11 @@ const CALLS = [
   ['detectMode', 'state.js'],
   ['unitRecordsOn', 'unit-records.js'],
   ['shipFR1Check', 'retrospective.js'],
+  ['closeEpicCheck', 'work-records.js'],
+  ['resolveArtifactPath', 'resume.js'],
+  ['storeVersion', 'work-records.js'],
+  ['requestClose', 'work-records.js'],
+  ['rerequestCloses', 'work-records.js'],
   ['checkBranchPosture', 'branch-guard.js'],
   ['formatBranchHalt', 'branch-guard.js'],
   ['formatBranchLine', 'branch-guard.js'],
@@ -87,10 +92,13 @@ describe('ship.md steps run in order', () => {
     expect([...ship.matchAll(/^### 7\.(\d+) /gm)].map((m) => Number(m[1]))).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
 
-  it('step 1 reads the profile, then the retrospective check, then the branch, and writes nothing', () => {
+  it('step 1 reads the profile, the retrospective check, the open items, then the branch, and writes nothing', () => {
     expect(at('## 1. Check SHIP can run (writes nothing)')).toBeLessThan(at('readEffectiveProfile('));
     expect(at('readEffectiveProfile(')).toBeLessThan(at('shipFR1Check('));
-    expect(at('shipFR1Check(')).toBeLessThan(at('checkBranchPosture('));
+    // Run 2 on the test project (2026-10-31): OPEN_ITEMS refused at 7.6 after
+    // step 6 had recorded the phase; the read-only check now runs first.
+    expect(at('shipFR1Check(')).toBeLessThan(at('closeEpicCheck('));
+    expect(at('closeEpicCheck(')).toBeLessThan(at('checkBranchPosture('));
     expect(at('checkBranchPosture(')).toBeLessThan(at('## 2. '));
   });
 

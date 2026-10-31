@@ -12,7 +12,10 @@ saying what shipped.
 Every `tools/lib/`, `skills/` and `references/` path in this file is under `${CLAUDE_PLUGIN_ROOT}/`:
 import from there, never from another copy of Signal. `baseDir` is the project root; `planningDir` is
 `.planning/` in it; `state` is `readState(baseDir)` (`tools/lib/state.js`) and `currentEpic` is its
-`current_epic`. Keep each call below on one line when you quote it.
+`current_epic`. Find this Epic's earlier files (PLAN, REQUIREMENTS, the REVIEW report) with
+`resolveArtifactPath(planningDir, ARTIFACT, { currentEpic, phase })` (`tools/lib/resume.js`), never by guessing a path. "The work store is on"
+means `isStoreOn(baseDir).on` (`tools/lib/work-store.js`); its schema is `storeVersion(baseDir)` (`tools/lib/work-records.js`). `by` is who
+runs this SHIP. Keep each call below on one line when you quote it.
 
 ## 1. Check SHIP can run (writes nothing)
 
@@ -35,11 +38,11 @@ At every level the pull request and the person's approval to merge still happen:
 (`ship-pr`, `ship-retro`), not asks the dial can clear. `gate_strictness: strict` turns on the
 check in step 9.
 
-**Retrospective.** In Epic mode (`detectMode(state) === 'epic'`, `tools/lib/state.js`) load
+**Retrospective.** Pass `milestoneContent: null` in linear mode, and when `unitRecordsOn(baseDir)` (`tools/lib/unit-records.js`) is true; if `unitRecordsOn` throws, print its message and **halt**: the folder is there and cannot be trusted.
+Otherwise, in Epic mode (`detectMode(state) === 'epic'`, `tools/lib/state.js`), load
 `.planning/MILESTONE-{n}.md`, where `{n}` is `current_epic` without its trailing `.E{N}`; if it is
 missing, stop with *"current_epic `{epicId}` points to a milestone whose MILESTONE-{n}.md does not
-exist. Set current_epic to a real Epic or create the milestone file."* Pass `milestoneContent: null`
-instead in linear mode, and when `unitRecordsOn(baseDir)` (`tools/lib/unit-records.js`) is true; if that call throws, print its message and **halt**: the folder is there and cannot be trusted.
+exist. Set current_epic to a real Epic or create the milestone file."*
 Then `shipFR1Check({state, profile, milestoneContent, baseDir})` (`tools/lib/retrospective.js`):
 
 - `{halt: false, skipped: true, reason}`: not an Epic close, or a linear project. Go on.
@@ -50,9 +53,17 @@ Then `shipFR1Check({state, profile, milestoneContent, baseDir})` (`tools/lib/ret
 - `{halt: true, message}`: print `message` and stop. The person writes or fixes the retrospective,
   then runs `/sig:ship` again. There is no flag that skips this.
 
+**Open items** (Epic-close SHIP, work store on, schema 2). Call `closeEpicCheck(baseDir, state.current_epic, { unitRecords: unitRecordsOn(baseDir) })` (`tools/lib/work-records.js`); it writes
+nothing. `OPEN_ITEMS` lists the Epic's items that are not closed. Step 7.4 closes each one this
+Epic's work finished. If one is not finished, or the project's requirements say it closes later (for
+example after a person checks it), stop now and name it: the person closes it (`/sig:item close`) or
+moves it out of the Epic (`/sig:item move <id> T`), then runs `/sig:ship` again. `SCHEMA`: see step 7.6.
+
 **Branch.** `checkBranchPosture(baseDir, { tier: profile.tier, override })` (`tools/lib/branch-guard.js`), with `override` true only for `--allow-default-branch`:
 
-- `ok` or `not-applicable` (no pull request at this tier, or no remote): go on.
+- `ok`: go on.
+- `not-applicable` (no pull request at this tier, or no remote): go on, skip step 5, and write what
+  steps 7.5 and 7.7 put in the PR description in the SHIP commit message instead.
 - `on-default`: print `formatBranchHalt(result, { command: '/sig:ship' })` and stop. Every commit is
   already on the default branch, so there is nothing to open a pull request from.
 - `overridden`: print `formatBranchLine(result)` and go on.
@@ -77,13 +88,14 @@ and `deprecation-and-migration/SKILL.md`.
 
 Then call `readOpenObligations(baseDir)` (`tools/lib/obligations.js`) and print `formatObligationReport(result)`. It reports and never stops the
 ship: items still open, items done, and sources that could not be read, which read as unknown, not
-as none. Mark one done with `dischargeObligation(baseDir, {text, by, at})`.
+as none. Mark one done with `dischargeObligation(baseDir, {text, by, at})`; it writes `PROFILE.md`.
 
 ## 4. Git history
 
 Each commit is one change with a message that says what and why. No "WIP" or "fix typo" commits are
 left; clean them up with the person's approval. The project's records name commits as proof, and a
-merge commit keeps them; a squash or rebase merge replaces them, which step 7.6 handles.
+merge commit keeps them; a squash or rebase merge replaces them, and step 7.6 says how to ask for
+those closes again after the merge.
 
 ## 5. Open the pull request
 
@@ -109,7 +121,8 @@ significant architecture decision, write an ADR in the project's docs folder and
 
 ## 7. Update the project's records
 
-Each sub-step says when it runs, and stages what it writes for step 8's commit.
+Each sub-step says when it runs, and stages what it writes for step 8's commit. With no pull
+request (step 1), what a sub-step puts in the PR description goes in the SHIP commit message.
 
 ### 7.1 Move the Epic's story out of STATE.md (Epic-close SHIP only)
 
@@ -133,12 +146,12 @@ when its close is confirmed, by step 7.7 of a later SHIP or by `/sig:docs-sweep`
 
 With the work store on (`isStoreOn(baseDir)`, `tools/lib/work-store.js`) skip this and say so: the
 inbox is generated from the records. Otherwise preview with
-`evictTerminalToLedger(baseDir, { dryRun: true })` (`tools/lib/drain.js`), confirm as
-`gate_strictness` says (`strict` asks, `off` goes on), then call `evictTerminalToLedger(baseDir)`.
+`evictTerminalToLedger(baseDir, { dryRun: true })` (`tools/lib/drain.js`), confirm when
+`gates.confirm_in_phase` is on, then call `evictTerminalToLedger(baseDir)`.
 DEFERRED entries stay. `danglingFence: true` means it moved nothing past an unclosed fence: say so.
 Stage the inbox and the ledger when entries moved.
 
-### 7.4 Close the backlog rows this Epic finished (Epic-close SHIP only)
+### 7.4 Close the items this Epic finished (Epic-close SHIP only)
 
 Read the Epic's REQUIREMENTS and PLAN and name the backlog rows its work finished. If none, say
 *"no backlog rows discharged; this Epic closed no queued item"* and go on. Otherwise call
@@ -155,6 +168,9 @@ is on the default branch. It refuses (`CONFLICT`, nothing written) with uncommit
 proves nothing: commit the work first. On a v1 store it refuses (`CONFIG`) naming
 `node tools/work-migrate-v2.mjs`: **halt**, migrate, run again. Stage `.planning/BACKLOG.md`, the
 changed records and the regenerated views.
+
+Then the Epic's other items that step 1 found open and its work fixed (a bug, say): call `requestClose(baseDir, id, {proof, by})` (`tools/lib/work-records.js`) for each, with HEAD's full commit hash as `proof`. Each reads *closing* until
+that commit is on the default branch. Stage the changed records and the regenerated views.
 
 ### 7.5 The content gate (every SHIP)
 
@@ -182,9 +198,12 @@ Skip with the store off. Otherwise find the unit this SHIP closes:
     - `closed`: this SHIP closes no unit because `current_epic` names a closed one; a person moves `current_epic` to the next unit by hand.
     - no record: run `/sig:docs-migrate --work-store`, then run again.
   - `not-a-unit-id`: say so, showing only `shown`, and close nothing.
-  - `broken-record`, or `broken` on any kind: close nothing; name each record (`/sig:docs-sweep` reports them) and restore it with git, never by hand.
+  - `broken-record`: the current unit's record does not read. Close nothing; `/sig:docs-sweep` reports it; restore it with git, never by hand.
+  - `broken` with any other kind names other unit records that do not read: name each (`/sig:docs-sweep` reports them) and act on the kind as usual.
   - `ask`: `current_epic` is null and some records are not closed (`units`). Show them and ask the person which one, if any, this SHIP finishes; close that one, or nothing.
   - `none`: say that no unit is closed by this SHIP.
+
+The questions in this step are asked at every `attention` level.
 
 To close the Epic:
 
@@ -201,8 +220,8 @@ as proof unless you pass `commit`:
 - `already-requested`, `already-closed`: nothing changed.
 
 **With the store on and no unit records** the call checks every item of the Epic and moves its
-folder: `closed` (stage `moved`, `rewritten` and the regenerated lists), `no-folder` (nothing
-changed), or `CONFLICT` naming `{EpicID}-*.md` files at the top of `.planning/`: `git mv` each into
+folder: `closed` (stage `moved`, `rewritten` and the regenerated lists), `no-folder` or
+`already-archived` (nothing changed), or `CONFLICT` naming `{EpicID}-*.md` files at the top of `.planning/`: `git mv` each into
 `.planning/work/epics/<EpicID>/`, then run again.
 
 Refusals write nothing:
@@ -214,16 +233,20 @@ Refusals write nothing:
   with uncommitted changes (`git fetch origin`, then `git remote set-head origin -a`); or the
   folder case above. Fix it and run again.
 - `CONFIG` with `version: 1`: **HALT.** It names `node tools/work-migrate-v2.mjs`; migrate, run again.
+  Any other `CONFIG` (git could not be asked, no commit yet): show the message and stop.
 - `NOT_FOUND`: a unit with no record.
 - `SCHEMA`: **HALT.** A record is broken somewhere in the store. `/sig:docs-sweep` or `checkRecords(baseDir)` (`tools/lib/work-records.js`) names each; `/sig:item` cannot repair one. Restore it with `git checkout -- <path>` when HEAD holds a good copy, or with `git checkout --ours <path>` or `--theirs <path>` for a merge conflict, then run again.
 
 **After a squash or rebase merge** the branch commit recorded as proof never reaches the default
-branch, so the unit and its items stay *closing*. After the merge, on the default branch with a
-clean tree, make the same call. It writes nothing and returns `rerequest-proposed` with `candidates`
-(each item, its `proof`, and why: `not-in-history` or `unknown-commit`). Show the list and ask the
-person which items were in the merged pull request: git cannot tell for them. Then call
-`closeEpic(baseDir, '<EpicID>', {by, pr, release, rerequest: [{id, proof}]})` with only those. It
-returns `re-requested` with the merged commit; an item not confirmed stays open (`OPEN_ITEMS`).
+branch, so the closes requested at this SHIP stay *closing*. After the merge, check out the default
+branch and pull, so HEAD is the merged commit and the tree is clean:
+
+- With unit records, make the same call. With items left *closing* it writes nothing and returns
+  `rerequest-proposed` with `candidates` (each item, its `proof`, and why: `not-in-history` or
+  `unknown-commit`). Show the list and ask the person which items were in the merged pull request:
+  git cannot tell for them. Then call `closeEpic(baseDir, '<EpicID>', {by, pr, release, rerequest: [{id, proof}]})` with only those. It returns `re-requested` with the merged commit; an item not confirmed stays open (`OPEN_ITEMS`).
+- Without unit records, ask the same question, then call `rerequestCloses(baseDir, [{id, proof, by}])` (`tools/lib/work-records.js`) for the items the person confirms, with the merged commit as `proof`.
+
 Commit the changed records and views through a pull request; step 7.7 or `/sig:docs-sweep` then
 confirms them.
 
@@ -256,13 +279,14 @@ let the person decide. Stage the new file.
 ### 7.9 Regenerate `.planning/INDEX.md` (every SHIP)
 
 `regeneratePlanningIndex(baseDir)` (`tools/lib/planning-index.js`). It writes only when the index
-changes; when `written` is true, stage `.planning/INDEX.md`.
+changes. Stage `.planning/INDEX.md` whenever it differs from HEAD: step 6 may already have written it.
 
 ## 8. Make the SHIP commit
 
-Commit everything steps 6 and 7 staged as one commit, and push. It moves the pull request's head, so
-**add the `review-head` label only after SHIP's final push**: a review asked for earlier reviews a
-head that is gone.
+Commit everything steps 6 and 7 staged as one commit, with any `PROFILE.md` change from step 3, and
+push. It moves the pull request's head. If the project runs the Claude Code review workflow
+(`.github/workflows/claude-code-review.yml`), **add the `review-head` label only after SHIP's final
+push**: a review asked for earlier reviews a head that is gone.
 
 ## 9. Hand off
 
@@ -280,13 +304,15 @@ because I am tired of working on it?*
 Report each of these from evidence, never from memory:
 
 - **Pull request:** `readPullRequestEvidence(baseDir)` (`tools/lib/branch-guard.js`), printed with `formatPrEvidenceLine(evidence)`. It ticks only on a real PR URL.
+`owner` and `repo` come from the `origin` URL and `pr` is the pull request's number, as a number.
+
 - **Review findings:** `readPrReviewFindings({owner, repo, pr, cwd})` (`tools/lib/pr-review-findings.js`; `cwd` is the project folder, pass no `execFn`), printed with `formatPrReviewFindings(result)`. It lists every unresolved review
   thread, counts outdated ones separately, and prints `cannot-check` on its own line, never as none.
   It reports; it does not stop the ship.
-- **Reviewer effort:** `readReviewerEffort({owner, repo, pr, cwd})` (same file), printed with `formatReviewerEffort(result)`. It flags a review run too short to have
-  read the change. Add the `review-head` label only after SHIP's final push, and run this check after
-  that run completes. Do not call the pull request ready to merge unless `result.readyToMerge` is
-  true; otherwise say it is waiting for that review.
+- **Reviewer effort:** `readReviewerEffort({owner, repo, pr, cwd})` (same file), printed with `formatReviewerEffort(result)`. It reads the review workflow's
+  runs and flags one too short to have read the change. On a project without that workflow it reads
+  `cannot-check`: say so; no review is owed. Where the workflow runs, add the `review-head` label only
+  after SHIP's final push, and run this check after that run completes. Do not call the pull request ready to merge unless `result.readyToMerge` is true or the project has no review workflow; otherwise say it is waiting for that review.
 - **CI:** every check passes.
 
 The person approves the merge. That is the `ship-pr` floor at every `attention` level: merging is
