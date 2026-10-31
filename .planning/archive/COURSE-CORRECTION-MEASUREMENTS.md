@@ -38,7 +38,8 @@ STATE.md left it stale until committed; the commit cleared it. A fresh session g
 29.5 KB to 13.8 KB; branch code imported; no questions or stops (FEATURE, `quality-only`). The
 change was diffed from the commit that added the plan (no remote). All three reviewers dispatched in
 one message as `sig:specialists:*` (no fallback needed). The test engineer found an Important: no
-test caught the 30 s refresh stopping after its first tick (a one-shot timer passed every test). One
+test caught the 30 s refresh stopping after its first tick (the tests advanced the clock once, so a
+one-shot timer would have passed them; the component's timer did repeat). One
 fix round, test only, fresh read clean, `checkFixRounds` accepted, PASS-WITH-FIXES recorded; the
 parent run was a stated gap, since the code already worked. $8.57, 6 minutes. It then re-ran the check
 after its commit, saw that commit as uncovered, and committed the report again without STATE.md, so
@@ -53,3 +54,21 @@ proven by a real-git test against the code, not yet on the test project. Two mor
 fixes found three, then four, more: each round's new recovery rules made the next defects. Stopped at
 the ceiling of three by removing those rules instead of adding more (15.4 KB); the one code gap left
 is SIG-376 (a refused REVIEW record reads as "next: /sig:ship").
+**ship, 2026-10-31, the rewrite's branch, on copies of the post-review project (`628749f`) with a
+local bare remote standing in for GitHub:** 54.2 KB to 18.5 KB, then 21.7 KB after two fix rounds;
+branch code imported every run. Run 1 (no retrospective): stopped at step 1 on the retrospective
+check, wrote nothing, offered to draft it; $0.75, 4 turns. Run 2 (retrospective added by hand): checks
+passed, then refused at 7.6 on the Epic's open bug (CONV-10, whose requirements say it closes after
+a person's preview check), after step 6 had already recorded the phase and staged files; it also
+corrected the hand-written retrospective against the REVIEW record (my error: it said "one-shot
+timer"); $3.88, 32 turns. Fix: a read-only open-items check (`closeEpicCheck`) in step 1, and 7.4
+closes the Epic's finished bugs too. Run 3 (same start, after the fix): stopped at step 1 on that
+bug, nothing written, offered the two ways on; $0.98, 9 turns. Run 4 (the bug's close requested by
+hand first): all checks, one confirm at `checkpointed`, then one SHIP commit, clean tree, the unit
+reading *closing* on a commit, the `Closes:` line and the undo note in the commit message (no pull
+request possible); $7.02, 31 turns. Fresh reads of the rewrite against the code: 7 Important and 5
+Minor, all confirmed; then 4 Important and 4 Minor in round 1's own fixes, one of them showing a
+round-1 change was wrong (a broken unit record does block every write). A third read of round 2 found 1 Important and 4 Minor; at the ceiling, two sentences were narrowed
+(a row outside the Epic is asked again with `rerequestCloses`; `broken` only where a result carries
+it) and three rare cases left as stated limits (shallow clones, rows rebased after an earlier SHIP),
+which SIG-380's confirm-after-rebase mostly removes.

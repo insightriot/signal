@@ -324,7 +324,8 @@ describe('the query is wired into SHIP and the schema documents the shape', () =
     const src = await readFile(join(REPO, 'plugin', 'commands', 'ship.md'), 'utf8');
     // The distinction from §0.6's branch gate is a decision, not a detail: a
     // later edit that turns this into a halt should have to change this line.
-    expect(src).toMatch(/never halts/i);
+    // ship.md rewrite (2026-10-31): "It reports and never stops the ship".
+    expect(src.replace(/\s+/g, ' ')).toMatch(/formatObligationReport\(result\)`\. It reports and never stops the ship/);
   });
 
   it('profile-schema.md documents the discharged fields it now accepts', async () => {

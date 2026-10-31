@@ -135,6 +135,9 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
    commit marking STATE fresh (step 4). Per-command detail: `archive/COURSE-CORRECTION-MEASUREMENTS.md`.
    **review, 2026-10-30:** 29.5 KB to 15.4 KB; finished with no person; its three fresh reviewers
    found a real test gap twice in two runs, fixed in one round. A FAIL now loops back on its own.
+   **ship, 2026-10-31:** 54.2 KB to 21.7 KB. On the test project it stopped cleanly at its two
+   floors (no retrospective; an open bug), and with both cleared made one commit with the Epic's
+   close requested. A run found an open item refused only after the phase was recorded; fixed.
 4. **Checkpoint goes.** Each phase command updates the state file itself, at every tier, in the same
    commit as the phase's work. No separate commits to mark it fresh (records problem 6).
    **Phase commands done 2026-10-29:** freshness is read from the last commit that touched STATE.md.

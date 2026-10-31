@@ -258,9 +258,8 @@ const NON_PAYLOAD_CITATIONS = new Set([
   'analysis/UNREACHED-MECHANISM-ANALYSIS.md',
   'docs/api.md',
   'docs/install-verification.md',
-  'docs/map',
-  'docs/map/index.html',
-  'tools/adherence-run.js', // AC2.2 — becomes a marked Signal-repository step
+  // ship.md's maintainer-only checklist lines (docs/map, tools/adherence-run.js)
+  // moved to CLAUDE.md in the ship rewrite (2026-10-31): not a user's step.
 ]);
 
 describe('M6.E1 — citations of paths that will not exist in an install', () => {
@@ -306,7 +305,7 @@ describe('M6.E1 — citations of paths that will not exist in an install', () =>
     // sibling assertion above caught it. The citation was dropped rather than
     // the number raised — a command file must not point a user at a path their
     // install does not contain.
-    expect(cited.size).toBe(29);
+    expect(cited.size).toBe(26);
   });
 });
 

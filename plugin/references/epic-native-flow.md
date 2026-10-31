@@ -69,7 +69,7 @@ It is **fail-open on the STATE value**: a null / non-strict `current_epic` skips
 Retro enforcement lives on two paths with **different** strictness, by design:
 
 1. **The STATE-write hook** (`checkProposedStateWrite`, fired by `hooks/check-state-write.js` on *arbitrary* STATE edits — the stranger blast-radius surface) → **warn, non-blocking** (exit 0 + stderr), and throw-safe (a malformed `current_epic` can't crash it). Hooks nudge on process; they don't hard-block an editor's own STATE write.
-2. **The command gate** (`shipFR1Check` via `ship.md` §0.5, fired *only* when you run `/sig:ship` on an Epic close) → **retained hard gate** (E9's SHIP contract). Running the workflow command opts you into its documented retro step.
+2. **The command gate** (`shipFR1Check` via `ship.md` step 1, fired *only* when you run `/sig:ship` on an Epic close) → **retained hard gate** (E9's SHIP contract). Running the workflow command opts you into its documented retro step.
 
 Rationale: a hook firing in someone else's repo should never block them, but invoking `/sig:ship` is opting into its contract.
 

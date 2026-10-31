@@ -206,24 +206,29 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
   // be trusted as "no unit records".
   it('no command file decides on hasUnitsSafe: ship.md § 0.5 asks unitRecordsOn and says a throw halts', () => {
     for (const name of UNIT_COMMANDS) expect(read(name), `${name}.md`).not.toContain('hasUnitsSafe');
-    const line = para('ship', '`unitRecordsOn(baseDir)` from `tools/lib/unit-records.js`');
+    const line = para('ship', '`unitRecordsOn(baseDir)` (`tools/lib/unit-records.js`)');
     expect(line).toMatch(/throws.*print its message and \*\*halt\*\*/s);
     expect(EXPORTS_BY_MODULE.get('unit-records.js').has('unitRecordsOn')).toBe(true);
   });
 
   it('ship.md § 5.5: with unit records the narrative is not evicted at SHIP, and the file says when it is', () => {
-    const text = sectionOf('ship', '### 5.5 Evict-on-close', '\n### 6');
+    // ship.md rewrite (2026-10-31): § 5.5 is step 7.1, § 6.9 is step 7.7.
+    const text = sectionOf('ship', '### 7.1 ', '\n### 7.2');
     expect(text).toMatch(/With unit records/);
     // Names the step that evicts later; /sig:checkpoint was archived 2026-10-30.
     expect(text).toMatch(/\/sig:docs-sweep/);
     expect(text).not.toMatch(/\/sig:checkpoint/);
-    for (const reason of ['not-closed', 'held', 'no-card', 'unit-record-unreadable']) expect(text, reason).toContain(`\`${reason}\``);
+    expect(text).toContain('`not-closed`');
+    // The later call's refusals are listed where that call is made.
+    const later = sectionOf('ship', '### 7.7 ', '\n### 7.8');
+    for (const reason of ['held', 'no-card', 'unit-record-unreadable']) expect(later, reason).toContain(`\`${reason}\``);
   });
 
   it('ship.md § 6.8 and § 6.9: a unit write changes work/EPICS.md too, and the file says to stage it', () => {
-    const close = para('ship', "**`{status: 'close-requested'");
+    const step = sectionOf('ship', '### 7.6 ', '\n### 7.7');
+    const close = step.slice(step.indexOf('- `close-requested`'), step.indexOf('- `re-requested`'));
     expect(close).toContain('.planning/work/EPICS.md');
-    const confirm = para('ship', 'the same call confirms unit closes too');
+    const confirm = sectionOf('ship', '### 7.7 ', '\n### 7.8');
     expect(confirm).toContain('.planning/work/EPICS.md');
   });
 
@@ -249,10 +254,10 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
   // M6.E16 S10 (t10.1, `SIG-295`): the narrative leaves STATE.md when the
   // unit's close is confirmed, and the files that confirm say so.
   it('ship.md § 5.5 and § 6.9: the narrative is evicted when the close is confirmed, and the result is printed and staged', () => {
-    const evict = sectionOf('ship', '### 5.5 Evict-on-close', '\n### 6');
+    const evict = sectionOf('ship', '### 7.1 ', '\n### 7.2');
     expect(evict).toMatch(/when (?:its|the) close is confirmed/);
     expect(evict).not.toMatch(/exist only there/);
-    const confirm = sectionOf('ship', '### 6.9 Confirm fixed closes', '\n### 7');
+    const confirm = sectionOf('ship', '### 7.7 ', '\n### 7.8');
     expect(confirm).toContain('`evictEpicNarrative`');
     expect(confirm).toContain('`evictionLine`');
     expect(confirm).toContain('`evictions`');
@@ -315,7 +320,7 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
 
   // M6.E16 r7: SHIP closes the current unit whatever its name; docs-archive no longer says only by hand.
   it('ship.md §6.8 closes a current unit that is not an Epic ID; docs-archive.md no longer says it has no command', () => {
-    const ship = sectionOf('ship', '### 6.8', '### 6.9');
+    const ship = sectionOf('ship', '### 7.6', '### 7.7');
     // r7.1: the decision is the helper's, not a rule read off the phase log (which §5 has trimmed).
     expect(ship).toMatch(/unitToCloseAtShip\(baseDir, state\)/);
     expect(ship).not.toMatch(/isEpicCloseByState/);
@@ -332,7 +337,7 @@ describe('M6.E16 t9.1 — the command files name real unit-record functions, and
     expect(ship).toMatch(/`not-a-unit-id`[^\n]*`shown`/);
     expect(ship).toMatch(/`broken-record`[^\n]*\/sig:docs-sweep/);
     expect(ship).toMatch(/`broken`[^\n]*\/sig:docs-sweep/);
-    expect(ship).toMatch(/`epic`[^\n]*§0\.5's `isEpicClose`/);
+    expect(ship).toMatch(/`epic`[^\n]*only at an Epic-close SHIP/);
     // The heading names units.
     expect(ship.split('\n')[0]).toMatch(/unit/);
     // r7.1: a closed current unit that is not an Epic stays until current_epic changes.

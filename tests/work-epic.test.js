@@ -364,7 +364,8 @@ describe('t5.3 — an Epic\'s README.md is not an item', () => {
 describe('t5.3 — ship.md wires the Epic close (AC-8.3)', () => {
   it('has a store-on step calling closeEpic on one line, halting on OPEN_ITEMS, placed after the content gate and before the SHIP commit', async () => {
     const ship = await readFile(new URL('../plugin/commands/ship.md', import.meta.url), 'utf-8');
-    const step = ship.slice(ship.indexOf('### 6.8'), ship.indexOf('### 7.'));
+    // ship.md rewrite (2026-10-31): § 6.8 is step 7.6, § 6.7 is 7.5, § 9 is step 8.
+    const step = ship.slice(ship.indexOf('### 7.6'), ship.indexOf('### 7.7'));
     expect(step).toMatch(/^Call `closeEpic\(baseDir, state\.current_epic, \{by, pr, release\}\)`/m);
     expect(step).toMatch(/OPEN_ITEMS.*HALT/);
     expect(step).toMatch(/no-folder/);
@@ -372,7 +373,7 @@ describe('t5.3 — ship.md wires the Epic close (AC-8.3)', () => {
     // in the store throws SCHEMA at every Epic-close SHIP (REVIEW loop 1 part B).
     expect(step).toMatch(/`SCHEMA`.*HALT/);
     expect(step).toMatch(/`SCHEMA`.*\/sig:docs-sweep.*checkRecords.*\/sig:item/);
-    expect(ship.indexOf('### 6.7')).toBeLessThan(ship.indexOf('### 6.8'));
-    expect(ship.indexOf('### 6.8')).toBeLessThan(ship.indexOf('### 9.'));
+    expect(ship.indexOf('### 7.5')).toBeLessThan(ship.indexOf('### 7.6'));
+    expect(ship.indexOf('### 7.6')).toBeLessThan(ship.indexOf('## 8. Make the SHIP commit'));
   });
 });
