@@ -94,9 +94,9 @@ as none. Mark one done with `dischargeObligation(baseDir, {text, by, at})`; it w
 ## 4. Git history
 
 Each commit is one change with a message that says what and why. No "WIP" or "fix typo" commits are
-left; clean them up with the person's approval. The project's records name commits as proof, and a
-merge commit keeps them; a squash or rebase merge replaces them, and step 7.6 says how to ask for
-those closes again after the merge.
+left; clean them up with the person's approval. The project's records name commits as proof: a merge
+keeps them and a rebase merge keeps their changes, which is enough; a squash merge replaces them,
+and step 7.6 says how to ask for those closes again.
 
 ## 5. Open the pull request
 
@@ -230,7 +230,7 @@ folder: `closed` (stage `moved`, `rewritten` and the regenerated lists), `no-fol
 Refusals write nothing:
 
 - `OPEN_ITEMS`: **HALT.** It names each open item of the Epic. Close each (`/sig:item close`) or move
-  it back (`/sig:item move <id> T`), then run again. An item still *closing* after a squash or rebase
+  it back (`/sig:item move <id> T`), then run again. An item still *closing* after a squash
   merge: see below.
 - `CONFLICT`: **HALT.** The retrospective is missing or has a `[FILL IN]`; or `origin/HEAD` is unset
   with uncommitted changes (`git fetch origin`, then `git remote set-head origin -a`); or the
@@ -240,14 +240,14 @@ Refusals write nothing:
 - `NOT_FOUND`: a unit with no record.
 - `SCHEMA`: **HALT.** A record is broken somewhere in the store. `/sig:docs-sweep` or `checkRecords(baseDir)` (`tools/lib/work-records.js`) names each; `/sig:item` cannot repair one. Restore it with `git checkout -- <path>` when HEAD holds a good copy, or with `git checkout --ours <path>` or `--theirs <path>` for a merge conflict, then run again.
 
-**After a squash or rebase merge** the branch commit recorded as proof never reaches the default
-branch, so the closes requested at this SHIP stay *closing*. After the merge, check out the default
-branch and pull, so HEAD is the merged commit and the tree is clean:
+**After a squash merge** (or a rebase that resolved a conflict) the branch commit recorded as proof
+never reaches the default branch, so the closes requested at this SHIP stay *closing*. After the
+merge, check out the default branch and pull, so HEAD is the merged commit and the tree is clean:
 
 - With unit records, make the same call. With items left *closing* it writes nothing and returns
   `rerequest-proposed` with `candidates` (each item, its `proof`, and why: `not-in-history` or
-  `unknown-commit`). Show the list and ask the person which items were in the merged pull request:
-  git cannot tell for them. Then call `closeEpic(baseDir, '<EpicID>', {by, pr, release, rerequest: [{id, proof}]})` with only those. It returns `re-requested` with the merged commit; an item not confirmed stays open (`OPEN_ITEMS`).
+  `unknown-commit`). Ask the person which were in the merged pull request; git cannot tell. Then
+  call `closeEpic(baseDir, '<EpicID>', {by, pr, release, rerequest: [{id, proof}]})` with only those. It returns `re-requested`; an item not named stays open (`OPEN_ITEMS`).
 - Without unit records, `closeEpicCheck(baseDir, '<EpicID>', { rerequest: true })` lists the candidates and writes nothing. Ask the same question, then call `rerequestCloses(baseDir, [{id, proof, by}])` for the items the person confirms, with the merged commit's full hash as `proof`.
 
 A backlog row step 7.4 closed that is not in the Epic is not on either list: ask again for it with

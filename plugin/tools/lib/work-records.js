@@ -1495,7 +1495,7 @@ export function closeEpicCheck(baseDir, epicId, opts = {}) {
       : named !== null
         ? ' An item closing on a commit that is not in this branch\'s history has its close asked again only when a person names it as part of '
           + 'the merged pull request; one that was not named is open.'
-        : ' For an item still closing on a commit that never reached this branch (the pull request was merged by squash or rebase): re-running '
+        : ' For an item still closing on a commit that never reached this branch (the pull request was squashed, or rebased with a conflict): re-running '
           + 'this on the default branch after the merge, with a clean tree, lists each such item, so a person can say which were in the merge.';
     throw new WorkStoreError('OPEN_ITEMS', `${epicId} has ${open.length} open item${open.length === 1 ? '' : 's'} `
       + `in it — close each (\`/sig:item close\`; a closing item closes when confirmCloses finds its commit) `
@@ -1658,7 +1658,7 @@ function planRerequest(handle, id, { proof, by, at = nowIso() }, offHead, why = 
   if (previous === proof) throw new WorkStoreError('CONFLICT', `${id}: its close was already requested with ${proof} — nothing was written.`);
   if (!offHead(previous)) {
     throw new WorkStoreError('CONFLICT', `${id}: it is closing on ${echoed(previous)}, and that commit is in this branch's history (or git cannot say `
-      + 'that it is not) — a close is asked again only when its commit never reached the branch, as after a squash or rebase merge. Nothing was written.');
+      + 'that it is not) — a close is asked again only when its commit never reached the branch, as after a squash merge. Nothing was written.');
   }
   // Where the item stood when the earlier request was made: a reopen takes it
   // out of its unit, so it is put back the way it was in.
