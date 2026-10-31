@@ -53,7 +53,7 @@ shaping failure does not merely underperform — **it backfires**.
 
 ### `commands/ship.md`
 
-- **The PR body states what changed, why, and how it was verified.** Those three, in that order; the diff shows the rest.
+- **The PR body states what changed, why, how it was verified, and how to undo it.** In that order; the diff shows the rest.
 
 ### `commands/status.md`
 
@@ -119,7 +119,7 @@ output. Listed so the classification is complete rather than asserted.
 
 ### `commands/ship.md`
 
-- **The PR body states what changed, why, and how it was verified.** Those three, in that order; the diff shows the rest.
+- **The PR body states what changed, why, how it was verified, and how to undo it.** In that order; the diff shows the rest.
 
 ### `commands/status.md`
 

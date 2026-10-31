@@ -165,7 +165,7 @@ describe('P4-I1 — a missing run boundary is reported and has a way out', () =>
   const ship = read('plugin/commands/ship.md').replace(/\s+/g, ' ');
   const flat = review.replace(/\s+/g, ' ');
   it('ship.md § 5 surfaces a failed runEnded and names markRunEnded', () => {
-    const s5 = ship.slice(ship.search(/### 5\. Update State/));
+    const s5 = ship.slice(ship.search(/## 6\. Record the phase/), ship.search(/## 7\. /));
     expect(s5).toMatch(/runEnded\?\.ok === false/);
     expect(s5).toMatch(/markRunEnded/);
   });
@@ -176,7 +176,7 @@ describe('P4-I1 — a missing run boundary is reported and has a way out', () =>
   // Fix round 5 claimed a re-invoked SHIP writes the line; on ship.md's own path
   // it returns at completePhase's first guard, so the claim was dropped.
   it('ship.md says re-running SHIP does not write the line, and review.md names keep for a run already begun', () => {
-    const s5 = ship.slice(ship.search(/### 5\. Update State/));
+    const s5 = ship.slice(ship.search(/## 6\. Record the phase/), ship.search(/## 7\. /));
     expect(s5).not.toMatch(/re-invoked `\/sig:ship` writes it/);
     expect(s5).toMatch(/re-running `\/sig:ship` does not write it/);
     expect(step5).toMatch(/markRunEnded\(baseDir, \{ keep \}\)/);

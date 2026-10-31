@@ -370,8 +370,10 @@ describe('commands/ship.md wires the discharge (AC9.3)', () => {
   });
 
   it('the step is Epic-close only, like the inbox sweep beside it', () => {
-    const step = ship.slice(ship.indexOf('dischargeBacklogRows') - 1200, ship.indexOf('dischargeBacklogRows') + 1200);
-    expect(step).toMatch(/isEpicClose/);
+    // ship.md rewrite (2026-10-31): the heading says so, as step 7.3's does.
+    expect(ship).toMatch(/^### 7\.4 Close the backlog rows this Epic finished \(Epic-close SHIP only\)$/m);
+    expect(ship).toMatch(/^### 7\.3 Sweep the capture inbox \(Epic-close SHIP only\)$/m);
+    expect(ship).toMatch(/isEpicClose: true[^\n]*\n[^\n]*\*\*Epic-close SHIP\*\*/);
   });
 
   it('discharging nothing is REPORTED, not skipped silently', () => {
@@ -384,12 +386,15 @@ describe('commands/ship.md wires the discharge (AC9.3)', () => {
     // FR3 is exactly this defect one turn earlier: four steps staged into a
     // commit no step created. Adding a fifth stager without updating the
     // sentence leaves the new write uncommitted as written.
-    const nine = ship.slice(ship.indexOf('### 9.'));
-    // Six since M6.E11 t5.3 added §6.8 (the archived Epic folder); seven since
-    // M6.E18 S6 made §5 stage STATE.md, STATE-HISTORY.md and the REVIEW report.
-    expect(nine).toMatch(/Seven steps above/);
-    expect(nine).toMatch(/§6\.6/);
-    expect(nine).toMatch(/§6\.8/);
+    // ship.md rewrite (2026-10-31): step 8 commits what steps 6 and 7 staged,
+    // and every sub-step of 7 stages for it, so a new sub-step is counted by
+    // where it sits rather than by a list someone must remember to extend.
+    const eight = ship.slice(ship.indexOf('## 8. Make the SHIP commit'), ship.indexOf('## 9.'));
+    expect(eight).toMatch(/Commit everything steps 6 and 7 staged as one commit/);
+    const seven = ship.slice(ship.indexOf('## 7. Update the project'), ship.indexOf('## 8.'));
+    expect(seven).toMatch(/stages what it writes for step 8's commit/);
+    const step = seven.slice(seven.indexOf('### 7.4'), seven.indexOf('### 7.5'));
+    expect(step).toMatch(/Stage `\.planning\/BACKLOG\.md`/);
   });
 });
 

@@ -78,7 +78,7 @@ session's working directory (see the cwd-vs-stdin asymmetry below).
   current file) and runs `checkStateFrontmatterShape`, which **blocks** malformed
   frontmatter, then `checkProposedStateWrite`: an Epic-close SHIP without a retro
   on disk is a non-blocking **warning** (the hard retro contract is `/sig:ship`
-  §0.5's `shipFR1Check`). A `MultiEdit` of STATE.md is not checked.
+  step 1's `shipFR1Check`). A `MultiEdit` of STATE.md is not checked.
 - **Work-store guard (M6.E13/t5.1):** before the STATE.md check, when the path
   (resolved against the event's `cwd` if relative) or its real path mentions
   `.planning`, it lazy-loads `tools/lib/work-write-guard.js`. That **blocks** a

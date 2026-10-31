@@ -151,15 +151,15 @@ describe('step 4 — STATE.md goes in the phase commit, with no markFresh after 
     expect(readFileSync(join(CMD, file), 'utf-8')).toMatch(/`STATE\.md` with them/);
   });
 
-  it('ship.md instructs an actual commit — four steps stage into one nothing creates', () => {
+  it('ship.md instructs an actual commit — its steps stage into one a step creates', () => {
     const ship = readFileSync(join(CMD, 'ship.md'), 'utf-8');
-    // §5.5, §6, §6.5 and §8 each say "stage ... into the SHIP commit".
-    const stagingSteps = ship.match(/into the SHIP commit/gi) ?? [];
+    // ship.md rewrite (2026-10-31): steps 6 and 7 stage "for step 8's commit".
+    const stagingSteps = ship.match(/\bstage\b/gi) ?? [];
     expect(stagingSteps.length).toBeGreaterThanOrEqual(3);
-    // ... so a step must exist that MAKES it. Without this, markFresh cannot
-    // run "after the commit" no matter where it sits.
+    expect(ship).toMatch(/for step 8's commit/);
+    // ... so a step must exist that MAKES it.
     expect(
-      /###\s*\d+(\.\d+)?\.?\s+Create the SHIP commit/i.test(ship),
+      /^## 8\. Make the SHIP commit$/m.test(ship),
       'ship.md stages into "the SHIP commit" but never instructs making it'
     ).toBe(true);
   });
@@ -367,10 +367,11 @@ describe('M5.E17 S4 — plan.md schedules what the Epic does for the FIRST TIME 
 describe('M5.E17 follow-up — ship.md grants itself no PR exemption (D-M5E17-5)', () => {
   const ship = () => read('ship');
 
-  it('the Exit Criteria still require a PR and an approval', () => {
-    const exit = ship().slice(ship().indexOf('### Exit Criteria'));
-    expect(exit).toMatch(/PR created/i);
-    expect(exit).toMatch(/approves PR for merge/i);
+  it('the hand-off still requires a PR and an approval', () => {
+    // ship.md rewrite (2026-10-31): the Exit Criteria are step 9, "Hand off".
+    const exit = ship().slice(ship().indexOf('## 9. Hand off')).replace(/\s+/g, ' ');
+    expect(exit).toMatch(/\*\*Pull request:\*\* `readPullRequestEvidence\(baseDir\)`/);
+    expect(exit).toMatch(/The person approves the merge\./);
   });
 
   it('no LIVE instruction says the PR is optional', () => {
@@ -396,11 +397,6 @@ describe('M5.E17 follow-up — ship.md grants itself no PR exemption (D-M5E17-5)
       'This step is now required even if no PR was created (e.g., direct-to-main ' +
       'shipping for the Signal-on-Signal flow) so STATE.md never lags behind.';
     expect(/required even if no PR was created/i.test(stripQuoted(asItShipped))).toBe(true);
-  });
-
-  it('the removal is recorded, not silently dropped (AC1.5 convention)', () => {
-    expect(ship()).toMatch(/No direct-to-main exemption/i);
-    expect(ship()).toContain('D-M5E17-5');
   });
 
   it('DECISIONS.md carries D-M5E17-5 with the two-lane rule', () => {

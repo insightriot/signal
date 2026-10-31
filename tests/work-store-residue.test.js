@@ -56,9 +56,9 @@ describe('a broken record: the remedy (AC5.1) and the read-only path (AC5.2)', (
     expect(err.message).not.toMatch(/written/i);
   });
 
-  it('ship.md §6.8 names --ours/--theirs and says plain checkout needs a good HEAD copy', () => {
+  it('ship.md step 7.6 names --ours/--theirs and says plain checkout needs a good HEAD copy', () => {
     const ship = readFileSync('plugin/commands/ship.md', 'utf-8');
-    const line = ship.split('\n').find((l) => l.startsWith('6. **`SCHEMA` → HALT.**'));
+    const line = ship.split('\n').find((l) => l.startsWith('- `SCHEMA`: **HALT.**'));
     expect(line).toMatch(/git checkout --ours <path>/);
     expect(line).toMatch(/--theirs <path>/);
     expect(line).toMatch(/HEAD/);

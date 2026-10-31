@@ -41,12 +41,13 @@ describe('ship.md runs the gate on EVERY ship, not only at Epic close (AC5.5)', 
   const ship = readFileSync(join(ROOT, 'plugin/commands/ship.md'), 'utf8');
 
   it('has the content-gate step, naming runShipContentGate', () => {
-    expect(ship).toMatch(/^### 6\.7 .*content gate/im);
+    expect(ship).toMatch(/^### 7\.5 .*content gate/im);
     expect(ship).toContain('runShipContentGate(');
   });
 
   it('the step is not scoped to Epic-close SHIPs', () => {
-    const heading = ship.split('\n').find((l) => /^### 6\.7 /.test(l));
+    const heading = ship.split('\n').find((l) => /^### 7\.5 /.test(l));
     expect(heading).not.toMatch(/Epic-close/i);
+    expect(heading).toMatch(/\(every SHIP\)/);
   });
 });

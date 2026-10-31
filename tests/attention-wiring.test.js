@@ -31,13 +31,12 @@ describe('B74 — the phase-approval boxes are conditional, and name their flag'
     // an unattended run would silently clear the merge gate — re-litigating
     // D-M5E17-5 by omission, which is exactly how ship.md's old self-exemption
     // survived thirteen releases.
-    const box = read('ship.md')
-      .split('\n')
-      .find((l) => /^- \[ \].*approves PR for merge/.test(l));
-    expect(box).toBeDefined();
-    expect(box).toMatch(/unconditional/i);
-    expect(box).toContain('floor');
-    expect(box).not.toContain('gates.confirm_ship');
+    // ship.md rewrite (2026-10-31): the approval is a sentence in step 9, not a box.
+    const text = read('ship.md').replace(/\s+/g, ' ');
+    const box = text.slice(text.indexOf('The person approves the merge.'));
+    expect(box.length).toBeGreaterThan(0);
+    expect(box).toMatch(/That is the `ship-pr` floor at every `attention` level/);
+    expect(text).not.toContain('gates.confirm_ship');
   });
 });
 

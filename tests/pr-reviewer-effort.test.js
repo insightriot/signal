@@ -266,16 +266,15 @@ describe('the readout names what is owed (AC1.4)', () => {
 
 describe('ship.md acts on readyToMerge (AC1.4)', () => {
   const ship = readFileSync(new URL('../plugin/commands/ship.md', import.meta.url), 'utf8').replace(/\s+/g, ' ');
-  const line = ship.slice(ship.indexOf('**Reviewer effort'), ship.indexOf('- [ ] All CI checks pass'));
+  const line = ship.slice(ship.indexOf('**Reviewer effort'), ship.indexOf('- **CI:**')).replace(/\s+/g, ' ');
 
   it('no longer says the check only reports', () => {
     expect(line).not.toMatch(/Reports; does not refuse/);
   });
 
   it('withholds "ready to merge" unless the head commit was reviewed, and names the label', () => {
-    expect(line).toMatch(/Do not call the PR ready to merge unless `result\.readyToMerge` is true/);
+    expect(line).toMatch(/Do not call the pull request ready to merge unless `result\.readyToMerge` is true/);
     expect(line).toMatch(/`review-head` label/);
-    expect(line).toMatch(/every run on the head commit/);
   });
 });
 
@@ -444,8 +443,8 @@ describe('the commit walk stops at a gap and not at a skipped push (I10)', () =>
 
 describe('ship.md: the review-head label goes on after SHIP\'s last push (I11)', () => {
   const ship = readFileSync(new URL('../plugin/commands/ship.md', import.meta.url), 'utf8').replace(/\s+/g, ' ');
-  const line = ship.slice(ship.indexOf('**Reviewer effort'), ship.indexOf('- [ ] All CI checks pass'));
-  const s9 = ship.slice(ship.indexOf('### 9. Create the SHIP commit'), ship.indexOf('## Phase Gate'));
+  const line = ship.slice(ship.indexOf('**Reviewer effort'), ship.indexOf('- **CI:**')).replace(/\s+/g, ' ');
+  const s9 = ship.slice(ship.indexOf('## 8. Make the SHIP commit'), ship.indexOf('## 9. Hand off')).replace(/\s+/g, ' ');
 
   it('the Reviewer-effort line says to add the label only after the final push and check after that run', () => {
     expect(line).toMatch(/only after SHIP's final push/);

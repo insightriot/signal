@@ -226,6 +226,8 @@ Behavioral rules that apply to every conversation and every agent, in addition t
 
 A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR, and a green suite. `gh pr create --fill` then `gh pr merge --merge` is the whole overhead. (**Not `--squash`** — since 2026-09-08 the server refuses it on `main`.)
 
+**Before a PR in this repository** (moved from `ship.md`'s checklist, which is a user's checklist): refresh `docs/map/index.html` if the command, agent or skill roster changed, and re-measure with `node tools/adherence-run.js --canary <id>` if the wording of a measured instruction in `plugin/commands/*.md` changed. "No change needed" is a valid outcome for both.
+
 ⚠ **EXCEPTION, and it is not rare: a fix-lane PR that regenerates
 [`.planning/ADHERENCE-LOG.md`](.planning/ADHERENCE-LOG.md) must merge with `--merge`.** The tool pins
 the current `HEAD` as the run's reproducibility anchor, so on a branch it pins a **branch** commit —
