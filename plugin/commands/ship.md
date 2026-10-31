@@ -54,10 +54,11 @@ Then `shipFR1Check({state, profile, milestoneContent, baseDir})` (`tools/lib/ret
   then runs `/sig:ship` again. There is no flag that skips this.
 
 **Open items** (Epic-close SHIP, work store on, schema 2). Call `closeEpicCheck(baseDir, state.current_epic, { unitRecords: unitRecordsOn(baseDir) })` (`tools/lib/work-records.js`); it writes
-nothing. `OPEN_ITEMS` lists the Epic's items that are not closed. Step 7.4 closes each one this
-Epic's work finished. If one is not finished, or the project's requirements say it closes later (for
-example after a person checks it), stop now and name it: the person closes it (`/sig:item close`) or
-moves it out of the Epic (`/sig:item move <id> T`), then runs `/sig:ship` again. `SCHEMA`: see step 7.6.
+nothing. It throws `OPEN_ITEMS` when some of the Epic's items are not closed; here that is a list to
+read, not yet a halt. Step 7.4 closes each one this Epic's work finished. If one is not finished, or
+the project's requirements say it closes later (for example after a person checks it), stop now and
+name it: the person closes it (`/sig:item close`) or moves it out of the Epic (`/sig:item move <id> T`),
+then runs `/sig:ship` again. `SCHEMA`: see step 7.6.
 
 **Branch.** `checkBranchPosture(baseDir, { tier: profile.tier, override })` (`tools/lib/branch-guard.js`), with `override` true only for `--allow-default-branch`:
 
@@ -169,8 +170,11 @@ proves nothing: commit the work first. On a v1 store it refuses (`CONFIG`) namin
 `node tools/work-migrate-v2.mjs`: **halt**, migrate, run again. Stage `.planning/BACKLOG.md`, the
 changed records and the regenerated views.
 
-Then the Epic's other items that step 1 found open and its work fixed (a bug, say): call `requestClose(baseDir, id, {proof, by})` (`tools/lib/work-records.js`) for each, with HEAD's full commit hash as `proof`. Each reads *closing* until
-that commit is on the default branch. Stage the changed records and the regenerated views.
+Then the Epic's other items that step 1 found open and its work fixed (a bug, say): with the fix committed, call `requestClose(baseDir, id, {proof, by})` (`tools/lib/work-records.js`) for each, with HEAD's full commit hash as `proof`.
+An item already *closing* on a commit this branch no longer holds (it was rebased since an earlier
+SHIP) is asked again instead: `rerequestCloses(baseDir, [{id, proof, by}])` with HEAD's full hash.
+Each reads *closing* until that commit is on the default branch. Stage the changed records and the
+regenerated views.
 
 ### 7.5 The content gate (every SHIP)
 
@@ -198,8 +202,7 @@ Skip with the store off. Otherwise find the unit this SHIP closes:
     - `closed`: this SHIP closes no unit because `current_epic` names a closed one; a person moves `current_epic` to the next unit by hand.
     - no record: run `/sig:docs-migrate --work-store`, then run again.
   - `not-a-unit-id`: say so, showing only `shown`, and close nothing.
-  - `broken-record`: the current unit's record does not read. Close nothing; `/sig:docs-sweep` reports it; restore it with git, never by hand.
-  - `broken` with any other kind names other unit records that do not read: name each (`/sig:docs-sweep` reports them) and act on the kind as usual.
+  - `broken-record`, or `broken` on any kind: a unit record does not read, and every write to the store refuses until it is restored. Close nothing; name each record (`/sig:docs-sweep` reports them); restore it with git, never by hand, then run SHIP again.
   - `ask`: `current_epic` is null and some records are not closed (`units`). Show them and ask the person which one, if any, this SHIP finishes; close that one, or nothing.
   - `none`: say that no unit is closed by this SHIP.
 
@@ -245,10 +248,11 @@ branch and pull, so HEAD is the merged commit and the tree is clean:
   `rerequest-proposed` with `candidates` (each item, its `proof`, and why: `not-in-history` or
   `unknown-commit`). Show the list and ask the person which items were in the merged pull request:
   git cannot tell for them. Then call `closeEpic(baseDir, '<EpicID>', {by, pr, release, rerequest: [{id, proof}]})` with only those. It returns `re-requested` with the merged commit; an item not confirmed stays open (`OPEN_ITEMS`).
-- Without unit records, ask the same question, then call `rerequestCloses(baseDir, [{id, proof, by}])` (`tools/lib/work-records.js`) for the items the person confirms, with the merged commit as `proof`.
+- Without unit records, `closeEpicCheck(baseDir, '<EpicID>', { rerequest: true })` lists the candidates and writes nothing. Ask the same question, then call `rerequestCloses(baseDir, [{id, proof, by}])` for the items the person confirms, with the merged commit's full hash as `proof`.
 
-Commit the changed records and views through a pull request; step 7.7 or `/sig:docs-sweep` then
-confirms them.
+A backlog row step 7.4 closed that is not in the Epic is not on either list: ask again for it the
+same way, by ID. Commit the changed records and views, through a branch and a pull request where the
+default branch is protected; step 7.7 or `/sig:docs-sweep` then confirms them.
 
 ### 7.7 Confirm closes whose commit reached the default branch (every SHIP)
 
@@ -284,7 +288,7 @@ changes. Stage `.planning/INDEX.md` whenever it differs from HEAD: step 6 may al
 ## 8. Make the SHIP commit
 
 Commit everything steps 6 and 7 staged as one commit, with any `PROFILE.md` change from step 3, and
-push. It moves the pull request's head. If the project runs the Claude Code review workflow
+push when there is a remote. It moves the pull request's head. If the project runs the Claude Code review workflow
 (`.github/workflows/claude-code-review.yml`), **add the `review-head` label only after SHIP's final
 push**: a review asked for earlier reviews a head that is gone.
 
@@ -310,8 +314,9 @@ Report each of these from evidence, never from memory:
   thread, counts outdated ones separately, and prints `cannot-check` on its own line, never as none.
   It reports; it does not stop the ship.
 - **Reviewer effort:** `readReviewerEffort({owner, repo, pr, cwd})` (same file), printed with `formatReviewerEffort(result)`. It reads the review workflow's
-  runs and flags one too short to have read the change. On a project without that workflow it reads
-  `cannot-check`: say so; no review is owed. Where the workflow runs, add the `review-head` label only
+  runs and flags one too short to have read the change. Whether a review is owed comes from whether
+  `.github/workflows/claude-code-review.yml` exists, not from this result: without it, no review is
+  owed. Where the workflow runs, add the `review-head` label only
   after SHIP's final push, and run this check after that run completes. Do not call the pull request ready to merge unless `result.readyToMerge` is true or the project has no review workflow; otherwise say it is waiting for that review.
 - **CI:** every check passes.
 
