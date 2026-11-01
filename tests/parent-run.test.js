@@ -619,6 +619,28 @@ describe('REVIEW P3 — proof, the sweep, and which tests are old', () => {
     }
   }, SLOW);
 
+  // SIG-371: vitest retitles itself, and on macOS `ps` then names the process
+  // `node (vitest)`. The node check refused that name, so the sweep never ended an
+  // orphaned vitest; it died on its own and could write the folder back.
+  it('SIG-371: an orphaned vitest that retitled itself is killed by the sweep', async () => {
+    const orphan = spawn(process.execPath, ['-e', "process.title = 'node (vitest)'; setTimeout(() => {}, 60000)"], { detached: true, stdio: 'ignore' });
+    const dead = spawnSync(process.execPath, ['-e', 'process.pid'], { encoding: 'utf-8' }).pid;
+    const stale = plantRun('run-retitled', `${dead}`);
+    try {
+      await waitStarted(orphan);
+      for (let i = 0; i < 50 && !/vitest/.test(spawnSync('ps', ['-o', 'comm=', '-p', String(orphan.pid)], { encoding: 'utf-8' }).stdout); i++) {
+        await new Promise((r) => setTimeout(r, 20));
+      }
+      writeFileSync(join(stale, 'child.pid'), `${orphan.pid} ${startOf(orphan.pid)}`);
+      await runOnBase(dir, { base, tests: ['tests/real.test.js'] });
+      expect(() => process.kill(orphan.pid, 0), 'the recorded vitest is ended by the sweep').toThrow();
+      expect(existsSync(stale)).toBe(false);
+    } finally {
+      kill(orphan);
+      rmSync(stale, { recursive: true, force: true });
+    }
+  }, SLOW);
+
   it('P3-I2: an owner recorded with no start time, still alive → its run is left alone', async () => {
     const owner = sleeper();
     const live = plantRun('run-live-no-start', `${owner.pid}`);

@@ -36,14 +36,11 @@
 | SIG-126 | `confirmed` | P2 | **`diffRequirementCoverage` counts a requirement as verified when the VERIFICATION report merely MENTIONS its id — so a report that marks `AC4.2` **FAIL** gets `outcome: covered`, `missing: []`.** Found 2026-09-27 by using it at `M6.E3` VERIFY: the report named 44 live criteria (32 PASS, 11 PARTIAL, 1 FAIL — first written as "40 … 28", underived, and corrected by script at loop 2) plus 8 dropped and 3 retired ids; the tool returned **56 of 56 covered**, `deferred: []` — the dropped and retired ids count as covered because the report names them in order to say they are out. `verified = extractRequirementIds(verificationText)` has no notion of a verdict. **Same family as `B116`** (a false clean in the check built to stop unfalsifiable coverage claims), different cause: `B116` loses ids from the denominator, this one over-fills the numerator. Workaround used: the denominator and verdicts were derived by hand and the tool's result recorded verbatim beside them, marked wrong (`M6.E3-VERIFICATION.md` § *Tool results*). Likely belongs to the status-architecture redesign (`D-M6E3-16`): a verdict needs a structural position, as `M6.E7` gave citations. |
 | SIG-127 | `fixed` | P2 | **A live BACKLOG row whose heading says a PHASE is done reads as a DISCHARGED row — `/sig:advise` stopped seeing the in-flight `M6.E3`.** `backlog.js` `DONE_WORD_RE` (matches `**…DONE…` / `SHIPPED` / … within 80 characters of a bold marker, ignoring case) is case-insensitive, so the heading marker `**IN FLIGHT — EXECUTE done 2026-09-27, VERIFY next**` matched `done` and the row was filtered out of `live` (`advise-corpus.js:98`). Found 2026-09-27 at `M6.E3` VERIFY, by accident: rewording the marker made the row live again and `TRIGGER_MET_MEASURED` moved 2 → 3. **The false-done direction of the class `M6.E3` is about**, in the tool that ranks what to work on next — the Epic in flight was invisible to it for however long the marker read that way. Not fixed here (fix lane or the status redesign, `D-M6E3-16`); the marker was reworded to avoid the word, which hides the symptom only for this row. |
 | SIG-130 | `confirmed` | P2 | **Archived phase logs are written but never staged** |
-| SIG-131 | `rejected` | — | **`attention` is undocumented in profile-schema.md** |
 | SIG-132 | `fixed` | — | **Two mutually-blind milestone Epic-row parsers, and the one feeding the SHIP gate cannot read Milestone 6 at all** |
 | SIG-133 | `confirmed` | P3 | **`transitionPhase` regenerates INDEX.md at phase ENTRY, so INDEX never holds the current phase's own artifact** |
 | SIG-134 | `confirmed` | P3 | **`ROUTE_REVERSIBILITY` is not frozen, and it aliases calibration's own enum** |
 | SIG-135 | `fixed` | P2 | **dischargeBacklogRows is blind to rows nested below h3** |
-| SIG-137 | `dup` | — | **`detectProjectKind` calls every non-git directory `greenfield`, so a real codebase is told to start fresh** |
 | SIG-139 | `fixed` | P3 | **The suite is flaky under local parallel load — a different test times out each run** |
-| SIG-140 | `rejected` | — | **`claude-review` CI fails before reviewing: claude binary missing on the runner** |
 | SIG-148 | `confirmed` | — | **Jev key and receipt hardening — the pass-3 REVIEW residue · **fix lane** · small · *filed 2026-09-27 from `M6.E3` REVIEW*** |
 | SIG-249 | `confirmed` | P3 | **tools/adherence-ceiling.js ignores unknown flags and regenerates the log** |
 | SIG-251 | `fixed` | P3 | **file-lock held-error understates the wait for a live holder (10x ttl)** |
@@ -126,7 +123,7 @@
 | SIG-368 | `fixed` | P2 | **applyRigorOverrides crashes when a project config section is a plain flag (parallelization: true)** |
 | SIG-369 | `fixed` | P3 | **An approved per-Epic calibrate is never run: DISCUSS lists it as a next step, PLAN notes it and keeps the project tier** |
 | SIG-370 | `confirmed` | P3 | **Work-store migration turns a list file's preamble text into inbox items** |
-| SIG-371 | `confirmed` | P3 | **parent-run: after a killed run, the next run sometimes leaves the killed run's temp folder behind (test fails ~1 in 6)** |
+| SIG-371 | `closing` | P3 | **parent-run: after a killed run, the next run sometimes leaves the killed run's temp folder behind (test fails ~1 in 6)** |
 | SIG-372 | `confirmed` | P3 | **/sig:execute: an interrupted loop back drops its unstarted fixes, and a linear project's resumed first task can start from the previous run's commit** |
 | SIG-373 | `fixed` | P2 | **/sig:drive runs /sig:review after a VERIFY FAIL, with the failures unfixed** |
 | SIG-374 | `confirmed` | P3 | **Loop ceiling counts a VERIFY PASS visit, so the first real VERIFY failure after a REVIEW loop stops at the ceiling** |
@@ -135,4 +132,4 @@
 | SIG-377 | `confirmed` | P3 | **stringifyFrontmatter writes the text "undefined" into STATE.md when body is missing** |
 | SIG-378 | `confirmed` | P3 | **Migrated items land at T while flagged as needing triage, and triageItem refuses T** |
 
-*0 needs-triage · 87 confirmed · 0 closing · 142 closed (229 total) · closes more than 30 days before the newest event are in `work/history/`*
+*0 needs-triage · 86 confirmed · 1 closing · 142 closed (229 total) · closes more than 30 days before the newest event are in `work/history/`*
