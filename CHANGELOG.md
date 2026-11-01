@@ -6,7 +6,7 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
-## [Unreleased]
+## [0.1.54] — 2026-11-01 — The phase commands as plain steps; closes confirm after a rebase merge
 
 ### The phase commands, rewritten as plain steps
 
