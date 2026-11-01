@@ -1441,14 +1441,14 @@ Root cause, 2026-10-27 (the guess above was wrong): CI runners are moving from g
 
 plugin.json has said 0.1.53 since 2026-10-23, so the course correction (49 plugin commits: five rewritten phase commands, SIG-373, STATE committed with each phase instead of a second commit) is on main but no installed copy has it. A real project was still making a separate "STATE marked fresh" commit at every phase close, which main no longer needs. Plan: cut 0.1.54 with tools/cut-release.js after the ship rewrite, so the release carries the whole set; the CHANGELOG says what was removed (checkpoint, doctor, update, permissions). Checked: the state file format did not change (new fields optional), and work-records.js, work-record.js and unit-records.js are byte-identical to 0.1.53.
 
-### Ship: a pull request merged by rebase or squash should confirm its closes without the manual recovery · SIG-380 · closing
+### Ship: a pull request merged by rebase or squash should confirm its closes without the manual recovery · SIG-380 · closed (fixed)
 
-**Status:** closing — a fixed close waiting for its commit on the default branch
+**Status:** closed 2026-10-31 (fixed)
 
 confirmCloses confirms a close only when its exact commit is an ancestor of the remote default branch (merge-base --is-ancestor). A real project merges by rebase (merge commits allowed, squash off, rebase used), which gives every commit a new ID on main, so every Epic it ships would land in ship.md's six-step recovery, with a person confirming each item. Not yet observed there (its tracker was turned on 2026-10-30); it follows from the check. Input for the ship rewrite: treat rebase and squash merges as ordinary.
 
-### Ship: the pull request says how to undo it · SIG-381
+### Ship: the pull request says how to undo it · SIG-381 · closed (fixed)
 
-**Status:** triaged (T)
+**Status:** closed 2026-10-31 (fixed)
 
 A real project running Signal at FULL added its own rule that every PR states how to undo it, alongside failing-first tests and twin-first rehearsal of risky changes. Small, and belongs in the ship rewrite's PR body.
