@@ -6,6 +6,86 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [Unreleased]
+
+### The phase commands, rewritten as plain steps
+
+The six phase commands said a lot that no agent could act on: history paragraphs, references to old
+bug IDs, and steps that named calls in an order the code did not run. Each is now numbered steps in
+the order its calls run, checked against the code by a test that fails when a named call does not
+exist or the order changes. Every code path is under `${CLAUDE_PLUGIN_ROOT}`, so a `--plugin-dir`
+session runs that copy's code. Each rewrite was measured with fresh sessions on a copy of a real
+project.
+
+| Command | Before | After |
+|---|---|---|
+| `/sig:discuss` | 25.8 KB | 7.4 KB |
+| `/sig:plan` | 30.5 KB | 11.4 KB |
+| `/sig:execute` | 12.1 KB | 7.0 KB |
+| `/sig:verify` | 15.2 KB | 8.5 KB |
+| `/sig:review` | 29.5 KB | 15.4 KB |
+| `/sig:ship` | 54.2 KB | 21.7 KB |
+
+#### [BREAKING] Removed
+- **`/sig:doctor`, `/sig:update`, `/sig:permissions` and `/sig:checkpoint`.** Typing one now gets
+  "no such command". The first three only looked after Signal's own install. Checkpoint's work is
+  done elsewhere: every phase command now commits `STATE.md` with its own work, `/sig:resume` and
+  `/sig:execute` clear tasks left in progress, `/sig:ship` and `/sig:docs-sweep` move a closed Epic's
+  notes out of `STATE.md`, and `/sig:add --question` saves open questions. The command files are kept
+  in `archive/commands/` in the repository, outside the plugin.
+
+#### Changed
+- **An Epic's files live in one folder, `.planning/epics/<ID>/`, from DISCUSS on.** DISCUSS writes
+  its decisions and requirements into `<ID>-REQUIREMENTS.md` there, not into `CONTEXT.md`.
+  `/sig:docs-archive` moves a closed Epic's folder whole into `archive/<M>/E<n>/`. Every reader finds
+  files in the folder, at the top of `.planning/` (Epics started before this release), or in the
+  archive. The retrospective and the per-Epic profile stay at the top of `.planning/`.
+- **Questions say what they decide and what was already checked, with a recommendation.** Anything
+  the agent can look up is not asked; plumbing is decided and stated.
+- **Hard-to-undo decisions are asked even when nobody is watching.** At `unattended` and with
+  `--auto`, DISCUSS takes its recommendation except for stored data, public interfaces, and anything
+  published or deleted.
+- **DISCUSS asks about a per-Epic calibrate straight away**, before writing the requirements, when
+  the Epic is clearly smaller or larger than the project's tier.
+- **PLAN's inbox step follows the attention setting.** At `checkpointed` and `unattended` it
+  proposes every entry at once, with one diff, applied on one yes. Delete and merge always need a
+  person.
+- **EXECUTE says what actually happens:** the session builds each task itself, records it before the
+  work and clears it after the commit, so `/sig:resume` can pick up after a context clear.
+- **A VERIFY or REVIEW FAIL loops back to EXECUTE on its own** at `checkpointed` and `unattended`,
+  under the loop ceiling. At `attended` it asks.
+- **After a FAIL, the next command is `/sig:execute`.** `/sig:drive`, `/sig:status` and
+  `/sig:resume` picked the next command by phase alone, so after a VERIFY FAIL drive ran
+  `/sig:review` with the failures unfixed.
+- **VERIFY's requirement-coverage check actually runs.** It ran before the report existed, so on a
+  first pass it had nothing to read.
+- **REVIEW defines the change under review:** the diff from the merge-base with the default branch,
+  or from the newest commit that changed the plan when there is no remote default branch.
+- **SHIP checks everything that can refuse before writing anything:** the profile, the
+  retrospective, the Epic's open items and the branch. It closes the Epic's finished bugs, not only
+  backlog rows, and the pull request says how to undo the change. The `review-head` rule applies only
+  where the project runs the review workflow.
+- **Each phase commits `STATE.md` with its work, in one commit.** There is no separate commit to mark
+  the state fresh. `/sig:resume` warns only when a planning file was committed after the last commit
+  to `STATE.md`, and its warning says to update and commit `STATE.md`.
+
+#### Fixed
+- **A close confirms after a rebase merge.** A rebase merge gives every commit a new ID, so a close
+  requested at SHIP stayed *closing* until a person walked a manual recovery. The confirm now also
+  accepts the commit on the default branch with the same change (git's patch-id), and records that
+  commit, so any clone can check it. A squash of several commits, a rebase that resolved a conflict,
+  and empty commits still do not count; SHIP's recovery covers those.
+- **Phase commands no longer crash on a config with `"parallelization": true`** (the older form).
+- **The next Epic number skips Epics the milestone file already plans**, and Epics whose files are
+  only in their folder or the archive.
+- **`/sig:docs-archive` no longer moves the current Epic's files** on a project without unit
+  records, and no longer overwrites an archived file with a root copy of the same name.
+- **`/sig:docs-migrate --work-store` proposes closes for fixed bugs whose status explains the fix**,
+  so the generated bug list stops showing them as open.
+- **`MILESTONE-M3.0.md` is recognised as milestone 3.0's file**, by migration and by `/sig:advise`.
+- **`/sig:docs-sweep` runs its roster, version and command checks on a plugin whose manifest is
+  under `plugin/`.**
+
 ## [0.1.53] — 2026-10-21 — The review loop's signals say what happened
 
 ### M6.E18 — The review loop's signals become trustworthy
