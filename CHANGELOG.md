@@ -85,6 +85,9 @@ project.
 - **`MILESTONE-M3.0.md` is recognised as milestone 3.0's file**, by migration and by `/sig:advise`.
 - **`/sig:docs-sweep` runs its roster, version and command checks on a plugin whose manifest is
   under `plugin/`.**
+- **REVIEW's parent-run tool cleans up after a killed run on macOS.** It never ended the killed
+  run's leftover vitest, because `ps` names it `node (vitest)`; the leftover could then write its
+  temporary folder back.
 
 ## [0.1.53] — 2026-10-21 — The review loop's signals say what happened
 
