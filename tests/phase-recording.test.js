@@ -106,7 +106,7 @@ describe('FR6 — phase recording (B41)', () => {
   it('no longer states a precondition no command can satisfy (AC6.1)', async () => {
     const src = await readFile(join(process.cwd(), 'plugin', 'commands', 'plan.md'), 'utf-8');
     expect(src).not.toMatch(/^- `STATE\.md` — verify current phase is PLAN\s*$/m);
-    expect(src).toMatch(/sets\s+`phase: PLAN`, so the position is true while PLAN runs/);
+    expect(src).toMatch(/sets\s+`phase: PLAN`/);
   });
 });
 
