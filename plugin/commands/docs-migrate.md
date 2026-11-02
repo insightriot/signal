@@ -121,7 +121,7 @@ The `docs_layout_version` stamp is written **only** at the tail, gated on full v
 
 ## Epic folders, old copies and roadmap files
 
-The dry run also plans, and `--apply` makes: the current Epic's loose `{EpicID}-*.md` files into `.planning/epics/<EpicID>/` (its PROFILE and RETROSPECTIVE stay), and old `*-archive` copies into `archive/legacy/`. It lists roadmap files Signal does not read (it reads `ROADMAP.md` and `MILESTONE-{n}.md`). Fold what is still true in them into `ROADMAP.md`, show the user and ask one yes, then run again with `--retire <name>` for each: they move to `archive/legacy/`. Pass `retire` from `parseMigrateArgs` to `runMigrate` and `renderDryRun`.
+The dry run also plans, and `--apply` makes: the current Epic's loose `{EpicID}-*.md` files into `.planning/epics/<EpicID>/` (its PROFILE and RETROSPECTIVE stay), and old `*-archive` copies into `archive/legacy/`. It lists roadmap files Signal does not read (it reads `ROADMAP.md` and `MILESTONE-{n}.md`). Fold what is still true in them into `ROADMAP.md`, ask one yes and commit it, then run again with `--retire <name>` for each: they move to `archive/legacy/`. Pass `retire` from `parseMigrateArgs` to `runMigrate` and `renderDryRun`.
 
 ## Faithfulness — proven by a human, not by green tests
 

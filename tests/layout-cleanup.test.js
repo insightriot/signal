@@ -180,6 +180,13 @@ describe('senseArchiveTree / applyArchiveTree with layout: true — on disk', ()
     expect(again.moves).toEqual([]);
   });
 
+  it('retiring a folder moves its files and removes the emptied folder', async () => {
+    await write(`${P}/milestones/v1/PLAN.md`, '# old\n');
+    await applyArchiveTree(dir, { apply: true, layout: true, retire: ['milestones'], closedUnits: [] });
+    expect(existsSync(join(dir, P, 'archive/legacy/milestones/v1/PLAN.md'))).toBe(true);
+    expect(existsSync(join(dir, P, 'milestones'))).toBe(false);
+  });
+
   it('retire moves a listed roadmap file to archive/legacy/', async () => {
     await applyArchiveTree(dir, { apply: true, layout: true, retire: ['MILESTONES.md'], closedUnits: [] });
     expect(existsSync(join(dir, P, 'archive/legacy/MILESTONES.md'))).toBe(true);

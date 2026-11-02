@@ -834,7 +834,7 @@ export async function applyArchiveTree(baseDir, opts = {}) {
       const { assertViewsWritable } = await import('./work-views.js');
       assertViewsWritable(baseDir, { verb: 'moved' });
     }
-    return await moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn });
+    return await moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn, retire: opts.layout ? opts.retire ?? [] : [] });
   } finally {
     await lock?.released(); // only while this call still holds it (REVIEW I4)
   }
@@ -862,7 +862,7 @@ async function removeEmptyFolders(dir, { depth = Infinity } = {}) {
 }
 
 // applyArchiveTree's writes, run under the `work` lock when the store is on.
-async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn }) {
+async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn, retire = [] }) {
   // 1. MOVE first — byte-identical relocate + read-back assert, then drop source.
   for (const { from, to } of moves) {
     const srcAbs = join(baseDir, from);
@@ -885,6 +885,10 @@ async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, sto
     .map((f) => f.split('/').slice(0, 3).join('/')));
   for (const folder of emptied) await removeEmptyFolders(join(baseDir, folder));
   if (emptied.size > 0) await removeEmptyFolders(join(baseDir, EPIC_FOLDERS_REL), { depth: 0 });
+  // A retired roadmap folder, once its files have moved, goes too.
+  for (const r of retire) {
+    if (moves.some((m) => m.from.startsWith(`${PLANNING_DIR}/${r}/`))) await removeEmptyFolders(join(baseDir, PLANNING_DIR, r));
+  }
 
   // 2. REWRITE — apply each file's merged keyed edits at its NEW location.
   // §10: NEVER auto-write the hand-curated INDEX.md. If a move left an INDEX link

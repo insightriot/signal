@@ -223,3 +223,8 @@ and the fix is simpler than more tooling: in the rewritten commands, each Epic's
 stays short; closing an Epic is one recorded step that updates nothing by hand. Plus a one-time cleanup
 for projects that already have the pile-up. The two data bugs above get fixed first; the third with them (all three in PR #314, plus the same
 milestone-name miss in `/sig:advise`, `SIG-258`).
+
+**Re-measured 2026-11-02** on the spare copy, 0.1.54 plus the one-time cleanup in `/sig:docs-migrate`
+(frozen, extended because this plan names it): `.planning/` top 146 → 65 entries; `*-archive` copies
+45 → 0; loose Epic files 46 → 11 (9 are retrospectives, kept by design); roadmap files 11 → 6
+(`ROADMAP.md` plus the MILESTONE files Signal reads); "shipped" in 52 → 32 live files.
