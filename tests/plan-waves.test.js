@@ -50,6 +50,13 @@ describe('planWaves — waves', () => {
     expect(ids(r)).toEqual([['S1']]);
   });
 
+  it('warns when a heading states a wave its dependencies disagree with, and not when they agree', () => {
+    const r = planWaves(plan('### S1 — a · wave 1\nDepends on: none\n\n### S2 — b · wave 3\nDepends on: S1'));
+    expect(r.ok).toBe(true);
+    expect(r.warnings).toEqual(["S2's heading says wave 3, but its dependencies put it in wave 2."]);
+    expect(formatWaves(r)).toContain("Warning: S2's heading says wave 3");
+  });
+
   it('accepts a "## Slices" section', () => {
     expect(planWaves('## Slices\n\n### S1 — a\nDepends on: none\n').ok).toBe(true);
   });

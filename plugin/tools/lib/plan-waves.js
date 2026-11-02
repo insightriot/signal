@@ -57,7 +57,7 @@ function dependsLines(body) {
 
 /**
  * @param {string} content — a PLAN artifact's text
- * @returns {{ok: true, waves: Array<{wave: number, tasks: Array<{id: string, heading: string, body: string, dependsOn: string[]}>}>}
+ * @returns {{ok: true, warnings: string[], waves: Array<{wave: number, tasks: Array<{id: string, heading: string, body: string, dependsOn: string[]}>}>}
  *         | {ok: false, problems: string[]}}
  */
 export function planWaves(content) {
@@ -128,13 +128,22 @@ export function planWaves(content) {
     waves[n - 1] ??= { wave: n, tasks: [] };
     waves[n - 1].tasks.push({ id: leaf.id, heading: leaf.heading, body: leaf.body, dependsOn: [...deps.get(leaf.id)] });
   }
-  return { ok: true, waves };
+  // A heading that still states a wave ("· wave 2 ·") is a second answer; say when it disagrees.
+  const warnings = [];
+  for (const leaf of leaves) {
+    const stated = leaf.heading.match(/\bwave\s+(\d+)/i);
+    if (stated && Number(stated[1]) !== waveOf.get(leaf.id)) {
+      warnings.push(`${leaf.id}'s heading says wave ${stated[1]}, but its dependencies put it in wave ${waveOf.get(leaf.id)}.`);
+    }
+  }
+  return { ok: true, waves, warnings };
 }
 
 /** One line per wave, for people. */
 export function formatWaves(result) {
   if (!result.ok) return ['The plan cannot be split into waves:', ...result.problems.map((p) => `- ${p}`)].join('\n');
-  return result.waves.map((w) => `Wave ${w.wave}: ${w.tasks.map((t) => t.id).join(', ')}`).join('\n');
+  const lines = result.waves.map((w) => `Wave ${w.wave}: ${w.tasks.map((t) => t.id).join(', ')}`);
+  return [...lines, ...(result.warnings ?? []).map((w) => `Warning: ${w}`)].join('\n');
 }
 
 // CLI: node plan-waves.js <plan file> [--json]. Exit 1 when the plan is refused.
