@@ -82,7 +82,9 @@ describe('M6.E15 S6 — docs-migrate archives only closed units (SIG-286)', () =
   it('AC8.1 — a filled retro alone, or being the current unit, does not move; the closed control does', async () => {
     await setup(dir, STATE_READABLE);
     const { plan } = await runMigrate(dir, { apply: false });
-    expect([...movedUnits(plan.archive.moves)]).toEqual(['M9.E1']);
+    // Archived: the closed control only. The current Epic's loose files go to its own folder.
+    expect([...movedUnits(plan.archive.moves.filter((m) => m.to.includes('/archive/')))]).toEqual(['M9.E1']);
+    expect(plan.archive.moves.filter((m) => m.from.includes('M9.E3')).every((m) => m.to.startsWith('.planning/epics/M9.E3/'))).toBe(true);
     expect(plan.v3.evicts.map((e) => e.epicId)).toEqual(['M9.E1']);
   });
 
@@ -91,9 +93,10 @@ describe('M6.E15 S6 — docs-migrate archives only closed units (SIG-286)', () =
     const r = await runMigrate(dir, { apply: true, stamp: 'T1', dateStr: '2026-07-17' });
     expect(r.applied, r.reason).toBe(true);
     const at = (rel) => existsSync(join(dir, rel));
-    for (const id of ['M9.E2', 'M9.E3']) {
-      for (const kind of ['PLAN', 'VERIFICATION', 'RETROSPECTIVE']) expect(at(`.planning/${id}-${kind}.md`), `${id}-${kind}`).toBe(true);
-    }
+    for (const kind of ['PLAN', 'VERIFICATION', 'RETROSPECTIVE']) expect(at(`.planning/M9.E2-${kind}.md`), `M9.E2-${kind}`).toBe(true);
+    // The current Epic is not archived: its files go to its own folder, its retrospective stays.
+    for (const kind of ['PLAN', 'VERIFICATION']) expect(at(`.planning/epics/M9.E3/M9.E3-${kind}.md`), `M9.E3-${kind}`).toBe(true);
+    expect(at('.planning/M9.E3-RETROSPECTIVE.md')).toBe(true);
     // The positive control: the closed Epic's plan did move, to where the plan said.
     const move = r.plan.archive.moves.find((m) => m.from.endsWith('M9.E1-PLAN.md'));
     expect(move).toBeDefined();
@@ -115,14 +118,15 @@ describe('M6.E15 S6 — docs-migrate archives only closed units (SIG-286)', () =
     expect(out).not.toContain('M9.E2 narrative →');
     expect(out).toMatch(/M9\.E2 — M9\.E2 has 1 terminal artifact\(s\) but none states a readable verdict/);
 
-    // The current Epic: not moved, not evicted.
-    expect(out).not.toContain('.planning/M9.E3-PLAN.md →');
+    // The current Epic: not archived, not evicted (its loose files go to its own folder).
+    expect(out).toContain('.planning/M9.E3-PLAN.md → .planning/epics/M9.E3/M9.E3-PLAN.md');
+    expect(out).not.toMatch(/M9\.E3-PLAN\.md → \.planning\/archive/);
     expect(out).not.toContain('M9.E3 narrative →');
     // And the dry run does not claim its retrospective is missing — it has one.
     expect(out).not.toContain('no M9.E3-RETROSPECTIVE.md');
     expect(out).not.toContain('no M9.E2-RETROSPECTIVE.md');
 
-    expect(out).toContain('archive-tree moves:   2');
+    expect(out).toContain('archive-tree moves:   4'); // the control's 2, and the current Epic's 2 into its folder
     expect(out).toContain('vector-3 (closed-Epic evicts): 1');
   });
 

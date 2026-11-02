@@ -82,6 +82,14 @@ export function parseMigrateArgs(argv = []) {
     if (token === '--apply') parsed.apply = true;
     else if (token === '--force') parsed.force = true;
     else if (token === '--work-store') parsed.workStore = true;
+    else if (token === '--retire') {
+      // `--retire <name>`, repeatable: a roadmap file at the top of .planning/ to archive.
+      const next = args[i + 1];
+      if (typeof next === 'string' && !next.startsWith('--')) {
+        (parsed.retire ??= []).push(next);
+        i++;
+      }
+    }
     else if (token === '--key') {
       const next = args[i + 1];
       if (typeof next === 'string' && !next.startsWith('--')) {
@@ -1597,7 +1605,7 @@ export async function senseProject(baseDir) {
   // One closed-unit set for every archive site in this run (SIG-286). Computed
   // before the no-STATE branch: no STATE.md means the current unit is unknown → [].
   const { closedUnits } = await resolveMigrateClosedUnits(baseDir);
-  const archive = await senseArchiveTree(baseDir, { closedUnits });
+  const archive = await senseArchiveTree(baseDir, { closedUnits, layout: true });
   const corpus = await senseCorpusHygiene(baseDir);
   const archiveOut = { moves: archive.moves, moveMap: archive.moveMap, closedEpicIds: archive.closedEpicIds };
 
@@ -2068,7 +2076,7 @@ export async function renderDryRun(baseDir, opts = {}) {
   // alone, bloated milestone docs flagged for manual review). Archive moves fold into
   // the no-op gate — a conformant STATE.md with an un-archived closed scaffold (or a
   // pending rename) is NOT a no-op.
-  const archive = await senseArchiveTree(baseDir, { v3Rename: needsV3, closedUnits });
+  const archive = await senseArchiveTree(baseDir, { v3Rename: needsV3, closedUnits, layout: true, retire: opts.retire });
   const corpus = await senseCorpusHygiene(baseDir);
 
   // Append-log evict plan (FR5, v3-pending only) — parse the LIVE DECISIONS.md and
@@ -2205,6 +2213,12 @@ export async function renderDryRun(baseDir, opts = {}) {
       : 'byte-identical archive relocation';
     L.push(`  ${from} → ${to} (${label}) + referrer links/prose rewritten`);
   }
+  // The layout cleanup's leftovers: roadmap files Signal does not read, and moves it skipped.
+  if (archive.layout?.roadmapExtras.length) {
+    L.push('  roadmap files Signal does not read (fold into ROADMAP.md, then run again with --retire <name> for each):');
+    for (const name of archive.layout.roadmapExtras) L.push(`    .planning/${name}`);
+  }
+  for (const { path, reason } of archive.layout?.skipped ?? []) L.push(`  skipped ${path}: ${reason}`);
   // v2→v3 append-log evict (FR5) — a verbatim block move (summary, not a diff). Shown
   // as detect-only when a section can't be routed to a milestone (fail-safe: apply
   // evicts nothing in that case either).
@@ -2461,7 +2475,7 @@ export async function applyMigrate(baseDir, opts = {}) {
     // (2) it is read BEFORE any write, so the extended snapshot set + the
     // enforceNoDangling moveMap both derive from it. The moveMap is invariant across
     // the V1/V3/V2 compose (STATE.md is not a scaffold doc), so sensing it now is safe.
-    const archiveSense = await senseArchiveTree(baseDir, { v3Rename: needsV3, closedUnits });
+    const archiveSense = await senseArchiveTree(baseDir, { v3Rename: needsV3, closedUnits, layout: true, retire: opts.retire });
     const archiveMoveMap = archiveSense.moveMap;
 
     // Append-log evict plan (FR5, v3-pending only): parse the LIVE DECISIONS.md and
@@ -2742,7 +2756,7 @@ export async function applyMigrate(baseDir, opts = {}) {
       // persist) so the recovery aids cover the archive-touched files. `v3Rename`
       // matches the pre-gate sense so the re-sense inside applyArchiveTree agrees.
       if (archiveMoveMap.size > 0) {
-        const archiveResult = await applyArchiveTree(baseDir, { apply: true, v3Rename: needsV3, closedUnits });
+        const archiveResult = await applyArchiveTree(baseDir, { apply: true, v3Rename: needsV3, closedUnits, layout: true, retire: opts.retire });
         moves.push({
           vector: 'archive-tree',
           moves: archiveResult.moves.length,

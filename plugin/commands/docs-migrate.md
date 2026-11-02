@@ -1,24 +1,24 @@
 ---
 name: sig:docs-migrate
 description: "Auto-sensing doc-runtime migrate — reorganizes THIS project's .planning/ docs to the current layout (de-prose frontmatter, relocate bloated bodies, evict closed-Epic narrative, build the archive tree; and on a v2→v3 layout bump: rename FUTURE-IDEAS→ISSUES-INBOX, create BACKLOG, evict closed-milestone DECISIONS sections). Relocate-never-delete, dry-run by default, git-reversible."
-args: "[--apply] [--force] [--work-store [--key KEY] [--also ID:dropped:WORDS]...]"
+args: "[--apply] [--force] [--retire NAME]... [--work-store [--key KEY] [--also ID:dropped:WORDS]...]"
 ---
 
 # `/sig:docs-migrate` — Auto-sensing doc-runtime migrate
 
 You are running `/sig:docs-migrate`. Your goal: bring the **invoking** project's `.planning/` docs up to the current doc-runtime layout (`references/doc-runtime-model.md`) — safely, reversibly, and only after the user has eyeballed the plan.
 
-This command is **meta** — same class as `/sig:status` and `/sig:resume`. It does **not** run a tier-gating preamble, does **not** load skills, and does **not** spawn agents. It operates on the **current working directory's** project (`process.cwd()`), never on Signal's own repo (except when Signal *is* the invoking project — the dogfood). There are **no hard-coded Signal paths**.
+This command is **meta**: it does **not** run a tier-gating preamble, does **not** load skills, and does **not** spawn agents. It operates on the **current working directory's** project (`process.cwd()`), never on Signal's own repo. There are **no hard-coded Signal paths**.
 
 ## The three non-negotiables (NFR safety-first)
 
 1. **Dry-run by default (FR6.1).** With no args it prints the full plan — every move and rewrite, with before/after — and changes nothing. `--apply` is required to write.
-2. **Relocate-never-delete (FR6.3).** No closed content is deleted. Every relocation lands the removed content in its new home **before** the source is shortened, and the faithfulness gate (`relocateFaithful`) hard-fails the apply if any content would be dropped. ⚠ The headline risk this command exists to prevent: the B8 hand-recipe *deleted* frontmatter prose ("body byte-identical" = ~80 lines dropped). Fine by hand; catastrophic unattended. The command **must relocate with the conservation gate**, never delete.
+2. **Relocate-never-delete (FR6.3).** No closed content is deleted. Every relocation lands the removed content in its new home **before** the source is shortened, and the faithfulness gate (`relocateFaithful`) hard-fails the apply if any content would be dropped. It relocates with the conservation gate; it never deletes.
 3. **Git-reversible (FR6.2).** `--apply` leaves changes **staged-but-uncommitted** (this runs in stranger repos — Signal never auto-commits someone else's work), prints the pre-apply tag `pre-migrate-memory-<ISO>` and the exact `git revert` / reset line, and refuses a dirty working tree without `--force`.
 
 ## The three bloat vectors (model §3), each RELOCATE-not-delete
 
-- **Vector 1 — frontmatter-list prose** (the acute 529 KB `eval-project-A` case): de-prose = relocate the narrative out of the YAML list into the STATE body, leaving a short scalar.
+- **Vector 1 — frontmatter-list prose**: de-prose = relocate the narrative out of the YAML list into the STATE body, leaving a short scalar.
 - **Vector 2 — inlined legacy body**: relocate an already-migrated inlined body → `STATE-HISTORY.md` + a one-line pointer.
 - **Vector 3 — closed-Epic narrative accretion**: apply evict-on-close retroactively to a project's backlog of already-closed Epics (card + pointer + archive tree).
 
@@ -119,6 +119,10 @@ When the project's `docs_layout_version` stamp is **below** `CURRENT_LAYOUT_VERS
 
 The `docs_layout_version` stamp is written **only** at the tail, gated on full v3-conformance (inbox renamed, BACKLOG present, evict done) — a partial run stays unstamped so the banner keeps nagging and a re-run continues safely.
 
+## Epic folders, old copies and roadmap files
+
+The dry run also plans, and `--apply` makes: the current Epic's loose `{EpicID}-*.md` files into `.planning/epics/<EpicID>/` (its PROFILE and RETROSPECTIVE stay), and old `*-archive` copies into `archive/legacy/`. It lists roadmap files Signal does not read (it reads `ROADMAP.md` and `MILESTONE-{n}.md`). Fold what is still true in them into `ROADMAP.md`, show the user and ask one yes, then run again with `--retire <name>` for each: they move to `archive/legacy/`. Pass `retire` from `parseMigrateArgs` to `runMigrate` and `renderDryRun`.
+
 ## Faithfulness — proven by a human, not by green tests
 
 Mechanical safety (move-never-delete, conservation) preserves the *bytes*. It does **not** prove the relocated card is a faithful *representation* (model §5 blind spot). So the confirm step shows the **actual before/after content** for every relocation, and the user approves each. **A passing test suite is NOT the faithfulness gate — the human dry-run diff is.**
@@ -146,10 +150,10 @@ From `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-migrate-lists.js`. It never calls `se
 ## Lib symbols this command calls
 
 From `${CLAUDE_PLUGIN_ROOT}/tools/lib/migrate-memory.js`:
-- `parseMigrateArgs(argv)` → `{apply, force, workStore?, key?, also?}` — flag parse; dry-run default. `also` is one `{id, reason, words}` per `--also`.
+- `parseMigrateArgs(argv)` → `{apply, force, retire?, workStore?, key?, also?}` — flag parse; dry-run default. `also` is one `{id, reason, words}` per `--also`.
 - `probeGitState(baseDir, {force})` → `{mode, proceed, dirty, warnings, reason?}` — the git-state refuse/proceed/downgrade decision.
 - `runMigrate(baseDir, {apply, force, expectedHash})` — the orchestration entry; dry-run returns `{plan, inputHash}` (or `{refused: true, plan: null, reason}` when git could not be asked: print `reason` and stop), apply delegates to `applyMigrate`.
-- `renderDryRun(baseDir, {boundaryDate, milestoneOf, dateStr})` → string — the human-facing three-tier dry-run (the faithfulness diff the user approves). On a v2→v3-pending project it also enumerates the inbox/ledger rename, the BACKLOG create, and the append-log evict (a **summary**, not a diff — a verbatim move has no semantic change), i.e. the SAME steps apply performs. The evict inputs default to the real-run derivation (`deriveBoundaryDate` / `defaultMilestoneOf`); the CLI calls with `baseDir` only.
+- `renderDryRun(baseDir, {boundaryDate, milestoneOf, dateStr})` → string — the human-facing three-tier dry-run (the faithfulness diff the user approves). On a v2→v3-pending project it also enumerates the inbox/ledger rename, the BACKLOG create, and the append-log evict (a **summary**, not a diff — a verbatim move has no semantic change), i.e. the SAME steps apply performs.
 - `applyMigrate(baseDir, {force, expectedHash, stamp, dateStr})` — the apply engine (compose V1→V3→V2→append-log-evict→BACKLOG→rename→index-regen→stamp under one coarse lock, TOCTOU, surgical rollback, tag + staged; the v2→v3 steps fire only when the stamp is below `CURRENT_LAYOUT_VERSION`).
 - `relocateFaithful(...)` / `verifyFaithful(...)` / `conserves(...)` — the faithfulness gate (S1.t3): WORD conservation is the vector-1 gate; `verifyFaithful` is the ID/date/status-token backstop.
 
@@ -157,7 +161,7 @@ From `${CLAUDE_PLUGIN_ROOT}/tools/lib/work-migrate-lists.js` (`--work-store` onl
 - `runWorkStoreMigrate(baseDir, {apply, force, key, also, expectedHash, confirmCloses, confirmUnitCloses, acknowledgeSensitive})` — `expectedHash` (the dry run's `inputHash`) is required with `apply`: without it the apply is refused. `confirmCloses` is the user's yes to the proposed item closes, `confirmUnitCloses` their yes to the proposed legacy closes of units. Returns refusals, a sensitive-data stop (`{aborted, hits}`), dry run (`{key, files, items, dates, proposedCloses, units, proposedUnitCloses, sensitiveHits, inputHash, report}`) or apply (`{tag, revertLine, written, archived, records, flagged, closesConfirmed, units, unitClosesConfirmed, report}`). On a project already on the store with no unit records the results carry `unitsOnly: true` and only the unit fields.
 - `proposeKey(folderName)` → a valid key or `null` — what the dry run proposes.
 
-Supporting (pure cores + read-only sensing helpers the command uses; the mutating cores compose under the ONE coarse lock inside `runMigrate`/`applyMigrate`): `senseState`/`senseProject` (auto-sense), `deproseFrontmatter`/`locateFrontmatterProse` (vector-1), `planVector2` (vector-2), `stampOnConformance` (the stamp), `scanDanglingLinks`/`computeDanglingDelta` (dangling baseline). Vector-3 evict + archive-tree + link-rewrite + the full-corpus brain land in **S2**; the FR7.2 upgrade banner + SessionStart hook in **S3**.
+Supporting (pure cores + read-only sensing helpers the command uses; the mutating cores compose under the ONE coarse lock inside `runMigrate`/`applyMigrate`): `senseState`/`senseProject` (auto-sense), `deproseFrontmatter`/`locateFrontmatterProse` (vector-1), `planVector2` (vector-2), `stampOnConformance` (the stamp), `scanDanglingLinks`/`computeDanglingDelta` (dangling baseline).
 
 > ⚠ **Do NOT call these from the command flow — they are self-locking, single-purpose wrappers that exist for STANDALONE / testing use only:** `relocateInlinedBody` (vector-2), `setDocsLayoutVersion` (the stamp), `applyDeproseVector1` (vector-1). Each takes the state lock on its own, so calling one directly bypasses the composed-under-one-lock safety harness — no V1→V2→stamp chain, no dangling-link gate, no surgical rollback, no TOCTOU bind — and would throw `another state write is running` if called under the coarse lock the harness already holds (§9). The command composes the pure cores listed above; drive it only through `runMigrate`/`applyMigrate`.
 

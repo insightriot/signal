@@ -182,6 +182,30 @@ export function proposeKey(folderName) {
   return STORE_KEY_RE.test(key) ? key : null;
 }
 
+/**
+ * The project's name for proposing a key: the `origin` repository's name, else the main
+ * checkout's folder, else this folder. A second checkout's folder (`app-test`, `app-bughunt`)
+ * names the checkout, not the project.
+ *
+ * @param {string} baseDir
+ * @returns {string}
+ */
+export function projectFolderName(baseDir) {
+  const git = (args) => {
+    try {
+      return execFileSync('git', args, { cwd: baseDir, env: gitEnv(baseDir), encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    } catch {
+      return '';
+    }
+  };
+  const url = git(['remote', 'get-url', 'origin']);
+  const fromUrl = url.replace(/\/+$/, '').replace(/\.git$/, '').split(/[/:]/).pop();
+  if (fromUrl) return fromUrl;
+  const common = git(['rev-parse', '--path-format=absolute', '--git-common-dir']);
+  if (common && basename(common) === '.git') return basename(dirname(common));
+  return basename(resolve(baseDir));
+}
+
 // The folder list's line for `units/` in a new store's WORK.md. A project that
 // adds unit records to a store it already has keeps the WORK.md it has —
 // after creation the file is the person's (the edit hook guards only its
@@ -377,7 +401,7 @@ async function assess(baseDir, opts) {
       + 'then re-run with --work-store.');
   }
 
-  const folder = basename(resolve(baseDir));
+  const folder = projectFolderName(baseDir);
   let key;
   let keySource;
   if (opts.key !== undefined && opts.key !== null) {
