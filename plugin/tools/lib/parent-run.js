@@ -282,10 +282,13 @@ function isSameProcess(pid, recorded) {
   return at !== '' && recorded === `${pid} ${at}`;
 }
 
-/** Is `pid` a node process? vitest retitles itself, but its command name stays node. */
+/**
+ * Is `pid` a node process? vitest retitles itself `node (vitest)`, and on macOS
+ * `ps` reports that title as the command name (SIG-371).
+ */
 function isNode(pid) {
   const r = spawnSync('ps', ['-o', 'comm=', '-p', String(pid)], { encoding: 'utf-8', env: psEnv() });
-  return r.status === 0 && /(^|\/)node(\.exe)?$/.test(String(r.stdout).trim());
+  return r.status === 0 && /(^|\/)node(\.exe)?( \(vitest\))?$/.test(String(r.stdout).trim());
 }
 
 /**

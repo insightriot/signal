@@ -14,6 +14,13 @@
       "type": "triaged",
       "at": "2026-10-29T11:21:27.910Z",
       "by": "claude"
+    },
+    {
+      "type": "close_requested",
+      "at": "2026-11-01T14:37:01.093Z",
+      "by": "claude",
+      "reason": "fixed",
+      "proof": "9bba88df53d02e21c6a372e68729f07d9a706daa"
     }
   ]
 }
