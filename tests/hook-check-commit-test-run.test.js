@@ -88,6 +88,28 @@ describe('check-commit-test-run.js', () => {
     expect(r.stderr).toMatch(/no test command was found/);
   });
 
+  it('reads a STATE.md with Windows line endings', () => {
+    const { dir } = project();
+    writeFileSync(join(dir, '.planning', 'STATE.md'), '---\r\nschema_version: 1\r\nphase: EXECUTE\r\n---\r\n');
+    writeFileSync(join(dir, 'a.js'), 'changed\n');
+    expect(hook(dir).status).toBe(2);
+  });
+
+  it('finds a Signal project in a subfolder of the repository, from the project or below it', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'commit-gate-mono-'));
+    execFileSync('git', ['init', '-q'], { cwd: dir });
+    const pkg = join(dir, 'packages', 'app');
+    mkdirSync(join(pkg, '.planning'), { recursive: true });
+    mkdirSync(join(pkg, 'src'));
+    writeFileSync(join(pkg, '.planning', 'STATE.md'), '---\nphase: EXECUTE\n---\n');
+    writeFileSync(join(pkg, 'package.json'), JSON.stringify({ scripts: { test: 'node -e 0' } }));
+    writeFileSync(join(pkg, 'src', 'a.js'), 'a\n');
+    expect(hook(pkg).stderr).toMatch(/No test record/);
+    expect(hook(join(pkg, 'src')).status).toBe(2);
+    await runTests(pkg, { command: 'true' });
+    expect(hook(join(pkg, 'src')).status).toBe(0);
+  });
+
   it('lets through what it cannot read: other tools, bad input, no Signal project', () => {
     const { dir } = project();
     writeFileSync(join(dir, 'a.js'), 'changed\n');

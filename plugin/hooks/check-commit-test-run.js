@@ -19,8 +19,8 @@
 // passes here (`task-result.js` reports the files left uncommitted).
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { dirname, isAbsolute, join } from 'node:path';
+import { readFileSync, realpathSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { gitEnv } from '../tools/lib/git-env.js';
@@ -30,6 +30,18 @@ const TOOL = join(dirname(fileURLToPath(import.meta.url)), '..', 'tools', 'lib',
 
 /** `git commit`, with any options git takes before the subcommand (`-c k=v`, `-C dir`, `--no-pager`). */
 const GIT_COMMIT_RE = /(?:^|[\s;&|(`])git(?:\s+(?:-[cC]\s+\S+|-\S+))*\s+commit(?=$|[\s;&|)`])/;
+
+const isInside = (dir, top) => {
+  const rel = relative(realpathLoose(top), realpathLoose(dir));
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+};
+const realpathLoose = (p) => {
+  try {
+    return realpathSync(p);
+  } catch {
+    return p;
+  }
+};
 
 function main() {
   let event;
@@ -44,15 +56,23 @@ function main() {
 
   const cwd = typeof event.cwd === 'string' && isAbsolute(event.cwd) ? event.cwd : process.cwd();
   const top = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd, env: gitEnv(cwd), encoding: 'utf8' });
-  const root = top.status === 0 ? top.stdout.trim() : cwd;
-
+  if (top.status !== 0) return 0;
+  // The project is the nearest folder at or above the cwd with a .planning/STATE.md, up to the git top
+  // level: a Signal project can sit in a subfolder of its repository.
+  const gitTop = top.stdout.trim();
+  let root = cwd;
   let state;
-  try {
-    state = readFileSync(join(root, '.planning', 'STATE.md'), 'utf8');
-  } catch {
-    return 0;
+  for (;;) {
+    try {
+      state = readFileSync(join(root, '.planning', 'STATE.md'), 'utf8');
+      break;
+    } catch {
+      const up = dirname(root);
+      if (up === root || !isInside(up, gitTop)) return 0;
+      root = up;
+    }
   }
-  const phase = state.match(/^---\n([\s\S]*?)\n---/)?.[1].match(/^phase:\s*['"]?(\w+)/m)?.[1];
+  const phase = state.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1].match(/^phase:\s*['"]?(\w+)/m)?.[1];
   if (phase !== 'EXECUTE') return 0;
 
   const outside = spawnSync('git', ['status', '--porcelain', '-z', '-uall', '--', '.', ':(exclude).planning'], { cwd: root, env: gitEnv(root), encoding: 'utf8' });
