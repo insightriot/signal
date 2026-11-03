@@ -1427,3 +1427,9 @@ confirmCloses confirms a close only when its exact commit is an ancestor of the 
 **Status:** closed 2026-10-31 (fixed)
 
 A real project running Signal at FULL added its own rule that every PR states how to undo it, alongside failing-first tests and twin-first rehearsal of risky changes. Small, and belongs in the ship rewrite's PR body.
+
+### The failing-test proof (parent-run.js) only runs vitest; node:test and other runners get no proof · SIG-384 · closed (fixed)
+
+**Status:** closed 2026-11-03 (fixed)
+
+Found 2026-11-02 by a fresh /sig:execute session on a node:test practice project. execute.md step 5.6 asks for proof that each task's new tests fail on its start commit (references/fixer-brief.md). parent-run.js spawns vitest only, so on a project using node:test (or jest, pytest, ...) the proof cannot run. The agent fell back to running the new tests against a hand-written wrong stub and recorded it as a gap. A user on any non-vitest project gets that gap on every task.

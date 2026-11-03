@@ -14,6 +14,7 @@ import { readState } from './state.js';
 import { readEffectiveProfile } from './profile.js';
 import { resolveArtifactPath } from './resume.js';
 
+const TEST_RUN = join(dirname(fileURLToPath(import.meta.url)), 'test-run.js');
 const SKILLS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'skills', 'build');
 const SKILLS = ['incremental-implementation', 'test-driven-development', 'context-engineering', 'source-driven-development'];
 
@@ -99,10 +100,10 @@ export async function buildTaskBrief(baseDir, { taskId, start }) {
       ? '1. Write the tests first and run them: they must fail before the code exists.'
       : '1. Write tests for the acceptance criteria (tests first is not required for this project).',
     '2. Write the least code that makes them pass.',
-    '3. Run the whole test suite. It must pass.',
+    `3. Run the whole test suite with \`node "${TEST_RUN}"\`. It must pass: a commit is refused until it has, on the files as they are.`,
     '4. Make exactly one commit, staging only this task\'s files.',
     '',
-    'Do not write anything under `.planning/`: the session that sent you records progress.',
+    'Do not write anything under `.planning/`: the session that sent you records progress. `test-run.js` keeps its record there; leave it out of your commit.',
     'If the task is unclear, the plan is wrong, or you cannot finish, stop without committing and say why.',
     '',
     '## Report back',

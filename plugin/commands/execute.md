@@ -129,13 +129,12 @@ At `gate_strictness: strict`, answer each:
 
 ### Exit Criteria
 - [ ] All plan tasks completed with atomic commits
-- [ ] All tests pass
-- [ ] Build succeeds
+- [ ] Tests and build pass
 - [ ] No silently skipped tasks
 - [ ] Progress file reflects completion (where step 6 writes one)
 - [ ] User accepts the phase — only when `gates.confirm_execute` is set (`attended`)
 
 ## 8. Finish
 
-Commit every `.planning/` file the phase changed (progress, `STATE.md`, `INDEX.md`). `/sig:verify`,
-not this command, sets `phase: VERIFY`.
+Commit every `.planning/` file the phase changed (progress, `STATE.md`, `INDEX.md`,
+`TEST-RUN.json`). `/sig:verify` sets `phase: VERIFY`.
