@@ -40,25 +40,38 @@ function tasksSection(content) {
   return out.join('\n');
 }
 
+const ID_RE = /^[A-Za-z]{0,3}\d+(?:\.[A-Za-z]{0,3}\d+)*$/;
+const FILLER = new Set(['and', 'or', 'then', 'also', 'plus', 'both']);
+
 /**
- * The IDs named on one dependency line. Words that are not IDs (`and`, `then`) are dropped, and a
- * lowercase part written after a space joins the ID before it, so `S3 t1` reads as `S3.t1`.
+ * The IDs named on one dependency line, and the words it could not read. A bracketed note is
+ * dropped only when it names no ID; `and`-style filler is dropped; anything else is returned in
+ * `unread` so the plan is refused rather than guessed at. A lowercase part written after a space
+ * joins an ID that starts with a capital, so `S3 t1` reads as `S3.t1`.
  */
 function dependsIds(text) {
+  const idLike = (t) => ID_RE.test(t.replace(/[.:,;]$/, ''));
+  const cleaned = text
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\(([^)]*)\)/g, (all, inner) => (inner.split(/[\s,;]+/).some(idLike) ? ` , ${inner} , ` : ' '));
   const ids = [];
-  for (const part of text.split(/[,;]/)) {
+  const unread = [];
+  for (const part of cleaned.split(/[,;]/)) {
     let prev = null;
-    for (const raw of part.trim().split(/\s+/)) {
+    for (const raw of part.trim().split(/\s+/).filter(Boolean)) {
       const tok = raw.replace(/[.:]$/, '');
-      if (!/^[A-Za-z]{0,3}\d+(?:\.[A-Za-z]{0,3}\d+)*$/.test(tok)) { prev = null; continue; }
-      if (prev !== null && /^[a-z]{1,3}\d+$/.test(tok)) ids[prev] += '.' + tok;
+      if (tok === '') continue;
+      if (FILLER.has(tok.toLowerCase())) { prev = null; continue; }
+      if (!ID_RE.test(tok)) { unread.push(raw); prev = null; continue; }
+      if (prev !== null && /^[a-z]{1,3}\d+$/.test(tok) && /^[A-Z]/.test(ids[prev])) ids[prev] += '.' + tok;
       else { ids.push(tok); prev = ids.length - 1; }
     }
   }
-  return ids;
+  if (ids.length === 0 && unread.length === 0) unread.push(text);
+  return { ids, unread };
 }
 
-/** Dependency lines outside code fences, each as its list of IDs. */
+/** Dependency lines outside code fences, each as its IDs and any words it could not read. */
 function dependsLines(body) {
   const found = [];
   let inFence = false;
@@ -67,8 +80,8 @@ function dependsLines(body) {
     if (inFence) continue;
     const m = line.match(DEPENDS_RE);
     if (!m) continue;
-    const text = m[1].replace(/[`*_]/g, '').replace(/\([^)]*\)/g, ' ').trim();
-    found.push(/^none\.?$/i.test(text) ? [] : dependsIds(text));
+    const text = m[1].replace(/[`*_]/g, '').trim();
+    found.push(/^none\.?$/i.test(text) ? { ids: [], unread: [] } : dependsIds(text));
   }
   return found;
 }
@@ -101,6 +114,9 @@ export function planWaves(content) {
 
   for (const u of units) {
     if (u.lines.length > 1) problems.push(`${u.id} has more than one "Depends on:" line.`);
+    else if (u.lines.length === 1 && u.lines[0].unread.length > 0) {
+      problems.push(`${u.id}'s "Depends on:" line has words that are not task IDs (${u.lines[0].unread.join(' ')}). List IDs separated by commas, or write "none".`);
+    }
     else if (u.lines.length === 0 && !isGroup(u)) {
       problems.push(`${u.id} has no "Depends on:" line. Write "Depends on: none" if it waits for nothing.`);
     }
@@ -117,7 +133,7 @@ export function planWaves(content) {
   for (const leaf of leaves) {
     const named = [];
     for (const u of units) {
-      if (u.id === leaf.id || leaf.id.startsWith(u.id + '.')) named.push(...(u.lines[0] ?? []));
+      if (u.id === leaf.id || leaf.id.startsWith(u.id + '.')) named.push(...(u.lines[0]?.ids ?? []));
     }
     const set = new Set();
     for (let d of named) {

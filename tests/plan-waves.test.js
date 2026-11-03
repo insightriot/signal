@@ -110,7 +110,7 @@ describe('planWaves — dependency lines as real plans write them', () => {
   it('ignores an explanation in brackets and words that are not IDs', () => {
     const r = planWaves(plan([
       '### S1 — first\n**Depends on:** none',
-      '### S2 — second\n**Depends on:** S1 (columns and `readSourceSection`), and nothing else.',
+      '### S2 — second\n**Depends on:** S1 (columns and `readSourceSection`).',
     ].join('\n\n')));
     expect(r.ok).toBe(true);
     expect(r.waves[1].tasks[0].dependsOn).toEqual(['S1']);
@@ -133,6 +133,27 @@ describe('planWaves — dependency lines as real plans write them', () => {
     expect(r.ok).toBe(true);
     expect(ids(r)).toEqual([['S3'], ['S4']]);
     expect(r.warnings).toEqual(['S4 depends on S3.t1, which has no heading of its own, so it waits for all of S3.']);
+  });
+
+  it('refuses a line it cannot read rather than reading it as none', () => {
+    for (const line of ['S1–S3', 'S1-S3', 'TBD', 'S1/S2', "S1's output", 'S1 and the rest']) {
+      const r = planWaves(plan(`### S1 — a\n**Depends on:** none\n\n### S2 — b\n**Depends on:** ${line}`));
+      expect(r.ok, line).toBe(false);
+      expect(r.problems[0], line).toMatch(/^S2's "Depends on:" line has words that are not task IDs/);
+    }
+  });
+
+  it('keeps an ID written inside brackets, and reads a markdown link by its text', () => {
+    const tasks = '### S1 — a\n**Depends on:** none\n\n### S2 — b\n**Depends on:** none\n\n';
+    const inBrackets = planWaves(plan(tasks + '### S3 — c\n**Depends on:** S1 (and S2)'));
+    expect(inBrackets.waves[1].tasks[0].dependsOn).toEqual(['S1', 'S2']);
+    const link = planWaves(plan(tasks + '### S3 — c\n**Depends on:** [S2](#s2)'));
+    expect(link.waves[1].tasks[0].dependsOn).toEqual(['S2']);
+  });
+
+  it('does not join two lowercase IDs written with a space', () => {
+    const r = planWaves(plan('### t1 — a\n**Depends on:** none\n\n### t2 — b\n**Depends on:** none\n\n### t3 — c\n**Depends on:** t1 t2'));
+    expect(r.waves[1].tasks[0].dependsOn).toEqual(['t1', 't2']);
   });
 
   it('still refuses a name with no task or slice behind it', () => {
