@@ -42,9 +42,9 @@ import from there, never from another copy of Signal. `baseDir` is the project r
 
 Only if step 1 let the command through. Call `await transitionPhase(baseDir, 'PLAN')`
 (`tools/lib/state.js`) before any other step: it records the phase being left and sets
-`phase: PLAN`, so the position is true while PLAN runs. It refuses if the phase being left produced
+`phase: PLAN`. It refuses if the phase being left produced
 no artifact (DISCUSS without its requirements): show its message and stop. If it returns a
-non-empty `quarantined` list, show it; those ledger entries were moved, not dropped.
+non-empty `quarantined` list, show it.
 
 ## 3. Load skills and context
 
@@ -134,25 +134,28 @@ exist. Note drift in the research file (or the plan, without one) and plan for i
 Write `artifactName('PLAN', { currentEpic, planningDir })`:
 
 - the goal, in one sentence;
-- tasks as vertical slices, each shippable on its own, with dependencies, acceptance criteria, a test
-  strategy (test first where the tier requires it) and a size (S/M/L, not time);
+- under `## Tasks`, a `###` heading per task led by its ID (`S1`, `S1.t1`): a
+  vertical slice shippable on its own, with acceptance criteria, a test strategy (test first where
+  the tier requires it), a size (S/M/L, not time) and `**Depends on:** S1.t1` or `none`;
 - the runtime versions assumed;
 - per task, where they apply: **Files likely touched**, **Out of scope** (what the task does not
-  do), and an exemplar reference (a pointer to the section of RESEARCH that found one). A plan
+  do), and an exemplar reference (the RESEARCH section that found one). A plan
   without these three is reported, never failed.
 
 **What this Epic does for the first time.** Name what the Epic will *run* for the first time, not what
 it builds: a tool used for its real purpose rather than to prove itself, an instruction actually
 followed rather than read, or a code path taken by a project shape not tried before. **Put it in the
-first wave**, ahead of work that looks more important. If nothing qualifies, say so. Defects hide in
-what was built and never run for its purpose.
+first wave**, ahead of work that looks more important. If nothing qualifies, say so.
 
 Decisions the requirements leave open that change what gets built are asked as DISCUSS asks them
 (`commands/discuss.md` step 5). Plumbing (file layout, test mechanics, tooling) is decided and stated.
 
+Fix the plan until `node "${CLAUDE_PLUGIN_ROOT}/tools/lib/plan-waves.js" <plan>` prints its waves.
+
 ## 7. Check the plan
 
-At `core`: goal alignment, completeness, testability. At `all`, also: dependency correctness, scope
+
+At `core`: goal alignment, completeness, testability. At `all`, also: scope
 discipline (no gold-plating), context feasibility (each task fits one agent's context), risk coverage,
 vertical slicing (each task a full slice, not a layer). Fix what fails and check again.
 

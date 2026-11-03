@@ -68,9 +68,8 @@ validation file. Fix the plan where a task lacks them.
 
 ## 4. Group the tasks into waves
 
-Wave 1: tasks with no dependencies; wave N: those whose dependencies are in earlier waves. Keep the
-plan's first-run work in wave 1. Do each task yourself, one at a time: this
-command dispatches no executor agent.
+`node "${CLAUDE_PLUGIN_ROOT}/tools/lib/plan-waves.js" <plan>` prints them. If it refuses, add the
+`Depends on:` lines it names and rerun. Do each task yourself: this command dispatches no executor agent.
 
 ## 5. Build each task
 
