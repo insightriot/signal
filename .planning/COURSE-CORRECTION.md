@@ -133,11 +133,8 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
    **Measured 2026-10-28/29** (discuss, plan, execute, verify, walking that bug): each about halved
    or better, ran the branch's code, and kept its files in the Epic's folder; each left a separate
    commit marking STATE fresh (step 4). Per-command detail: `archive/COURSE-CORRECTION-MEASUREMENTS.md`.
-   **review, 2026-10-30:** 29.5 KB to 15.4 KB; finished with no person; its three fresh reviewers
-   found a real test gap twice in two runs, fixed in one round. A FAIL now loops back on its own.
-   **ship, 2026-10-31:** 54.2 KB to 21.7 KB. On the test project it stopped cleanly at its two
-   floors (no retrospective; an open bug), and with both cleared made one commit with the Epic's
-   close requested. A run found an open item refused only after the phase was recorded; fixed.
+   **review** (2026-10-30, 29.5 to 15.4 KB) and **ship** (2026-10-31, 54.2 to 21.7 KB) the same way;
+   detail in the measurements file.
 4. **Checkpoint goes.** Each phase command updates the state file itself, at every tier, in the same
    commit as the phase's work. No separate commits to mark it fresh (records problem 6).
    **Phase commands done 2026-10-29:** freshness is read from the last commit that touched STATE.md.
@@ -147,7 +144,7 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
 
 **Step 2 — build the loop.** Each piece is code, not instructions:
 1. EXECUTE starts a fresh executor agent per task.
-2. A small command builds waves from the plan's dependencies.
+2. A small command builds waves from the plan's dependencies. **Done 2026-11-03 (#335).**
 3. A small command runs the project's tests and records the result; VERIFY refuses to pass without it.
 4. A hook blocks a commit during EXECUTE without a passing test record.
 5. A Stop hook keeps the agent working inside an Epic while tasks remain and tests pass; calibration
@@ -167,6 +164,9 @@ doesn't clearly win by 2026-12-04, keep only what earned its place and stop.
   are cleaner. First batch, done: doctor, update, permissions; checkpoint followed on 2026-10-30 (step 4).
   Advise stays until the rewrite, because drive follows advise's steps to pick work. The four docs commands and `item` wait for the rewrite, which decides what replaces them (see *Records*). Folding escalate into
   calibrate and merging init with new-project happen during the rewrite.
+- **Order to the deadline (decided 2026-11-03):** loop pieces 1, 3, 4, 5, then one whole unattended
+  Epic on a practice project, then decide whether the records-command merge goes before or after
+  Step 3. Estimate 13–18 working days; Step 3 around 2026-11-20 to 25.
 - **Step 3 deadline: 2026-12-04.** Step 3 means building one real feature on the test project twice,
   once with Signal and once with plain Claude Code, and comparing. The date allows about a week for
   Step 1 and three for Step 2. If Signal hasn't clearly won by then, keep only what earned its place.
