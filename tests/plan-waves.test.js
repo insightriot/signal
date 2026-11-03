@@ -106,6 +106,42 @@ describe('planWaves — refuses rather than guesses', () => {
   });
 });
 
+describe('planWaves — dependency lines as real plans write them', () => {
+  it('ignores an explanation in brackets and words that are not IDs', () => {
+    const r = planWaves(plan([
+      '### S1 — first\n**Depends on:** none',
+      '### S2 — second\n**Depends on:** S1 (columns and `readSourceSection`), and nothing else.',
+    ].join('\n\n')));
+    expect(r.ok).toBe(true);
+    expect(r.waves[1].tasks[0].dependsOn).toEqual(['S1']);
+  });
+
+  it('reads "S1 t1" the same as "S1.t1"', () => {
+    const r = planWaves(plan([
+      '### S1 — slice\n#### S1.t1 — a\n**Depends on:** none\n\n#### S1.t2 — b\n**Depends on:** none',
+      '### S2 — after a\n**Depends on:** S1 t1',
+    ].join('\n\n')));
+    expect(r.ok).toBe(true);
+    expect(ids(r)).toEqual([['S1.t1', 'S1.t2'], ['S2']]);
+  });
+
+  it('a task named inside a slice with no heading of its own waits for the whole slice, with a warning', () => {
+    const r = planWaves(plan([
+      '### S3 — two tasks, t1 then t2\n**Depends on:** none',
+      '### S4 — reading runs\n**Depends on:** S3 t1',
+    ].join('\n\n')));
+    expect(r.ok).toBe(true);
+    expect(ids(r)).toEqual([['S3'], ['S4']]);
+    expect(r.warnings).toEqual(['S4 depends on S3.t1, which has no heading of its own, so it waits for all of S3.']);
+  });
+
+  it('still refuses a name with no task or slice behind it', () => {
+    const r = planWaves(plan('### S1 — a\n**Depends on:** none\n\n### S2 — b\n**Depends on:** S9 t1'));
+    expect(r.ok).toBe(false);
+    expect(r.problems).toEqual(['S2 depends on S9.t1, which is not a task in the plan.']);
+  });
+});
+
 describe('plan-waves CLI', () => {
   const cli = join(ROOT, 'plugin/tools/lib/plan-waves.js');
   const write = (text) => {

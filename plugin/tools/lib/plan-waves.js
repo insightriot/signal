@@ -40,6 +40,24 @@ function tasksSection(content) {
   return out.join('\n');
 }
 
+/**
+ * The IDs named on one dependency line. Words that are not IDs (`and`, `then`) are dropped, and a
+ * lowercase part written after a space joins the ID before it, so `S3 t1` reads as `S3.t1`.
+ */
+function dependsIds(text) {
+  const ids = [];
+  for (const part of text.split(/[,;]/)) {
+    let prev = null;
+    for (const raw of part.trim().split(/\s+/)) {
+      const tok = raw.replace(/[.:]$/, '');
+      if (!/^[A-Za-z]{0,3}\d+(?:\.[A-Za-z]{0,3}\d+)*$/.test(tok)) { prev = null; continue; }
+      if (prev !== null && /^[a-z]{1,3}\d+$/.test(tok)) ids[prev] += '.' + tok;
+      else { ids.push(tok); prev = ids.length - 1; }
+    }
+  }
+  return ids;
+}
+
 /** Dependency lines outside code fences, each as its list of IDs. */
 function dependsLines(body) {
   const found = [];
@@ -49,8 +67,8 @@ function dependsLines(body) {
     if (inFence) continue;
     const m = line.match(DEPENDS_RE);
     if (!m) continue;
-    const text = m[1].replace(/[`*_]/g, '').trim();
-    found.push(/^none\.?$/i.test(text) ? [] : text.split(/[\s,;]+/).map((s) => s.replace(/\.$/, '')).filter(Boolean));
+    const text = m[1].replace(/[`*_]/g, '').replace(/\([^)]*\)/g, ' ').trim();
+    found.push(/^none\.?$/i.test(text) ? [] : dependsIds(text));
   }
   return found;
 }
@@ -95,14 +113,21 @@ export function planWaves(content) {
     return isGroup(u) ? childrenOf(id).filter((c) => !isGroup(c)).map((c) => c.id) : [id];
   };
   const deps = new Map();
+  const notes = [];
   for (const leaf of leaves) {
     const named = [];
     for (const u of units) {
       if (u.id === leaf.id || leaf.id.startsWith(u.id + '.')) named.push(...(u.lines[0] ?? []));
     }
     const set = new Set();
-    for (const d of named) {
-      if (!byId.has(d)) { problems.push(`${leaf.id} depends on ${d}, which is not a task in the plan.`); continue; }
+    for (let d of named) {
+      if (!byId.has(d)) {
+        const parent = d.split('.').slice(0, -1).reduce((acc, p) => [...acc, acc.length ? `${acc.at(-1)}.${p}` : p], [])
+          .reverse().find((a) => byId.has(a));
+        if (!parent) { problems.push(`${leaf.id} depends on ${d}, which is not a task in the plan.`); continue; }
+        notes.push(`${leaf.id} depends on ${d}, which has no heading of its own, so it waits for all of ${parent}.`);
+        d = parent;
+      }
       if (d === leaf.id || leaf.id.startsWith(d + '.')) { problems.push(`${leaf.id} depends on itself (${d}).`); continue; }
       for (const e of expand(d)) set.add(e);
     }
@@ -129,7 +154,7 @@ export function planWaves(content) {
     waves[n - 1].tasks.push({ id: leaf.id, heading: leaf.heading, body: leaf.body, dependsOn: [...deps.get(leaf.id)] });
   }
   // A heading that still states a wave ("· wave 2 ·") is a second answer; say when it disagrees.
-  const warnings = [];
+  const warnings = [...new Set(notes)];
   for (const leaf of leaves) {
     const stated = leaf.heading.match(/\bwave\s+(\d+)/i);
     if (stated && Number(stated[1]) !== waveOf.get(leaf.id)) {
