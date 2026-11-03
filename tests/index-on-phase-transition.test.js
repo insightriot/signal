@@ -148,8 +148,16 @@ describe('M5.E16 S5.t3 — no hook gains write capability (AC5.3)', () => {
     expect(files.length).toBeGreaterThan(0);
 
     const WRITE_CALLS = /\b(writeFile|writeFileSync|appendFile|appendFileSync|atomicWrite|mkdirSync|rmSync|unlinkSync|renameSync)\s*\(/;
+    // The one exception writes nothing in the project: keep-executing.js keeps how many times it sent
+    // the agent back in the system temp folder (loop piece 5), and that is its only write.
+    const TEMP_ONLY = { 'keep-executing.js': /writeFileSync\(guardPath,/ };
     for (const file of files) {
-      const src = await readFile(join(hooksDir, file), 'utf-8');
+      let src = await readFile(join(hooksDir, file), 'utf-8');
+      if (TEMP_ONLY[file]) {
+        expect(src).toMatch(/const guardPath = join\(tmpdir\(\),/);
+        expect(src.match(new RegExp(WRITE_CALLS.source, 'g')), `${file} writes once`).toHaveLength(1);
+        src = src.replace(TEMP_ONLY[file], '');
+      }
       expect(WRITE_CALLS.test(src), `${file} must stay warn-only`).toBe(false);
     }
   });

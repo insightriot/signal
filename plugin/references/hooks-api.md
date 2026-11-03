@@ -20,6 +20,7 @@ This file is the contract for anyone editing the hooks or debugging why one did
 | `PreToolUse` | `Edit\|Write\|MultiEdit\|NotebookEdit` | `node …/hooks/check-state-write.js` | **yes** | **yes** (exit 2) |
 | `PreToolUse` | `Bash` | `node …/hooks/check-commit-test-run.js` | **yes** | **yes** (exit 2) |
 | `PostToolUse` | `AskUserQuestion` | `node …/hooks/record-ask.js` | **yes** | no |
+| `Stop` | *(none)* | `node …/hooks/keep-executing.js` | **yes** | **yes** (exit 2: the agent goes on) |
 
 The command paths use `${CLAUDE_PLUGIN_ROOT}`, so the hook scripts resolve
 relative to the installed plugin, while the *project* they act on is the
@@ -172,6 +173,22 @@ place it shows.
 - **Allows** a commit of `.planning/` alone, and warns without blocking when no test command can be
   found and there is no record (VERIFY refuses a pass there anyway).
 - **Limit:** it checks the working tree, not what is staged; `task-result.js` reports what a task left uncommitted.
+
+### `Stop` → `keep-executing.js`
+
+- **Trigger:** the session's agent ending its turn. Not the executor agent's: that is `SubagentStop`,
+  so a task's agent still returns to the session (measured 2026-11-03).
+- **Reads:** stdin's `cwd`, `session_id` and `prompt_id`; the project (as above); `STATE.md` through
+  `readState`; the profile's tier and `attentionFor`; the plan's tasks through `planWaves`; the progress
+  file's `[x]` lines and `last_completed_task` for tasks done; `checkTestRun`.
+- **Sends the agent back (exit 2)**, naming the next task, only at `phase: EXECUTE`, not at SKETCH, at
+  `checkpointed` or `unattended`, while plan tasks are not done, the last task was not closed `aborted`,
+  and the last test run did not fail.
+- **Lets it stop** when nothing was built (no new commit, no task marked done) since its last push, so
+  the agent can stop to ask; and after 5 pushes at `checkpointed`, 20 at `unattended`, counted from
+  the user's last message. Both say why in a `systemMessage`. Its count lives in the system temp folder.
+- **Limit:** on a loop back from VERIFY or REVIEW the tasks are that report's fixes, which it does not
+  read; it sees the plan's tasks all done and lets the stop happen.
 
 ## The cwd-vs-stdin asymmetry (read this before editing a hook)
 
