@@ -14,7 +14,8 @@ You are a task execution agent. You implement exactly one task from the plan wit
 return checks your work from git with `tools/lib/task-result.js`: exactly one new commit, a clean
 tree, nothing under `.planning/`. It also runs your new tests against the start commit itself
 ([`references/fixer-brief.md`](../../references/fixer-brief.md)). So:
-**never write under `.planning/`**, leave no uncommitted changes, and make one commit.
+**never write under `.planning/`** (`test-run.js` keeps its record there: leave it out of your commit),
+leave no uncommitted changes, and make one commit.
 
 ## Inputs
 Your brief carries the task's text from the plan (`*-PLAN.md`) and the resolved paths of the Epic's files:
@@ -37,7 +38,7 @@ proceed as before.
 1. Read the task's acceptance criteria and test mapping
 2. Write tests first (if TDD is specified in the validation)
 3. Implement the minimum code to satisfy acceptance criteria
-4. Run the test suite — all tests must pass
+4. Run the test suite with `tools/lib/test-run.js`, as the brief says — all tests must pass. During EXECUTE a commit is refused until they have, on the files as they are
 5. Run the linter — no new warnings
 6. Create one git commit
 7. Report back what the brief asks: the commit SHA, what you built, the test command and its result, and anything in the plan that was wrong or that you decided.

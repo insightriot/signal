@@ -15,13 +15,17 @@ This file is the contract for anyone editing the hooks or debugging why one did
 |---|---|---|---|---|
 | `SessionStart` | *(none — every start)* | `bash …/hooks/session-start.sh` | no | no |
 | `SessionStart` | `resume` | `node …/hooks/warn-dirty-execute.js` | **no** (cwd-driven) | no |
-| `PreToolUse` | `Edit\|Write` | `node …/hooks/check-state-write.js` | **yes** | **yes** (exit 2) |
+| `SessionStart` | *(none)* | `node …/hooks/warn-layout-drift.js` | no | no |
+| `SessionStart` | *(none)* | `node …/hooks/warn-stale-plugin-binding.js` | no | no |
+| `PreToolUse` | `Edit\|Write\|MultiEdit\|NotebookEdit` | `node …/hooks/check-state-write.js` | **yes** | **yes** (exit 2) |
+| `PreToolUse` | `Bash` | `node …/hooks/check-commit-test-run.js` | **yes** | **yes** (exit 2) |
+| `PostToolUse` | `AskUserQuestion` | `node …/hooks/record-ask.js` | **yes** | no |
 
 The command paths use `${CLAUDE_PLUGIN_ROOT}`, so the hook scripts resolve
 relative to the installed plugin, while the *project* they act on is the
 session's working directory (see the cwd-vs-stdin asymmetry below).
 
-## The three events
+## The events
 
 ### `SessionStart` (unmatched) → `session-start.sh`
 
@@ -154,6 +158,20 @@ record — a field changed with no event, its events still folding — passes it
 Nothing in Signal can detect that edit after the fact; `git diff` of
 `.planning/work/items/` (and `.planning/work/units/`) at review is the only
 place it shows.
+
+### `PreToolUse(Bash)` → `check-commit-test-run.js`
+
+- **Trigger:** a Bash command that runs `git commit` (found by a pattern; an alias or a script is not seen),
+  from the session or from an agent it dispatched: plugin hooks see a subagent's tool calls (measured 2026-11-03).
+- **Reads:** stdin's `cwd` (moved by a `cd X &&` before the commit and by `git -C <dir>`; a folder that
+  depends on a variable other than `$HOME` is not known, so that commit is let through), the nearest `.planning/STATE.md` at or above it (up to the git top level, so a
+  project in a subfolder of its repository is found), its `phase`, and
+  `.planning/TEST-RUN.json` through `checkTestRun` (`tools/lib/test-run.js`).
+- **Blocks (exit 2)** only at `phase: EXECUTE`, when files outside `.planning/` differ from HEAD and the
+  record is missing, failed, or older than those files. The reasons and the `test-run.js` command go to stderr.
+- **Allows** a commit of `.planning/` alone, and warns without blocking when no test command can be
+  found and there is no record (VERIFY refuses a pass there anyway).
+- **Limit:** it checks the working tree, not what is staged; `task-result.js` reports what a task left uncommitted.
 
 ## The cwd-vs-stdin asymmetry (read this before editing a hook)
 

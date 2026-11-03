@@ -153,7 +153,7 @@ describe('execute.md fixes from the review of its rewrite', () => {
     const brief = readFileSync(join(LIB, 'task-brief.js'), 'utf-8');
     expect(brief).toMatch(/Make exactly one commit, staging only this task\\'s files\./);
     expect(readFileSync(join(LIB, 'task-result.js'), 'utf-8')).toMatch(/a task is one commit/);
-    expect(execute).toMatch(/Commit every `\.planning\/` file the phase changed \(progress, `STATE\.md`, `INDEX\.md`\)/);
+    expect(execute).toMatch(/Commit every `\.planning\/` file the phase changed \(progress, `STATE\.md`, `INDEX\.md`,\s+`TEST-RUN\.json`\)/);
   });
 
   it('at attended, the finished phase is accepted by the user', () => {
