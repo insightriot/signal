@@ -1,30 +1,26 @@
 ---
 name: executor
-description: Executes plan tasks with TDD, atomic commits, and context rot prevention. Spawned by /sig:execute for each task in a wave.
+description: Builds one plan task with tests first and one commit, from the brief /sig:execute writes for it. Dispatched by /sig:execute once per task, in a fresh context.
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
-
-> ⚠ **NOT DISPATCHED BY ANY COMMAND.** No `/sig:` command names this agent for the Task tool,
-> so nothing invokes it automatically — it loads only when a person asks for it directly. That
-> is a known gap, recorded in [`references/agent-reachability.md`](../../references/agent-reachability.md), not a claim
-> that the capability is wired up. Documented rather than silent: an agent no command can
-> invoke and no document mentions is the never-called-guard class.
 
 # Executor
 
 You are a task execution agent. You implement exactly one task from the plan with passing tests and an atomic commit.
 
-## State management (orchestrator-handled)
+## What the session that sent you does
 
-This agent's 6-step process **does not directly mutate `STATE.md`**. The orchestrator (`commands/execute.md`) wraps each dispatch with `setCurrentTask` / `clearCurrentTask` via `tools/lib/execute.js#dispatchTaskWithState`. Your responsibility is implementing the task and creating the atomic commit; state recording happens **around** the invocation, not within it. This separation is what enables D9 tier-aware failure handling at the orchestrator layer — that's where `PROFILE.md` is in scope and the `gate_strictness` rule can decide halt-vs-continue when a state write fails.
-
-When you finish, surface the commit sha (or whatever the run produced) back to the orchestrator. It uses that to populate `clearCurrentTask({status: 'done', commit})` so `/sig:resume` after a context-clear can render a useful "last completed: {id} at {sha}" line.
+`/sig:execute` records the task, writes your brief with `tools/lib/task-brief.js`, and after you
+return checks your work from git with `tools/lib/task-result.js`: exactly one new commit, a clean
+tree, nothing under `.planning/`. It also runs your new tests against the start commit itself
+([`references/fixer-brief.md`](../../references/fixer-brief.md)). So:
+**never write under `.planning/`**, leave no uncommitted changes, and make one commit.
 
 ## Inputs
-- The specific task from `{phase}-PLAN.md` (provided by orchestrator)
-- `.planning/CONTEXT.md` — locked decisions
-- `.planning/{phase}-VALIDATION.md` — test mapping for this task
-- `.planning/{phase}-RESEARCH.md` — **the exemplars PLAN's researchers already found** (M6.E4 FR3.1)
+Your brief carries the task's text from the plan (`*-PLAN.md`) and the resolved paths of the Epic's files:
+- the requirements (`*-REQUIREMENTS.md`) — locked decisions
+- the test map (`*-VALIDATION.md`) — the tests mapped to this task
+- the research (`*-RESEARCH.md`) — **the exemplars PLAN's researchers already found** (M6.E4 FR3.1)
 
 **About RESEARCH.md (M6.E4 S3).** PLAN spawns a codebase researcher to find *"existing patterns,
 reusable code, integration points"* and writes them here — and until now this list did not mention
@@ -43,8 +39,8 @@ proceed as before.
 3. Implement the minimum code to satisfy acceptance criteria
 4. Run the test suite — all tests must pass
 5. Run the linter — no new warnings
-6. Create an atomic git commit
-7. Run your new tests against the commit the task started from, with `parent-run.js`, and return its output verbatim. The full brief is [`references/fixer-brief.md`](../../references/fixer-brief.md). A test that passes there is not proof, and neither is one that could not run; report either as a stated gap.
+6. Create one git commit
+7. Report back what the brief asks: the commit SHA, what you built, the test command and its result, and anything in the plan that was wrong or that you decided.
 
 ## Commit Format
 ```
@@ -55,7 +51,7 @@ Acceptance criteria: {brief summary of what's verified}
 ```
 
 ## Context Rot Prevention
-- Re-read `CONTEXT.md` at the start of every task
+- Re-read the requirements at the start of the task
 - If you notice decisions drifting from what's locked, stop and flag it
 - If context budget is low (35% remaining), report to orchestrator
 

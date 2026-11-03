@@ -1,0 +1,13 @@
+{
+  "id": "SIG-384",
+  "type": "NEW",
+  "title": "The failing-test proof (parent-run.js) only runs vitest; node:test and other runners get no proof",
+  "source": "/sig:item",
+  "events": [
+    {
+      "type": "created",
+      "at": "2026-11-03T00:48:20.843Z",
+      "by": "claude"
+    }
+  ]
+}

@@ -38,7 +38,6 @@ Then the branch: `checkBranchPosture(baseDir, { tier: profile.tier, override })`
 | Override | Effect |
 |---|---|
 | `tdd_required` | `true`: a failing test before the code. `false`: test after, or none. |
-| `context_rot_reread` | `false` skips the re-read in step 5. |
 | `gate_strictness: strict` | Runs the Anti-Rationalization Check in step 7. |
 
 | `attention` | How decisions are confirmed |
@@ -55,11 +54,7 @@ Only if step 1 let the command through. Call `await transitionPhase(baseDir, 'EX
 refuses, show its message and stop.
 Show any `quarantined` entries it returns.
 
-## 3. Load skills and the plan
-
-Read and apply each `skills/build/<name>/SKILL.md`: `incremental-implementation`,
-`test-driven-development`, `context-engineering`, `source-driven-development`, and
-`frontend-ui-engineering` if the project has a frontend.
+## 3. Read the plan
 
 Read the plan from step 1, and
 `resolveArtifactPath(planningDir, 'VALIDATION', { currentEpic, phase: 'PLAN' })` (none at
@@ -69,7 +64,8 @@ validation file. Fix the plan where a task lacks them.
 ## 4. Group the tasks into waves
 
 `node "${CLAUDE_PLUGIN_ROOT}/tools/lib/plan-waves.js" <plan>` prints them. If it refuses, add the
-`Depends on:` lines it names and rerun. Do each task yourself: this command dispatches no executor agent.
+`Depends on:` lines it names and rerun. Tasks run one at a time, in wave order (one
+working tree).
 
 ## 5. Build each task
 
@@ -83,14 +79,24 @@ and a REVIEW round's parent run follows `commands/review.md` § 4.6 instead of s
    If either write fails: stop at `gate_strictness: strict`, else warn.
 2. Note the commit the task starts from: `git rev-parse HEAD`, or for a resumed task
    `last_completed_task.commit` (HEAD if it has none).
-3. Re-read the task's acceptance criteria and mapped tests, and the `## Decisions` in the
-   requirements (`resolveArtifactPath(planningDir, 'REQUIREMENTS', { currentEpic, phase: 'DISCUSS' })`;
-   `CONTEXT.md` for an Epic planned before that), unless `context_rot_reread: false`.
-4. Write the tests first (required when `tdd_required: true`), then the least code that passes them.
-5. Run the test suite. Commit the task on its own, staging only its files.
-6. Prove the task's new tests fail on its start commit (`references/fixer-brief.md`):
-   `node "${CLAUDE_PLUGIN_ROOT}/tools/lib/parent-run.js" --base <start commit> <each new or changed test file>`.
-   It runs vitest only; on another runner, or with no new test, write a stated gap with why.
+3. Build the brief: `node "${CLAUDE_PLUGIN_ROOT}/tools/lib/task-brief.js" <id> --start <start commit>`,
+   run in the project's directory. If it refuses, show why and stop.
+4. Dispatch it through the Task tool, alone, with the brief as printed and nothing else:
+
+   | Agent | `subagent_type` |
+   |---|---|
+   | Task builder, fresh context | `executor` |
+
+   If `executor` does not resolve, use a general-purpose agent with
+   `agents/executors/executor.md` as its instructions. If no agent can be dispatched, build the task
+   yourself from the brief and say so in the progress file.
+5. Check what it did: `node "${CLAUDE_PLUGIN_ROOT}/tools/lib/task-result.js" --start <start commit>`.
+   Its verdict comes from git, not from the agent's report. `done`: go on. `check`: fix what it names,
+   then run it again. `not-done`: if the agent's
+   report names a plan problem, fix the plan and dispatch once more; otherwise close it `aborted`.
+6. Its parent-run line (`parent-run.js`) is the proof that the new tests fail on the start commit
+   (`references/fixer-brief.md`). It runs vitest only; on another runner, or with no new test, write a
+   stated gap with why.
 7. **Close it** (not at SKETCH): `clearCurrentTask(baseDir, { id, status: 'done', commit })`, or
    `status: 'aborted'` for a task you cannot finish; then say why in the progress file, skip Finish
    (step 8), and stop: the user fixes the cause and runs `/sig:execute` again. A failed write here only warns.
@@ -117,9 +123,8 @@ At `gate_strictness: strict`, answer each:
 
 | Temptation | Check |
 |---|---|
-| "The tests are too slow, I'll skip them for now" | Skipped tests compound — write them now |
-| "This works but I'll refactor it later" | Later never comes. Write it clean the first time |
-| "I'll commit everything together at the end" | Atomic commits enable safe rollback. Commit per task |
+| "The agent says it's done" | Only `task-result.js` says so |
+| "I'll build this one myself, it's quicker" | Each task goes to a fresh agent |
 | "The plan says X but I think Y is better" | Update the plan first. Don't silently diverge |
 
 ### Exit Criteria
