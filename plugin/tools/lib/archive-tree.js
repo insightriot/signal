@@ -212,6 +212,11 @@ export function planArchiveMoves(closedUnitIds, planningRelFiles, opts = {}) {
       if (ia !== ib) return ia - ib;
       return a < b ? -1 : a > b ? 1 : 0;
     });
+    // A closed strict Epic also takes its own profile: only the current Epic's is read. Other
+    // prefixed files (a launch kit, a checkpoint note) stay, as the retrospective does.
+    if (EPIC_ID_STRICT_RE.test(unit) && present.has(`${PLANNING_DIR}/${unit}-PROFILE.md`)) {
+      ordered.push(`${unit}-PROFILE.md`);
+    }
     // A closed unit with no scaffold files on disk contributes no moves —
     // same as the old template loop finding nothing `present`.
     const unitMoves = [];
@@ -252,6 +257,89 @@ export function planArchiveMoves(closedUnitIds, planningRelFiles, opts = {}) {
     }
   }
   return { moves, moveMap, dropped };
+}
+
+// The one-time cleanup for a project that predates Epic folders (`/sig:docs-migrate`).
+export const LEGACY_ARCHIVE_REL = `${PLANNING_DIR}/archive/legacy`;
+// The roadmap files Signal reads: ROADMAP.md (DISCUSS, PLAN) and MILESTONE-{n}.md (SHIP, numbering).
+const SIGNAL_ROADMAP_RE = /^(?:ROADMAP\.md|MILESTONE-M?\d+(?:\.\d+)?\.md)$/;
+const ROADMAP_LIKE_RE = /roadmap|milestone/i;
+
+/**
+ * Plan the layout cleanup. Pure.
+ *
+ * - The current Epic's loose `{EpicID}-*.md` files move into `.planning/epics/<EpicID>/`, except
+ *   its profile (`readEffectiveProfile` reads it at the top) and retrospective (SHIP writes it there).
+ * - Old `*-archive` copies at the top move to `archive/legacy/`.
+ * - Roadmap-like files Signal does not read are listed in `roadmapExtras`, never moved, unless
+ *   named in `retire` (after their content is folded into ROADMAP.md); a folder moves file by file.
+ * - A move whose destination exists, or is already taken, is skipped with the reason.
+ *
+ * @param {{currentEpic: string|null, topLevel: Array<{name: string, isDir: boolean}>,
+ *   filesUnder?: (rel: string) => string[], retire?: string[], exists: (rel: string) => boolean,
+ *   taken?: Set<string>}} args — `filesUnder` gets and returns `.planning/`-relative paths
+ * @returns {{moves: Array<{from, to, why}>, roadmapExtras: string[], skipped: Array<{path, reason}>}}
+ */
+export function planLayoutCleanup({ currentEpic, topLevel, filesUnder = () => [], retire = [], exists, taken = new Set() }) {
+  const moves = [];
+  const skipped = [];
+  const add = (from, to, why) => {
+    if (exists(to) || taken.has(to)) {
+      skipped.push({ path: from, reason: `${to} already exists; keep one copy, then run again` });
+      return;
+    }
+    taken.add(to);
+    moves.push({ from, to, why });
+  };
+  const sorted = [...topLevel].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+
+  const epic = typeof currentEpic === 'string' && EPIC_ID_STRICT_RE.test(currentEpic) ? currentEpic : null;
+  if (epic) {
+    const keep = new Set([`${epic}-PROFILE.md`, `${epic}-RETROSPECTIVE.md`]);
+    for (const { name, isDir } of sorted) {
+      if (!isDir && name.startsWith(`${epic}-`) && name.endsWith('.md') && !keep.has(name)) {
+        add(`${PLANNING_DIR}/${name}`, `${EPIC_FOLDERS_REL}/${epic}/${name}`, 'current Epic');
+      }
+    }
+  }
+  for (const { name, isDir } of sorted) {
+    if (!isDir && name.endsWith('-archive')) add(`${PLANNING_DIR}/${name}`, `${LEGACY_ARCHIVE_REL}/${name}`, 'old copy');
+  }
+
+  const reserved = new Set(['archive', 'epics', 'work']);
+  const roadmapExtras = topLevel
+    .filter(({ name }) => ROADMAP_LIKE_RE.test(name) && !SIGNAL_ROADMAP_RE.test(name) && !reserved.has(name) && !name.endsWith('-archive'))
+    .map(({ name }) => name)
+    .sort();
+  for (const r of retire) {
+    const entry = topLevel.find((e) => e.name === r);
+    if (!entry || !roadmapExtras.includes(r)) {
+      skipped.push({ path: r, reason: 'not a roadmap file this cleanup retires (Signal reads it, or it is not at the top of .planning/)' });
+      continue;
+    }
+    if (!entry.isDir) add(`${PLANNING_DIR}/${r}`, `${LEGACY_ARCHIVE_REL}/${r}`, 'retired roadmap');
+    else for (const f of filesUnder(r)) add(`${PLANNING_DIR}/${f}`, `${LEGACY_ARCHIVE_REL}/${f}`, 'retired roadmap');
+  }
+  return { moves, roadmapExtras, skipped };
+}
+
+// Every file under `.planning/<rel>/`, as `.planning/`-relative POSIX paths.
+async function listFilesUnder(baseDir, rel) {
+  const out = [];
+  const walk = async (sub) => {
+    let entries;
+    try {
+      entries = await readdir(join(baseDir, PLANNING_DIR, sub), { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
+      if (e.isDirectory()) await walk(`${sub}/${e.name}`);
+      else if (e.isFile()) out.push(`${sub}/${e.name}`);
+    }
+  };
+  await walk(rel);
+  return out;
 }
 
 /**
@@ -302,7 +390,10 @@ export function computeLinkEdits(fileRepoRel, text, moveMap) {
     if (isExternal(raw)) continue;
     const [pathPart, ...titleParts] = raw.trim().split(/\s+/);
     const [targetPath, anchor = ''] = pathPart.split(/(#.*)/);
-    if (!targetPath.endsWith('.md')) continue;
+    // A link to any other file is rewritten only when that file moves (an old `*-archive` copy).
+    if (!targetPath.endsWith('.md')
+      && !moveMap.has(posix.normalize(posix.join(posix.dirname(f), targetPath)))
+      && !moveMap.has(posix.normalize(targetPath))) continue;
     // B28 (D-M5E6-4): NEVER rewrite an absolute-path target. `scanDanglingLinks`
     // resolves it with `resolve()` (which RESETS on an absolute path), so an
     // absolute link's resolved target is INVARIANT under a move; rerooting it with
@@ -622,6 +713,37 @@ export async function senseArchiveTree(baseDir, opts = {}) {
       renameFroms.add(from);
     }
   }
+  // The layout cleanup (`opts.layout`, `/sig:docs-migrate` only), after the closed-unit moves so
+  // it never shadows one.
+  let layout;
+  if (opts.layout) {
+    let entries = [];
+    try {
+      entries = await readdir(join(baseDir, PLANNING_DIR), { withFileTypes: true });
+    } catch {
+      entries = [];
+    }
+    const topLevel = entries.filter((e) => e.isFile() || e.isDirectory()).map((e) => ({ name: e.name, isDir: e.isDirectory() }));
+    const filesUnder = {};
+    for (const r of opts.retire ?? []) {
+      if (topLevel.some((e) => e.name === r && e.isDir)) filesUnder[r] = await listFilesUnder(baseDir, r);
+    }
+    const plan = planLayoutCleanup({
+      currentEpic: typeof currentId === 'string' ? currentId : null,
+      topLevel,
+      filesUnder: (r) => filesUnder[r] ?? [],
+      retire: opts.retire ?? [],
+      exists: (rel) => existsSync(join(baseDir, rel)),
+      taken: new Set(moves.map((m) => m.to)),
+    });
+    const kept = plan.moves.filter((m) => !moveMap.has(m.from));
+    for (const m of kept) {
+      moves.push({ from: m.from, to: m.to });
+      moveMap.set(m.from, m.to);
+    }
+    layout = { moves: kept, roadmapExtras: plan.roadmapExtras, skipped: plan.skipped };
+  }
+
   const scaffoldMoveMap = renameFroms.size
     ? new Map([...moveMap].filter(([from]) => !renameFroms.has(from)))
     : moveMap;
@@ -650,6 +772,7 @@ export async function senseArchiveTree(baseDir, opts = {}) {
     moves, moveMap, closedEpicIds, closedUnits, files, editsByFile, renameFroms, dropped, held,
     // The current unit, kept out of the moves though something named it closed.
     current: stillCurrent,
+    ...(layout ? { layout } : {}),
   };
 }
 
@@ -711,7 +834,7 @@ export async function applyArchiveTree(baseDir, opts = {}) {
       const { assertViewsWritable } = await import('./work-views.js');
       assertViewsWritable(baseDir, { verb: 'moved' });
     }
-    return await moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn });
+    return await moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn, retire: opts.layout ? opts.retire ?? [] : [] });
   } finally {
     await lock?.released(); // only while this call still holds it (REVIEW I4)
   }
@@ -739,7 +862,7 @@ async function removeEmptyFolders(dir, { depth = Infinity } = {}) {
 }
 
 // applyArchiveTree's writes, run under the `work` lock when the store is on.
-async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn }) {
+async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, storeOn, retire = [] }) {
   // 1. MOVE first — byte-identical relocate + read-back assert, then drop source.
   for (const { from, to } of moves) {
     const srcAbs = join(baseDir, from);
@@ -762,6 +885,10 @@ async function moveAndRewrite(baseDir, { moves, moveMap, files, editsByFile, sto
     .map((f) => f.split('/').slice(0, 3).join('/')));
   for (const folder of emptied) await removeEmptyFolders(join(baseDir, folder));
   if (emptied.size > 0) await removeEmptyFolders(join(baseDir, EPIC_FOLDERS_REL), { depth: 0 });
+  // A retired roadmap folder, once its files have moved, goes too.
+  for (const r of retire) {
+    if (moves.some((m) => m.from.startsWith(`${PLANNING_DIR}/${r}/`))) await removeEmptyFolders(join(baseDir, PLANNING_DIR, r));
+  }
 
   // 2. REWRITE — apply each file's merged keyed edits at its NEW location.
   // §10: NEVER auto-write the hand-curated INDEX.md. If a move left an INDEX link

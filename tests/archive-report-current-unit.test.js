@@ -40,7 +40,7 @@ describe('the dry run\'s sentence for a closed unit that is still the current un
     put(base, '.planning/M7.E9-PLAN.md', '# plan\n');
     const out = await renderDryRun(base);
     expect(out.split('\n')).toContain(SENTENCE);
-    expect(out).not.toContain('.planning/M7.E9-PLAN.md →');
+    expect(out).not.toMatch(/M7\.E9-PLAN\.md → \.planning\/archive/); // to its own folder, not the archive
     // Once another Epic is current the sentence is gone, and the file is proposed for a move.
     put(base, '.planning/STATE.md', state({ epic: 'M7.E4', front: ['docs_layout_version: 3'] }));
     plant(base, 'M7.E4', 'open');
