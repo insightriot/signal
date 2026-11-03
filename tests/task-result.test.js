@@ -58,6 +58,14 @@ describe('checkTaskResult', () => {
     expect(res.problems[0]).toMatch(/uncommitted changes: a\.js/);
   });
 
+  it('done: the session\'s own uncommitted records under .planning/ are not the task\'s', async () => {
+    const r = repo();
+    r.write('.planning/STATE.md', 'current task: S1\n');
+    r.write('.planning/epics/M1.E1/M1.E1-PROGRESS.md', 'progress\n');
+    r.write('b.js', 'b\n'); r.commit('task', 'b.js');
+    expect(await check(r, r.start)).toMatchObject({ verdict: 'done', problems: [] });
+  });
+
   it('check: the task changed .planning/', async () => {
     const r = repo();
     r.write('.planning/STATE.md', 'edited\n'); r.write('b.js', 'b\n');

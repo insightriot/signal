@@ -1,7 +1,8 @@
 // What a task's executor agent actually did, read from git rather than from its report (Step 2).
 //
 // EXECUTE runs this after each executor agent returns. Verdicts:
-//   done      exactly one new commit on top of the start, a clean tree, nothing under .planning/
+//   done      exactly one new commit on top of the start, a clean tree outside .planning/ (the
+//             session's own uncommitted records), and no .planning/ file in the commit
 //   not-done  no new commit
 //   check     anything else: more than one commit, a dirty tree, .planning/ touched, history rewritten
 // It also runs the task's new or changed test files against the start commit (parent-run.js), so
@@ -37,7 +38,9 @@ export async function checkTaskResult(baseDir, { start, proof = true }) {
   }
   const commits = git(baseDir, ['rev-list', '--reverse', `${startSha.out}..HEAD`]).out.split('\n').filter(Boolean);
   const files = git(baseDir, ['diff', '--name-only', startSha.out, 'HEAD']).out.split('\n').filter(Boolean);
-  const dirty = (spawnSync('git', ['status', '--porcelain'], { cwd: baseDir, env: gitEnv(baseDir), encoding: 'utf8' }).stdout ?? '').split('\n').filter(Boolean);
+  // The session's own records (.planning/STATE.md, progress) are written around the task, uncommitted.
+  const dirty = (spawnSync('git', ['status', '--porcelain'], { cwd: baseDir, env: gitEnv(baseDir), encoding: 'utf8' }).stdout ?? '').split('\n').filter(Boolean)
+    .filter((l) => !l.slice(3).replace(/^"/, '').startsWith('.planning/'));
 
   if (commits.length > 1) problems.push(`${commits.length} commits since the start; a task is one commit.`);
   if (dirty.length) problems.push(`The working tree has uncommitted changes: ${dirty.slice(0, 5).map((l) => l.slice(3)).join(', ')}${dirty.length > 5 ? ', …' : ''}.`);
