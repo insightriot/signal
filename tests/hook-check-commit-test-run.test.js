@@ -38,7 +38,7 @@ describe('check-commit-test-run.js', () => {
     expect(r.status).toBe(2);
     expect(r.stderr).toMatch(/Signal blocked this commit/);
     expect(r.stderr).toMatch(/No test record/);
-    expect(r.stderr).toMatch(/test-run\.js"/);
+    expect(r.stderr).toMatch(/test-run\.js'/);
   });
 
   it('blocks after a failed run, and after a change made since a passing one', async () => {
@@ -75,7 +75,7 @@ describe('check-commit-test-run.js', () => {
     for (const cmd of ['git status', 'git log --grep commit', 'echo git commit-tree', 'npm test']) {
       expect(hook(p.dir, cmd).status, cmd).toBe(0);
     }
-    for (const cmd of ['git commit -m x', 'cd sub && git -c core.x=y commit --amend', 'git --no-pager commit']) {
+    for (const cmd of ['git commit -m x', 'cd . && git -c core.x=y commit --amend', 'git --no-pager commit']) {
       expect(hook(p.dir, cmd).status, cmd).toBe(2);
     }
   });
@@ -107,7 +107,7 @@ describe('check-commit-test-run.js', () => {
     expect(hook(pkg).stderr).toMatch(/No test record/);
     expect(hook(join(pkg, 'src')).status).toBe(2);
     // The command the message gives, run from below the project, writes the record the hook reads.
-    const told = hook(join(pkg, 'src')).stderr.match(/Run (cd .+? && node ".+?test-run\.js")/)[1];
+    const told = hook(join(pkg, 'src')).stderr.match(/Run (cd .+? && node .+?test-run\.js')/)[1];
     execFileSync('sh', ['-c', told], { cwd: join(pkg, 'src') });
     expect(hook(join(pkg, 'src')).status).toBe(0);
   });
@@ -118,6 +118,20 @@ describe('check-commit-test-run.js', () => {
     const elsewhere = mkdtempSync(join(tmpdir(), 'no-signal-'));
     expect(hook(elsewhere, `git -C "${dir}" commit -m x`).status).toBe(2);
     expect(hook(dir, `git -C "${elsewhere}" commit -m x`).status).toBe(0);
+  });
+
+  it('follows cd X && before the commit, and quoted folders with spaces', () => {
+    const parent = mkdtempSync(join(tmpdir(), 'commit-gate-cd-'));
+    const dir = join(parent, 'my project');
+    mkdirSync(join(dir, '.planning'), { recursive: true });
+    execFileSync('git', ['init', '-q'], { cwd: dir });
+    writeFileSync(join(dir, '.planning', 'STATE.md'), '---\nphase: EXECUTE\n---\n');
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { test: 'node -e 0' } }));
+    const elsewhere = mkdtempSync(join(tmpdir(), 'no-signal-'));
+    expect(hook(parent, 'cd "my project" && git add -A && git commit -m x').status).toBe(2);
+    expect(hook(elsewhere, `git -C "${dir}" commit -m x`).status).toBe(2);
+    expect(hook(dir, `cd "${elsewhere}" && git commit -m x`).status).toBe(0);
+    expect(hook(parent, 'cd "$SOMEWHERE" && git commit -m x').status).toBe(0);
   });
 
   it('lets through what it cannot read: other tools, bad input, no Signal project', () => {

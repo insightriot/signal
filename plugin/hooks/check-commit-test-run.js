@@ -15,7 +15,7 @@
 // - anything it cannot read. A broken hook must not stop work, so every failure exits 0.
 //
 // Limits: it finds `git commit` by a pattern on the command, so a commit made through an alias or a
-// script is not seen; and it checks the working tree, so a commit that stages less than was tested
+// script is not seen, nor one whose folder depends on a variable other than $HOME; and it checks the working tree, so a commit that stages less than was tested
 // passes here (`task-result.js` reports the files left uncommitted).
 
 import { spawnSync } from 'node:child_process';
@@ -28,8 +28,21 @@ import { checkTestRun, resolveTestCommand } from '../tools/lib/test-run.js';
 
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), '..', 'tools', 'lib', 'test-run.js');
 
+// One shell word: quoted, or plain up to a space or an operator.
+const WORD = String.raw`(?:"[^"]*"|'[^']*'|[^\s;&|()\x60'"]+)`;
 /** `git commit`, with any options git takes before the subcommand (`-c k=v`, `-C dir`, `--no-pager`). */
-const GIT_COMMIT_RE = /(?:^|[\s;&|(`])git((?:\s+(?:-[cC]\s+\S+|-\S+))*)\s+commit(?=$|[\s;&|)`])/;
+const GIT_COMMIT_RE = new RegExp(String.raw`(?:^|[\s;&|(\x60])git((?:\s+(?:-[cC]\s+${WORD}|-\S+))*)\s+commit(?=$|[\s;&|)\x60])`);
+const C_RE = new RegExp(String.raw`-C\s+(${WORD})`, 'g');
+const CD_RE = new RegExp(String.raw`(?:^|[;&|(])\s*cd\s+(${WORD})\s*(?=&&|;|\|\|)`, 'g');
+
+/** A folder the shell would reach, or null when it depends on what this hook cannot know ($VAR). */
+function shellDir(word, at) {
+  let d = /^(["']).*\1$/.test(word) ? word.slice(1, -1) : word;
+  if (!word.startsWith("'")) d = d.replace(/^~(?=\/|$)/, process.env.HOME ?? '~').replace(/\$\{?HOME\}?/g, process.env.HOME ?? '$HOME');
+  if (/[$`~]/.test(d)) return null;
+  return resolve(at, d);
+}
+const shellQuote = (p) => `'${p.replace(/'/g, `'\\''`)}'`;
 
 const isInside = (dir, top) => {
   const rel = relative(realpathLoose(top), realpathLoose(dir));
@@ -56,9 +69,14 @@ function main() {
   if (!m) return 0;
 
   const shellCwd = typeof event.cwd === 'string' && isAbsolute(event.cwd) ? event.cwd : process.cwd();
-  // `git -C <dir> commit` commits in <dir>: check that project, not the shell's.
-  const dirs = [...m[1].matchAll(/-C\s+(['"]?)(\S+?)\1(?=\s|$)/g)].map((d) => d[2]);
-  const cwd = dirs.reduce((at, d) => resolve(at, d), shellCwd);
+  // The commit runs where an earlier `cd X &&` and then `git -C <dir>` put it: check that project,
+  // not the shell's. A folder that depends on a variable is not known, so the commit is let through.
+  const words = [...command.slice(0, m.index + 1).matchAll(CD_RE)].map((c) => c[1]).concat([...m[1].matchAll(C_RE)].map((c) => c[1]));
+  let cwd = shellCwd;
+  for (const w of words) {
+    cwd = shellDir(w, cwd);
+    if (cwd === null) return 0;
+  }
   const top = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd, env: gitEnv(cwd), encoding: 'utf8' });
   if (top.status !== 0) return 0;
   // The project is the nearest folder at or above the cwd with a .planning/STATE.md, up to the git top
@@ -84,7 +102,7 @@ function main() {
 
   const run = checkTestRun(root);
   if (run.ok) return 0;
-  const cmd = `cd "${root}" && node "${TOOL}"`;
+  const cmd = `cd ${shellQuote(root)} && node ${shellQuote(TOOL)}`;
   if (!run.record && !resolveTestCommand(root)) {
     process.stderr.write(`Signal: no test command was found for this project, so this commit is not checked. Give one with ${cmd} --command "<the command that runs your tests>"; VERIFY will not pass without it.\n`);
     return 0;
