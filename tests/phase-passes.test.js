@@ -22,6 +22,7 @@ import { readState, recordPass, setCurrentEpic, completePhase, markRunEnded, tra
 import { checkFixRounds } from '../plugin/tools/lib/review-rounds.js';
 import { countPhasePasses, loopStatusFor } from '../plugin/tools/lib/loop-ceiling.js';
 import { canProceedUnattended } from '../plugin/tools/lib/drive.js';
+import { passingTestRun } from './helpers/passing-test-run.js';
 
 const unattended = { rigor_overrides: { attention: 'unattended' } };
 
@@ -78,6 +79,7 @@ describe('AC1.1 — recordPass', () => {
     // fixture is in VERIFY; the subject of this test is the other fields.
     await writeState(baseDir, { phase: 'VERIFY' });
     const before = await readState(baseDir);
+    await passingTestRun(baseDir);
     await recordPass(baseDir, 'VERIFY', 'PASS', { date: '2026-10-12' });
     const after = await readState(baseDir);
     expect(after.phase).toBe(before.phase);
@@ -87,6 +89,7 @@ describe('AC1.1 — recordPass', () => {
 
   it('defaults the date to today, in the same form as completed_phases', async () => {
     await writeState(baseDir, { phase: 'VERIFY' });
+    await passingTestRun(baseDir);
     await recordPass(baseDir, 'VERIFY', 'PASS');
     const state = await readState(baseDir);
     expect(state.phase_passes[0]).toMatch(/^VERIFY PASS \(\d{4}-\d{2}-\d{2}\)$/);

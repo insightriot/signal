@@ -1967,6 +1967,16 @@ export async function recordPass(baseDir, phase, verdict, opts = {}) {
       );
     }
   }
+  if (phase === 'VERIFY' && verdict !== 'FAIL') {
+    // Loop piece 3: a VERIFY pass needs a passing test run of the files as they are now.
+    const { checkTestRun } = await import('./test-run.js');
+    const run = checkTestRun(baseDir);
+    if (!run.ok) {
+      throw new StateWriteError(
+        `recordPass: a VERIFY ${verdict} needs a passing test run of the files as they are now (tools/lib/test-run.js). ${run.reasons.join(' ')}`
+      );
+    }
+  }
   const today = opts.today ?? todayStamp();
   const date = opts.date ?? today;
   if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {

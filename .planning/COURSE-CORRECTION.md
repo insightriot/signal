@@ -145,7 +145,8 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
 **Step 2 — build the loop.** Each piece is code, not instructions:
 1. EXECUTE starts a fresh executor agent per task.
 2. A small command builds waves from the plan's dependencies. **Done 2026-11-03 (#335).**
-3. A small command runs the project's tests and records the result; VERIFY refuses to pass without it.
+3. A small command runs the project's tests and records the result; VERIFY refuses to pass without it. **Built 2026-11-03**
+   (`test-run.js`; with it, the failing-first proof runs without vitest, by exit code: SIG-384).
 4. A hook blocks a commit during EXECUTE without a passing test record.
 5. A Stop hook keeps the agent working inside an Epic while tasks remain and tests pass; calibration
    sets how long it may run before checking in.

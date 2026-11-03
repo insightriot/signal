@@ -95,8 +95,8 @@ and a REVIEW round's parent run follows `commands/review.md` § 4.6 instead of s
    then run it again. `not-done`: if the agent's
    report names a plan problem, fix the plan and dispatch once more; otherwise close it `aborted`.
 6. Its parent-run line (`parent-run.js`) is the proof that the new tests fail on the start commit
-   (`references/fixer-brief.md`). It runs vitest only; on another runner, or with no new test, write a
-   stated gap with why.
+   (`references/fixer-brief.md`). Without vitest it is an exit-code proof and says so. With
+   no new test, write a stated gap with why.
 7. **Close it** (not at SKETCH): `clearCurrentTask(baseDir, { id, status: 'done', commit })`, or
    `status: 'aborted'` for a task you cannot finish; then say why in the progress file, skip Finish
    (step 8), and stop: the user fixes the cause and runs `/sig:execute` again. A failed write here only warns.

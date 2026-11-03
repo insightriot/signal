@@ -18,6 +18,7 @@ import { loopStatusFor } from '../plugin/tools/lib/loop-ceiling.js';
 import { checkFixRounds } from '../plugin/tools/lib/review-rounds.js';
 import { describeNextAction } from '../plugin/tools/lib/status.js';
 import { gitEnv } from '../plugin/tools/lib/git-env.js';
+import { passingTestRun } from './helpers/passing-test-run.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const LIB = join(ROOT, 'plugin', 'tools', 'lib');
@@ -39,6 +40,7 @@ async function atReview(base) {
   await transitionPhase(base, 'EXECUTE');
   await transitionPhase(base, 'VERIFY');
   await writeFile(join(base, '.planning', 'VERIFICATION.md'), '# v\n');
+  await passingTestRun(base);
   await recordPass(base, 'VERIFY', 'PASS');
   await transitionPhase(base, 'REVIEW');
 }
