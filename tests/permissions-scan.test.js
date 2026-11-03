@@ -206,12 +206,13 @@ describe('scanPrescribedCommands — against the real payload', () => {
     expect(onlyOutside.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('the deterministic layer resolves to gh, git and ps, and nothing else', () => {
-    // `gh` since M6.E16 r6.3 (see the FINDING above).
+  it('the deterministic layer resolves to gh, git, ps and sh, and nothing else', () => {
+    // `gh` since M6.E16 r6.3 (see the FINDING above). `sh` since loop piece 3: test-run.js and
+    // parent-run.js run the project's own test command with `sh -c`.
     const det = new Set(
       live.entries.filter((e) => e.layer === LAYER.DETERMINISTIC).map((e) => e.binary)
     );
-    expect([...det].sort()).toEqual(['gh', 'git', 'ps']);
+    expect([...det].sort()).toEqual(['gh', 'git', 'ps', 'sh']);
   });
 });
 

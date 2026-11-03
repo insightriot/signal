@@ -22,6 +22,14 @@
  *                    NEVER reported as proof: a test that cannot load proves
  *                    nothing about its assertions.
  *
+ * WITHOUT VITEST (SIG-384). A project with no `node_modules/vitest` but a test command
+ * (`testCommand`, stack-detect.js: `npm test`, `pytest`, `cargo test`, `go test ./...`) gets the
+ * named tests copied onto the base the same way, then that command run ONCE in the worktree. Only
+ * its exit code is read: non-zero is `failed` for every named file, zero is `passed`. That cannot
+ * tell a real failure from a test that cannot load or an old test failing, so the result carries
+ * `proof: 'exit-code'` and the summary line ends "(exit code only)". The stale-run sweep kills only
+ * node children, so a suite whose `sh` outlives a SIGKILL is left to finish on its own.
+ *
  * WHY ONE RUN PER FILE, READ FROM JSON. vitest 3 exits 1 for a failed test, for
  * "no test files found" and for an import error alike, so the exit code cannot
  * separate proof from could-not-run. The JSON report can, per file.
@@ -100,9 +108,11 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { gitEnv } from './git-env.js';
+import { testCommand } from './stack-detect.js';
 
 const RUN_PREFIX = 'run-';
 const PER_FILE_TIMEOUT_MS = 300_000;
+const SUITE_TIMEOUT_MS = 30 * 60_000;
 const OWNER_FILE = 'owner.pid';
 const CHILD_FILE = 'child.pid';
 const SIGNALS = ['SIGINT', 'SIGTERM'];
@@ -122,7 +132,7 @@ const ENOENT_RE = /^(?:\w*Error: )?ENOENT\b[^']*'([^']+)'/;
  * rather than re-deriving the grammar.
  */
 export const PARENT_RUN_SUMMARY_RE =
-  /^parent-run ([0-9a-f]{7,40}|\S+): (\d+) of (\d+) failed on the base(?:, (\d+) passed)?(?:, (\d+) could not run)?(?:, (\d+) new tests? passed on the base)?(?:, (\d+) tests? failed only on a missing file)?(?: \(dependencies differ from the base\))?$/;
+  /^parent-run ([0-9a-f]{7,40}|\S+): (\d+) of (\d+) failed on the base(?:, (\d+) passed)?(?:, (\d+) could not run)?(?:, (\d+) new tests? passed on the base)?(?:, (\d+) tests? failed only on a missing file)?(?: \(dependencies differ from the base\))?(?: \(exit code only\))?$/;
 
 const git = (cwd, args) =>
   execFileSync('git', args, { cwd, env: gitEnv(cwd), encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -390,12 +400,12 @@ function pruneOwn(root, runs) {
 }
 
 /** Run one vitest child; resolve with its status, or an error on timeout. Kills the child's group on `abort`. */
-function runChild(args, opts, track, childFile, stderrFile) {
+function runChild(args, opts, track, childFile, stderrFile, { exe = process.execPath, timeoutMs = PER_FILE_TIMEOUT_MS } = {}) {
   return new Promise((done) => {
     // stderr goes to a file, not a pipe: a pipe closes when this process is
     // killed, and the orphaned vitest then exits on its own, racing the sweep.
     const fd = openSync(stderrFile, 'w');
-    const child = spawn(process.execPath, args, { ...opts, detached: true, stdio: ['ignore', 'ignore', fd] });
+    const child = spawn(exe, args, { ...opts, detached: true, stdio: ['ignore', 'ignore', fd] });
     closeSync(fd);
     if (child.pid) writeFileSync(childFile, `${child.pid} ${startedAt(child.pid)}`);
     const tail = () => {
@@ -415,8 +425,8 @@ function runChild(args, opts, track, childFile, stderrFile) {
     track.kill = kill;
     const timer = setTimeout(() => {
       kill();
-      done({ status: null, stderr: tail(), error: new Error(`timed out after ${PER_FILE_TIMEOUT_MS / 1000} s`) });
-    }, PER_FILE_TIMEOUT_MS);
+      done({ status: null, stderr: tail(), error: new Error(`timed out after ${timeoutMs / 1000} s`) });
+    }, timeoutMs);
     child.on('error', (error) => {
       clearTimeout(timer);
       done({ status: null, stderr: tail(), error });
@@ -483,8 +493,11 @@ export async function runOnBase(baseDir, { base, tests }, hooks = {}) {
   if (runnable.length === 0) return { base: sha, depsDiffer, results };
 
   const vitestEntry = join(root, 'node_modules', 'vitest', 'vitest.mjs');
-  if (!existsSync(vitestEntry)) {
-    for (const r of runnable) Object.assign(r, { outcome: 'could-not-run', reason: 'vitest is not installed in this project (node_modules/vitest)' });
+  // Without vitest, the project's own test command runs once on the base with the new tests copied
+  // in, and only its exit code is read (SIG-384): weaker proof, and the summary line says so.
+  const suite = existsSync(vitestEntry) ? null : testCommand(root);
+  if (!existsSync(vitestEntry) && !suite) {
+    for (const r of runnable) Object.assign(r, { outcome: 'could-not-run', reason: 'vitest is not installed (node_modules/vitest) and no test command was found for this project' });
     return { base: sha, depsDiffer, results };
   }
 
@@ -542,11 +555,24 @@ export async function runOnBase(baseDir, { base, tests }, hooks = {}) {
         continue;
       }
       // Before the copy replaces it: which tests the base's file has, as vitest names them (P3-I6).
-      if (lstatSync(dest, { throwIfNoEntry: false })?.isFile()) r.baseNames = await listTests(vitestEntry, wt, dest, temp, i, track);
+      if (!suite && lstatSync(dest, { throwIfNoEntry: false })?.isFile()) r.baseNames = await listTests(vitestEntry, wt, dest, temp, i, track);
       mkdirSync(dirname(dest), { recursive: true });
       copyFileSync(join(root, normalize(r.file)), dest);
     }
     hooks.onWorktree?.(wt);
+
+    if (suite) {
+      const copied = runnable.filter((r) => r.outcome === null);
+      if (copied.length === 0) return { base: sha, depsDiffer, results };
+      const child = await runChild(['-c', suite.command], { cwd: wt, env: childEnv() }, track, join(temp, CHILD_FILE), join(temp, 'stderr-suite.log'),
+        { exe: 'sh', timeoutMs: SUITE_TIMEOUT_MS });
+      for (const r of copied) {
+        if (child.error) Object.assign(r, { outcome: 'could-not-run', reason: `${suite.command} did not finish: ${child.error.message}` });
+        else if (child.status === 0) Object.assign(r, { outcome: 'passed' });
+        else Object.assign(r, { outcome: 'failed', failed: [`${suite.command} exited ${child.status}`], why: 'exit code only: a test that cannot load, or another failing test, reads the same' });
+      }
+      return { base: sha, depsDiffer, proof: 'exit-code', results };
+    }
 
     for (const [i, r] of runnable.entries()) {
       if (r.outcome !== null) continue;
@@ -643,10 +669,13 @@ export function formatParentRun(result) {
   const notRun = result.results.reduce((n, r) => n + (r.outcome === 'failed' ? r.notRun?.length ?? 0 : 0), 0);
   if (notRun) head += `, ${notRun} test${notRun === 1 ? '' : 's'} failed only on a missing file`;
   if (result.depsDiffer === true) head += ' (dependencies differ from the base)';
+  if (result.proof === 'exit-code') head += ' (exit code only)';
   const lines = [head];
   for (const r of result.results) {
     const detail =
-      r.outcome === 'failed'
+      r.outcome === 'failed' && result.proof === 'exit-code'
+        ? `${r.failed[0]} (${r.why})`
+        : r.outcome === 'failed'
         ? `${r.failed.length} of ${r.total ?? r.failed.length} tests failed: ${r.failed.slice(0, 3).join('; ')}${r.failed.length > 3 ? `; and ${r.failed.length - 3} more` : ''}` +
           (r.why ? ` (${r.why})` : '') +
           (r.passed?.length ? `; new tests that passed on the base: ${r.passed.join('; ')}` : '') +

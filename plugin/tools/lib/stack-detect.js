@@ -190,3 +190,39 @@ export function stackRules(stack) {
     })
     .sort();
 }
+
+/** The test command each ecosystem uses when its manifest names none (Step 2, loop piece 3). */
+const ECOSYSTEM_TEST_COMMANDS = Object.freeze({
+  python: 'pytest',
+  rust: 'cargo test',
+  go: 'go test ./...',
+});
+
+/** npm's placeholder from `npm init`: a test script that only fails. */
+const NPM_PLACEHOLDER_RE = /no test specified/;
+
+/**
+ * The command that runs this project's tests: `npm test` when package.json has a real `test` script,
+ * else the ecosystem's usual command. Null when neither is known; the caller then asks for one.
+ *
+ * @param {string} baseDir
+ * @returns {{command: string, from: string} | null}
+ */
+export function testCommand(baseDir) {
+  const stack = detectStack(baseDir);
+  if (!stack.detected) return null;
+  if (stack.manifests.includes('package.json')) {
+    try {
+      const test = JSON.parse(readFileSync(join(baseDir, 'package.json'), 'utf-8'))?.scripts?.test;
+      if (typeof test === 'string' && test.trim() !== '' && !NPM_PLACEHOLDER_RE.test(test)) {
+        return { command: 'npm test', from: 'package.json scripts.test' };
+      }
+    } catch {
+      // unreadable manifest: fall through to the other ecosystems
+    }
+  }
+  for (const eco of stack.ecosystems) {
+    if (ECOSYSTEM_TEST_COMMANDS[eco]) return { command: ECOSYSTEM_TEST_COMMANDS[eco], from: `${eco} project` };
+  }
+  return null;
+}

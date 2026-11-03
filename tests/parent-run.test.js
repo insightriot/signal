@@ -740,3 +740,51 @@ describe('REVIEW P4 — a missing file is never proof, and the cleanup leaves yo
     expect(worktreeCount()).toBe(1);
   }, SLOW);
 });
+
+describe('without vitest, the project\'s own test command gives an exit-code proof (SIG-384)', () => {
+  function nodeTestProject() {
+    const d = realpathSync(mkdtempSync(join(tmpdir(), 'sig-parent-run-nodetest-')));
+    git(d, ['init', '-q', '-b', 'main']);
+    put(d, 'package.json', JSON.stringify({ type: 'module', scripts: { test: 'node --test test/*.test.js' } }));
+    put(d, 'src/add.js', 'export const add = (a, b) => a - b;\n');
+    put(d, 'test/old.test.js', "import test from 'node:test';\ntest('old', () => {});\n");
+    git(d, ['add', '-A']);
+    git(d, ['commit', '-q', '-m', 'base']);
+    const sha = git(d, ['rev-parse', 'HEAD']);
+    put(d, 'src/add.js', 'export const add = (a, b) => a + b;\n');
+    put(d, 'test/add.test.js', "import test from 'node:test';\nimport assert from 'node:assert';\nimport { add } from '../src/add.js';\ntest('adds', () => assert.equal(add(1, 2), 3));\n");
+    put(d, 'test/hollow.test.js', "import test from 'node:test';\ntest('hollow', () => {});\n");
+    return { d, sha };
+  }
+
+  it('a new test that fails on the base is proof, labelled exit code only', async () => {
+    const { d, sha } = nodeTestProject();
+    const r = await runOnBase(d, { base: sha, tests: ['test/add.test.js'] });
+    expect(r.proof).toBe('exit-code');
+    expect(r.results[0]).toMatchObject({ outcome: 'failed' });
+    const head = formatParentRun(r).split('\n')[0];
+    expect(head).toMatch(/^parent-run [0-9a-f]{7}: 1 of 1 failed on the base \(exit code only\)$/);
+    expect(head).toMatch(PARENT_RUN_SUMMARY_RE);
+    expect(exitCodeFor(r)).toBe(0);
+    rmSync(d, { recursive: true, force: true });
+  }, SLOW);
+
+  it('a new test that passes on the base is no proof', async () => {
+    const { d, sha } = nodeTestProject();
+    const r = await runOnBase(d, { base: sha, tests: ['test/hollow.test.js'] });
+    expect(r.results[0].outcome).toBe('passed');
+    expect(exitCodeFor(r)).toBe(1);
+    rmSync(d, { recursive: true, force: true });
+  }, SLOW);
+
+  it('with no vitest and no test command, it cannot run', async () => {
+    const d = realpathSync(mkdtempSync(join(tmpdir(), 'sig-parent-run-none-')));
+    git(d, ['init', '-q', '-b', 'main']);
+    put(d, 't.test.js', 'x\n');
+    git(d, ['add', '-A']);
+    git(d, ['commit', '-q', '-m', 'base']);
+    const r = await runOnBase(d, { base: 'HEAD', tests: ['t.test.js'] });
+    expect(r.results[0]).toMatchObject({ outcome: 'could-not-run', reason: expect.stringMatching(/no test command was found/) });
+    rmSync(d, { recursive: true, force: true });
+  }, SLOW);
+});

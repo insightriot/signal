@@ -58,22 +58,23 @@ dispatches no verifier agent.
 
 ## 4. Check each acceptance criterion
 
-Check the code against each task's acceptance criteria and record pass or fail with evidence: a test, a command and its output, or a file and line.
+Check each task's acceptance criteria; record pass or fail with evidence (a test, a command's output, a file and line).
 
 ## 5. Run the suite and the build
 
-Run the full test suite, build and linter, where they exist. All tests pass, the build
-is clean, and no new warnings appear.
+Run `node "${CLAUDE_PLUGIN_ROOT}/tools/lib/test-run.js"` (`--command "<cmd>"` if it finds none; it is
+kept), then the build and linter if any: all pass, no new warnings. Quote its
+`test-run` line. `recordPass` refuses a pass unless the last run passed on the files as
+they are: rerun after a fix.
 
 ## 6. Check the test map
 
-Compare the validation file's map with the tests that exist: is every mapped test written, and does
-it cover its scenario? Name each gap.
+Is each test in the validation file's map written, covering its scenario? Name each gap.
 
 At `strict`, each new test also needs proof it failed before its code: the parent-run line the
 progress file records for its task, or a line in the report naming the test and the commit it came
-before. A progress entry with a stated gap has no proof: report it. Code built before `strict` was
-on cannot get it afterwards: say so as a limit.
+before. A progress entry with a stated gap has no proof: report it. Code built before `strict` cannot
+get it: say so as a limit.
 
 ## 7. Write the report
 
@@ -90,7 +91,7 @@ on cannot get it afterwards: say so as a limit.
    - `deferred`: requirements the requirements file struck out.
    - what the check could not look at: a `cannot-evaluate` outcome with its `reason`, and each of
      `unattributableGroups`, saying if it is this unit's: then it is missing too. Never report these as clean.
-   - each coverage claim as `{n} of {total}`, with where the total came from (the diff's `basis`).
+   - each coverage claim as `{n} of {total}`, with the diff's `basis` for the total.
    - the validation file's `assignedNotMapped` and `mappedNotAssigned`, as test-map gaps.
 
 ## 8. Record the pass
@@ -105,8 +106,7 @@ Decide the verdict:
 
 Write the verdict in the report, write it to `artifactName('VERIFICATION', { currentEpic, planningDir })`, then run
 `validateVerificationContent(content, profile.tier)` (`tools/lib/verification-template.js`) on it.
-Fix the report until it passes. It checks that the report answers each heading, not that the
-answers are right. Then call `recordPass(baseDir, 'VERIFY', verdict)` (`tools/lib/state.js`) once,
+Fix the report until it passes (it checks each heading is answered, not that the answers are right). Then call `recordPass(baseDir, 'VERIFY', verdict)` (`tools/lib/state.js`) once,
 before the Loop Back; if it refuses, show why, do step 10, and stop.
 
 ## 9. Phase Gate
@@ -123,7 +123,7 @@ At `gate_strictness: strict`, answer each:
 
 ### Exit Criteria
 - [ ] Every acceptance criterion checked, with evidence
-- [ ] The full test suite passes and the build is clean
+- [ ] `test-run.js` passed (step 5); the build is clean
 - [ ] The test map is checked (unless `nyquist_enforcement: off`)
 - [ ] Requirement coverage run (step 7): `missing` empty; deferred, unchecked and denominators reported
 - [ ] `validateVerificationContent` passes on the report
@@ -143,13 +143,13 @@ On a FAIL, call `loopStatusFor(await readState(baseDir), 'VERIFY')` (`tools/lib/
 
 A. **Loop back to EXECUTE** (recommended under the ceiling). This command ends after step 10, and the next command is
    `/sig:execute`, not `/sig:review`.
-B. **Change the tier with `/sig:escalate`**, when the tier proves too low.
+B. **`/sig:escalate`**, when the tier proves too low.
 C. **Accept it as a known limit**: list the failed criteria as limits in the report; then go on as on a pass.
 
-Write the path chosen in the report, keeping every heading filled.
+Write the path chosen in the report.
 
 ## 10. Finish
 
-Commit the report and every `.planning/` file the phase changed (`STATE.md`, `INDEX.md`). This
-command sets no next phase; the next command records leaving VERIFY: `/sig:execute` after a loop
-back, else `/sig:review` (`/sig:ship` where the tier skips REVIEW; SPIKE skips both).
+Commit the report and every `.planning/` file the phase changed (`STATE.md`, `INDEX.md`,
+`TEST-RUN.json`). This command sets no next phase: next is `/sig:execute` after a loop back, else
+`/sig:review` (`/sig:ship` where the tier skips REVIEW; SPIKE skips both).
