@@ -163,7 +163,7 @@ place it shows.
 
 - **Trigger:** a Bash command that runs `git commit` (found by a pattern; an alias or a script is not seen),
   from the session or from an agent it dispatched: plugin hooks see a subagent's tool calls (measured 2026-11-03).
-- **Reads:** stdin's `cwd`, the nearest `.planning/STATE.md` at or above it (up to the git top level, so a
+- **Reads:** stdin's `cwd` (or the folder of `git -C <dir>`), the nearest `.planning/STATE.md` at or above it (up to the git top level, so a
   project in a subfolder of its repository is found), its `phase`, and
   `.planning/TEST-RUN.json` through `checkTestRun` (`tools/lib/test-run.js`).
 - **Blocks (exit 2)** only at `phase: EXECUTE`, when files outside `.planning/` differ from HEAD and the

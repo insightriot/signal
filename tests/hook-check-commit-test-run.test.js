@@ -106,8 +106,18 @@ describe('check-commit-test-run.js', () => {
     writeFileSync(join(pkg, 'src', 'a.js'), 'a\n');
     expect(hook(pkg).stderr).toMatch(/No test record/);
     expect(hook(join(pkg, 'src')).status).toBe(2);
-    await runTests(pkg, { command: 'true' });
+    // The command the message gives, run from below the project, writes the record the hook reads.
+    const told = hook(join(pkg, 'src')).stderr.match(/Run (cd .+? && node ".+?test-run\.js")/)[1];
+    execFileSync('sh', ['-c', told], { cwd: join(pkg, 'src') });
     expect(hook(join(pkg, 'src')).status).toBe(0);
+  });
+
+  it('git -C <dir> commit checks the project in <dir>, not the shell\'s', () => {
+    const { dir } = project();
+    writeFileSync(join(dir, 'a.js'), 'changed\n');
+    const elsewhere = mkdtempSync(join(tmpdir(), 'no-signal-'));
+    expect(hook(elsewhere, `git -C "${dir}" commit -m x`).status).toBe(2);
+    expect(hook(dir, `git -C "${elsewhere}" commit -m x`).status).toBe(0);
   });
 
   it('lets through what it cannot read: other tools, bad input, no Signal project', () => {

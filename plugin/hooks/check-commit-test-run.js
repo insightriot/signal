@@ -20,7 +20,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync, realpathSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { gitEnv } from '../tools/lib/git-env.js';
@@ -29,7 +29,7 @@ import { checkTestRun, resolveTestCommand } from '../tools/lib/test-run.js';
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), '..', 'tools', 'lib', 'test-run.js');
 
 /** `git commit`, with any options git takes before the subcommand (`-c k=v`, `-C dir`, `--no-pager`). */
-const GIT_COMMIT_RE = /(?:^|[\s;&|(`])git(?:\s+(?:-[cC]\s+\S+|-\S+))*\s+commit(?=$|[\s;&|)`])/;
+const GIT_COMMIT_RE = /(?:^|[\s;&|(`])git((?:\s+(?:-[cC]\s+\S+|-\S+))*)\s+commit(?=$|[\s;&|)`])/;
 
 const isInside = (dir, top) => {
   const rel = relative(realpathLoose(top), realpathLoose(dir));
@@ -52,9 +52,13 @@ function main() {
   }
   if (event?.tool_name !== 'Bash') return 0;
   const command = event?.tool_input?.command;
-  if (typeof command !== 'string' || !GIT_COMMIT_RE.test(command)) return 0;
+  const m = typeof command === 'string' ? command.match(GIT_COMMIT_RE) : null;
+  if (!m) return 0;
 
-  const cwd = typeof event.cwd === 'string' && isAbsolute(event.cwd) ? event.cwd : process.cwd();
+  const shellCwd = typeof event.cwd === 'string' && isAbsolute(event.cwd) ? event.cwd : process.cwd();
+  // `git -C <dir> commit` commits in <dir>: check that project, not the shell's.
+  const dirs = [...m[1].matchAll(/-C\s+(['"]?)(\S+?)\1(?=\s|$)/g)].map((d) => d[2]);
+  const cwd = dirs.reduce((at, d) => resolve(at, d), shellCwd);
   const top = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd, env: gitEnv(cwd), encoding: 'utf8' });
   if (top.status !== 0) return 0;
   // The project is the nearest folder at or above the cwd with a .planning/STATE.md, up to the git top
@@ -80,7 +84,7 @@ function main() {
 
   const run = checkTestRun(root);
   if (run.ok) return 0;
-  const cmd = `node "${TOOL}"`;
+  const cmd = `cd "${root}" && node "${TOOL}"`;
   if (!run.record && !resolveTestCommand(root)) {
     process.stderr.write(`Signal: no test command was found for this project, so this commit is not checked. Give one with ${cmd} --command "<the command that runs your tests>"; VERIFY will not pass without it.\n`);
     return 0;
