@@ -47,10 +47,14 @@ describe('execute.md names only calls that exist', () => {
     expect(unknown).toEqual([]);
   });
 
-  it('the parent-run line uses the flag the tool accepts', async () => {
-    expect(execute).toMatch(/tools\/lib\/parent-run\.js" --base <start commit> /);
-    const src = readFileSync(join(LIB, 'parent-run.js'), 'utf-8');
-    expect(src).toMatch(/usage: node parent-run\.js \(--base <commit>/);
+  it('the brief and result tools take the arguments execute.md gives them', async () => {
+    const brief = await import(join(LIB, 'task-brief.js'));
+    const result = await import(join(LIB, 'task-result.js'));
+    expect(typeof brief.buildTaskBrief).toBe('function');
+    expect(typeof result.checkTaskResult).toBe('function');
+    for (const f of ['task-brief.js', 'task-result.js']) {
+      expect(readFileSync(join(LIB, f), 'utf-8')).toMatch(/args\.indexOf\('--start'\)/);
+    }
   });
 });
 
@@ -61,21 +65,22 @@ describe('execute.md step order', () => {
     return i;
   };
 
-  it('a task is recorded before its work, closed after its commit, and its parent run follows the commit', () => {
+  it('a task is recorded, briefed from its start commit, built by an agent, checked from git, then closed', () => {
     const record = at('`setCurrentTask(baseDir');
     const start = at('git rev-parse HEAD');
-    const commit = at('Commit the task on its own');
-    const parent = at('parent-run.js" --base');
+    const brief = at('tools/lib/task-brief.js" <id> --start <start commit>');
+    const dispatch = at('| Task builder, fresh context | `executor` |');
+    const result = at('tools/lib/task-result.js" --start <start commit>');
     const close = at('`clearCurrentTask(baseDir, { id, status: \'done\', commit })`');
-    expect(record).toBeLessThan(start);
-    expect(start).toBeLessThan(commit);
-    expect(commit).toBeLessThan(parent);
-    expect(parent).toBeLessThan(close);
+    for (const [a, b] of [[record, start], [start, brief], [brief, dispatch], [dispatch, result], [result, close]]) {
+      expect(a).toBeLessThan(b);
+    }
   });
 
-  it('says plainly that it dispatches no executor agent, so no reader expects one', () => {
-    expect(execute).toMatch(/this\s+command dispatches no executor agent/);
-    expect(execute).not.toMatch(/subagent_type/);
+  it('each task goes to a fresh executor agent, one at a time, and the session no longer loads the build skills', () => {
+    expect(execute).toMatch(/Tasks run one at a time, in wave order/);
+    expect(execute).not.toMatch(/dispatches no executor agent/);
+    expect(execute).not.toMatch(/Read and apply each `skills\/build/);
   });
 
   it('the task records are skipped at SKETCH, and only there', () => {
@@ -144,7 +149,10 @@ describe('execute.md fixes from the review of its rewrite', () => {
   });
 
   it('a task commit holds only its files; the phase commit holds every .planning/ file it changed', () => {
-    expect(execute).toMatch(/Commit the task on its own, staging only its files\./);
+    // The task's agent commits (its brief says so) and task-result.js checks one commit, no .planning/.
+    const brief = readFileSync(join(LIB, 'task-brief.js'), 'utf-8');
+    expect(brief).toMatch(/Make exactly one commit, staging only this task\\'s files\./);
+    expect(readFileSync(join(LIB, 'task-result.js'), 'utf-8')).toMatch(/a task is one commit/);
     expect(execute).toMatch(/Commit every `\.planning\/` file the phase changed \(progress, `STATE\.md`, `INDEX\.md`\)/);
   });
 

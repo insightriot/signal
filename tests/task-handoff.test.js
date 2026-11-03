@@ -33,9 +33,10 @@ describe('M6.E4 S3 — the research reaches the builder (FR3.1)', () => {
   });
 
   it('AC3.1a — the other three declared inputs are still there (no swap)', () => {
+    // The locked decisions moved from CONTEXT.md to the requirements file (Step 2: the brief names it).
     const inputs = executorMd().split('## Inputs')[1].split('## Process')[0];
     expect(inputs).toMatch(/PLAN\.md/);
-    expect(inputs).toMatch(/CONTEXT\.md/);
+    expect(inputs).toMatch(/REQUIREMENTS\.md/);
     expect(inputs).toMatch(/VALIDATION\.md/);
   });
 

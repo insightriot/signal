@@ -5,7 +5,7 @@
 > and the corpus disagree. A hand-kept list of what a corpus contains is a completeness claim,
 > and this repository is done writing those.
 
-**103 entries: 90 discipline, 13 shaping.**
+**102 entries: 89 discipline, 13 shaping.**
 
 ## The rule (`B38`)
 
@@ -184,11 +184,10 @@ output. Listed so the classification is complete rather than asserted.
 - "The 5 questions feel repetitive — they were just answered."
 - "Back-fill warnings feel preachy — skip them."
 
-### `commands/execute.md` (4)
+### `commands/execute.md` (3)
 
-- "The tests are too slow, I'll skip them for now"
-- "This works but I'll refactor it later"
-- "I'll commit everything together at the end"
+- "The agent says it's done"
+- "I'll build this one myself, it's quicker"
 - "The plan says X but I think Y is better"
 
 ### `commands/docs-index.md` (4)

@@ -1,6 +1,6 @@
 # Agent reachability
 
-**26 agents. 7 are dispatched by a command. 19 are not.**
+**26 agents. 8 are dispatched by a command. 18 are not.**
 
 **Every one of the 26 carries a determination** — `wired`, `dormant`, or `cut` — as of `M6.E9`
 (2026-09-08). A `dormant` agent is a deliberate decision with a stated trigger, not an oversight.
@@ -14,8 +14,8 @@ cannot land undecided.
 dispatch: it reads like capability and invokes nothing. That distinction is the whole point of
 this page.
 
-⚠ **Only `commands/init.md` and `commands/review.md` contain `subagent_type` at all.** Every other
-command file — including `plan.md`, `execute.md`, `verify.md` and `ship.md` — has no dispatch
+⚠ **Only `commands/init.md`, `commands/review.md` and `commands/execute.md` contain `subagent_type`.** Every
+other command file — including `plan.md`, `verify.md` and `ship.md` — has no dispatch
 machinery. So "wire it up" is a **build** for most dormant agents, not an edit, and that cost is why
 they are dormant rather than promised.
 
@@ -34,7 +34,7 @@ decision with a reason rather than an unexplained roster.
 agents"*. Measured: **22**. The requirement was written from the shape of the work rather than from
 the tree — that Epic's own defect class, in its own requirements.
 
-## Dispatched by a command — `wired` (7)
+## Dispatched by a command — `wired` (8)
 
 | Agent | Dispatched by | When | How |
 |---|---|---|---|
@@ -45,16 +45,11 @@ the tree — that Epic's own defect class, in its own requirements.
 | `agents/specialists/code-reviewer.md` | `commands/review.md` § 4.5 | REVIEW, before the verdict | **deliberately no session context** — that is the property that makes it useful |
 | `agents/specialists/security-auditor.md` | `commands/review.md` § 4.5 | REVIEW, before the verdict | same dispatch block, same fresh-context rule (`M6.E9`) |
 | `agents/specialists/test-engineer.md` | `commands/review.md` § 4.5 | REVIEW, before the verdict | same block; also reads the suite result (`M6.E9`) |
+| `agents/executors/executor.md` | `commands/execute.md` § 5 | EXECUTE, once per task | one at a time, fresh context; its brief comes from `task-brief.js` and its work is checked from git by `task-result.js` (2026-11-03) |
 
-## Not dispatched — `dormant` (19)
+## Not dispatched — `dormant` (18)
 
 Each carries the trigger that would make wiring it worth the build.
-
-### `agents/executors/` (1)
-
-- `executor.md` — **dormant.** Executes plan tasks with TDD and atomic commits, one per task in a wave
-  with fresh context. **Trigger:** `execute.md` grows a `subagent_type` dispatch step. Until then
-  `execute.md` says the session does each task itself and dispatches no executor agent.
 
 ### `agents/planners/` (2)
 
