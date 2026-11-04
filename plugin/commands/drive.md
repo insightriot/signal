@@ -194,10 +194,11 @@ afterwards rather than inferred from a file.
 
 ### 0c. Ask everything blocking, UP FRONT
 
-Call `collectPreflight(baseDir, { epic })` and render it with `formatPreflight`. It reads the
-sources named in `PREFLIGHT_SOURCES`: unanswered parked decisions, `STATE.md` blockers, open
-questions naming this Epic, and unfilled `[FILL IN]` / `[INFERRED]` markers in the Epic's
-requirements.
+Call `collectPreflight(baseDir, { epic, startPhase })`, with the phase from step 0a-ii, and render it
+with `formatPreflight`. It reads the sources named in `PREFLIGHT_SOURCES`: unanswered parked
+decisions, `STATE.md` blockers, open questions naming this Epic, and unfilled `[FILL IN]` /
+`[INFERRED]` markers in the Epic's requirements. Run it once, here: a decision this run parks
+later is reported in step 4, not asked.
 
 **Ask every `blocking` item as ONE batch, before running anything.** This is the piece that
 makes the dial worth having: a FULL-tier Epic was measured at 48–86 synchronous touchpoints,
