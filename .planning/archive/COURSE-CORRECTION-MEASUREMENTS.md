@@ -110,15 +110,24 @@ strictly fewer confirmed defects, no more steps-in, and at most 3x the time and 
 | Decisions queued | 3 | 0 (made and listed in its final message) |
 | Change to `src/` | 1069 lines, 21 commits | 443 lines |
 | Suite / typecheck / lint | green / clean / 0 errors | green / clean / 0 errors |
-| Confirmed defects (blind review, failing test each) | 5: 2 medium (a duplicate copy uploaded after a racing open, and after storage fills while caching the saved version), 1 medium arguable (a timestamp-only server change moves the edits into a copy), 2 cosmetic titles | 4: **2 high** (storage full while writing the copy leaves the old copy on screen and later saves it over the newer server version; a copy whose server save fails disappears from the list after a reload, kept only in local storage), 2 cosmetic titles |
+| Defects (every version run against both blind reviewers' failing tests, 7 cases) | 6 failed: 1 high (a copy whose server save fails is lost after a reload), 3 medium (a duplicate copy after a racing open, and after storage fills while caching the saved version; arguably, a timestamp-only server change moves the edits into a copy), 2 cosmetic titles | 6 failed: **2 high** (the same lost copy; and storage full while writing the copy leaves the old copy on screen to be saved over the newer server version), 2 medium (the storage-fills and timestamp-only cases), 2 cosmetic titles |
 
-**Verdict under the pre-registered rule: Signal did not win** (defects 5 vs 4, cost 6.5x, time 5.5x,
-one step-in). By severity the result runs the other way: none of Signal's defects loses data; both of
-plain's high ones are the overwrite and loss this feature exists to prevent. Signal's REVIEW found and
-fixed that class (fix rounds named "no stale overwrite" and "copy-failed stays blocked").
+**Verdict under the pre-registered rule: Signal did not win** (6 defects each, cost 6.5x, time 5.5x,
+one step-in). Signal's REVIEW fixed one of plain's two high defects (the stale overwrite) and missed the
+other. A first write-up said Signal had no high defect: wrong, because the reviewer of Signal's version
+never tested the failed-save case; running each reviewer's tests against both versions found it.
 
 Where Signal's time went: DISCUSS through VERIFY took 30 min; REVIEW and its loops took 50. Each fix
 round produced new findings in the previous round's fixes, until the loop ceiling stopped the run with
 one self-reported Important open (holds cleared at logout before sign-out completes; not tested here).
+
+**Follow-up: plain's result plus one review.** A fresh session on plain's commit started Signal's three
+reviewer agents once (code, security, tests), fixed every confirmed Critical or Important finding in one
+round with a failing-first test, and committed; no second review. 27 min, $7.35. It fixed the stale
+overwrite and left the lost copy as a known limit (rated a Suggestion). Against the same 7 cases: 5
+failed (1 high, 2 medium, 2 cosmetic). **Plain plus one review: $15.39 and about 42 min in total, finished,
+no step-in, 5 defects; Signal: $52.55, 81 min, unfinished, 6 defects.** On this feature the review
+earned its place and the rest of the flow did not.
+
 Limits: one feature, one run each; Signal's diff names requirement IDs in comments, so the blind
 reviewers could guess which was which; a countdown test in the suite is flaky on both (not counted).
