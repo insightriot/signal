@@ -6,6 +6,9 @@ description: Run the phase flow without sitting at every gate. Reads the attenti
 
 You are running `/sig:drive`. It advances the Signal flow **on your behalf**, and stops when it must.
 
+Every `tools/lib/`, `skills/`, `references/` and `commands/` path in this file is under `${CLAUDE_PLUGIN_ROOT}/`:
+import from there, and read each phase command from there, never from another copy of Signal.
+
 This is the command Signal's loop-engineering audit argued for. *(That audit lives in the Signal
 repository and is **not** shipped with the plugin, so its findings are stated here rather than
 cited as a path you can open.)* It measured the problem before proposing anything: a FULL-tier Epic
@@ -58,12 +61,6 @@ it.** Those are briefings: a reader sees the warning and decides. This command *
 on instructions it read once — so a stale binding means an entire autonomous run executes a retired
 release's rules, and the longer the run the more it does before anyone notices. That is the
 command's own stated posture: **an actor that cannot tell should stop.**
-
-⚠ **Found by running it (2026-09-04).** The first live `/sig:drive` invocation loaded `v0.1.34`'s
-copy of this file while `v0.1.36` was installed — so the front end (`0a`–`0c`, shipped in `v0.1.35`
-and `v0.1.36`) **was not in the file the run executed**, and the run had no way to know. `B52`'s
-banner was built for exactly this and fires correctly from the bound copy; it never ran, because
-this command was the one that never called it.
 
 **Steps 0a–0c are the front end, and they are not optional.** Before them this command
 began at whatever phase `STATE.md` happened to name, chose nothing, and asked for nothing —
