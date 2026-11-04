@@ -109,8 +109,8 @@ After each task, update `artifactName('PROGRESS', { currentEpic, planningDir })`
 
 ```markdown
 ## Wave {n}
-- [x] Task 1 — commit {hash} — parent run: {summary line}
-- [ ] Task 2 — in progress
+- [x] {id} — commit {hash} — parent run: {summary line}
+- [ ] {id} — in progress
 ```
 
 One task: the progress file is optional, except at `gate_strictness: strict`.

@@ -150,7 +150,7 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
 4. A hook blocks a commit during EXECUTE without a passing test record. **Built 2026-11-03**
    (`hooks/check-commit-test-run.js`; it sees the executor agent's commits too).
 5. A Stop hook keeps the agent working inside an Epic while tasks remain and tests pass; calibration
-   sets how long it may run before checking in.
+   sets how long it may run before checking in. **Built 2026-11-03** (`hooks/keep-executing.js`).
 
 **Step 3 — prove it.** Build one real feature on the test project twice: through Signal and with plain
 Claude Code. Record time, defects found afterwards, and how often a person had to step in. If Signal
