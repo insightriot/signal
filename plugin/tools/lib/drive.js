@@ -719,12 +719,16 @@ const STORE_QUESTIONS = 'open questions (work store)';
  * starts blind while reporting "nothing needed" — `B39`'s shape, at the moment it
  * costs the most.
  *
+ * `startPhase` is where the run starts (`resolveStartPhase`). At DISCUSS a missing
+ * requirements file is expected — DISCUSS writes it — so it is named in `checked`
+ * as not written yet, not in `cannotCheck`, which drive.md treats as a stop.
+ *
  * @param {string} baseDir
- * @param {{epic?: string|null}} [opts]
+ * @param {{epic?: string|null, startPhase?: string|null}} [opts]
  * @returns {Promise<{blocking: Array<{source: string, question: string, detail: string|null}>,
  *   cannotCheck: Array<{source: string, reason: string}>, checked: string[]}>}
  */
-export async function collectPreflight(baseDir, { epic = null } = {}) {
+export async function collectPreflight(baseDir, { epic = null, startPhase = null } = {}) {
   const blocking = [];
   const cannotCheck = [];
   const checked = [];
@@ -740,7 +744,7 @@ export async function collectPreflight(baseDir, { epic = null } = {}) {
       blocking.push({
         source: 'DECISION-QUEUE.md',
         question: entry.question,
-        detail: `parked as ${entry.id} by an earlier run`,
+        detail: `parked as ${entry.id}, not answered yet`,
       });
     }
   } catch (err) {
@@ -833,6 +837,8 @@ export async function collectPreflight(baseDir, { epic = null } = {}) {
     const reqPath = inFolder ? resolved : join(planningDir, `${epic}-REQUIREMENTS.md`);
     if (storeError) {
       cannotCheck.push({ source: 'REQUIREMENTS unfilled markers', reason: storeError.message });
+    } else if (!existsSync(reqPath) && startPhase === 'DISCUSS') {
+      checked.push(`${epic}-REQUIREMENTS.md (not written yet — DISCUSS writes it)`);
     } else if (!existsSync(reqPath)) {
       cannotCheck.push({
         source: 'REQUIREMENTS unfilled markers',

@@ -209,6 +209,39 @@ describe('collectPreflight — what the run needs BEFORE it starts', () => {
     expect(text).toMatch(/this is not "nothing found"/);
   });
 
+  it('a new Epic starting at DISCUSS has no requirements yet, and that is not a "could not check"', async () => {
+    // Found in the unattended Epic trial (2026-11-04): drive.md treats cannotCheck as a stop,
+    // and a spec cannot exist before the phase that writes it.
+    await writeState(FRONTMATTER());
+    const r = await collectPreflight(dir, { epic: 'M9.E1', startPhase: 'DISCUSS' });
+    expect(r.cannotCheck).toEqual([]);
+    expect(r.checked).toContain('M9.E1-REQUIREMENTS.md (not written yet — DISCUSS writes it)');
+    expect(formatPreflight(r)).not.toMatch(/COULD NOT BE CHECKED/);
+  });
+
+  it('past DISCUSS a missing requirements file is still a "could not check"', async () => {
+    await writeState(FRONTMATTER());
+    const r = await collectPreflight(dir, { epic: 'M9.E1', startPhase: 'PLAN' });
+    expect(r.cannotCheck.some((c) => /no M9\.E1-REQUIREMENTS\.md on disk/.test(c.reason))).toBe(true);
+  });
+
+  it('at DISCUSS an existing requirements file is still read for markers', async () => {
+    await writeState(FRONTMATTER());
+    await writePlanning('M9.E1-REQUIREMENTS.md', '# Req\n\nFR1: [FILL IN — the retry policy]\n');
+    const r = await collectPreflight(dir, { epic: 'M9.E1', startPhase: 'DISCUSS' });
+    expect(r.blocking.some((b) => /unfilled marker/.test(b.question))).toBe(true);
+  });
+
+  it('a parked decision is not claimed to be from an earlier run (nothing records which run parked it)', async () => {
+    await writeState(FRONTMATTER());
+    await writePlanning(
+      'DECISION-QUEUE.md',
+      '# Decision queue\n\n---\n\n## Q1 — Which storage backend?\n\n**Answer:** _(unanswered)_\n',
+    );
+    const r = await collectPreflight(dir, { epic: 'M9.E1' });
+    expect(r.blocking.find((b) => b.question === 'Which storage backend?').detail).toBe('parked as Q1, not answered yet');
+  });
+
   it('says plainly when it checked and found nothing', async () => {
     await writeState(FRONTMATTER());
     await writePlanning('M9.E1-REQUIREMENTS.md', '# Req\n\nFR1: a complete requirement.\n');
