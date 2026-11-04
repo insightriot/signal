@@ -167,8 +167,8 @@ doesn't clearly win by 2026-12-04, keep only what earned its place and stop.
   Advise stays until the rewrite, because drive follows advise's steps to pick work. The four docs commands and `item` wait for the rewrite, which decides what replaces them (see *Records*). Folding escalate into
   calibrate and merging init with new-project happen during the rewrite.
 - **Order to the deadline (decided 2026-11-03):** loop pieces 1, 3, 4, 5, then one whole unattended
-  Epic on a practice project, then decide whether the records-command merge goes before or after
-  Step 3. Estimate 13–18 working days; Step 3 around 2026-11-20 to 25.
+  Epic on a practice project (**done 2026-11-04**, no person until SHIP), then decide whether the
+  records-command merge goes before or after Step 3.
 - **Step 3 deadline: 2026-12-04.** Step 3 means building one real feature on the test project twice,
   once with Signal and once with plain Claude Code, and comparing. The date allows about a week for
   Step 1 and three for Step 2. If Signal hasn't clearly won by then, keep only what earned its place.

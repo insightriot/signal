@@ -72,3 +72,22 @@ round-1 change was wrong (a broken unit record does block every write). A third 
 (a row outside the Epic is asked again with `rerequestCloses`; `broken` only where a result carries
 it) and three rare cases left as stated limits (shallow clones, rows rebased after an earlier SHIP),
 which SIG-380's confirm-after-rebase mostly removes.
+
+## Unattended Epic trial (2026-11-04)
+
+A practice CSV library (FEATURE tier, `attention: unattended`, no GitHub remote), `/sig:drive M1.E1`
+in one `claude -p` session, with the pick and how-to-run answers in the prompt (no question tool in `-p`).
+
+- **Run 1 is invalid:** `drive.md` named no `${CLAUDE_PLUGIN_ROOT}`, so the agent found Signal under
+  `~/.claude/plugins` and ran the cached 0.1.53 for every command and tool. Fixed in #341.
+- **Run 2, on `main` plus #341:** DISCUSS to REVIEW without a person, stopping only at SHIP's floors
+  (pull request, retrospective). 23 min, $16.93. Four fresh executor agents, one commit per slice; three
+  reviewers; VERIFY passed 28 of 28 criteria; REVIEW found 1 Important (a missing test), fixed in one round
+  with a fresh read. 33 of 33 tests pass; hand checks of quoting, embedded newlines, CRLF and an unclosed
+  quote correct. Records: every Epic file in its folder, tree clean, no commit marking STATE fresh.
+  Commit check and stop hook never had to act.
+- **Costs and rough edges:** 6 product decisions queued for a person (built on the agent's
+  recommendation); the preflight could not check requirements that DISCUSS had not written yet, and
+  after DISCUSS listed this run's own queued decisions as blocking (the agent went on, against
+  `drive.md`'s rule); the test-map check returned "cannot evaluate"; one slice had no fail-first proof;
+  25 permission refusals were the harness's allowlist, not Signal.
