@@ -91,3 +91,43 @@ in one `claude -p` session, with the pick and how-to-run answers in the prompt (
   after DISCUSS listed this run's own queued decisions as blocking (the agent went on, against
   `drive.md`'s rule); the test-map check returned "cannot evaluate"; one slice had no fail-first proof;
   25 permission refusals were the harness's allowlist, not Signal.
+
+## Step 3, run 1 (2026-11-04)
+
+One small backlog feature on the test project (keep a device's unsynced edits as a separate copy when
+the saved version also moved), built twice from the same `main` commit in scratchpad clones (bare local
+origins, not a worktree of the real repo). Same model, prompt text, allowlist and "no person available"
+line. Signal: `/sig:drive`, `attention: unattended` set in the clone. Plain: Signal disabled (absent
+from the session's plugin list). The verdict rule was written before either run: Signal wins only with
+strictly fewer confirmed defects, no more steps-in, and at most 3x the time and cost.
+
+| | Signal | Plain |
+|---|---|---|
+| Wall time | 81 min | 15 min |
+| Cost | $52.55 | $8.04 |
+| Finished | no: stopped at REVIEW's loop ceiling, a draft fix saved for a person | yes, one commit |
+| Steps-in needed | 1 | 0 |
+| Decisions queued | 3 | 0 (made and listed in its final message) |
+| Change to `src/` | 1069 lines, 21 commits | 443 lines |
+| Suite / typecheck / lint | green / clean / 0 errors | green / clean / 0 errors |
+| Defects (every version run against both blind reviewers' failing tests, 7 cases) | 6 failed: 1 high (a copy whose server save fails is lost after a reload), 3 medium (a duplicate copy after a racing open, and after storage fills while caching the saved version; arguably, a timestamp-only server change moves the edits into a copy), 2 cosmetic titles | 6 failed: **2 high** (the same lost copy; and storage full while writing the copy leaves the old copy on screen to be saved over the newer server version), 2 medium (the storage-fills and timestamp-only cases), 2 cosmetic titles |
+
+**Verdict under the pre-registered rule: Signal did not win** (6 defects each, cost 6.5x, time 5.5x,
+one step-in). Signal's REVIEW fixed one of plain's two high defects (the stale overwrite) and missed the
+other. A first write-up said Signal had no high defect: wrong, because the reviewer of Signal's version
+never tested the failed-save case; running each reviewer's tests against both versions found it.
+
+Where Signal's time went: DISCUSS through VERIFY took 30 min; REVIEW and its loops took 50. Each fix
+round produced new findings in the previous round's fixes, until the loop ceiling stopped the run with
+one self-reported Important open (holds cleared at logout before sign-out completes; not tested here).
+
+**Follow-up: plain's result plus one review.** A fresh session on plain's commit started Signal's three
+reviewer agents once (code, security, tests), fixed every confirmed Critical or Important finding in one
+round with a failing-first test, and committed; no second review. 27 min, $7.35. It fixed the stale
+overwrite and left the lost copy as a known limit (rated a Suggestion). Against the same 7 cases: 5
+failed (1 high, 2 medium, 2 cosmetic). **Plain plus one review: $15.39 and about 42 min in total, finished,
+no step-in, 5 defects; Signal: $52.55, 81 min, unfinished, 6 defects.** On this feature the review
+earned its place and the rest of the flow did not.
+
+Limits: one feature, one run each; Signal's diff names requirement IDs in comments, so the blind
+reviewers could guess which was which; a countdown test in the suite is flaky on both (not counted).
