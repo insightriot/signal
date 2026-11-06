@@ -168,9 +168,22 @@ two features' follow-ups inside notes marked for deletion, and wrote one false s
 side's records changed what it built. Signal read its previous feature's retro only at SHIP, after the
 code was written. It also left the project's `CONTEXT.md` three Epics stale throughout.
 
-What the 12 step-ins were: decisions Signal parked and kept working on its own recommendation. Plain made
-the same calls silently and listed them. Accepting all 12 unchanged cost no rework, and neither did
-plain's silent choices.
+What the 12 step-ins were: decisions Signal parked, carrying on with its own recommendation for
+each. Each was checked against plain's listed choices for the same question:
+- Same call: 7 (list layout, what a box starts with, no migration for the new stored keys, tools on
+  automatically, how inputs are matched, how calls are shown).
+- A different design, neither causing rework: 3 (one failure setting vs one per lookup; what the agent
+  is told about a failure; how earlier calls are replayed to the agent).
+- Something plain never built, already counted as plain defects: 2 (typed answers in the run view;
+  which lookup was set to fail).
+Accepting all 12 unchanged bought nothing that the build itself did not already decide.
+
+Roadmap fit: even. Both sides built what each entry asked for, kept F3 to its first step, and left the
+backlog item open.
+
+Records, a grading difference: both sides left `CONTEXT.md` as it was at the base. Signal's grader
+docked it half a point per feature, while plain's grader judged it fit the project. Graded the same way,
+Signal leads 11.5 to 9.5. The verdict does not change.
 
 Limits: three features on one project, one run each. The grader could tell F3's sides apart: plain's
 own final message named the route defect it had fixed. The reviewers and Brett stayed blind. On F3
