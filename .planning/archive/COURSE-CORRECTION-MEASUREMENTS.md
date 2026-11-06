@@ -131,3 +131,48 @@ earned its place and the rest of the flow did not.
 
 Limits: one feature, one run each; Signal's diff names requirement IDs in comments, so the blind
 reviewers could guess which was which; a countdown test in the suite is flaky on both (not counted).
+
+## Step 3, run 2 (2026-11-05 to -06)
+
+Three linked backlog features from one section of the test project's backlog, built in a row on two
+scratchpad clones of the same `main` (bare local origins). Each feature was merged into its clone's
+`main` before the next started, so later features built on earlier ones and on each side's own records.
+Same model, allowlist and "no person available" line. Signal: `/sig:drive` per feature at
+`attention: unattended`, stopping at SHIP's floors. Plain: Signal disabled, told to build, test, keep
+the project's docs up to date and commit. The plan, hand checks and verdict rule were written before
+any run. Signal wins only with: no more serious defects; fewer defects or fewer redos; roadmap fit and
+records no worse; at most one more step-in. Plain wins only with no more of any of those. Anything
+else is mixed. Records count only if they visibly prevented a defect or a redo.
+
+Defects: a fresh blind reviewer per side per feature (source diff only, requirement and Epic IDs masked).
+Every defect needed a failing test or an exact repro, and every test was run against both sides. Five
+borderline severity calls went to Brett with the sides hidden.
+
+| | Signal | Plain |
+|---|---|---|
+| Wall time (3 features) | ~175 min | ~40 min |
+| Cost (API-equivalent; run on a Max plan) | ~$87 | ~$25 |
+| Suite / typecheck / lint, each feature | green / clean / 0 errors | green / clean / 0 errors |
+| Serious defects | **1** (F3: the live run view never shows the tool calls; a route drops them) | 2 (F2: the run view shows a failing lookup as a success; F3: three tool calls in one turn end the run in an error) |
+| All defects | 13 (F1 3, F2 3, F3 7) | **11** (F1 3, F2 5, F3 3) |
+| Redos | 0 | 0 |
+| Step-ins | 12: parked decisions, all answered "accepted as recommended" | **0** |
+| Continue prompts needed | 0 | 0 |
+| Records score (fixed checklist, 4 per feature) | 10 of 12 | 9.5 of 12 |
+| Records that visibly prevented a defect or redo | none | none |
+
+**Verdict under the pre-registered rule: mixed.** Signal had fewer serious defects. Plain had fewer
+defects in all, needed no person, and took a quarter of the time. Neither side redid earlier work.
+Records came out about even. Signal filed follow-ups more reliably and wrote no false record. Plain left
+two features' follow-ups inside notes marked for deletion, and wrote one false statement. Neither
+side's records changed what it built. Signal read its previous feature's retro only at SHIP, after the
+code was written. It also left the project's `CONTEXT.md` three Epics stale throughout.
+
+What the 12 step-ins were: decisions Signal parked and kept working on its own recommendation. Plain made
+the same calls silently and listed them. Accepting all 12 unchanged cost no rework, and neither did
+plain's silent choices.
+
+Limits: three features on one project, one run each. The grader could tell F3's sides apart: plain's
+own final message named the route defect it had fixed. The reviewers and Brett stayed blind. On F3
+Signal ran SHIP inside its `/sig:drive` run; on F1 and F2 it needed a second `/sig:ship` run, which
+is counted in its time and cost.
