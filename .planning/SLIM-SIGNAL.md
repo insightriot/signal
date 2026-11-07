@@ -27,9 +27,12 @@ keeping the roadmap ranked by what matters.
 1. **Shape the work with the person before any build.** What is being built, the stack, the
    requirements, the screens. Written into the backlog item as a short spec plus the checks the
    finished work must pass. The checks are written before the task, not after. Once per feature.
+   - **The files it is expected to touch** are listed in the item too. At the end, code checks the
+     change against the list. Going outside it is allowed but must be explained; it is not blocked,
+     because sensible builds in the Step 3 runs often touched a file nobody predicted.
 2. **Before a build: show the open problems.** Code, not an instruction to go and look: before the
-   agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the area it is
-   about to change, and must fix each one or say why it is leaving it.
+   agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the files listed
+   in the item, and must fix each one or say why it is leaving it.
 3. **Build: the agent works alone.** Tests first for each check. Builds until the suite, typecheck and
    lint pass. Makes routine calls itself and logs them. Stops only for a change of scope or something
    hard to undo (the shape of stored data, deletions, anything touching production or money).
@@ -61,18 +64,34 @@ Plain `.md` files with a few rules: one place to capture, one ranked backlog tha
 "where we are" page, and a done log of what was done, why and how. Finished items leave the live list.
 Pieces 2 and 5 are what make the files get used.
 
+**The project's instructions file.** Signal writes the real instructions into `AGENTS.md`, kept short
+(an index pointing at the other docs, about 150 lines at most), so every coding tool reads the same
+file. `CLAUDE.md` holds one line, `@AGENTS.md`, which pulls the file in. An import, not "see
+AGENTS.md": Claude Code reads an `AGENTS.md` on its own only when no `CLAUDE.md` exists (v2.1.277 and
+later), and adding a personal `CLAUDE.local.md` silently turns that off. The import works on every
+version.
+
+## What is kept from today's Signal
+
+- **No passing tests, no commit.** The hook that refuses a commit without a passing test run (built
+  2026-11-03). It is cheap and it is a check a program can fail.
+
 ## What gets archived
 
 The six-phase flow as the default, the decision queue, review loops beyond one round, the attention
 setting, the tiers, most of the 26 agents, the JSON work store, and Signal's notes about itself.
 Archived, not deleted.
 
-## The two borrowed rules: where they come from
+## Where the borrowed ideas come from
 
 Both are from an article on agent loops and graphs (x.com/HoodieFade_, 2026-11-04), which also backs
 up pieces 1, 3 and 4: a check a program can fail is strong evidence, a reviewer agent's approval is
 weak, and the agent should stop only where a mistake is hard to undo. Its other main topic, running
 many agents in parallel, is now built into Claude Code itself, so Signal does not build it.
+
+The expected-files list (piece 1) is from an article on agent harnesses (x.com/marfinxx, 2026-11-05),
+changed from a hard block to a flag. That article's other ideas (a model per role, a working copy per
+task, a decision log file) are already in Claude Code or were tested here without helping.
 
 ## How it is proven, and when it is 2.0
 
@@ -86,8 +105,8 @@ many agents in parallel, is now built into Claude Code itself, so Signal does no
 
 ## Open
 
-- How "the area it is about to change" is worked out for piece 2 (files named in the item, files the
-  plan touches, or both).
+- How an open item is matched to the expected files for piece 2 (items name files today only
+  sometimes).
 - How old is too old for the sweep (piece 6).
 - How a decision gets marked as one that needs a test (piece 7).
 - Order of work: pieces 2 and 5 first, since they target the failure every test found.
