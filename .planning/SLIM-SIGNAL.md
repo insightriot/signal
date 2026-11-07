@@ -1,0 +1,93 @@
+# Slim Signal: the proposal (2026-11-07)
+
+Agreed in direction by Brett on 2026-11-07. This is the plan for what Signal becomes after Step 3.
+The evidence is in [`archive/COURSE-CORRECTION-MEASUREMENTS.md`](archive/COURSE-CORRECTION-MEASUREMENTS.md)
+(Step 3, runs 1 to 3). The plan, the freeze and the rule still live in
+[`COURSE-CORRECTION.md`](COURSE-CORRECTION.md); this file is the shape Signal is being cut down to.
+
+## Why
+
+Three tests against plain Claude Code on a real project:
+
+- **Building:** plain Claude Code builds as well as Signal's six-phase flow. It is about 4x faster,
+  costs under a third as much, and needs no one to step in. Signal's review rounds and parked
+  decisions added time and money but no better code.
+- **Records:** two popular records tools (Beads, Backlog.md) did no better than plain `.md` files, and
+  on the measure that matters did worse.
+- **The real failure, in every version tested, Signal included:** the agent does not look at the known
+  open problems before it builds on top of them, and it names limits in its final message without
+  filing them anywhere the next build will find them. Better storage did not change that.
+
+So Signal stops building its own build process and records store. Its job is the part no tool we
+looked at does: shaping the work up front, making the records actually get read and written, and
+keeping the roadmap ranked by what matters.
+
+## The pieces
+
+1. **Shape the work with the person before any build.** What is being built, the stack, the
+   requirements, the screens. Written into the backlog item as a short spec plus the checks the
+   finished work must pass. The checks are written before the task, not after. Once per feature.
+2. **Before a build: show the open problems.** Code, not an instruction to go and look: before the
+   agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the area it is
+   about to change, and must fix each one or say why it is leaving it.
+3. **Build: the agent works alone.** Tests first for each check. Builds until the suite, typecheck and
+   lint pass. Makes routine calls itself and logs them. Stops only for a change of scope or something
+   hard to undo (the shape of stored data, deletions, anything touching production or money).
+4. **One independent review, one fix round.** A fresh reviewer that sees the change, not the builder's
+   reasoning. Every bug it reports comes with a test that fails; a claim without one is dropped. One
+   round of fixes, then what is left is filed as items.
+   - **Borrowed rule: fix the broken piece only.** A fix goes back with the failing test and a scope
+     line ("this file only"). Work that passed is not sent back with it. Without the scope line the
+     agent fixes the bug plus things it noticed nearby, and a one-line fix becomes a four-file change.
+5. **After a build: check the named limits were filed.** Code: every limit or follow-up the agent
+   named in its final message must exist as an item in the backlog or bugs file. If one is missing,
+   the build is not done.
+6. **A whole-codebase sweep now and then.** The review only reads the change, so code that no build
+   touches is never checked. At the end of a build, if the last full sweep is older than a set limit,
+   offer one (`/prose:audit`, a separate plugin on purpose). Its findings are filed like any others.
+   - **Borrowed rule: a sweep stops on its own.** Track the new findings each round, compared against
+     everything already seen, including findings that were rejected. Stop after two rounds that find
+     nothing new. Remembering the rejected ones is what stops it paying to rediscover dead ends.
+7. **Standing rules become tests.** When a decision is made that later work must not break ("this view
+   never shows that kind of event"), it is written as a test that fails if it is broken, not only as a
+   line in a document. After a fix, its cause is written the same way. Only rules about behaviour; the
+   rest stay as notes.
+8. **Rank the backlog by real impact.** When the backlog is ordered, a problem that hurts real users
+   goes ahead of new features, with the reason written down.
+
+## Records
+
+Plain `.md` files with a few rules: one place to capture, one ranked backlog that is the roadmap, a
+"where we are" page, and a done log of what was done, why and how. Finished items leave the live list.
+Pieces 2 and 5 are what make the files get used.
+
+## What gets archived
+
+The six-phase flow as the default, the decision queue, review loops beyond one round, the attention
+setting, the tiers, most of the 26 agents, the JSON work store, and Signal's notes about itself.
+Archived, not deleted.
+
+## The two borrowed rules: where they come from
+
+Both are from an article on agent loops and graphs (x.com/HoodieFade_, 2026-11-04), which also backs
+up pieces 1, 3 and 4: a check a program can fail is strong evidence, a reviewer agent's approval is
+weak, and the agent should stop only where a mistake is hard to undo. Its other main topic, running
+many agents in parallel, is now built into Claude Code itself, so Signal does not build it.
+
+## How it is proven, and when it is 2.0
+
+- After each piece is built, rerun the three-feature test against plain Claude Code on fresh copies
+  of the test project, with the rule for winning written down before the run.
+- The slim Signal must beat plain on the measure it was built for (open problems seen and acted on
+  before building; limits filed after), with no more serious defects, no more step-ins, and time and
+  cost close to plain's.
+- **2.0 only when it is fully buttoned up:** plenty of test runs, on more than one kind of feature,
+  showing it works. Not on one good run. Until then changes ship in the 0.1.x line.
+
+## Open
+
+- How "the area it is about to change" is worked out for piece 2 (files named in the item, files the
+  plan touches, or both).
+- How old is too old for the sweep (piece 6).
+- How a decision gets marked as one that needs a test (piece 7).
+- Order of work: pieces 2 and 5 first, since they target the failure every test found.
