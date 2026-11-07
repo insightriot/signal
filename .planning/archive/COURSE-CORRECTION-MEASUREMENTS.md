@@ -131,3 +131,107 @@ earned its place and the rest of the flow did not.
 
 Limits: one feature, one run each; Signal's diff names requirement IDs in comments, so the blind
 reviewers could guess which was which; a countdown test in the suite is flaky on both (not counted).
+
+## Step 3, run 2 (2026-11-05 to -06)
+
+Three linked backlog features from one section of the test project's backlog, built in a row on two
+scratchpad clones of the same `main` (bare local origins). Each feature was merged into its clone's
+`main` before the next started, so later features built on earlier ones and on each side's own records.
+Same model, allowlist and "no person available" line. Signal: `/sig:drive` per feature at
+`attention: unattended`, stopping at SHIP's floors. Plain: Signal disabled, told to build, test, keep
+the project's docs up to date and commit. The plan, hand checks and verdict rule were written before
+any run. Signal wins only with: no more serious defects; fewer defects or fewer redos; roadmap fit and
+records no worse; at most one more step-in. Plain wins only with no more of any of those. Anything
+else is mixed. Records count only if they visibly prevented a defect or a redo.
+
+Defects: a fresh blind reviewer per side per feature (source diff only, requirement and Epic IDs masked).
+Every defect needed a failing test or an exact repro, and every test was run against both sides. Five
+borderline severity calls went to Brett with the sides hidden.
+
+| | Signal | Plain |
+|---|---|---|
+| Wall time (3 features) | ~175 min | ~40 min |
+| Cost (API-equivalent; run on a Max plan) | ~$87 | ~$25 |
+| Suite / typecheck / lint, each feature | green / clean / 0 errors | green / clean / 0 errors |
+| Serious defects | **1** (F3: the live run view never shows the tool calls; a route drops them) | 2 (F2: the run view shows a failing lookup as a success; F3: three tool calls in one turn end the run in an error) |
+| All defects | 13 (F1 3, F2 3, F3 7) | **11** (F1 3, F2 5, F3 3) |
+| Redos | 0 | 0 |
+| Step-ins | 12: parked decisions, all answered "accepted as recommended" | **0** |
+| Continue prompts needed | 0 | 0 |
+| Records score (fixed checklist, 4 per feature) | 10 of 12 | 9.5 of 12 |
+| Records that visibly prevented a defect or redo | none | none |
+
+**Verdict under the pre-registered rule: mixed.** Signal had fewer serious defects. Plain had fewer
+defects in all, needed no person, and took a quarter of the time. Neither side redid earlier work.
+Records came out about even. Signal filed follow-ups more reliably and wrote no false record. Plain left
+two features' follow-ups inside notes marked for deletion, and wrote one false statement. Neither
+side's records changed what it built. Signal read its previous feature's retro only at SHIP, after the
+code was written. It also left the project's `CONTEXT.md` three Epics stale throughout.
+
+What the 12 step-ins were: decisions Signal parked, carrying on with its own recommendation for
+each. Each was checked against plain's listed choices for the same question:
+- Same call: 7 (list layout, what a box starts with, no migration for the new stored keys, tools on
+  automatically, how inputs are matched, how calls are shown).
+- A different design, neither causing rework: 3 (one failure setting vs one per lookup; what the agent
+  is told about a failure; how earlier calls are replayed to the agent).
+- Something plain never built, already counted as plain defects: 2 (typed answers in the run view;
+  which lookup was set to fail).
+Accepting all 12 unchanged bought nothing that the build itself did not already decide.
+
+Roadmap fit: even. Both sides built what each entry asked for, kept F3 to its first step, and left the
+backlog item open.
+
+Records, a grading difference: both sides left `CONTEXT.md` as it was at the base. Signal's grader
+docked it half a point per feature, while plain's grader judged it fit the project. Graded the same way,
+Signal leads 11.5 to 9.5. The verdict does not change.
+
+Limits: three features on one project, one run each. The grader could tell F3's sides apart: plain's
+own final message named the route defect it had fixed. The reviewers and Brett stayed blind. On F3
+Signal ran SHIP inside its `/sig:drive` run; on F1 and F2 it needed a second `/sig:ship` run, which
+is counted in its time and cost.
+
+## Step 3, run 3: plain Claude Code with an existing records tool (2026-11-06)
+
+The same three features as run 2, built by plain Claude Code on three fresh clones of the test
+project's `main`, with three ways of keeping records: Beads 1.3.1 (an issue tracker for coding
+agents), Backlog.md 1.55.1 (one markdown file per task), or neither (the project's own markdown
+files, run the same day as a control). In each tool clone, the tool's own setup was run, then one
+plain session moved the open records in: 23 backlog items and 1 open bug in both tools. The build
+prompts were the same for all three clones; only what each tool's setup wrote into the project's
+instructions differed. The plan and the reading rule were written before the builds. The key
+measure was changed before the first run, because the original one could not fire: before its first
+code edit, does the agent find the open follow-ups that earlier features left in the area it is about
+to change, and then fix them or say why it is leaving them?
+
+| | Beads | Backlog.md | No tool |
+|---|---|---|---|
+| Earlier follow-ups seen before building, F2 / F3 | 0 of 5 / 0 of 4 | 1 of 6 / 1 of 7 | **3 of 6 / 6 of 11** |
+| ... and fixed or explicitly left, F2 / F3 | 0 / 0 | 0 / 0 | **1 / 3** |
+| New limits filed as items | F1 only; F2 and F3 filed none | none in any feature | none (written into done notes) |
+| Records checklist (6 per feature) | 6 / 4 / 2 | 3.5 / 4 / 3 | 3 / 3 / 4 |
+| Suite / typecheck / lint | green / clean / 0 errors | green / clean / 0 errors | green / clean / 0 errors |
+| Defects, one blind review per build (not cross-checked) | 1 serious, 9 medium, 1 cosmetic | 1 serious, 6 medium, 2 cosmetic | 3 serious, 5 medium, 1 cosmetic |
+| Step-ins | 0 | 0 | 0 |
+| Time / cost, builds (plus moving the records in) | 39 min / $27 (+10 min / $6.6) | 36 min / $27 (+7 min / $6.0) | 43 min / $28 |
+
+**Under the rule fixed before the runs, neither tool earned a place.** Both made the key measure
+worse, not better. In the tool clones, the agent looked up only its own item. With Beads it never ran
+the "what's open" command that the tool's session-start note told it to run. With Backlog.md it never
+opened the two review follow-up lists. The control saw earlier limits mostly by accident: it read
+the previous feature's commit as an example to copy, and that commit listed the limits. Agents in all
+three clones named new limits in their final messages and mostly did not file them. In the Backlog.md
+clone, feature 3 quietly reversed a rule recorded in feature 1. A finding about Beads specifically:
+its database is not in git, and no session re-exported it, so a fresh clone would show the old state.
+
+What it shows, with runs 1 and 2: the records were never the bottleneck. In every arm of every run,
+the agent did not read the open follow-ups before building. That includes Signal, which read its
+previous retro only at SHIP. Where it did read them, it was by accident. Moving the records into a
+better-shaped store did not change that. Whatever closes the gap has to put the relevant open items
+in front of the agent before it builds, and check afterwards that every limit it named was filed.
+Telling the agent to look did not work, from Signal's prose or from Beads' session-start note.
+
+Limits: one build per clone per feature. Each build's defects come from one blind reviewer, not
+cross-checked between clones, and severity is the reviewer's call. The control's three serious
+defects, against one for each tool, are a single-reviewer count; and the key measure was not
+designed to show defects. The F1 and F2 blind copies were first cut from the wrong commit; this was
+caught and redone before any review.
