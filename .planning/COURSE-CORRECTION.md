@@ -1,8 +1,9 @@
 # Course correction — October 2026
 
-**Status:** Step 0 done 2026-10-26 in PR #312 (this file, the rule, the command-file limits, the
-reminder at session start). Step 1 started 2026-10-26. Every other file points here; this is the one home for the course
-correction. Keep it under its size limit (`tools/doc-budgets.json`).
+**Status:** Steps 0 to 3 done (Step 3: three runs against plain Claude Code, 2026-11-04 to -06).
+**Next: [`SLIM-SIGNAL.md`](SLIM-SIGNAL.md)**, agreed 2026-11-07: what Signal is cut down to and the
+order it is built in. Where the two disagree, SLIM-SIGNAL.md wins. This file stays the home for the
+rule and the freeze. Keep it under its size limit (`tools/doc-budgets.json`).
 
 ## Why this exists
 
@@ -38,11 +39,11 @@ in the backlog passes, say so and stop. Do not invent work. Full context: `.plan
 
 ## What Signal is for
 
-1. **Right-sized rigor.** Calibration picks how much process a piece of work gets.
+1. **Shaping the work** with the person before a build: spec, checks, expected files.
 2. **Records for the user's project.** Docs, bugs, captured ideas, Epics and tasks, kept so an agent
    always knows where it is and what is next.
-3. **Loops.** Near-autonomous work inside a scoped chunk (an Epic or slice), stopping only when a
-   person is genuinely needed.
+3. **Checks a program can fail, around a build that runs on its own:** open problems shown before,
+   named limits filed after, no commit without passing tests. Details: SLIM-SIGNAL.md.
 
 ## Three kinds of documents
 
@@ -73,8 +74,8 @@ a user's project still gets fixed.
 - published facts, the adherence harness, Jev claim checks, citation checks
 - retrospective and STATE-drift machinery
 
-Whether the work store is the right way for a project to keep its records is an **open question for
-Step 1**. It is not decided by this freeze.
+**Settled 2026-11-07:** a project keeps its records in plain `.md` files, not the work store
+(Step 3 run 3; SLIM-SIGNAL.md).
 
 ## What actually enforces this
 
@@ -86,7 +87,8 @@ times and fired three times; a GitHub setting fixed it). So:
 - **Enforced:** this file has a size limit in `tools/doc-budgets.json`.
 - **Visibility only:** `.claude/settings.json` prints the rule above at the start of every session in
   this repository.
-- **The real test is Step 3.** If Signal doesn't beat plain Claude Code on a real feature, stop.
+- **Step 3 answered it** (2026-11-06): plain Claude Code builds as well, faster and cheaper. Signal
+  keeps only what it adds (SLIM-SIGNAL.md).
 
 ## The plan
 
@@ -103,44 +105,12 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
   it is solved. Decided by testing on the test project, not on Signal's own records (see *Records*
   below).
 
-**How the rewrite runs (decided 2026-10-27).** Small steps, each merged and measured before the next:
-1. **Epic folder first, as code.** The resolver that finds an Epic's files already existed for the
-   work store's `work/epics/<ID>/` (M6.E11, store on only, and nothing creates that folder since
-   M6.E13). It now reads and names files in `.planning/epics/<ID>/` on any project, and finds a closed
-   Epic's files in `archive/<M>/E<n>/`, where docs-archive files them. Retrospective and profile stay
-   at the top for now; the ship rewrite decides. No command text changes in that PR. Measured on the
-   test project: with the current Epic's eight files moved into the folder, the new code read the same
-   files with the same contents; `main`'s code silently read old `PLAN.md`/`REQUIREMENTS.md` files
-   from another era instead. The one-time cleanup must also fix links to moved files (the work
-   store's Epic close already does this, `computeLinkEdits`).
-   **Filing the folder next, also as code, before any command writes to it** (decided 2026-10-27):
-   docs-archive saw only files at the top of `.planning/`, so a closed Epic whose files were all in
-   its folder read "closed, nothing left to move". It now moves the folder whole into
-   `archive/<M>/E<n>/` once the close is confirmed and the Epic is no longer current, the same rule
-   as before; SHIP itself moves nothing (a close there is only requested). Measured on a copy of the
-   test project: `main` said "nothing left to move" over eight files; the new code moved all eight.
-2. **Then the phase commands in flow order:** discuss, plan, execute, verify, review, ship (ship last:
-   the largest, and the most tests). One or two per PR. Tests that only pin removed wording move to
-   `archive/tests/`; tests of behaviour stay. The size limit is lowered each time.
-3. **Measured on the test project** by a fresh session running the branch's commands
-   (`claude --plugin-dir`). It swaps in the branch's commands, but a command runs the branch's code
-   only if its file names `${CLAUDE_PLUGIN_ROOT}`; otherwise the agent finds an installed copy. Check
-   which file the session imported before trusting a measurement. Walking one real
-   bug through the flow: the sidebar times that don't refresh (not the Step 3 feature). Per command:
-   size; whether it names `${CLAUDE_PLUGIN_ROOT}` for every code path; each question asked and whether it says what it decides, what was checked, and a
-   recommendation; files left loose at the top of `.planning/`; places status is written; whether the
-   phase finishes without a person.
-   **Measured 2026-10-28/29** (discuss, plan, execute, verify, walking that bug): each about halved
-   or better, ran the branch's code, and kept its files in the Epic's folder; each left a separate
-   commit marking STATE fresh (step 4). Per-command detail: `archive/COURSE-CORRECTION-MEASUREMENTS.md`.
-   **review** (2026-10-30, 29.5 to 15.4 KB) and **ship** (2026-10-31, 54.2 to 21.7 KB) the same way;
-   detail in the measurements file.
-4. **Checkpoint goes.** Each phase command updates the state file itself, at every tier, in the same
-   commit as the phase's work. No separate commits to mark it fresh (records problem 6).
-   **Phase commands done 2026-10-29:** freshness is read from the last commit that touched STATE.md.
-   verify on the test project: one commit, clean tree, reads fresh (`main`'s code: stale).
-   **Checkpoint archived 2026-10-30.** `/sig:resume`'s stale warning now says to commit STATE.md, and
-   a test fails if any live instruction names checkpoint. Unused: 0 runs in 652 sessions since 08-09.
+**How the rewrite ran (2026-10-27 to -31).** Small steps, each merged and measured on the test project
+before the next: Epic files moved into `.planning/epics/<ID>/` (as code, then filed whole into the
+archive on close); then discuss, plan, execute, verify, review and ship rewritten, each about halved or
+better; then checkpoint archived, with each phase command updating STATE.md in its own commit.
+Measure a branch with `claude --plugin-dir`, and check the session ran the branch's code
+(`${CLAUDE_PLUGIN_ROOT}`). Detail: `archive/COURSE-CORRECTION-MEASUREMENTS.md`.
 
 **Step 2 — build the loop.** Each piece is code, not instructions:
 1. EXECUTE starts a fresh executor agent per task.
@@ -152,9 +122,10 @@ limits, the session-start reminder, the corrected CLAUDE.md claims, and updated 
 5. A Stop hook keeps the agent working inside an Epic while tasks remain and tests pass; calibration
    sets how long it may run before checking in. **Built 2026-11-03** (`hooks/keep-executing.js`).
 
-**Step 3 — prove it.** Build one real feature on the test project twice: through Signal and with plain
-Claude Code. Record time, defects found afterwards, and how often a person had to step in. If Signal
-doesn't clearly win by 2026-12-04, keep only what earned its place and stop.
+**Step 3 — prove it. Done 2026-11-04 to -06,** three runs on the test project: Signal vs plain Claude
+Code on one feature; the same on three linked features (mixed); plain with Beads, Backlog.md or no
+records tool (neither tool helped). Detail: `archive/COURSE-CORRECTION-MEASUREMENTS.md`. The stop
+rule was answered by cutting Signal down to what it adds: SLIM-SIGNAL.md.
 
 ## Decided 2026-10-26 (Brett's answers, and calls made for him)
 
@@ -169,9 +140,8 @@ doesn't clearly win by 2026-12-04, keep only what earned its place and stop.
 - **Order to the deadline (decided 2026-11-03):** loop pieces 1, 3, 4, 5, then one whole unattended
   Epic on a practice project (**done 2026-11-04**, no person until SHIP), then decide whether the
   records-command merge goes before or after Step 3.
-- **Step 3 deadline: 2026-12-04.** Step 3 means building one real feature on the test project twice,
-  once with Signal and once with plain Claude Code, and comparing. The date allows about a week for
-  Step 1 and three for Step 2. If Signal hasn't clearly won by then, keep only what earned its place.
+- **Step 3 deadline was 2026-12-04;** it ran early. The slim Signal is proven by the reruns in
+  SLIM-SIGNAL.md, and becomes 2.0 only after ample test runs.
 
 ## How Signal asks questions (a Step 1 rewrite constraint)
 
@@ -218,7 +188,8 @@ commands as a user would: the work-store migration, then docs archiving.
 - Fixed bugs written as "fixed in X, PR #N: explanation" are not recognised as fixed.
 - The migration looks for `MILESTONE-3.0.md` and misses `MILESTONE-M3.0.md`, so no Epic table is written.
 
-**Decision:** keep the work store's core (an ID per item, status from recorded events, generated
+**Superseded 2026-11-07** (run 3: the store is not the problem; plain `.md` files, SLIM-SIGNAL.md).
+**Was:** keep the work store's core (an ID per item, status from recorded events, generated
 lists): on a real project it fixed problems 1 and 3. The rest is **not** solved by any existing tool,
 and the fix is simpler than more tooling: in the rewritten commands, each Epic's files go in
 `.planning/epics/<ID>/` from DISCUSS onward so closing is one move; one `ROADMAP.md`; the state file
