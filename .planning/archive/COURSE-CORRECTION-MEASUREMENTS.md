@@ -189,3 +189,49 @@ Limits: three features on one project, one run each. The grader could tell F3's 
 own final message named the route defect it had fixed. The reviewers and Brett stayed blind. On F3
 Signal ran SHIP inside its `/sig:drive` run; on F1 and F2 it needed a second `/sig:ship` run, which
 is counted in its time and cost.
+
+## Step 3, run 3: plain Claude Code with an existing records tool (2026-11-06)
+
+The same three features as run 2, built by plain Claude Code on three fresh clones of the test
+project's `main`, with three ways of keeping records: Beads 1.3.1 (an issue tracker for coding
+agents), Backlog.md 1.55.1 (one markdown file per task), or neither (the project's own markdown
+files, run the same day as a control). In each tool clone, the tool's own setup was run, then one
+plain session moved the open records in: 23 backlog items and 1 open bug in both tools. The build
+prompts were the same for all three clones; only what each tool's setup wrote into the project's
+instructions differed. The plan and the reading rule were written before the builds. The key
+measure was changed before the first run, because the original one could not fire: before its first
+code edit, does the agent find the open follow-ups that earlier features left in the area it is about
+to change, and then fix them or say why it is leaving them?
+
+| | Beads | Backlog.md | No tool |
+|---|---|---|---|
+| Earlier follow-ups seen before building, F2 / F3 | 0 of 5 / 0 of 4 | 1 of 6 / 1 of 7 | **3 of 6 / 6 of 11** |
+| ... and fixed or explicitly left, F2 / F3 | 0 / 0 | 0 / 0 | **1 / 3** |
+| New limits filed as items | F1 only; F2 and F3 filed none | none in any feature | none (written into done notes) |
+| Records checklist (6 per feature) | 6 / 4 / 2 | 3.5 / 4 / 3 | 3 / 3 / 4 |
+| Suite / typecheck / lint | green / clean / 0 errors | green / clean / 0 errors | green / clean / 0 errors |
+| Defects, one blind review per build (not cross-checked) | 1 serious, 9 medium, 1 cosmetic | 1 serious, 6 medium, 2 cosmetic | 3 serious, 5 medium, 1 cosmetic |
+| Step-ins | 0 | 0 | 0 |
+| Time / cost, builds (plus moving the records in) | 39 min / $27 (+10 min / $6.6) | 36 min / $27 (+7 min / $6.0) | 43 min / $28 |
+
+**Under the rule fixed before the runs, neither tool earned a place.** Both made the key measure
+worse, not better. In the tool clones, the agent looked up only its own item. With Beads it never ran
+the "what's open" command that the tool's session-start note told it to run. With Backlog.md it never
+opened the two review follow-up lists. The control saw earlier limits mostly by accident: it read
+the previous feature's commit as an example to copy, and that commit listed the limits. Agents in all
+three clones named new limits in their final messages and mostly did not file them. In the Backlog.md
+clone, feature 3 quietly reversed a rule recorded in feature 1. A finding about Beads specifically:
+its database is not in git, and no session re-exported it, so a fresh clone would show the old state.
+
+What it shows, with runs 1 and 2: the records were never the bottleneck. In every arm of every run,
+the agent did not read the open follow-ups before building. That includes Signal, which read its
+previous retro only at SHIP. Where it did read them, it was by accident. Moving the records into a
+better-shaped store did not change that. Whatever closes the gap has to put the relevant open items
+in front of the agent before it builds, and check afterwards that every limit it named was filed.
+Telling the agent to look did not work, from Signal's prose or from Beads' session-start note.
+
+Limits: one build per clone per feature. Each build's defects come from one blind reviewer, not
+cross-checked between clones, and severity is the reviewer's call. The control's three serious
+defects, against one for each tool, are a single-reviewer count; and the key measure was not
+designed to show defects. The F1 and F2 blind copies were first cut from the wrong commit; this was
+caught and redone before any review.
