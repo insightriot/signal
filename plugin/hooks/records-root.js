@@ -47,3 +47,18 @@ export const recordsText = (root) => readOr(join(root, '.planning', 'BACKLOG.md'
 /** Where the before-check leaves its note for the after-check, per session and project. */
 export const notePath = (sessionId, root) =>
   join(tmpdir(), `signal-build-note-${createHash('sha256').update(`${sessionId}\0${root}`).digest('hex').slice(0, 16)}.json`);
+
+/** The commit the build starts from, or null when there is none yet. */
+export function headCommit(root) {
+  const r = spawnSync('git', ['rev-parse', '--verify', '-q', 'HEAD'], { cwd: root, env: gitEnv(root), encoding: 'utf8' });
+  return r.status === 0 ? r.stdout.trim() : null;
+}
+
+/** What the build changed since `base`, committed or not, leaving out the records themselves (.planning/ and *.md). */
+export function changeSince(root, base) {
+  const run = (...a) => {
+    const r = spawnSync('git', ['diff', ...a, base, '--', '.', ':(exclude).planning', ':(exclude)*.md'], { cwd: root, env: gitEnv(root), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    return r.status === 0 ? r.stdout : '';
+  };
+  return { files: run('--name-only').split('\n').filter(Boolean), diff: run('-U1') };
+}
