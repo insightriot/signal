@@ -191,7 +191,7 @@ export function codeTokens(text) {
   for (const m of String(text).matchAll(/`([^`\n]{5,80})`/g)) {
     for (const t of m[1].split(/\s+/)) {
       const tok = t.replace(/[(),;:]+$/, '').replace(/\(.*$/, '');
-      if (tok.length >= 5 && /[./_\[]|[a-z][A-Z]|^[A-Z][a-z]+[A-Z]/.test(tok)) out.add(tok);
+      if (tok.length >= 5 && /[./_[]|[a-z][A-Z]|^[A-Z][a-z]+[A-Z]/.test(tok)) out.add(tok);
     }
   }
   return [...out];
