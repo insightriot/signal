@@ -151,8 +151,12 @@ describe('M5.E16 S5.t3 — no hook gains write capability (AC5.3)', () => {
     // The one exception writes nothing in the project: keep-executing.js keeps how many times it sent
     // the agent back in the system temp folder (loop piece 5), and that is its only write.
     const TEMP_ONLY = { 'keep-executing.js': /writeFileSync\(guardPath,/ };
+    // The slim checks (show-open-items.js, check-limits-filed.js) share one note per session, also in
+    // the system temp folder, written and removed only through `notePath`.
+    const NOTE_ONLY = /\b(?:writeFileSync|rmSync)\(notePath\(/g;
+    expect(await readFile(join(hooksDir, 'records-root.js'), 'utf-8')).toMatch(/export const notePath = \(sessionId, root\) =>\s*join\(tmpdir\(\),/);
     for (const file of files) {
-      let src = await readFile(join(hooksDir, file), 'utf-8');
+      let src = (await readFile(join(hooksDir, file), 'utf-8')).replace(NOTE_ONLY, '');
       if (TEMP_ONLY[file]) {
         expect(src).toMatch(/const guardPath = join\(tmpdir\(\),/);
         expect(src.match(new RegExp(WRITE_CALLS.source, 'g')), `${file} writes once`).toHaveLength(1);

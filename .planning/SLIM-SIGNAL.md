@@ -48,6 +48,9 @@ keeping the roadmap ranked by what matters.
 2. **Before a build: show the open problems.** Code, not an instruction to go and look: before the
    agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the files listed
    in the item, and must fix each one or say why it is leaving it.
+   **Built 2026-11-08** as a hook (`show-open-items.js`). Until expected-files lists exist it shows
+   the rest of the item's backlog section. First test (run 4): every relevant item seen, more acted on
+   than without it, but not most; see piece 5's next step.
 3. **Build: the agent works alone.** Tests first for each check. Builds until the suite, typecheck and
    lint pass. Makes routine calls itself and logs them. Stops only for a change of scope or something
    hard to undo (the shape of stored data, deletions, anything touching production or money).
@@ -60,6 +63,9 @@ keeping the roadmap ranked by what matters.
 5. **After a build: check the named limits were filed.** Code: every limit or follow-up the agent
    named in its final message must exist as an item in the backlog or bugs file. If one is missing,
    the build is not done.
+   **Built 2026-11-08** as a hook (`check-limits-filed.js`). Run 4: all three features filed their
+   limits as open items (none did without the checks). Next: also require each shown item that names a
+   file the change touched to be fixed or named in the final message with a reason.
 6. **A whole-codebase sweep now and then.** The review only reads the change, so code that no build
    touches is never checked. At the end of a build, if the last full sweep is older than a set limit,
    offer one (`/prose:audit`, a separate plugin on purpose). Its findings are filed like any others.

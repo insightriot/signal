@@ -74,6 +74,24 @@
             "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/keep-executing.js"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/check-limits-filed.js"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/show-open-items.js"
+          }
+        ]
       }
     ]
   }

@@ -235,3 +235,45 @@ cross-checked between clones, and severity is the reviewer's call. The control's
 defects, against one for each tool, are a single-reviewer count; and the key measure was not
 designed to show defects. The F1 and F2 blind copies were first cut from the wrong commit; this was
 caught and redone before any review.
+
+## Step 3, run 4: plain Claude Code plus the two slim checks (2026-11-08)
+
+The first test of SLIM-SIGNAL.md pieces 2 and 5, built as two hooks: `show-open-items.js` (before a
+build, prints the rest of the backlog section the item sits in, open and done, plus open bugs naming
+the same files) and `check-limits-filed.js` (after, sends the agent back once if it named limits and
+filed none as open items). One fresh practice clone of the test project from the same base, the same
+three linked backlog features and the same prompts as run 3. Signal itself disabled; only the two
+hooks added. Control: run 3's no-tool arm. The rule for reading it was written before the run.
+
+| | Plain + the two checks | Control (run 3, no tool) |
+|---|---|---|
+| Earlier items shown or read before building, F2 / F3 | **9 of 9 / 10 of 10** | 3 of 6 / 6 of 11 |
+| ... and fixed or explicitly left, F2 / F3 | **2 / 6** (F3: 10 counting one blanket line) | 1 / 3 |
+| New limits filed as their own open items | **all three features** | none |
+| Every limit in the final message filed | **all three features** | partly, all three |
+| Records checklist (6 per feature) | **5.5 / 5.5 / 4** | 3 / 3 / 4 |
+| Suite / typecheck / lint | green / clean / 0 errors | green / clean / 0 errors |
+| Defects, one blind review per build (not cross-checked) | 1 serious, 7 medium, 3 cosmetic | 3 serious, 5 medium, 1 cosmetic |
+| Step-ins | 0 | 0 |
+| Time / cost | 39 min / $28 | 43 min / $28 |
+| Times the after-check sent the agent back | 0 | n/a |
+
+**Under the rule fixed before the run, the checks work.** Acted-on items rose on both features, all
+three features filed their limits as open items, serious defects fell, no one stepped in, and time
+and cost were unchanged. The after-check never had to fire: the before-check's closing line, which
+says how to file limits, was enough on its own.
+
+What it shows: putting the items in front of the agent works for seeing; it is not enough for acting.
+F2 was shown all nine items and acted on two; it edited the exact lines two of the others name and
+mentioned neither. F3 left the rest with one line ("this change doesn't touch them"), which was false
+for the two items closest to its change. The reasons behind choices still live only in final
+messages, never in the records. The hook's text (about 15 KB) was over Claude Code's inline limit, so
+it was saved to a file; both sessions read that file as their first step, but shorter text would be
+safer.
+
+Next, from this: shorten the hook's text (open items in full, done items as their limit lines only);
+and add to the after-check that every shown item naming a file the change touched is either fixed or
+named in the final message with a reason. Both are code.
+
+Limits: one build per feature, one blind reviewer per build, not cross-checked. The control ran two
+days earlier. I built the hooks and knew the items; graders and reviewers were fresh agents.
