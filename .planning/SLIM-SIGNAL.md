@@ -71,7 +71,10 @@ keeping the roadmap ranked by what matters.
    names (a file, or a name in backticks) appear in what the build changed must be fixed or named in
    the final message, or the agent is sent back once. Replayed on run 4, it flags the items the grader
    found ignored (F2's "replay setup" and long-file items, F3's "cost of failed calls" item), plus a
-   few that share only a name; a blanket "the rest are untouched" line no longer passes.
+   few that share only a name; a blanket "the rest are untouched" line no longer passes. Run 5 (F2 and
+   F3 again): acted-on 9 of 10 and 15 of 17, against 2 of 9 and 6 of 10; 3 of those after a push, the
+   rest from the shorter text and instruction. Found a new gap for piece 7: F3 reversed F1's recorded
+   rule without saying so.
 6. **A whole-codebase sweep now and then.** The review only reads the change, so code that no build
    touches is never checked. At the end of a build, if the last full sweep is older than a set limit,
    offer one (`/prose:audit`, a separate plugin on purpose). Its findings are filed like any others.

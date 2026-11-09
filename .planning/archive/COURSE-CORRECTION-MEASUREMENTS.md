@@ -277,3 +277,60 @@ named in the final message with a reason. Both are code.
 
 Limits: one build per feature, one blind reviewer per build, not cross-checked. The control ran two
 days earlier. I built the hooks and knew the items; graders and reviewers were fresh agents.
+
+## Step 3, run 5: the tightened slim checks, features 2 and 3 again (2026-11-08)
+
+What changed from run 4 (branch `feat/slim-checks-tighten`): the before-check text is about 7 KB
+instead of 16 KB, so it is shown inline (run 4's was saved to a file); each open item is one line
+with its code names and line number, and the closing instruction says a line covering "the rest"
+does not count. The after-check also sends the agent back once when a shown item names a file or code
+name the change touched and is neither fixed nor named in the final message.
+
+Same start as run 4's F2 (a fresh practice copy at run 4's F1 merge, run 4's later branches
+removed), same prompts, model and flags. F3 starts from run 5's own F2. Control: run 4's F2 and F3.
+Rule written before the run: acted-on higher on both features item by item; serious defects no more
+than run 4's; records score no more than 1 lower per feature; no step-ins; time and cost within about
+25%.
+
+| | Run 4 | Run 5 |
+|---|---|---|
+| F2 items seen / acted on (item by item) | 9 / 2 | 10 / 9 (2 of them only after a push) |
+| F3 items seen / acted on (item by item) | 10 / 6 | 17 / 15 |
+| Times the after-check sent the agent back | 0 | F2 1 (2 items), F3 1 (1 item) |
+| Records score F2 / F3 | 5.5 / 4 | 6 / 4 |
+| Defects F2 | 0 serious, 2 medium, 3 cosmetic | 0 serious, 1 medium, 1 cosmetic |
+| Defects F3 | 1 serious, 3 medium | 1 serious, 2 medium |
+| Step-ins | 0 | 0 |
+| Time / cost, F2 + F3 | 28 min / $20 | 35 min / $22 |
+
+N differs between runs: the grader counted items afresh each time, and F3 starts from a different F2.
+
+**Verdict: passes on what it was built for, and is just over on time.** Acted-on went from 2 of 9 to
+9 of 10 (F2) and 6 of 10 to 15 of 17 (F3). Records and defects held or improved. Time was 26% over
+(the bound was about 25%) and cost 11% over; the extra is in F3 (26 min against 16), which fixed or
+rewrote more earlier follow-ups. The F3 serious defect is the same in both runs (the mock lookup
+finds the record when the agent passes nothing or a wrong value under another name); neither check is
+about it.
+
+What it shows:
+- **Most of the gain came before the build, not from the push.** Of the 24 items acted on, 3 came
+  after a push. The shorter inline text and the "one line for the rest does not count" instruction did
+  the rest. Run 4 had the full text too, but in a file.
+- **The push checks names, not substance.** Both F2 pushes were items that shared only a code name
+  with the change (`turn_cap`, `/api/rehearse/runs`). The agent said so, truly, in one reply. The
+  F3 push was minor but real. It missed one ignored item in F2 (a test item about the agent prompt,
+  which F2 rewrote) and one in F3 (dismissed under "and the rest", after the session had looked at it).
+- **New gap: a feature reversing an earlier feature's rule.** F3 made the mock tools hand typed answers
+  back to the agent, against F1's recorded "the agent is never sent them", and did not say it overrode
+  that rule or update the two doc lines. It also left F2 marked "not yet merged". Neither check looks
+  for this; it is piece 7 (standing rules as tests).
+- One test in the project's suite failed once in three runs after the merge (flaky); typecheck clean,
+  lint 0 errors.
+
+Next: keep both checks as they are. The push costs a turn on a shared name and catches little on its
+own, but it is what makes the instruction more than words; drop it only if a run shows the instruction
+alone holds. The reversed-rule gap goes to piece 7.
+
+Limits: one build per feature, one blind reviewer per build, not cross-checked. I built and tuned the
+checks on run 4's records, so run 5's F2 was the case the tuning was aimed at; F3 started from new
+records. Graders and reviewers were fresh agents with run 4's briefs.
