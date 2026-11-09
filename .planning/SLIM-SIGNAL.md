@@ -30,6 +30,21 @@ keeping the roadmap ranked by what matters.
    - **The files it is expected to touch** are listed in the item too. At the end, code checks the
      change against the list. Going outside it is allowed but must be explained; it is not blocked,
      because sensible builds in the Step 3 runs often touched a file nobody predicted.
+   - **Up to three sizes, one recommended.** This replaces calibration's tiers: the process is the
+     same every time; what is sized is the job. The agent drafts each with its spec, checks, expected
+     files and rough cost, and the person picks:
+     - *as asked*: the feature described;
+     - *deeper*: the same feature as a top professional would do it. The agent answers: what would
+       they do that is not being asked for; what raw material would they start from; which methods
+       and tools; what, other than the agent or the person, would show it is right;
+     - *higher*: the goal behind the goal ("keep it crash-free" rather than "fix this crash"), tied to
+       what the roadmap says the feature is for.
+   - **Can the agent check this itself?** Before a size is agreed: are there tests, test data, a way to
+     run it? If not, the first job is to make the work checkable. (Named earlier as the missing piece in
+     `analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`, environment readiness, and never built.)
+   - **Ambition is agreed here, never during the build.** Once a size is picked, the build stays inside
+     it and the expected-files list holds it there. A new idea during the build is filed, not built. In
+     Step 3 run 2, Signal built things nobody asked for; plain Claude Code did not.
 2. **Before a build: show the open problems.** Code, not an instruction to go and look: before the
    agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the files listed
    in the item, and must fix each one or say why it is leaving it.
@@ -96,7 +111,9 @@ weak, and the agent should stop only where a mistake is hard to undo. Its other 
 many agents in parallel, is now built into Claude Code itself, so Signal does not build it.
 
 The expected-files list (piece 1) is from an article on agent harnesses (x.com/marfinxx, 2026-11-05),
-changed from a hard block to a flag. That article's other ideas (a model per role, a working copy per
+changed from a hard block to a flag. The three sizes, the four "deeper" questions, the "can it check
+this itself" step and the "higher" goal are from Felix Rieseberg, *How to be more ambitious: a
+tutorial for humans with models* (felixrieseberg.com, 2026-10). The harness article's other ideas (a model per role, a working copy per
 task, a decision log file) are already in Claude Code or were tested here without helping.
 
 ## How it is proven, and when it is 2.0
