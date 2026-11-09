@@ -50,7 +50,10 @@ keeping the roadmap ranked by what matters.
    in the item, and must fix each one or say why it is leaving it.
    **Built 2026-11-08** as a hook (`show-open-items.js`). Until expected-files lists exist it shows
    the rest of the item's backlog section. First test (run 4): every relevant item seen, more acted on
-   than without it, but not most; see piece 5's next step.
+   than without it, but not most; see piece 5's next step. Shortened the same day: each open item's
+   opening and each bullet's lead with its code names and line number, done items as their limit lines
+   only. Run 4's text was 16 KB and Claude Code saved it to a file; on the same records it is now about
+   7 KB and shown inline.
 3. **Build: the agent works alone.** Tests first for each check. Builds until the suite, typecheck and
    lint pass. Makes routine calls itself and logs them. Stops only for a change of scope or something
    hard to undo (the shape of stored data, deletions, anything touching production or money).
@@ -64,8 +67,14 @@ keeping the roadmap ranked by what matters.
    named in its final message must exist as an item in the backlog or bugs file. If one is missing,
    the build is not done.
    **Built 2026-11-08** as a hook (`check-limits-filed.js`). Run 4: all three features filed their
-   limits as open items (none did without the checks). Next: also require each shown item that names a
-   file the change touched to be fixed or named in the final message with a reason.
+   limits as open items (none did without the checks). Added the same day: each shown item whose code
+   names (a file, or a name in backticks) appear in what the build changed must be fixed or named in
+   the final message, or the agent is sent back once. Replayed on run 4, it flags the items the grader
+   found ignored (F2's "replay setup" and long-file items, F3's "cost of failed calls" item), plus a
+   few that share only a name; a blanket "the rest are untouched" line no longer passes. Run 5 (F2 and
+   F3 again): acted-on 9 of 10 and 15 of 17, against 2 of 9 and 6 of 10; 3 of those after a push, the
+   rest from the shorter text and instruction. Found a new gap for piece 7: F3 reversed F1's recorded
+   rule without saying so.
 6. **A whole-codebase sweep now and then.** The review only reads the change, so code that no build
    touches is never checked. At the end of a build, if the last full sweep is older than a set limit,
    offer one (`/prose:audit`, a separate plugin on purpose). Its findings are filed like any others.

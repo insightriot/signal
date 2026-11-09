@@ -5,16 +5,17 @@
 // BUGS.md entries that name a file the section names. Claude Code adds a UserPromptSubmit hook's
 // stdout to the context, so the agent has the items before it reads anything.
 //
-// It also leaves a note (the entry's title and the records' text at this moment) for
-// `check-limits-filed.js`, which checks at the end that the limits the agent names were filed.
+// It also leaves a note for `check-limits-filed.js`: the entry's title, the records' text and the
+// commit at this moment, and the items it showed. At the end that hook checks the limits the agent
+// names were filed, and that each shown item naming code the build changed was fixed or named.
 //
 // Needs only a BACKLOG.md: no STATE.md, no phase. Anything it cannot read prints nothing.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 
-import { findTarget, parseEntries, relevantItems, renderBeforeBuild } from '../tools/lib/open-items.js';
-import { findRecordsRoot, notePath, readOr, recordsText } from './records-root.js';
+import { findTarget, parseEntries, relevantItems, renderBeforeBuild, shownItems } from '../tools/lib/open-items.js';
+import { findRecordsRoot, headCommit, notePath, readOr, recordsText } from './records-root.js';
 
 function main() {
   let event;
@@ -31,7 +32,7 @@ function main() {
   const target = findTarget(event.prompt, entries);
   if (!target) return 0;
   const items = relevantItems(target, entries, parseEntries(readOr(join(root, '.planning', 'BUGS.md'))));
-  writeFileSync(notePath(event.session_id, root), JSON.stringify({ title: target.title, records: recordsText(root) }));
+  writeFileSync(notePath(event.session_id, root), JSON.stringify({ title: target.title, records: recordsText(root), base: headCommit(root), items: shownItems(items) }));
   process.stdout.write(renderBeforeBuild(target, items) + '\n');
   return 0;
 }

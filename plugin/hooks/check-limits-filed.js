@@ -9,6 +9,9 @@
 // - the entry being built is still open and now carries those limits.
 // When the entry was marked done with the limits written inside it, the message says so: the
 // project removes done entries, and the limits go with them (Step 3 runs 2 and 3).
+// It also sends the agent back when an item the before-check showed names code the build changed
+// (a file, or a code name in the diff) and the agent neither fixed it nor named it in the final
+// message (Step 3 run 4: items seen, the exact lines edited, the item not mentioned).
 //
 // It sends the agent back at most once per build. Second stop (`stop_hook_active`), no note, or
 // anything it cannot read: the stop happens.
@@ -16,8 +19,8 @@
 import { readFileSync, rmSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 
-import { checkFiled } from '../tools/lib/open-items.js';
-import { findRecordsRoot, notePath, recordsText } from './records-root.js';
+import { checkFiled, unaddressedItems } from '../tools/lib/open-items.js';
+import { changeSince, findRecordsRoot, notePath, recordsText } from './records-root.js';
 
 /** The last assistant text in a transcript, for a Claude Code that does not send `last_assistant_message`. */
 function lastFromTranscript(path) {
@@ -59,18 +62,30 @@ function main() {
   }
   const message =
     typeof event.last_assistant_message === 'string' ? event.last_assistant_message : event.transcript_path ? lastFromTranscript(event.transcript_path) : '';
-  const r = checkFiled({ message, before: note.records, after: recordsText(root), targetTitle: note.title });
-  if (r.ok) {
+  const after = recordsText(root);
+  const r = checkFiled({ message, before: note.records, after, targetTitle: note.title });
+  const change = note.base && Array.isArray(note.items) ? changeSince(root, note.base) : { files: [], diff: '' };
+  const missed = note.base && Array.isArray(note.items) ? unaddressedItems({ items: note.items, ...change, message, after }) : [];
+  if (r.ok && missed.length === 0) {
     rmSync(notePath(event.session_id, root), { force: true });
     return 0;
   }
-  process.stderr.write(
-    `Signal: your final message names ${r.limits.length} limit${r.limits.length === 1 ? '' : 's'} or follow-up${r.limits.length === 1 ? '' : 's'}, and none is filed as an open item:\n` +
-      r.limits.slice(0, 12).map((l) => `- ${l}\n`).join('') +
-      (r.buried ? `They are written inside "${note.title}", which is now marked done; done entries get removed, and the limits go with them.\n` : '') +
-      `File each one as its own open entry in .planning/BACKLOG.md (BUGS.md for a bug), or as bullets under one new open "${note.title} follow-ups" entry, and commit it. ` +
-      `If a line above is not a real limit, say so in one line instead.\n`,
-  );
+  const parts = [];
+  if (!r.ok)
+    parts.push(
+      `Signal: your final message names ${r.limits.length} limit${r.limits.length === 1 ? '' : 's'} or follow-up${r.limits.length === 1 ? '' : 's'}, and none is filed as an open item:\n` +
+        r.limits.slice(0, 12).map((l) => `- ${l}\n`).join('') +
+        (r.buried ? `They are written inside "${note.title}", which is now marked done; done entries get removed, and the limits go with them.\n` : '') +
+        `File each one as its own open entry in .planning/BACKLOG.md (BUGS.md for a bug), or as bullets under one new open "${note.title} follow-ups" entry, and commit it. ` +
+        `If a line above is not a real limit, say so in one line instead.\n`,
+    );
+  if (missed.length)
+    parts.push(
+      `Signal: ${missed.length} item${missed.length === 1 ? '' : 's'} shown before the build name${missed.length === 1 ? 's' : ''} code this build changed, and your final message neither says ${missed.length === 1 ? 'it was' : 'they were'} fixed nor names ${missed.length === 1 ? 'it' : 'them'}:\n` +
+        missed.slice(0, 12).map((m) => `- "${m.lead}" (${m.where}; ties to \`${m.token}\`)\n`).join('') +
+        `For each one: fix it now, or name it in your final message with your reason for leaving it. If the tie is only a shared name and the item is unrelated, say that in one line.\n`,
+    );
+  process.stderr.write(parts.join('\n'));
   return 2;
 }
 
