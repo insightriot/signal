@@ -127,6 +127,7 @@ export function renderBeforeBuild(target, { open, done, bugs }) {
     'When you finish, file every limit or follow-up you name as its own open entry in .planning/BACKLOG.md ' +
       '(or BUGS.md for a bug), or as bullets under one new open "<feature> follow-ups" entry. ' +
       'Not as sentences inside the entry you mark done.',
+    'When a rule here or in an instruction file says something is never or always done, a test for it checks everything that leaves (every message, every route), not one field: a later change can add a route the field check never sees.',
   ].join('\n');
   let text = parts.join('\n');
   const room = MAX_CHARS - closing.length - 80;
@@ -253,4 +254,35 @@ export function unaddressedItems({ items, files, diff, message, after }) {
     out.push({ where: it.where, lead: lead.slice(0, 140), token });
   }
   return out;
+}
+
+/**
+ * A sentence that states a standing rule: never, always, only when, must not. Narrow on purpose: the
+ * rule lines are shown to the agent after the build, and every extra one costs reading time.
+ */
+const RULE_RE = /\b(?:never|always|only (?:when|if|for|to)|must not|no longer)\b/i;
+
+/** The rule sentences of a doc, with their line numbers. A long bullet is split into its sentences. */
+export function ruleSentences(md) {
+  const out = [];
+  let fence = false;
+  String(md ?? '').split(/\r?\n/).forEach((line, i) => {
+    if (FENCE_RE.test(line)) fence = !fence;
+    if (fence) return;
+    for (const s of line.replace(BULLET_RE, '').split(/(?<=[.;])\s+(?=[A-Z*`(])/))
+      if (RULE_RE.test(s)) out.push({ line: i + 1, text: s.replace(/\*\*/g, '').trim() });
+  });
+  return out;
+}
+
+/**
+ * The instruction files (AGENTS.md, CLAUDE.md) that govern the changed files: those in a changed
+ * file's folder or a folder above it, but not the top level, which every session reads already.
+ * Paths are from the git top level.
+ */
+export function governingDocs(files, docPaths) {
+  const dirOf = (p) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
+  const dirs = new Set();
+  for (const f of files) for (let d = dirOf(f); d; d = dirOf(d)) dirs.add(d);
+  return docPaths.filter((p) => /(^|\/)(AGENTS|CLAUDE)\.md$/.test(p) && dirs.has(dirOf(p)));
 }
