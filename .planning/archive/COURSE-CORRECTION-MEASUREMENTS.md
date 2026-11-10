@@ -378,7 +378,7 @@ What it shows:
   100 answers) were ignored in the final message before any push; one more (Sentry request bodies)
   was not named. Whether that is run-to-run variance or the one added sentence, one run cannot say.
 - **F3's drop is partly grading.** Run 5's grader counted "outside this feature" as a reason and left
-  out the M3.0.E2 review items as file-only overlap; run 6's grader counted names without a reason, or
+  out one earlier review's items as file-only overlap; run 6's grader counted names without a reason, or
   eight items under one reason, as not acted on, and included those items. The two cannot be put on
   one list. F3 did name every item it was shown, one by one; many had no reason.
 - **F3 medium #2** (a tool whose input the make-up call left empty finds the record whatever the agent
