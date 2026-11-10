@@ -334,3 +334,63 @@ alone holds. The reversed-rule gap goes to piece 7.
 Limits: one build per feature, one blind reviewer per build, not cross-checked. I built and tuned the
 checks on run 4's records, so run 5's F2 was the case the tuning was aimed at; F3 started from new
 records. Graders and reviewers were fresh agents with run 4's briefs.
+
+## Step 3, run 6: standing rules shown at the end, features 2 and 3 again (2026-11-09)
+
+What changed from run 5: the end check also lists the "never / always / only when" sentences of the
+`AGENTS.md` and `CLAUDE.md` files in the folders the build changed, as they stood at the start, and
+asks which the change breaks (SLIM-SIGNAL piece 7). The before-build text gained one sentence: a test
+for a never/always rule checks every route out, not one field. Why: in runs 3 and 5, F3 reversed F1's
+recorded rule (typed answers are never sent to the agent) without saying so; in run 5 F1 had tests for
+the rule and they passed, because they checked the system prompt and F3 added tool results.
+Matching rules to the change by code name was tried first on replay and missed: the rule was in plain
+words, and the code used other names. Same base (b67dc2c), prompts, model, flags; fresh clone with no
+run 5 branches. Rule written before the run.
+
+| | Run 5 | Run 6 |
+|---|---|---|
+| F3 reversed a recorded rule without saying so | yes (F1's typed-answers rule) | no (F3 kept it: tools return only system-record entries) |
+| Stale rule lines caught by the rule list | (no rule list) | 1, real: F2's "the make-up call is unchanged", fixed after the push |
+| Rule lines wrongly claimed broken | | 0 of 13 (F2), 0 of 14 (F3) |
+| Extra pushes from the rule list | | 0: both pushes would have happened for items anyway |
+| Acted on, F2 (run 5's list of 10, same records) | 9 | 7 |
+| Acted on, F3 (each run's own grader) | 15 of 17 | 8 of 20 |
+| Records score, F2 / F3 | 6 / 4 | 6 / 4.5 |
+| Defects, F2 | 0 serious, 1 medium, 1 cosmetic | 0 serious, 1 medium, 2 cosmetic |
+| Defects, F3 | 1 serious, 2 medium | 0 serious, 4 medium |
+| Step-ins | 0 | 0 |
+| Time / cost, F2+F3 | 35 min / $22 | 43 min / $23.6 (+23%, +7%) |
+
+**Under the rule fixed before the run, it fails:** acted-on fell by more than one item on F2. Every
+other line of the bar holds.
+
+What it shows:
+- **The rule list did one real thing:** it put F2's "the make-up call is unchanged" in front of F3,
+  which had made it false, and F3 fixed it. The grader confirmed the catch. No false claims, and no
+  extra turn, because the item check was pushing anyway.
+- **F3 not reversing F1's rule cannot be put down to the check.** F3 settled that design before the
+  end check ran, and earlier F3 builds reversed the rule silently in 2 of 5. One clean run is weak.
+- **The "test every route" sentence had no effect seen:** F3 wrote no test that typed answers never
+  reach the agent through a tool result.
+- **The rule list's limit:** a stale line with no never/always word ("Both wrappers say every lookup
+  and action succeeds at once") was not listed and stayed stale. Not widened on one case.
+- **F2's drop is real on identical records:** two items (a remembered answer sent as a fact, more than
+  100 answers) were ignored in the final message before any push; one more (Sentry request bodies)
+  was not named. Whether that is run-to-run variance or the one added sentence, one run cannot say.
+- **F3's drop is partly grading.** Run 5's grader counted "outside this feature" as a reason and left
+  out the M3.0.E2 review items as file-only overlap; run 6's grader counted names without a reason, or
+  eight items under one reason, as not acted on, and included those items. The two cannot be put on
+  one list. F3 did name every item it was shown, one by one; many had no reason.
+- **F3 medium #2** (a tool whose input the make-up call left empty finds the record whatever the agent
+  passes) is the same kind of bug as run 5's serious one, rated differently by a different reviewer.
+  Not counted as an improvement.
+- Two slips for piece 5, filed here, not fixed: a later F3 commit made its own BACKLOG note false ("the
+  agent never sees those entries" does not hold for a tool from an earlier phase), and a full-suite
+  failure it could not identify (possibly flaky) was named only in chat, not filed.
+
+Next, proposed: one more F2 on a fresh clone, same hooks, to see whether 7 of 10 is noise (about 12
+min, $8). The run 6 verdict stands whatever it shows.
+
+Limits: one build per feature, one blind reviewer per build, one grader. Graders differed in how
+strictly they counted, so F3's acted-on is not comparable across runs. I built the check and replayed
+it on runs 3 and 5.

@@ -98,8 +98,12 @@ keeping the roadmap ranked by what matters.
    to say which its change breaks or narrows and update those lines, or to say in one line that it
    keeps them all. A sentence the agent rewrote is not shown. On replay that is 13 sentences for each of
    F2 and F3 in run 5, and both lines F3 left stale are among them; in run 3's F3, the rule it broke is
-   too. It pushes about once per build, which is the cost. The before-build text now also says a test
-   for a never/always rule must check every route out.
+   too. The before-build text now also says a test for a never/always rule must check every route out.
+   Run 6 (F2, F3): the list caught one real stale rule (F2's "the make-up call is unchanged", which F3
+   made false and then fixed), with no false claims and no extra push. F3 did not reverse F1's rule
+   this time, but it settled that before the check ran, so that is not the check's doing. The "every
+   route" sentence produced no such test. A stale line with no never/always word was missed. The run
+   failed its bar on F2's acted-on (7 of 10 against 9); whether that is noise is not yet known.
 8. **Rank the backlog by real impact.** When the backlog is ordered, a problem that hurts real users
    goes ahead of new features, with the reason written down.
 
