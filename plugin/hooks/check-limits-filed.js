@@ -9,9 +9,9 @@
 // - the entry being built is still open and now carries those limits.
 // When the entry was marked done with the limits written inside it, the message says so: the
 // project removes done entries, and the limits go with them (Step 3 runs 2 and 3).
-// It also sends the agent back when an item the before-check showed names code the build changed
-// (a file, or a code name in the diff) and the agent neither fixed it nor named it in the final
-// message (Step 3 run 4: items seen, the exact lines edited, the item not mentioned).
+// It also sends the agent back when an item the before-check showed has no line of its own in the
+// final message: named alone, with a reason (Step 3 run 4: items seen, the exact lines edited, the
+// item not mentioned; runs 5 to 7: items left under one shared reason, or named with none).
 // And it shows the standing rules ("never", "always", "only when" sentences) of the AGENTS.md and
 // CLAUDE.md files in the folders the build changed, as they stood when the build started, and asks
 // the agent to say which ones its change affects (Step 3 runs 3 and 5: a later feature reversed an
@@ -68,7 +68,7 @@ function main() {
   const message =
     typeof event.last_assistant_message === 'string' ? event.last_assistant_message : event.transcript_path ? lastFromTranscript(event.transcript_path) : '';
   const after = recordsText(root);
-  const r = checkFiled({ message, before: note.records, after, targetTitle: note.title });
+  const r = checkFiled({ message, before: note.records, after, targetTitle: note.title, items: Array.isArray(note.items) ? note.items : [] });
   const change = note.base && Array.isArray(note.items) ? changeSince(root, note.base) : { files: [], diff: '' };
   const missed = note.base && Array.isArray(note.items) ? unaddressedItems({ items: note.items, ...change, message, after }) : [];
   const rules = note.base && change.files.length ? rulesAtBase(root, note.base, change.files).filter((x) => x.kept) : [];
@@ -87,9 +87,11 @@ function main() {
     );
   if (missed.length)
     parts.push(
-      `Signal: ${missed.length} item${missed.length === 1 ? '' : 's'} shown before the build name${missed.length === 1 ? 's' : ''} code this build changed, and your final message neither says ${missed.length === 1 ? 'it was' : 'they were'} fixed nor names ${missed.length === 1 ? 'it' : 'them'}:\n` +
-        missed.slice(0, 12).map((m) => `- "${m.lead}" (${m.where}; ties to \`${m.token}\`)\n`).join('') +
-        `For each one: fix it now, or name it in your final message with your reason for leaving it. If the tie is only a shared name and the item is unrelated, say that in one line.\n`,
+      `Signal: ${missed.length} item${missed.length === 1 ? '' : 's'} shown before the build ${missed.length === 1 ? 'has' : 'have'} no line of ${missed.length === 1 ? 'its' : 'their'} own in your final message:\n` +
+        missed.slice(0, 60).map((m) => `- "${m.lead}" (${m.where}${m.token ? `; your change touches \`${m.token}\`` : ''})\n`).join('') +
+        (missed.length > 60 ? `(${missed.length - 60} more)\n` : '') +
+        `Give each one its own line: its words, then "fixed", or "left, because" and a reason about that item ("unrelated, because" and what it is about counts). ` +
+        `A line naming several items counts for none of them. Fix any you now see your change affects.\n`,
     );
   if (rules.length)
     parts.push(

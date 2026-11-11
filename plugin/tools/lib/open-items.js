@@ -121,9 +121,10 @@ export function renderBeforeBuild(target, { open, done, bugs }) {
   ];
   if (bugs.length) parts.push('Open bugs that name a file this section names:', ...bugs.map((e) => compact(e, 'BUGS.md')));
   const closing = [
-    'Before you edit any code, decide for each item or limit above that touches what you are about to change: ' +
-      'fix it in this build, or name it in your final message (its words, or the code name it mentions) with your reason for leaving it. ' +
-      'One line covering "the rest" does not count: at the end, an item that names code you changed and is neither fixed nor named sends you back once.',
+    'Before you edit any code, decide for each item or limit above: fix it in this build, or leave it with a reason. ' +
+      'In your final message, give every item above its own line: its words (or the code name it mentions), then "fixed", or "left, because" and a reason about that item ' +
+      '("unrelated, because" and what it is about counts). A line that names several items counts for none of them, and a name with no reason does not count: ' +
+      'at the end, an item without its own line sends you back once.',
     'When you finish, file every limit or follow-up you name as its own open entry in .planning/BACKLOG.md ' +
       '(or BUGS.md for a bug), or as bullets under one new open "<feature> follow-ups" entry. ' +
       'Not as sentences inside the entry you mark done.',
@@ -164,10 +165,11 @@ export function limitLines(message) {
  * Whether the limits named were filed. `before` and `after` are BACKLOG.md + BUGS.md text at the
  * start and end of the build. Filed means: at least one open entry exists after that did not
  * before. The target entry, when it is now done and its body carries limit lines that were not
- * there before, is reported as `buried`.
+ * there before, is reported as `buried`. A limit line that names an item shown before the build
+ * (`items`) is that item, already filed, not a new limit.
  */
-export function checkFiled({ message, before, after, targetTitle }) {
-  const limits = limitLines(message);
+export function checkFiled({ message, before, after, targetTitle, items = [] }) {
+  const limits = limitLines(message).filter((l) => !items.some((it) => namesItem(it, l)));
   if (limits.length === 0) return { ok: true, limits };
   const key = (e) => norm(e.title);
   const had = new Set(parseEntries(before).filter((e) => !e.done).map(key));
@@ -199,21 +201,23 @@ export function codeTokens(text) {
 
 /**
  * The items shown before the build, one per bullet: each bullet of an open entry (the whole body
- * when it has none), each limit line of a done entry, each open bug.
+ * when it has none), each limit line of a done entry, each open bug. An item with no code name is kept
+ * too: the end check matches it by the words of its lead.
  * @returns {{where:string, text:string, lead:string, tokens:string[]}[]}
  */
 export function shownItems({ open, done, bugs }) {
   const items = [];
   const add = (where, text, lead = leadOf(text)) => {
     const tokens = codeTokens(`${lead} ${text}`);
-    if (tokens.length) items.push({ where, text: text.trim(), lead, tokens });
+    items.push({ where, text: text.trim(), lead, tokens });
   };
   for (const e of open) {
     const bullets = e.body.split(/\n(?=\s*[-*] )/).filter((b) => BULLET_RE.test(b));
     if (bullets.length) bullets.forEach((b) => add(e.title, b.replace(BULLET_RE, '')));
     else add(e.title, e.body);
   }
-  for (const e of done) for (const l of limitLines(e.body)) add(e.title, l);
+  // A done entry's limit is named by the words after its label ("Built. Known limits: the list…").
+  for (const e of done) for (const l of limitLines(e.body)) add(e.title, l, leadOf(l.replace(/^.*?\b(?:known limits?|limitations?|limits)\s*:\s*/i, '')));
   for (const b of bugs) add(b.title, b.body, b.title);
   return items;
 }
@@ -228,31 +232,58 @@ const leadOf = (text) => {
   return lead.replace(/\*\*|`/g, '').replace(/\s+/g, ' ').trim();
 };
 const words = (s) => norm(s).split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+/** Whether a line names a shown item: one of its code names, or two-thirds of the words of its lead. */
+const namesItem = (it, line) => {
+  if (it.tokens.some((t) => mentions(line, t))) return true;
+  const lw = words(it.lead ?? leadOf(it.text));
+  const ws = new Set(words(line));
+  return lw.length >= 2 && lw.filter((w) => ws.has(w)).length / lw.length >= 2 / 3;
+};
+
+/** Words that say what happened to an item but not why; they do not count toward a reason. */
+const STATUS_WORDS = new Set(
+  'fixed left open still true unrelated related change changed this that item items these those with from have here there about done leave leaving untouched touch touched build feature same also again later'.split(' '),
+);
+const tieOf = (it, files, diff) =>
+  it.tokens.find((t) => files.some((f) => f === t || f.endsWith('/' + t) || (f.endsWith('/' + t.split('/').pop()) && t.includes('.'))) || mentions(diff, t));
 
 /**
- * The shown items the change touched and the agent neither fixed nor named. An item is touched when
- * one of its code tokens names a changed file or appears in the change's diff. It counts as dealt
- * with when its text no longer appears in the records (fixed, rewritten or removed), or the final
- * message mentions one of its tokens, or one line of the message carries two-thirds of the words of
- * its lead (one line, so a long message does not match every lead by chance).
- * @returns {{where:string, lead:string, token:string}[]}
+ * The shown items the final message does not answer one by one (Step 3 runs 5 to 7: items named in a
+ * group under one reason, or by name only, were the main misses). An item is answered when its text
+ * no longer appears in the records (fixed, rewritten or removed), or one line of the message names it
+ * (one of its code names, or two-thirds of the words of its lead), names no other shown item, and
+ * carries at least four words of its own beyond the item's words and words like "left" or "unrelated".
+ * Every shown item is checked, not only those whose code the change touched; `token` is set when it
+ * did, so those can be listed first.
+ * @returns {{where:string, lead:string, token:string|undefined}[]}
  */
 export function unaddressedItems({ items, files, diff, message, after }) {
   const afterText = norm(after);
-  const msg = String(message ?? '');
-  const msgLines = msg.split(/\n+/).map((l) => new Set(words(l)));
+  const lines = String(message ?? '').split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  const leadWords = items.map((it) => words(it.lead ?? leadOf(it.text)));
+  // A code name two items share (a bug and a follow-up about the same file) names the one whose lead
+  // words the line carries most; on a tie, neither.
+  const owners = new Map();
+  items.forEach((it, i) => it.tokens.forEach((t) => owners.set(t, [...(owners.get(t) ?? []), i])));
+  const overlap = (i, ws) => (leadWords[i].length ? leadWords[i].filter((w) => ws.has(w)).length / leadWords[i].length : 0);
+  const byToken = (i, t, line, ws) => {
+    if (!mentions(line, t)) return false;
+    const others = owners.get(t).filter((j) => j !== i);
+    return others.every((j) => overlap(i, ws) > overlap(j, ws));
+  };
+  const names = (i, line, ws) => items[i].tokens.some((t) => byToken(i, t, line, ws)) || (leadWords[i].length >= 2 && leadWords[i].filter((w) => ws.has(w)).length / leadWords[i].length >= 2 / 3);
+  const named = lines.map((line) => {
+    const ws = new Set(words(line));
+    return items.map((_, i) => names(i, line, ws));
+  });
   const out = [];
-  for (const it of items) {
-    const token = it.tokens.find((t) => files.some((f) => f === t || f.endsWith('/' + t) || f.endsWith('/' + t.split('/').pop()) && t.includes('.')) || mentions(diff, t));
-    if (!token) continue;
-    if (!afterText.includes(norm(it.text).slice(0, 80))) continue;
-    if (it.tokens.some((t) => mentions(msg, t))) continue;
-    const lead = it.lead ?? leadOf(it.text);
-    const lw = words(lead);
-    if (lw.length >= 2 && msgLines.some((ws) => lw.filter((w) => ws.has(w)).length / lw.length >= 2 / 3)) continue;
-    out.push({ where: it.where, lead: lead.slice(0, 140), token });
-  }
-  return out;
+  items.forEach((it, i) => {
+    if (!afterText.includes(norm(it.text).slice(0, 80))) return;
+    const own = new Set([...leadWords[i], ...it.tokens.flatMap((t) => words(t))]);
+    const answered = lines.some((line, j) => named[j][i] && named[j].filter(Boolean).length === 1 && words(line).filter((w) => !own.has(w) && !STATUS_WORDS.has(w)).length >= 4);
+    if (!answered) out.push({ where: it.where, lead: (it.lead ?? leadOf(it.text)).slice(0, 140), token: tieOf(it, files, diff) });
+  });
+  return out.sort((a, b) => Number(!a.token) - Number(!b.token));
 }
 
 /**

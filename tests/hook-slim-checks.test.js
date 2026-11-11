@@ -41,6 +41,12 @@ Seen in \`src/beds/Bed.tsx\`.
 In \`src/accounts/avatar.ts\`.
 `;
 
+const ANSWERED = [
+  '- `src/beds/Bed.tsx` is too big: left, because splitting it is a separate job that needs its own tests.',
+  '- Bed page loses its scroll position: left, because the reminders never render on that page.',
+  '- The list is not remembered across visits: left, because remembering it needs accounts first.',
+].join('\n');
+
 describe('open-items.js', () => {
   it('reads entries with their section and whether they are done', () => {
     const e = parseEntries(BACKLOG);
@@ -96,21 +102,39 @@ describe('open-items.js', () => {
     const lt = findTarget('Planner: water reminders', le);
     const big = renderBeforeBuild(lt, relevantItems(lt, le, []));
     expect(big.length).toBeLessThan(10000);
-    expect(big).toMatch(/sends you back once\.\n.*Not as sentences inside the entry you mark done\.$/s);
+    expect(big).toMatch(/without its own line sends you back once\.\n.*Not as sentences inside the entry you mark done\.$/s);
   });
 
-  it('ties a shown item to a change by a file or code name, and lets it go once fixed or named', () => {
+  it('wants each shown item on its own line with a reason; a shared line or a bare name counts for none', () => {
     expect(codeTokens('`GET /runs/latest-call` from `madeUpInCall`, `settings.values`, `facts`, `src/a.ts`')).toEqual(['/runs/latest-call', 'madeUpInCall', 'settings.values', 'src/a.ts']);
     const e = parseEntries(BACKLOG);
     const items = shownItems(relevantItems(findTarget('Planner: water reminders', e), e, parseEntries(BUGS)));
+    // An item with no code name is kept: the done entry's limit.
+    expect(items.map((i) => i.lead)).toEqual(['src/beds/Bed.tsx is too big.', 'the list is not remembered across visits.', 'Bed page loses its scroll position']);
     const base = { items, files: ['src/beds/Bed.tsx'], diff: '+ x', after: BACKLOG + BUGS };
-    const missed = unaddressedItems({ ...base, message: 'Built the reminders. Left the rest as they are.' });
-    expect(missed.map((m) => m.lead)).toEqual(['src/beds/Bed.tsx is too big.', 'Bed page loses its scroll position']);
-    expect(unaddressedItems({ ...base, message: 'Left `src/beds/Bed.tsx` as it is: splitting it is its own job.' })).toEqual([]);
-    expect(unaddressedItems({ ...base, files: ['src/other.ts'], message: 'Done.' })).toEqual([]);
-    expect(unaddressedItems({ ...base, after: '', message: 'Done.' })).toEqual([]);
+    const leads = (message, extra = {}) => unaddressedItems({ ...base, ...extra, message }).map((m) => m.lead);
+    // Items whose code the change touched come first.
+    expect(unaddressedItems({ ...base, message: 'Built the reminders. Left the rest as they are.' }).map((m) => [m.lead, m.token])).toEqual([
+      ['src/beds/Bed.tsx is too big.', 'src/beds/Bed.tsx'],
+      ['Bed page loses its scroll position', 'src/beds/Bed.tsx'],
+      ['the list is not remembered across visits.', undefined],
+    ]);
+    expect(leads(ANSWERED)).toEqual([]);
+    // One line naming two items counts for neither.
+    expect(leads('- Left `src/beds/Bed.tsx` and the bed page scroll position: both need a design pass first.\n- The list is not remembered across visits: left, because it needs accounts first.')).toEqual([
+      'src/beds/Bed.tsx is too big.',
+      'Bed page loses its scroll position',
+    ]);
+    // A bare name, or a status with no reason, does not count.
+    for (const line of ['`src/beds/Bed.tsx`: left.', '`src/beds/Bed.tsx`: still true.', '`src/beds/Bed.tsx`: carried into the new entry.', '`src/beds/Bed.tsx`: left, it matters more now.'])
+      expect(leads(line)).toContain('src/beds/Bed.tsx is too big.');
+    // Restating a shown item is not a new limit to file.
+    expect(checkFiled({ message: ANSWERED, before: BACKLOG, after: BACKLOG, targetTitle: 'Planner: water reminders' }).ok).toBe(false);
+    expect(checkFiled({ message: ANSWERED, before: BACKLOG, after: BACKLOG, targetTitle: 'Planner: water reminders', items }).ok).toBe(true);
+    // Fixed or rewritten in the records: dealt with.
+    expect(leads('Done.', { after: '' })).toEqual([]);
     // A long message does not match a lead by chance: the words must sit on one line.
-    expect(unaddressedItems({ ...base, message: 'The page loads.\nIts scroll is fine.\nPosition kept.\nNothing loses.' })).toHaveLength(2);
+    expect(leads('The page loads.\nIts scroll is fine.\nPosition kept.\nNothing loses.')).toHaveLength(3);
   });
 
   it('finds rule sentences in a doc, and the instruction files that govern the changed files', () => {
@@ -164,7 +188,7 @@ describe('show-open-items.js and check-limits-filed.js', () => {
     expect(r.status).toBe(0);
   });
 
-  it('sends the agent back once when an item naming a changed file is neither fixed nor named', () => {
+  it('sends the agent back once when a shown item has no line of its own, and lets it go once each has one', () => {
     const dir = project();
     mkdirSync(join(dir, 'src', 'beds'), { recursive: true });
     writeFileSync(join(dir, 'src', 'beds', 'Bed.tsx'), 'export const Bed = 1;\n');
@@ -176,13 +200,15 @@ describe('show-open-items.js and check-limits-filed.js', () => {
     const stop = { hook_event_name: 'Stop', session_id: session, cwd: dir, last_assistant_message: 'Built the reminders. All tests pass.' };
     const r = run('check-limits-filed.js', stop);
     expect(r.status).toBe(2);
-    expect(r.stderr).toMatch(/2 items shown before the build name code this build changed/);
-    expect(r.stderr).toMatch(/Bed page loses its scroll position/);
+    expect(r.stderr).toMatch(/3 items shown before the build have no line of their own in your final message/);
+    expect(r.stderr).toMatch(/- "Bed page loses its scroll position" \(Bed page loses its scroll position; your change touches `src\/beds\/Bed\.tsx`\)/);
+    expect(r.stderr).toMatch(/- "the list is not remembered across visits\." \(Planner: plant list per bed\)\n/);
+    expect(r.stderr).toMatch(/A line naming several items counts for none of them/);
     expect(run('check-limits-filed.js', { ...stop, stop_hook_active: true }).status).toBe(0);
 
     const s2 = randomUUID();
     run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s2, cwd: dir, prompt: 'Planner: water reminders' });
-    const named = run('check-limits-filed.js', { ...stop, session_id: s2, last_assistant_message: 'Built it. I left `src/beds/Bed.tsx` alone: the split is its own job.' });
+    const named = run('check-limits-filed.js', { ...stop, session_id: s2, last_assistant_message: `Built it.\n${ANSWERED}` });
     expect(named.status).toBe(0);
   });
 
@@ -219,7 +245,7 @@ describe('show-open-items.js and check-limits-filed.js', () => {
     execFileSync('git', ['checkout', '-q', '--', 'src'], { cwd: dir });
     run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s3, cwd: dir, prompt: 'Planner: water reminders' });
     writeFileSync(join(dir, 'top.ts'), 'export {};\n');
-    expect(run('check-limits-filed.js', { ...stop, session_id: s3 }).status).toBe(0);
+    expect(run('check-limits-filed.js', { ...stop, session_id: s3, last_assistant_message: ANSWERED }).status).toBe(0);
   });
 
   it('does nothing for a prompt that names no entry, or a project with no BACKLOG.md', () => {
