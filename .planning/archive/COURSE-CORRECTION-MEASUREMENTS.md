@@ -439,3 +439,51 @@ Limits: three F2 builds and two F3 builds. Labels hid run numbers, but the repo 
 One grader per feature. Two borderline calls are listed in the grader's notes (run 5's F2 could be
 7, run 7's could be 5). Run 6's F3 line in the section above ("not comparable") is replaced by this.
 
+## Step 3, run 8: one line per shown item, F2 (2026-11-10)
+
+What changed: the before-build text asks for every shown item to get its own line in the final
+message, with "fixed" or a reason about that item; a line naming several items counts for none. The
+end check now covers every shown item (not only those whose code the build touched), keeps items with
+no code name, and sends the agent back once for any item without a line that names it alone and carries
+at least four words of reason. A limit line that restates a shown item is no longer read as a new limit.
+Why: on one sheet, runs 5-7 missed mostly by leaving items under one shared reason, or by name only,
+and items whose code was untouched were never checked. Same base, prompt, model, flags; fresh clone;
+hooks pinned at 65873fe2. Rule for reading it written before the run. All four F2 builds were graded
+again together by one grader (letters shuffled), so runs 5-7 moved by one item each from the
+three-way grading (8, 6, 6 → 8, 5, 7): that is the grader-to-grader spread.
+
+| F2, same 14 items, one grader | Run 5 | Run 6 | Run 7 | Run 8 |
+|---|---|---|---|---|
+| Acted on | 8 | 5 | 7 | **13** |
+| of those, after the push | 2 | 1 | 2 | 1 |
+| Reasons that only restate what the item is about (true / given) | 3/4 | 3/3 | 3/3 | 10/12 |
+| Broke a recorded rule without saying so | no | no | no | no |
+| Records score | 6 | 5.5 | 6 | 6 |
+| Time / cost | 9 min / $7.0 | 11 min / $7.7 | 16 min / $9.8 | 14 min / $8.6 |
+| Items the end check sent back | | | | 29 of 36 |
+| of the 14, sent back though already answered (false flags) | | | | 7 |
+
+**Under the rule fixed before the run, it fails:** 7 of the 14 were sent back though the grader
+counts them answered (bar: at most 2). Acted-on (bar: 9), time, cost, rules and records all pass.
+
+What it shows:
+- **The gain came before the end check ran.** The main report already gave all 36 shown items a
+  line each, one by one; 12 of the 14 counted from it. So the before-build instruction did the work.
+- **The end check's reason rule is too strict for short true reasons.** "Continue right after the
+  cap: unrelated, because it's about the Continue button and the turn cap" has three words of its own
+  beyond the item's, so it was sent back. On paper, two words would cut false flags across runs 5-8
+  from 9 to 5, but would also pass "left, it matters more now" and run 8's long but false Sentry
+  reason.
+- **The push still found the one real miss:** rereading the 29 lines, the agent saw that its change
+  now puts user text in the request body the Sentry item is about, which its main report had called
+  unrelated, and filed it. A word count cannot tell a true reason from a false one, so the
+  threshold is left at four and the false flags are accepted for now: they cost one turn, within time.
+- **10 of 13 rest on "unrelated, because it's about X".** The grader checked each against the diff and
+  all 10 hold. That is what the sheet asks for, but it is a light kind of acting on: it says the item
+  was looked at and set aside correctly, not that anything was fixed.
+- E1-small (the `RehearsalSetup.tsx` size) was missed by three of four builds the same way: they
+  answered the stop-route half only.
+
+Limits: one build. I tuned the four-word rule on runs 5-7 before the run. No blind defect review this
+time (F2's defects have been 0 serious in every run).
+

@@ -82,6 +82,12 @@ keeping the roadmap ranked by what matters.
    F3 again): acted-on 9 of 10 and 15 of 17, against 2 of 9 and 6 of 10; 3 of those after a push, the
    rest from the shorter text and instruction. Found a new gap for piece 7: F3 reversed F1's recorded
    rule without saying so.
+   Changed 2026-11-10 (run 8): every shown item needs its own line in the final message, with "fixed"
+   or a reason about it; a line naming several items counts for none, and the end check covers every
+   shown item, not only those whose code changed. F2 acted on 13 of 14 on the fixed sheet (runs 5-7:
+   8, 5, 7), mostly from the instruction before any push. The end check sent back 7 of the 14 that were
+   already answered, because short true reasons fall under its four-word rule; it also found the one
+   real miss. Left as is until F3 (the longest list) has been run with it.
 6. **A whole-codebase sweep now and then.** The review only reads the change, so code that no build
    touches is never checked. At the end of a build, if the last full sweep is older than a set limit,
    offer one (`/prose:audit`, a separate plugin on purpose). Its findings are filed like any others.
