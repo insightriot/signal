@@ -92,6 +92,9 @@ keeping the roadmap ranked by what matters.
    from the before-build instruction. The end check's item push sent back 35 of 42, 14 of them
    already acted on, for 2 gained; no reason threshold gets it under 3 false flags. Its rules part
    made F3 say it narrowed F1's typed-answers rule and fix the docs.
+   Changed 2026-11-11 (run 10): the item send-back is removed; the before-build request for one line
+   per item, the limits check and the rules check stay. F2 13 of 14 and F3 15 of 17, the same as
+   runs 8 and 9 graded again, with no send-back for items, in the same time and cost.
 6. **A whole-codebase sweep now and then.** The review only reads the change, so code that no build
    touches is never checked. At the end of a build, if the last full sweep is older than a set limit,
    offer one (`/prose:audit`, a separate plugin on purpose). Its findings are filed like any others.
