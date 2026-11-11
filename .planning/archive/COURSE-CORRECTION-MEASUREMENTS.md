@@ -487,3 +487,48 @@ What it shows:
 Limits: one build. I tuned the four-word rule on runs 5-7 before the run. No blind defect review this
 time (F2's defects have been 0 serious in every run).
 
+
+## Step 3, run 9: one line per shown item, F3 (2026-11-11)
+
+What changed from run 8: nothing in the before-build text; two fixes from the PR review (a file name
+alone no longer marks a new limit as a shown item; an item that cannot be named is not shown). F3
+started from run 8's F2 merge. Graded on `grade-sheet-f3.md` by one grader, runs 5, 6 and 9 together
+under letters; records by a fresh grader with the R1-R7 checklist. Rule for reading it written
+before the run.
+
+**Correction:** the F3 sheet's "18 shared items" is 17 (its table groups the five typed-answers items
+in one row and was miscounted). Runs 5 and 6 read 2 and 4 of 17, not of 18.
+
+| F3, one grader | Run 5 | Run 6 | Run 9 |
+|---|---|---|---|
+| Acted on, 17 shared items | 2 | 4 | **14** |
+| Acted on, own F2 follow-ups | 2 of 5 | 2 of 5 | 7 of 8 |
+| of all acted on, after the end check's push | 0 | 0 | 2 |
+| Changed F1's typed-answers rule | yes, silently | no | yes, said so (fully only after the push) |
+| Records score | 4 (own grader) | 4.5 | 5 |
+| Time / cost | 26 min / $15.2 | 31 min / $16.0 | 26 min / $13.6 |
+| Items the end check sent back | | | 35 of 42 |
+| of the sheet items, sent back though already acted on (false flags) | | | 14 |
+
+**Under the rule fixed before the run, it fails on false flags only:** 14 against a bar of 3.
+Acted-on (bar: 8), time, cost, the rule and records pass.
+
+What it shows:
+- **The before-build instruction holds on the longest list.** The main report gave all 42 shown items
+  a line each; every shared item counted was counted from it. Same pattern as run 8.
+- **The end check's item push does little and costs a turn.** It sent back 35 items; the agent
+  reworded them as "because it is about X". 2 items became acted-on after it. Replayed at other
+  reason thresholds, it never gets under 3 false flags (four words: 14; none: 4), because some
+  items have bad leads: three done entries all got the same opening sentence (where the item came from), the paragraph's
+  first sentence, so no line can name one alone.
+- **The rules part of the end check did catch something.** F3 narrowed F1's rule (a mock tool returns
+  a typed answer). The main report mentioned it as a partial fix; after the push it said the rule no
+  longer holds and corrected both docs lines. Run 5's F3 made the same change and said nothing.
+- **About 20 of the per-item lines are "left, unrelated (topic)".** The grader found each topic true
+  but close to restating the title; two reasons were wrong (the scroll item called an "observer
+  step", and E1-small's size half ignored again, the fourth of five builds to do so).
+- **The records lost a point for a false note,** the same kind as run 6's: "that tool's entry is never
+  sent up front" is false when a phase run ties the failure to an earlier phase's tool.
+
+Limits: one build. Run 9's F2 follow-up list differs from runs 5-6. Letters hid run numbers, but repo
+paths named them. No blind defect review.
