@@ -169,7 +169,7 @@ export function limitLines(message) {
  * (`items`) is that item, already filed, not a new limit.
  */
 export function checkFiled({ message, before, after, targetTitle, items = [] }) {
-  const limits = limitLines(message).filter((l) => !items.some((it) => namesItem(it, l)));
+  const limits = limitLines(message).filter((l) => !items.some((it) => restatesItem(it, l)));
   if (limits.length === 0) return { ok: true, limits };
   const key = (e) => norm(e.title);
   const had = new Set(parseEntries(before).filter((e) => !e.done).map(key));
@@ -207,8 +207,12 @@ export function codeTokens(text) {
  */
 export function shownItems({ open, done, bugs }) {
   const items = [];
+  // An item the end check could never see answered is not shown as one: with no code name it is named
+  // by its lead, so a lead of under two words falls back to the entry title, and is dropped if that is short too.
   const add = (where, text, lead = leadOf(text)) => {
     const tokens = codeTokens(`${lead} ${text}`);
+    if (!tokens.length && words(lead).length < 2) lead = where;
+    if (!tokens.length && words(lead).length < 2) return;
     items.push({ where, text: text.trim(), lead, tokens });
   };
   for (const e of open) {
@@ -217,7 +221,11 @@ export function shownItems({ open, done, bugs }) {
     else add(e.title, e.body);
   }
   // A done entry's limit is named by the words after its label ("Built. Known limits: the list…").
-  for (const e of done) for (const l of limitLines(e.body)) add(e.title, l, leadOf(l.replace(/^.*?\b(?:known limits?|limitations?|limits)\s*:\s*/i, '')));
+  for (const e of done)
+    for (const l of limitLines(e.body)) {
+      const rest = l.replace(/^.*?\b(?:known limits?|limitations?|limits)\s*:\s*/i, '');
+      if (!/^none\b/i.test(rest)) add(e.title, l, leadOf(rest));
+    }
   for (const b of bugs) add(b.title, b.body, b.title);
   return items;
 }
@@ -232,12 +240,17 @@ const leadOf = (text) => {
   return lead.replace(/\*\*|`/g, '').replace(/\s+/g, ' ').trim();
 };
 const words = (s) => norm(s).split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
-/** Whether a line names a shown item: one of its code names, or two-thirds of the words of its lead. */
-const namesItem = (it, line) => {
-  if (it.tokens.some((t) => mentions(line, t))) return true;
+/**
+ * Whether a limit line in the final message is a shown item restated, not a new limit: it carries the
+ * item's lead words, or it names one of the item's code names and answers it ("fixed", "left, because").
+ * A code name alone is not enough: a new limit in the same file names it too.
+ */
+const ANSWER_RE = /\b(?:left|unrelated),?\s+because\b|\bfixed\b/i;
+const restatesItem = (it, line) => {
   const lw = words(it.lead ?? leadOf(it.text));
   const ws = new Set(words(line));
-  return lw.length >= 2 && lw.filter((w) => ws.has(w)).length / lw.length >= 2 / 3;
+  if (lw.length >= 2 && lw.filter((w) => ws.has(w)).length / lw.length >= 2 / 3) return true;
+  return ANSWER_RE.test(line) && it.tokens.some((t) => mentions(line, t));
 };
 
 /** Words that say what happened to an item but not why; they do not count toward a reason. */
@@ -278,7 +291,7 @@ export function unaddressedItems({ items, files, diff, message, after }) {
   });
   const out = [];
   items.forEach((it, i) => {
-    if (!afterText.includes(norm(it.text).slice(0, 80))) return;
+    if (!afterText.includes(norm(it.text || it.where).slice(0, 80))) return;
     const own = new Set([...leadWords[i], ...it.tokens.flatMap((t) => words(t))]);
     const answered = lines.some((line, j) => named[j][i] && named[j].filter(Boolean).length === 1 && words(line).filter((w) => !own.has(w) && !STATUS_WORDS.has(w)).length >= 4);
     if (!answered) out.push({ where: it.where, lead: (it.lead ?? leadOf(it.text)).slice(0, 140), token: tieOf(it, files, diff) });

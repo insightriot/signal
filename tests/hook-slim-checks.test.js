@@ -131,10 +131,43 @@ describe('open-items.js', () => {
     // Restating a shown item is not a new limit to file.
     expect(checkFiled({ message: ANSWERED, before: BACKLOG, after: BACKLOG, targetTitle: 'Planner: water reminders' }).ok).toBe(false);
     expect(checkFiled({ message: ANSWERED, before: BACKLOG, after: BACKLOG, targetTitle: 'Planner: water reminders', items }).ok).toBe(true);
+    // A new limit in a shown item's file is still a new limit: the file name alone does not make it that item.
+    const fresh = 'Known limits: drag reorder in `src/beds/Bed.tsx` is not handled yet.';
+    expect(checkFiled({ message: `${ANSWERED}\n${fresh}`, before: BACKLOG, after: BACKLOG, targetTitle: 'Planner: water reminders', items })).toMatchObject({ ok: false, limits: [fresh] });
     // Fixed or rewritten in the records: dealt with.
     expect(leads('Done.', { after: '' })).toEqual([]);
     // A long message does not match a lead by chance: the words must sit on one line.
     expect(leads('The page loads.\nIts scroll is fine.\nPosition kept.\nNothing loses.')).toHaveLength(3);
+  });
+
+  it('never shows an item the end check could not see answered', () => {
+    const md = `# Backlog
+
+## Garden planner
+
+### Planner: water reminders · small
+Send a reminder when a bed needs water.
+
+### Dark mode · small
+
+### Tidy settings page · small
+Tidy.
+
+### Fix UI · small
+Fix UI.
+
+### ~~Planner: seed list · small~~ · **DONE — 2026-11-01**
+Built. Known limits: none yet.
+`;
+    const e = parseEntries(md);
+    const items = shownItems(relevantItems(findTarget('Planner: water reminders', e), e, []));
+    // An empty body or a one-word lead falls back to the entry title; a title of short words and a "none" limit are left out.
+    expect(items.map((i) => i.lead)).toEqual(['Dark mode', 'Tidy settings page']);
+    const left = (message) => unaddressedItems({ items, files: [], diff: '', message, after: md }).map((m) => m.lead);
+    expect(left('Done.')).toEqual(['Dark mode', 'Tidy settings page']);
+    expect(left('- Dark mode: left, because the theme work has not started anywhere yet.\n- Tidy settings page: left, because water reminders never appear on the settings screen.')).toEqual([]);
+    // An empty-bodied item is dealt with once its heading leaves the records.
+    expect(unaddressedItems({ items, files: [], diff: '', message: 'Done.', after: '' })).toEqual([]);
   });
 
   it('finds rule sentences in a doc, and the instruction files that govern the changed files', () => {
