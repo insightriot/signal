@@ -96,7 +96,7 @@ describe('open-items.js', () => {
     const lt = findTarget('Planner: water reminders', le);
     const big = renderBeforeBuild(lt, relevantItems(lt, le, []));
     expect(big.length).toBeLessThan(10000);
-    expect(big).toMatch(/sends you back once\.\n.*Not as sentences inside the entry you mark done\.\n.*never sees\.$/s);
+    expect(big).toMatch(/sends you back once\.\n.*Not as sentences inside the entry you mark done\.$/s);
   });
 
   it('ties a shown item to a change by a file or code name, and lets it go once fixed or named', () => {

@@ -30,6 +30,13 @@ keeping the roadmap ranked by what matters.
    - **The files it is expected to touch** are listed in the item too. At the end, code checks the
      change against the list. Going outside it is allowed but must be explained; it is not blocked,
      because sensible builds in the Step 3 runs often touched a file nobody predicted.
+   - **A check for a never/always rule covers every route out.** When a check written here says
+     something is never or always done ("typed answers never reach the agent"), it tests everything
+     that leaves (every message, every route), not one field. In run 5, F1's two tests for its rule
+     checked the system prompt only and still passed after F3 sent the answers through tool results.
+     Telling the builder this at build time had no visible effect in run 6, and the builds that got
+     that sentence acted on fewer items (runs 6 and 7), so it was taken out and is written into the
+     checks here, before the build. Agreed by Brett 2026-11-10.
    - **Up to three sizes, one recommended.** This replaces calibration's tiers: the process is the
      same every time; what is sized is the job. The agent drafts each with its spec, checks, expected
      files and rough cost, and the person picks:
@@ -98,12 +105,16 @@ keeping the roadmap ranked by what matters.
    to say which its change breaks or narrows and update those lines, or to say in one line that it
    keeps them all. A sentence the agent rewrote is not shown. On replay that is 13 sentences for each of
    F2 and F3 in run 5, and both lines F3 left stale are among them; in run 3's F3, the rule it broke is
-   too. The before-build text now also says a test for a never/always rule must check every route out.
+   too. The before-build text also said a test for a never/always rule must check every route out (taken out after run 7, below).
    Run 6 (F2, F3): the list caught one real stale rule (F2's "the make-up call is unchanged", which F3
    made false and then fixed), with no false claims and no extra push. F3 did not reverse F1's rule
    this time, but it settled that before the check ran, so that is not the check's doing. The "every
    route" sentence produced no such test. A stale line with no never/always word was missed. The run
-   failed its bar on F2's acted-on (7 of 10 against 9); whether that is noise is not yet known.
+   failed its bar on F2's acted-on (7 of 10 against 9).
+   Run 7 (F2 again, 2026-11-10), all runs regraded on one fixed sheet by one grader: F2 acted on 8, 6
+   and 6 of 14 in runs 5, 6 and 7, so the drop held, and the "every route" sentence (the only change)
+   was taken out of the before-build text. Its check moves to shaping (piece 1). The same regrade put
+   run 5's F3 at 4 of 23, not 15 of 17, and run 6's at 6: acting on items one by one is still weak.
 8. **Rank the backlog by real impact.** When the backlog is ordered, a problem that hurts real users
    goes ahead of new features, with the reason written down.
 
@@ -148,6 +159,10 @@ task, a decision log file) are already in Claude Code or were tested here withou
 
 - After each piece is built, rerun the three-feature test against plain Claude Code on fresh copies
   of the test project, with the rule for winning written down before the run.
+- **One grading sheet per feature, fixed before grading.** The items, and what counts as acted on,
+  are written down once, and one grader scores every run of that feature in one pass, without knowing
+  which run is which. Runs 5 and 6 were scored by different graders who counted differently, so their
+  F3 numbers could not be compared (2026-11-10).
 - The slim Signal must beat plain on the measure it was built for (open problems seen and acted on
   before building; limits filed after), with no more serious defects, no more step-ins, and time and
   cost close to plain's.
@@ -160,5 +175,8 @@ task, a decision log file) are already in Claude Code or were tested here withou
   sometimes).
 - How old is too old for the sweep (piece 6).
 - How a decision gets marked as one that needs a test (piece 7). For now, any never/always/only-when
-  sentence in a folder's instruction file counts; whether that is too broad is for run 6 to show.
+  sentence in a folder's instruction file counts. Run 6: 13 and 14 sentences listed, none wrongly
+  claimed broken, so not too broad. It is too narrow once: a stale line with no never/always word was
+  missed. Kept as is (agreed 2026-11-10); widened only if that happens again. Whether F3 keeps F1's
+  typed-answers rule is tracked in each run, since one clean run proves little.
 - Order of work: pieces 2 and 5 first, since they target the failure every test found.
