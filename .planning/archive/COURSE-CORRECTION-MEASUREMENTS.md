@@ -394,3 +394,48 @@ min, $8). The run 6 verdict stands whatever it shows.
 Limits: one build per feature, one blind reviewer per build, one grader. Graders differed in how
 strictly they counted, so F3's acted-on is not comparable across runs. I built the check and replayed
 it on runs 3 and 5.
+
+## Step 3, run 7: F2 again, and every run regraded on one sheet (2026-11-10)
+
+Why: run 6 failed its bar on F2's acted-on (7 of run 5's 10, against 9), and its F3 number could
+not be compared with run 5's because the two graders counted differently. Run 7 builds F2 once more
+on a fresh clone (same base b67dc2c, prompt, model, flags; hooks pinned at d18961d5, identical to run
+6's). Then one fixed grading sheet per feature, written before grading: one list of items, one rule
+for "acted on" (fixed, or named on its own with a reason that is about that item and true against the
+diff; a reason shared across several items, or none, does not count). One grader scored every build of
+a feature in one pass, the builds labelled with letters. Rule for reading it written before the run.
+
+| F2, same 14 items, one grader | Run 5 | Run 6 | Run 7 |
+|---|---|---|---|
+| Acted on | 8 | 6 | 6 |
+| of those, after the end check's push | 2 | 1 | 2 |
+| Broke a recorded rule without saying so | no | no | no |
+| Time / cost | 9 min / $7.0 | 11 min / $7.7 | 16 min / $9.8 |
+
+| F3, same 18 shared items + that run's 5 F2 follow-ups, one grader | Run 5 | Run 6 |
+|---|---|---|
+| Acted on, shared | 2 of 18 | 4 of 18 |
+| Acted on, own F2 follow-ups | 2 of 5 | 2 of 5 |
+| Total | 4 of 23 | 6 of 23 |
+
+What it shows:
+- **Run 5's F3 "15 of 17" was the grader, not the build.** On the common sheet run 5's F3 acted on 4
+  of 23 and run 6's on 6. The earlier grader counted "outside this feature" said once for several
+  items as a reason for each. So run 5's record on acting on items was weaker than reported, and
+  run 6 did not fall back on F3.
+- **On F2 the drop holds on one sheet:** runs 6 and 7 both 6, run 5 8. The only setup difference is
+  the one sentence added to the before-build text in run 6 ("a test for a never/always rule checks
+  every route out"). In run 7, four typed-answer items were left under one shared line. Under the
+  rule fixed before the run, the sentence is removed (done 2026-11-10). It also showed no effect on
+  what it asked for. The check it asked for now goes into shaping (SLIM-SIGNAL piece 1) instead.
+- **Acting on items is still low everywhere:** at best 8 of 14 on F2 and 6 of 23 on F3 by the strict
+  rule. Most misses are items covered by one shared reason. The end check only catches items whose
+  code the build changed, and a group line already gets past it when each item is named.
+- In all three F2 builds the agent narrowed "Both wrappers say every lookup and action succeeds at
+  once" (no never/always word, so not on the rule list) and rewrote it to state the exception. So
+  that line was handled each time without the rule list.
+
+Limits: three F2 builds and two F3 builds. Labels hid run numbers, but the repo paths named them.
+One grader per feature. Two borderline calls are listed in the grader's notes (run 5's F2 could be
+7, run 7's could be 5). Run 6's F3 line in the section above ("not comparable") is replaced by this.
+

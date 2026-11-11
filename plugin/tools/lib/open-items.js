@@ -127,7 +127,6 @@ export function renderBeforeBuild(target, { open, done, bugs }) {
     'When you finish, file every limit or follow-up you name as its own open entry in .planning/BACKLOG.md ' +
       '(or BUGS.md for a bug), or as bullets under one new open "<feature> follow-ups" entry. ' +
       'Not as sentences inside the entry you mark done.',
-    'When a rule here or in an instruction file says something is never or always done, a test for it checks everything that leaves (every message, every route), not one field: a later change can add a route the field check never sees.',
   ].join('\n');
   let text = parts.join('\n');
   const room = MAX_CHARS - closing.length - 80;

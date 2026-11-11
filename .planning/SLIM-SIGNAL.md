@@ -34,7 +34,8 @@ keeping the roadmap ranked by what matters.
      something is never or always done ("typed answers never reach the agent"), it tests everything
      that leaves (every message, every route), not one field. In run 5, F1's two tests for its rule
      checked the system prompt only and still passed after F3 sent the answers through tool results.
-     Telling the builder this at build time had no visible effect in run 6, so it is written into the
+     Telling the builder this at build time had no visible effect in run 6, and the builds that got
+     that sentence acted on fewer items (runs 6 and 7), so it was taken out and is written into the
      checks here, before the build. Agreed by Brett 2026-11-10.
    - **Up to three sizes, one recommended.** This replaces calibration's tiers: the process is the
      same every time; what is sized is the job. The agent drafts each with its spec, checks, expected
@@ -104,12 +105,16 @@ keeping the roadmap ranked by what matters.
    to say which its change breaks or narrows and update those lines, or to say in one line that it
    keeps them all. A sentence the agent rewrote is not shown. On replay that is 13 sentences for each of
    F2 and F3 in run 5, and both lines F3 left stale are among them; in run 3's F3, the rule it broke is
-   too. The before-build text now also says a test for a never/always rule must check every route out.
+   too. The before-build text also said a test for a never/always rule must check every route out (taken out after run 7, below).
    Run 6 (F2, F3): the list caught one real stale rule (F2's "the make-up call is unchanged", which F3
    made false and then fixed), with no false claims and no extra push. F3 did not reverse F1's rule
    this time, but it settled that before the check ran, so that is not the check's doing. The "every
    route" sentence produced no such test. A stale line with no never/always word was missed. The run
-   failed its bar on F2's acted-on (7 of 10 against 9); whether that is noise is not yet known.
+   failed its bar on F2's acted-on (7 of 10 against 9).
+   Run 7 (F2 again, 2026-11-10), all runs regraded on one fixed sheet by one grader: F2 acted on 8, 6
+   and 6 of 14 in runs 5, 6 and 7, so the drop held, and the "every route" sentence (the only change)
+   was taken out of the before-build text. Its check moves to shaping (piece 1). The same regrade put
+   run 5's F3 at 4 of 23, not 15 of 17, and run 6's at 6: acting on items one by one is still weak.
 8. **Rank the backlog by real impact.** When the backlog is ordered, a problem that hurts real users
    goes ahead of new features, with the reason written down.
 
