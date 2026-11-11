@@ -88,6 +88,10 @@ keeping the roadmap ranked by what matters.
    8, 5, 7), mostly from the instruction before any push. The end check sent back 7 of the 14 that were
    already answered, because short true reasons fall under its four-word rule; it also found the one
    real miss. Left as is until F3 (the longest list) has been run with it.
+   Run 9 (F3, 2026-11-11): acted on 14 of 17 shared items (runs 5-6: 2, 4), records 5, 26 min, all
+   from the before-build instruction. The end check's item push sent back 35 of 42, 14 of them
+   already acted on, for 2 gained; no reason threshold gets it under 3 false flags. Its rules part
+   made F3 say it narrowed F1's typed-answers rule and fix the docs.
 6. **A whole-codebase sweep now and then.** The review only reads the change, so code that no build
    touches is never checked. At the end of a build, if the last full sweep is older than a set limit,
    offer one (`/prose:audit`, a separate plugin on purpose). Its findings are filed like any others.
