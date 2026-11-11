@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { checkFiled, codeTokens, findTarget, limitLines, parseEntries, relevantItems, renderBeforeBuild, shownItems, titleOf, unaddressedItems } from '../plugin/tools/lib/open-items.js';
+import { checkFiled, codeTokens, findTarget, governingDocs, limitLines, parseEntries, relevantItems, renderBeforeBuild, ruleSentences, shownItems, titleOf, unaddressedItems } from '../plugin/tools/lib/open-items.js';
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugin', 'hooks');
 
@@ -96,7 +96,7 @@ describe('open-items.js', () => {
     const lt = findTarget('Planner: water reminders', le);
     const big = renderBeforeBuild(lt, relevantItems(lt, le, []));
     expect(big.length).toBeLessThan(10000);
-    expect(big).toMatch(/sends you back once\.\n.*Not as sentences inside the entry you mark done\.$/s);
+    expect(big).toMatch(/sends you back once\.\n.*Not as sentences inside the entry you mark done\.\n.*never sees\.$/s);
   });
 
   it('ties a shown item to a change by a file or code name, and lets it go once fixed or named', () => {
@@ -111,6 +111,18 @@ describe('open-items.js', () => {
     expect(unaddressedItems({ ...base, after: '', message: 'Done.' })).toEqual([]);
     // A long message does not match a lead by chance: the words must sit on one line.
     expect(unaddressedItems({ ...base, message: 'The page loads.\nIts scroll is fine.\nPosition kept.\nNothing loses.' })).toHaveLength(2);
+  });
+
+  it('finds rule sentences in a doc, and the instruction files that govern the changed files', () => {
+    const md = '# Lib\n\n- **`call`:** the whole call. Its values are typed in the form; the agent is never sent them. Each turn writes a phase.\n- Plain line.\n```\nnever in a fence\n```\nAlways Node runtime.\n';
+    expect(ruleSentences(md)).toEqual([
+      { line: 3, text: 'Its values are typed in the form; the agent is never sent them.' },
+      { line: 8, text: 'Always Node runtime.' },
+    ]);
+    const docs = ['AGENTS.md', 'src/AGENTS.md', 'src/lib/AGENTS.md', 'src/app/CLAUDE.md', 'src/lib/notes.md', 'docs/AGENTS.md'];
+    // The top level is left out: every session reads it already.
+    expect(governingDocs(['src/lib/rehearsal/engine.ts'], docs)).toEqual(['src/AGENTS.md', 'src/lib/AGENTS.md']);
+    expect(governingDocs(['README.ts'], docs)).toEqual([]);
   });
 });
 
@@ -172,6 +184,42 @@ describe('show-open-items.js and check-limits-filed.js', () => {
     run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s2, cwd: dir, prompt: 'Planner: water reminders' });
     const named = run('check-limits-filed.js', { ...stop, session_id: s2, last_assistant_message: 'Built it. I left `src/beds/Bed.tsx` alone: the split is its own job.' });
     expect(named.status).toBe(0);
+  });
+
+  it('shows the rules of the folders the build changed, once, and not a rule the agent rewrote', () => {
+    const dir = project();
+    mkdirSync(join(dir, 'src', 'lib'), { recursive: true });
+    writeFileSync(join(dir, 'AGENTS.md'), 'Never push to main.\n');
+    writeFileSync(join(dir, 'src', 'lib', 'AGENTS.md'), '- Typed answers go to the person; the agent is never sent them.\n- Always Node runtime.\n');
+    writeFileSync(join(dir, 'src', 'lib', 'tools.ts'), 'export const answer = () => null;\n');
+    execFileSync('git', ['add', '-A'], { cwd: dir });
+    execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'base'], { cwd: dir });
+    const session = randomUUID();
+    run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: session, cwd: dir, prompt: 'Planner: water reminders' });
+    writeFileSync(join(dir, 'src', 'lib', 'tools.ts'), 'export const answer = (typed) => typed;\n');
+    const stop = { hook_event_name: 'Stop', session_id: session, cwd: dir, last_assistant_message: 'Built the reminders. All tests pass.' };
+    const r = run('check-limits-filed.js', stop);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/the agent is never sent them\. \(src\/lib\/AGENTS\.md, line 1\)/);
+    expect(r.stderr).toMatch(/Always Node runtime/);
+    expect(r.stderr).not.toMatch(/Never push to main/);
+    expect(run('check-limits-filed.js', { ...stop, stop_hook_active: true }).status).toBe(0);
+
+    // The agent rewrote one rule and the other stays: only the one left is shown.
+    const s2 = randomUUID();
+    run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s2, cwd: dir, prompt: 'Planner: water reminders' });
+    writeFileSync(join(dir, 'src', 'lib', 'AGENTS.md'), '- Typed answers go to the person, and to the agent through a lookup.\n- Always Node runtime.\n');
+    const second = run('check-limits-filed.js', { ...stop, session_id: s2 });
+    expect(second.status).toBe(2);
+    expect(second.stderr).not.toMatch(/never sent them/);
+    expect(second.stderr).toMatch(/Always Node runtime/);
+
+    // A change outside any folder with an instruction file shows no rules.
+    const s3 = randomUUID();
+    execFileSync('git', ['checkout', '-q', '--', 'src'], { cwd: dir });
+    run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s3, cwd: dir, prompt: 'Planner: water reminders' });
+    writeFileSync(join(dir, 'top.ts'), 'export {};\n');
+    expect(run('check-limits-filed.js', { ...stop, session_id: s3 }).status).toBe(0);
   });
 
   it('does nothing for a prompt that names no entry, or a project with no BACKLOG.md', () => {

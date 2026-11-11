@@ -85,6 +85,25 @@ keeping the roadmap ranked by what matters.
    never shows that kind of event"), it is written as a test that fails if it is broken, not only as a
    line in a document. After a fix, its cause is written the same way. Only rules about behaviour; the
    rest stay as notes.
+   **A test alone did not hold the rule (2026-11-09).** In runs 3 and 5, F3 reversed F1's recorded
+   rule (typed answers are never sent to the agent) the same way both times. In run 5 F1 had written
+   that rule as two tests, and they still passed after F3: they checked the agent's system prompt,
+   and F3 sent the answers through a new route (tool results). So a rule test must check everything
+   that leaves, not one field. And the agent must be shown the rule when its change touches the area.
+   Matching rules to the change by code name failed on replay: the rule was written in plain words,
+   and the code used other names.
+   **Built 2026-11-09** in `check-limits-filed.js`: at the end of a build, the "never / always / only
+   when" sentences of the `AGENTS.md` and `CLAUDE.md` files in the folders the change touched (not the
+   top-level one, which every session reads), as they stood when the build started. The agent is asked
+   to say which its change breaks or narrows and update those lines, or to say in one line that it
+   keeps them all. A sentence the agent rewrote is not shown. On replay that is 13 sentences for each of
+   F2 and F3 in run 5, and both lines F3 left stale are among them; in run 3's F3, the rule it broke is
+   too. The before-build text now also says a test for a never/always rule must check every route out.
+   Run 6 (F2, F3): the list caught one real stale rule (F2's "the make-up call is unchanged", which F3
+   made false and then fixed), with no false claims and no extra push. F3 did not reverse F1's rule
+   this time, but it settled that before the check ran, so that is not the check's doing. The "every
+   route" sentence produced no such test. A stale line with no never/always word was missed. The run
+   failed its bar on F2's acted-on (7 of 10 against 9); whether that is noise is not yet known.
 8. **Rank the backlog by real impact.** When the backlog is ordered, a problem that hurts real users
    goes ahead of new features, with the reason written down.
 
@@ -140,5 +159,6 @@ task, a decision log file) are already in Claude Code or were tested here withou
 - How an open item is matched to the expected files for piece 2 (items name files today only
   sometimes).
 - How old is too old for the sweep (piece 6).
-- How a decision gets marked as one that needs a test (piece 7).
+- How a decision gets marked as one that needs a test (piece 7). For now, any never/always/only-when
+  sentence in a folder's instruction file counts; whether that is too broad is for run 6 to show.
 - Order of work: pieces 2 and 5 first, since they target the failure every test found.

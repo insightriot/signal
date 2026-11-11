@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative } from 'node:path';
 
 import { gitEnv } from '../tools/lib/git-env.js';
+import { governingDocs, ruleSentences } from '../tools/lib/open-items.js';
 
 const real = (p) => {
   try {
@@ -61,4 +62,24 @@ export function changeSince(root, base) {
     return r.status === 0 ? r.stdout : '';
   };
   return { files: run('--name-only').split('\n').filter(Boolean), diff: run('-U1') };
+}
+
+/**
+ * The rule sentences, as they stood at `base`, of the instruction files that govern `files` (paths
+ * from the git top level, as `changeSince` gives them). Each carries whether the sentence is still in
+ * the file now: one the agent rewrote or removed has been dealt with.
+ * @returns {{doc:string, line:number, text:string, kept:boolean}[]}
+ */
+export function rulesAtBase(root, base, files) {
+  const git = (...a) => {
+    const r = spawnSync('git', a, { cwd: root, env: gitEnv(root), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    return r.status === 0 ? r.stdout : '';
+  };
+  const top = git('rev-parse', '--show-toplevel').trim();
+  if (!top) return [];
+  const docs = governingDocs(files, git('ls-tree', '-r', '--name-only', '--full-tree', base).split('\n').filter(Boolean));
+  return docs.flatMap((doc) => {
+    const now = readOr(join(top, doc)).replace(/\*\*/g, '');
+    return ruleSentences(git('show', `${base}:${doc}`)).map((r) => ({ doc, ...r, kept: now.includes(r.text) }));
+  });
 }
