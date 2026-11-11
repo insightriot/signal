@@ -30,6 +30,12 @@ keeping the roadmap ranked by what matters.
    - **The files it is expected to touch** are listed in the item too. At the end, code checks the
      change against the list. Going outside it is allowed but must be explained; it is not blocked,
      because sensible builds in the Step 3 runs often touched a file nobody predicted.
+   - **A check for a never/always rule covers every route out.** When a check written here says
+     something is never or always done ("typed answers never reach the agent"), it tests everything
+     that leaves (every message, every route), not one field. In run 5, F1's two tests for its rule
+     checked the system prompt only and still passed after F3 sent the answers through tool results.
+     Telling the builder this at build time had no visible effect in run 6, so it is written into the
+     checks here, before the build. Agreed by Brett 2026-11-10.
    - **Up to three sizes, one recommended.** This replaces calibration's tiers: the process is the
      same every time; what is sized is the job. The agent drafts each with its spec, checks, expected
      files and rough cost, and the person picks:
@@ -148,6 +154,10 @@ task, a decision log file) are already in Claude Code or were tested here withou
 
 - After each piece is built, rerun the three-feature test against plain Claude Code on fresh copies
   of the test project, with the rule for winning written down before the run.
+- **One grading sheet per feature, fixed before grading.** The items, and what counts as acted on,
+  are written down once, and one grader scores every run of that feature in one pass, without knowing
+  which run is which. Runs 5 and 6 were scored by different graders who counted differently, so their
+  F3 numbers could not be compared (2026-11-10).
 - The slim Signal must beat plain on the measure it was built for (open problems seen and acted on
   before building; limits filed after), with no more serious defects, no more step-ins, and time and
   cost close to plain's.
@@ -160,5 +170,8 @@ task, a decision log file) are already in Claude Code or were tested here withou
   sometimes).
 - How old is too old for the sweep (piece 6).
 - How a decision gets marked as one that needs a test (piece 7). For now, any never/always/only-when
-  sentence in a folder's instruction file counts; whether that is too broad is for run 6 to show.
+  sentence in a folder's instruction file counts. Run 6: 13 and 14 sentences listed, none wrongly
+  claimed broken, so not too broad. It is too narrow once: a stale line with no never/always word was
+  missed. Kept as is (agreed 2026-11-10); widened only if that happens again. Whether F3 keeps F1's
+  typed-answers rule is tracked in each run, since one clean run proves little.
 - Order of work: pieces 2 and 5 first, since they target the failure every test found.
