@@ -123,8 +123,7 @@ export function renderBeforeBuild(target, { open, done, bugs }) {
   const closing = [
     'Before you edit any code, decide for each item or limit above: fix it in this build, or leave it with a reason. ' +
       'In your final message, give every item above its own line: its words (or the code name it mentions), then "fixed", or "left, because" and a reason about that item ' +
-      '("unrelated, because" and what it is about counts). A line that names several items counts for none of them, and a name with no reason does not count: ' +
-      'at the end, an item without its own line sends you back once.',
+      '("unrelated, because" and what it is about counts). A line that names several items counts for none of them, and a name with no reason does not count.',
     'When you finish, file every limit or follow-up you name as its own open entry in .planning/BACKLOG.md ' +
       '(or BUGS.md for a bug), or as bullets under one new open "<feature> follow-ups" entry. ' +
       'Not as sentences inside the entry you mark done.',
@@ -207,12 +206,10 @@ export function codeTokens(text) {
  */
 export function shownItems({ open, done, bugs }) {
   const items = [];
-  // An item the end check could never see answered is not shown as one: with no code name it is named
-  // by its lead, so a lead of under two words falls back to the entry title, and is dropped if that is short too.
+  // With no code name an item is known by its lead, so a lead of under two words falls back to the entry title.
   const add = (where, text, lead = leadOf(text)) => {
     const tokens = codeTokens(`${lead} ${text}`);
     if (!tokens.length && words(lead).length < 2) lead = where;
-    if (!tokens.length && words(lead).length < 2) return;
     items.push({ where, text: text.trim(), lead, tokens });
   };
   for (const e of open) {
@@ -252,52 +249,6 @@ const restatesItem = (it, line) => {
   if (lw.length >= 2 && lw.filter((w) => ws.has(w)).length / lw.length >= 2 / 3) return true;
   return ANSWER_RE.test(line) && it.tokens.some((t) => mentions(line, t));
 };
-
-/** Words that say what happened to an item but not why; they do not count toward a reason. */
-const STATUS_WORDS = new Set(
-  'fixed left open still true unrelated related change changed this that item items these those with from have here there about done leave leaving untouched touch touched build feature same also again later'.split(' '),
-);
-const tieOf = (it, files, diff) =>
-  it.tokens.find((t) => files.some((f) => f === t || f.endsWith('/' + t) || (f.endsWith('/' + t.split('/').pop()) && t.includes('.'))) || mentions(diff, t));
-
-/**
- * The shown items the final message does not answer one by one (Step 3 runs 5 to 7: items named in a
- * group under one reason, or by name only, were the main misses). An item is answered when its text
- * no longer appears in the records (fixed, rewritten or removed), or one line of the message names it
- * (one of its code names, or two-thirds of the words of its lead), names no other shown item, and
- * carries at least four words of its own beyond the item's words and words like "left" or "unrelated".
- * Every shown item is checked, not only those whose code the change touched; `token` is set when it
- * did, so those can be listed first.
- * @returns {{where:string, lead:string, token:string|undefined}[]}
- */
-export function unaddressedItems({ items, files, diff, message, after }) {
-  const afterText = norm(after);
-  const lines = String(message ?? '').split(/\n+/).map((l) => l.trim()).filter(Boolean);
-  const leadWords = items.map((it) => words(it.lead ?? leadOf(it.text)));
-  // A code name two items share (a bug and a follow-up about the same file) names the one whose lead
-  // words the line carries most; on a tie, neither.
-  const owners = new Map();
-  items.forEach((it, i) => it.tokens.forEach((t) => owners.set(t, [...(owners.get(t) ?? []), i])));
-  const overlap = (i, ws) => (leadWords[i].length ? leadWords[i].filter((w) => ws.has(w)).length / leadWords[i].length : 0);
-  const byToken = (i, t, line, ws) => {
-    if (!mentions(line, t)) return false;
-    const others = owners.get(t).filter((j) => j !== i);
-    return others.every((j) => overlap(i, ws) > overlap(j, ws));
-  };
-  const names = (i, line, ws) => items[i].tokens.some((t) => byToken(i, t, line, ws)) || (leadWords[i].length >= 2 && leadWords[i].filter((w) => ws.has(w)).length / leadWords[i].length >= 2 / 3);
-  const named = lines.map((line) => {
-    const ws = new Set(words(line));
-    return items.map((_, i) => names(i, line, ws));
-  });
-  const out = [];
-  items.forEach((it, i) => {
-    if (!afterText.includes(norm(it.text || it.where).slice(0, 80))) return;
-    const own = new Set([...leadWords[i], ...it.tokens.flatMap((t) => words(t))]);
-    const answered = lines.some((line, j) => named[j][i] && named[j].filter(Boolean).length === 1 && words(line).filter((w) => !own.has(w) && !STATUS_WORDS.has(w)).length >= 4);
-    if (!answered) out.push({ where: it.where, lead: (it.lead ?? leadOf(it.text)).slice(0, 140), token: tieOf(it, files, diff) });
-  });
-  return out.sort((a, b) => Number(!a.token) - Number(!b.token));
-}
 
 /**
  * A sentence that states a standing rule: never, always, only when, must not. Narrow on purpose: the

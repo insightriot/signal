@@ -61,7 +61,7 @@ export function changeSince(root, base) {
     const r = spawnSync('git', ['diff', ...a, base, '--', '.', ':(exclude).planning', ':(exclude)*.md'], { cwd: root, env: gitEnv(root), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
     return r.status === 0 ? r.stdout : '';
   };
-  return { files: run('--name-only').split('\n').filter(Boolean), diff: run('-U1') };
+  return { files: run('--name-only').split('\n').filter(Boolean) };
 }
 
 /**

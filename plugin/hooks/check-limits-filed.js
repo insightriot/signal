@@ -9,9 +9,9 @@
 // - the entry being built is still open and now carries those limits.
 // When the entry was marked done with the limits written inside it, the message says so: the
 // project removes done entries, and the limits go with them (Step 3 runs 2 and 3).
-// It also sends the agent back when an item the before-check showed has no line of its own in the
-// final message: named alone, with a reason (Step 3 run 4: items seen, the exact lines edited, the
-// item not mentioned; runs 5 to 7: items left under one shared reason, or named with none).
+// It no longer checks that each item the before-check showed has a line of its own: in runs 8 and 9
+// that send-back gained 3 items and wrongly returned 21 already answered; the before-build request for
+// one line per item did the work.
 // And it shows the standing rules ("never", "always", "only when" sentences) of the AGENTS.md and
 // CLAUDE.md files in the folders the build changed, as they stood when the build started, and asks
 // the agent to say which ones its change affects (Step 3 runs 3 and 5: a later feature reversed an
@@ -24,7 +24,7 @@
 import { readFileSync, rmSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 
-import { checkFiled, unaddressedItems } from '../tools/lib/open-items.js';
+import { checkFiled } from '../tools/lib/open-items.js';
 import { changeSince, findRecordsRoot, notePath, recordsText, rulesAtBase } from './records-root.js';
 
 /** The last assistant text in a transcript, for a Claude Code that does not send `last_assistant_message`. */
@@ -69,10 +69,9 @@ function main() {
     typeof event.last_assistant_message === 'string' ? event.last_assistant_message : event.transcript_path ? lastFromTranscript(event.transcript_path) : '';
   const after = recordsText(root);
   const r = checkFiled({ message, before: note.records, after, targetTitle: note.title, items: Array.isArray(note.items) ? note.items : [] });
-  const change = note.base && Array.isArray(note.items) ? changeSince(root, note.base) : { files: [], diff: '' };
-  const missed = note.base && Array.isArray(note.items) ? unaddressedItems({ items: note.items, ...change, message, after }) : [];
+  const change = note.base && Array.isArray(note.items) ? changeSince(root, note.base) : { files: [] };
   const rules = note.base && change.files.length ? rulesAtBase(root, note.base, change.files).filter((x) => x.kept) : [];
-  if (r.ok && missed.length === 0 && rules.length === 0) {
+  if (r.ok && rules.length === 0) {
     rmSync(notePath(event.session_id, root), { force: true });
     return 0;
   }
@@ -84,14 +83,6 @@ function main() {
         (r.buried ? `They are written inside "${note.title}", which is now marked done; done entries get removed, and the limits go with them.\n` : '') +
         `File each one as its own open entry in .planning/BACKLOG.md (BUGS.md for a bug), or as bullets under one new open "${note.title} follow-ups" entry, and commit it. ` +
         `If a line above is not a real limit, say so in one line instead.\n`,
-    );
-  if (missed.length)
-    parts.push(
-      `Signal: ${missed.length} item${missed.length === 1 ? '' : 's'} shown before the build ${missed.length === 1 ? 'has' : 'have'} no line of ${missed.length === 1 ? 'its' : 'their'} own in your final message:\n` +
-        missed.slice(0, 60).map((m) => `- "${m.lead}" (${m.where}${m.token ? `; your change touches \`${m.token}\`` : ''})\n`).join('') +
-        (missed.length > 60 ? `(${missed.length - 60} more)\n` : '') +
-        `Give each one its own line: its words, then "fixed", or "left, because" and a reason about that item ("unrelated, because" and what it is about counts). ` +
-        `A line naming several items counts for none of them. Fix any you now see your change affects.\n`,
     );
   if (rules.length)
     parts.push(
