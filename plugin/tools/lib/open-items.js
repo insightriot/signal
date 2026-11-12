@@ -94,6 +94,7 @@ const clip = (t, n) => (t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t);
  * limit lines only. The full text stays in the file, at the line given.
  */
 export function renderBeforeBuild(target, { open, done, bugs }) {
+  const shape = shapeOf(target.body);
   const compact = (e, file) => {
     const lines = e.body.split('\n');
     const out = [`#### ${e.heading}  (${file}, line ${e.line})`];
@@ -128,10 +129,73 @@ export function renderBeforeBuild(target, { open, done, bugs }) {
       '(or BUGS.md for a bug), or as bullets under one new open "<feature> follow-ups" entry. ' +
       'Not as sentences inside the entry you mark done.',
   ].join('\n');
+  const head = shapingText(target.title, shape);
   let text = parts.join('\n');
-  const room = MAX_CHARS - closing.length - 80;
+  const room = MAX_CHARS - closing.length - head.length - 80;
   if (text.length > room) text = text.slice(0, room) + '\n…(cut to fit; read the rest of the section in .planning/BACKLOG.md)';
-  return text + '\n' + closing;
+  return head + '\n' + text + '\n' + closing;
+}
+
+/**
+ * What the item says it will touch and must pass (`.planning/SLIM-SIGNAL.md`, piece 1): a `Files:` line
+ * of backticked paths, and `Checks:` followed by bullets. Either label may be bold or a bullet itself.
+ * @returns {{files:string[], checks:string[]}}
+ */
+export function shapeOf(body) {
+  const lines = String(body ?? '').split('\n');
+  const label = (l, name) => new RegExp(`^\\s*(?:[-*]\\s+)?\\**${name}\\**\\s*:\\**\\s*(.*)$`, 'i').exec(l);
+  const files = [];
+  const checks = [];
+  lines.forEach((l, i) => {
+    const f = label(l, 'files');
+    if (f) for (const m of f[1].matchAll(/`([^`\s]+)`/g)) files.push(m[1].replace(/^\.\//, ''));
+    if (!label(l, 'checks')) return;
+    const indent = l.match(/^\s*/)[0].length;
+    let level = null;
+    for (const next of lines.slice(i + 1)) {
+      const at = next.match(/^\s*/)[0].length;
+      if (!BULLET_RE.test(next) || at < indent) break;
+      level ??= at;
+      if (at === level) checks.push(next.replace(BULLET_RE, '').trim());
+    }
+  });
+  return { files, checks };
+}
+
+/** The opening paragraph: shape the item first, or hold the build to the shape it has. */
+function shapingText(title, { files, checks }) {
+  if (files.length && checks.length)
+    return (
+      `Signal: "${title}" is shaped. It expects to touch ${files.map((f) => `\`${f}\``).join(', ')}, and lists ${checks.length} check${checks.length === 1 ? '' : 's'}. ` +
+      'Write each check as a test before the code. A file outside that list is allowed, but your final message must give it a line saying why.\n'
+    );
+  return (
+    `Signal: "${title}" is not shaped yet. Before you edit any code, write two things into the item in .planning/BACKLOG.md and commit them:\n` +
+    '- `Files:` the files you expect to touch, each in backticks.\n' +
+    '- `Checks:` bullets, each a test the finished work must pass. For every rule this work could break or adds, a "never", "always" or "only" line in the instruction files ' +
+    '(AGENTS.md, CLAUDE.md) of those folders or in the item, write a check that tests everything that leaves: every message, route and tool result, not one field.\n' +
+    'Agree them with the person if one is available; if not, draft them yourself and say so in your final message. Then write each check as a test before the code. ' +
+    'At the end, a file outside the list needs a line saying why.\n'
+  );
+}
+
+/**
+ * The changed files the item's `Files:` list does not cover. A listed folder (ending in `/`) covers what
+ * is under it; a listed file covers its own test file (`a.test.ts`, `a.spec.ts`, `__tests__/a.test.ts`).
+ * Paths may be written from the project folder when git's top level is above it.
+ */
+export function outsideFiles(listed, changed) {
+  const covers = (l, c) => c === l || c.endsWith('/' + l) || (l.endsWith('/') && (c.startsWith(l) || c.includes('/' + l)));
+  const untest = (c) => c.replace(/\/__tests__\//, '/').replace(/\.(?:test|spec)(\.[a-z]+)$/, '$1');
+  return changed.filter((c) => !listed.some((l) => covers(l, c) || covers(l, untest(c))));
+}
+
+/** Whether a line of the final message names the file (its path or its file name). */
+export function namesFile(message, file) {
+  const base = file.split('/').pop();
+  return String(message ?? '')
+    .split('\n')
+    .some((l) => l.includes(file) || new RegExp(`(^|[^\\w.-])${escapeRe(base)}($|[^\\w-])`).test(l));
 }
 
 /** A line that names a limit, gap or follow-up. Narrow on purpose: a false push costs a turn. */
