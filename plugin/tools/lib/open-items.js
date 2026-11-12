@@ -155,7 +155,6 @@ export function shapeOf(body) {
     for (const next of lines.slice(i + 1)) {
       const at = next.match(/^\s*/)[0].length;
       if (!BULLET_RE.test(next) || at < indent) break;
-      if (at === indent && /^\s*(?:[-*]\s+)?\**[A-Z][a-z ]{1,30}\**\s*:/.test(next)) break;
       level ??= at;
       if (at === level) checks.push(next.replace(BULLET_RE, '').trim());
     }

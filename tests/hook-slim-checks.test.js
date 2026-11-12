@@ -147,6 +147,8 @@ Built. Known limits: none yet.
   it('reads an item\'s shape, and asks for one before the build when it has none', () => {
     expect(shapeOf('Intro.\n**Files:** `src/a.ts`, `./src/b/`\nChecks:\n- one\n  - detail of one\n- two\nAfter.')).toEqual({ files: ['src/a.ts', 'src/b/'], checks: ['one', 'two'] });
     expect(shapeOf('Files: `src/a.ts`')).toEqual({ files: ['src/a.ts'], checks: [] });
+    // A check that opens with its own label is still a check (run 11: every check was read as none).
+    expect(shapeOf('Files: `src/a.ts`\nChecks:\n- Tools: one per intervention.\n- Results: found when inputs match.\nAdded while building: `src/b.ts`.').checks).toEqual(['Tools: one per intervention.', 'Results: found when inputs match.']);
     const e = parseEntries(BACKLOG);
     const t = findTarget('Planner: water reminders', e);
     const before = renderBeforeBuild(t, relevantItems(t, e, []));
