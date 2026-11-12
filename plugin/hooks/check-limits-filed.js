@@ -18,13 +18,17 @@
 // earlier feature's recorded rule without saying so, and its tests still passed because they checked
 // one field and the change added another route). A rule sentence the agent rewrote is not shown.
 //
+// It also holds the build to the item's shape (piece 1): when the item has a `Files:` list, each changed
+// file outside it must be named in the final message; when the build changed code and the item still
+// has no `Files:` and `Checks:`, it asks for them.
+//
 // It sends the agent back at most once per build. Second stop (`stop_hook_active`), no note, or
 // anything it cannot read: the stop happens.
 
 import { readFileSync, rmSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 
-import { checkFiled } from '../tools/lib/open-items.js';
+import { checkFiled, namesFile, outsideFiles, parseEntries, shapeOf, titleOf } from '../tools/lib/open-items.js';
 import { changeSince, findRecordsRoot, notePath, recordsText, rulesAtBase } from './records-root.js';
 
 /** The last assistant text in a transcript, for a Claude Code that does not send `last_assistant_message`. */
@@ -71,7 +75,12 @@ function main() {
   const r = checkFiled({ message, before: note.records, after, targetTitle: note.title, items: Array.isArray(note.items) ? note.items : [] });
   const change = note.base && Array.isArray(note.items) ? changeSince(root, note.base) : { files: [] };
   const rules = note.base && change.files.length ? rulesAtBase(root, note.base, change.files).filter((x) => x.kept) : [];
-  if (r.ok && rules.length === 0) {
+  // The item as it stands now: shaped during the build, its Files: list against what changed.
+  const target = parseEntries(after).find((e) => e.level >= 3 && titleOf(e.heading).toLowerCase() === String(note.title).toLowerCase());
+  const shape = target ? shapeOf(target.body) : { files: [], checks: [] };
+  const unshaped = Boolean(note.base && target && change.files.length && !(shape.files.length && shape.checks.length));
+  const outside = shape.files.length ? outsideFiles(shape.files, change.files).filter((f) => !namesFile(message, f)) : [];
+  if (r.ok && rules.length === 0 && !unshaped && outside.length === 0) {
     rmSync(notePath(event.session_id, root), { force: true });
     return 0;
   }
@@ -83,6 +92,18 @@ function main() {
         (r.buried ? `They are written inside "${note.title}", which is now marked done; done entries get removed, and the limits go with them.\n` : '') +
         `File each one as its own open entry in .planning/BACKLOG.md (BUGS.md for a bug), or as bullets under one new open "${note.title} follow-ups" entry, and commit it. ` +
         `If a line above is not a real limit, say so in one line instead.\n`,
+    );
+  if (unshaped)
+    parts.push(
+      `Signal: "${note.title}" still has no \`Files:\` list and \`Checks:\` bullets in .planning/BACKLOG.md. Write them in as they stand for what you built, ` +
+        `and say in your final message that they were written after the build.\n`,
+    );
+  if (outside.length)
+    parts.push(
+      `Signal: your change touches ${outside.length} file${outside.length === 1 ? '' : 's'} outside the item's \`Files:\` list, and your final message does not name ${outside.length === 1 ? 'it' : 'them'}:\n` +
+        outside.slice(0, 20).map((f) => `- ${f}\n`).join('') +
+        (outside.length > 20 ? `(${outside.length - 20} more)\n` : '') +
+        `Give each one a line saying why it was needed. Going outside the list is allowed; doing it without a word is not.\n`,
     );
   if (rules.length)
     parts.push(

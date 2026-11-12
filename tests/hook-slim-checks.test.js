@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { checkFiled, codeTokens, findTarget, governingDocs, limitLines, parseEntries, relevantItems, renderBeforeBuild, ruleSentences, shownItems, titleOf } from '../plugin/tools/lib/open-items.js';
+import { checkFiled, codeTokens, findTarget, governingDocs, limitLines, namesFile, outsideFiles, parseEntries, relevantItems, renderBeforeBuild, ruleSentences, shapeOf, shownItems, titleOf } from '../plugin/tools/lib/open-items.js';
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugin', 'hooks');
 
@@ -144,6 +144,26 @@ Built. Known limits: none yet.
     expect(items.map((i) => i.lead)).toEqual(['Dark mode', 'Tidy settings page', 'Fix UI']);
   });
 
+  it('reads an item\'s shape, and asks for one before the build when it has none', () => {
+    expect(shapeOf('Intro.\n**Files:** `src/a.ts`, `./src/b/`\nChecks:\n- one\n  - detail of one\n- two\nAfter.')).toEqual({ files: ['src/a.ts', 'src/b/'], checks: ['one', 'two'] });
+    expect(shapeOf('Files: `src/a.ts`')).toEqual({ files: ['src/a.ts'], checks: [] });
+    const e = parseEntries(BACKLOG);
+    const t = findTarget('Planner: water reminders', e);
+    const before = renderBeforeBuild(t, relevantItems(t, e, []));
+    expect(before).toMatch(/^Signal: "Planner: water reminders" is not shaped yet\. Before you edit any code/);
+    expect(before).toMatch(/tests everything that leaves: every message, route and tool result, not one field/);
+    const shaped = parseEntries(BACKLOG.replace('Send a reminder when a bed needs water.', 'Send a reminder when a bed needs water.\nFiles: `src/beds/`, `src/remind.ts`\nChecks:\n- a dry bed gets one reminder a day'));
+    const st = findTarget('Planner: water reminders', shaped);
+    expect(renderBeforeBuild(st, relevantItems(st, shaped, []))).toMatch(/^Signal: "Planner: water reminders" is shaped\. It expects to touch `src\/beds\/`, `src\/remind\.ts`, and lists 1 check\./);
+  });
+
+  it('finds the changed files outside the item\'s list, and whether the final message names them', () => {
+    const listed = ['src/remind.ts', 'src/beds/'];
+    expect(outsideFiles(listed, ['src/remind.ts', 'src/remind.test.ts', 'src/__tests__/remind.test.ts', 'src/beds/Bed.tsx', 'app/src/remind.ts', 'src/water.ts', 'package.json'])).toEqual(['src/water.ts', 'package.json']);
+    expect(namesFile('- `water.ts`: a helper both pages need.', 'src/water.ts')).toBe(true);
+    expect(namesFile('Changed sweetwater.ts.', 'src/water.ts')).toBe(false);
+  });
+
   it('finds rule sentences in a doc, and the instruction files that govern the changed files', () => {
     const md = '# Lib\n\n- **`call`:** the whole call. Its values are typed in the form; the agent is never sent them. Each turn writes a phase.\n- Plain line.\n```\nnever in a fence\n```\nAlways Node runtime.\n';
     expect(ruleSentences(md)).toEqual([
@@ -240,6 +260,36 @@ describe('show-open-items.js and check-limits-filed.js', () => {
     run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s3, cwd: dir, prompt: 'Planner: water reminders' });
     writeFileSync(join(dir, 'top.ts'), 'export {};\n');
     expect(run('check-limits-filed.js', { ...stop, session_id: s3, last_assistant_message: ANSWERED }).status).toBe(0);
+  });
+
+  it('holds the build to the item\'s Files: list, and asks for a shape when the build left none', () => {
+    const dir = project();
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(join(dir, 'src', 'remind.ts'), 'export const a = 1;\n');
+    writeFileSync(join(dir, 'src', 'water.ts'), 'export const w = 1;\n');
+    execFileSync('git', ['add', '-A'], { cwd: dir });
+    execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'base'], { cwd: dir });
+    const session = randomUUID();
+    const before = run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: session, cwd: dir, prompt: 'Planner: water reminders' });
+    expect(before.stdout).toMatch(/is not shaped yet/);
+    writeFileSync(join(dir, 'src', 'remind.ts'), 'export const a = 2;\n');
+    writeFileSync(join(dir, 'src', 'water.ts'), 'export const w = 2;\n');
+    const stop = { hook_event_name: 'Stop', session_id: session, cwd: dir, last_assistant_message: 'Built the reminders.' };
+    const unshaped = run('check-limits-filed.js', stop);
+    expect(unshaped.status).toBe(2);
+    expect(unshaped.stderr).toMatch(/still has no `Files:` list and `Checks:` bullets/);
+
+    // Shaped during the build: a file outside the list is sent back once, unless the message names it.
+    writeFileSync(join(dir, '.planning', 'BACKLOG.md'), BACKLOG.replace('Send a reminder when a bed needs water.', 'Send a reminder when a bed needs water.\nFiles: `src/remind.ts`\nChecks:\n- a dry bed gets one reminder a day'));
+    const s2 = randomUUID();
+    run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s2, cwd: dir, prompt: 'Planner: water reminders' });
+    const outside = run('check-limits-filed.js', { ...stop, session_id: s2 });
+    expect(outside.status).toBe(2);
+    expect(outside.stderr).toMatch(/touches 1 file outside the item's `Files:` list.*\n- src\/water\.ts\n/);
+    expect(outside.stderr).not.toMatch(/still has no/);
+    const s3 = randomUUID();
+    run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s3, cwd: dir, prompt: 'Planner: water reminders' });
+    expect(run('check-limits-filed.js', { ...stop, session_id: s3, last_assistant_message: 'Built it.\n- `water.ts`: the reminder reads the soil level from it.' }).status).toBe(0);
   });
 
   it('does nothing for a prompt that names no entry, or a project with no BACKLOG.md', () => {
