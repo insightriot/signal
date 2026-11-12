@@ -532,3 +532,45 @@ What it shows:
 
 Limits: one build. Run 9's F2 follow-up list differs from runs 5-6. Letters hid run numbers, but repo
 paths named them. No blind defect review.
+
+
+## Step 3, run 10: no item send-back, F2 then F3 (2026-11-11)
+
+What changed from runs 8-9: the end check no longer sends the agent back for a shown item without a
+line of its own, and the before-build text no longer says it will. The before-build request for one
+line per item, the limits-filed check and the rules check are unchanged. F2 from the same base as run
+8, then F3 from this run's F2 merge. Hooks pinned at 1bbe3908. One grader per feature, under letters:
+F2 against run 8, F3 against run 9 (so runs 8 and 9 were graded again). Records: F2 in the same
+grader, F3 by a fresh grader. Rule for reading it written before the run.
+
+| | Run 8 F2 | Run 10 F2 | Run 9 F3 | Run 10 F3 |
+|---|---|---|---|---|
+| Acted on, sheet items | 13 of 14 | **13 of 14** | 15 of 17 | **15 of 17** |
+| Acted on, own F2 follow-ups (F3) | | | 7 of 8 | 7 of 7 |
+| of those, after a push | 1 | 0 | 1 | 0 |
+| False reasons | 1 (fixed after the push) | 1 | 0 | 0 |
+| Changed a recorded rule without saying so | no | no | no | no |
+| Records score | 5.5 | 5.5 | 5 (earlier grader) | 4.5 |
+| Time / cost | 14 min / $8.6 | 14 min / $7.7 | 26 min / $13.6 | 27 min / $13.3 |
+
+Graders moved runs 8 and 9 by one item each against their first grading (run 8 records 6 → 5.5, run 9
+shared 14 → 15): that is the grader-to-grader spread.
+
+**Under the rule fixed before the run, it holds:** F2 13 (bar 11), F3 15 (bar 12), time and cost
+within bars, no silent rule change, records within one point.
+
+What it shows:
+- **The send-back was not needed.** Same acted-on counts without it, and every item counted came from
+  the main report. The warning sentence in the before-build text did not matter either.
+- **The rules check is still the part that changes outcomes.** Both F3 builds narrowed F1's
+  typed-answers rule. Before the check they mentioned it only in passing, and the rule lines in the
+  docs contradicted the new code. After the rules check they named it as a rule change and fixed the
+  lines.
+- **The misses are the same in every build:** a size or test part of a two-part item, and the
+  cost-of-failed-calls item ("a separate change" is not a reason). Run 10's F2 called E1-small
+  unrelated though it grew that file.
+- **Records lost a point for a false note again** (F3: "a lookup answers only when the input matches
+  the person's values"; the code also matches system-record values), and three older sentences went
+  stale where later text in the same file was correct.
+
+Limits: one build per feature. Repo paths could still name the run. No blind defect review.
