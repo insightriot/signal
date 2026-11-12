@@ -574,3 +574,50 @@ What it shows:
   stale where later text in the same file was correct.
 
 Limits: one build per feature. Repo paths could still name the run. No blind defect review.
+
+
+## Step 3, run 11: shape the item first, F2 then F3 (2026-11-11)
+
+What changed from run 10: piece 1's first slice. For an item with no `Files:` list and `Checks:`, the
+before-build text asks for both before any code (drafted by the agent here: the prompts say no person
+is available), and asks that a check for a never/always/only rule test every route out. The end check
+names changed files outside the list. Same base and prompts as run 10; hooks pinned at e1040104. One
+grader per feature under letters, against run 10 (graded again); F3 records by a fresh grader.
+
+| | Run 10 F2 | Run 11 F2 | Run 10 F3 | Run 11 F3 |
+|---|---|---|---|---|
+| Wrote Files and Checks before the first code edit | | yes | | yes |
+| Acted on, sheet items | 13 of 14 | **14 of 14** | 14 of 17 | **13 of 17** |
+| Acted on, own F2 follow-ups (F3) | | | 7 of 7 | 4 of 4 |
+| of those, after a push | 0 | 0 | 0 | 0 |
+| Files changed outside the list, unexplained | | 0 | | 0 |
+| Narrowed F1's typed-answers rule, called it a rule change before the end check | | | no | no (planned in the shape, listed as a decision) |
+| Records score | 6 | 5 | 4.5 | 4 |
+| Time / cost | 14 min / $7.7 | 15 min / $8.9 | 27 min / $13.3 | **35 min / $18.4** |
+
+Graders moved run 10 by one item or point against its first grading (F2 records 5.5 → 6, F3 shared
+15 → 14).
+
+**Under the rule fixed before the run, it fails two lines:** F3 took 35 min and $18.4 (bars 33 and
+$18), and F3 did not call its change to F1's rule a rule change before the end check. Shaping before
+code, files, acted-on, silent rule changes and records pass.
+
+What it shows:
+- **A defect in the check cost F3 a turn.** F3 wrote every check as a labelled bullet ("- Tools:
+  ..."); the parser stopped at the first one, read no checks, and the end check asked for a shape the
+  item already had. F3 read the hook's source to learn the format and reworded its checks. Fixed in
+  the same branch. Some of the time and cost overrun is this.
+- **Shaping turned the rule change into a decision made before the code.** F3's shape commit already
+  said a tool may return a typed answer, with a check asserting it, and the main report listed it under
+  its decisions. It still did not update the two rule lines until the rules check, so the docs
+  contradicted the code until then.
+- **The every-route instruction produced every-route checks, with tests.** F3's "only the agent" check
+  (no tool data in any make-up, person or observer call, in a phase run, a whole call and a replay)
+  and its "never logged" check each have a test that does what it says. But no check holds F1's rule,
+  because the shape chose to narrow it.
+- **The file lists were wide.** F3 listed 26 files and stayed inside them but for one test fixture,
+  which it explained. A list that wide holds the build to little.
+- F2 acted on all 14; the misses in F3 are the usual ones (two-part test and size items, the cost
+  item).
+
+Limits: one build per feature. The agent drafted its own shape; the person's side is untested.

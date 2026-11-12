@@ -52,6 +52,11 @@ keeping the roadmap ranked by what matters.
    - **Ambition is agreed here, never during the build.** Once a size is picked, the build stays inside
      it and the expected-files list holds it there. A new idea during the build is filed, not built. In
      Step 3 run 2, Signal built things nobody asked for; plain Claude Code did not.
+   **First slice built 2026-11-11** in the two hooks, no new command: an item with no `Files:` and
+   `Checks:` is shaped before any code, and the end check names changed files outside the list. Run 11:
+   both features shaped first; F3 wrote every-route checks with tests; lists were wide (26 files);
+   F3 still updated the rule lines it narrowed only after the rules check, and ran 2 min and $0.4 over
+   its bar, partly from a parser defect since fixed. Sizes, checkability and the person's side are next.
 2. **Before a build: show the open problems.** Code, not an instruction to go and look: before the
    agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the files listed
    in the item, and must fix each one or say why it is leaving it.
