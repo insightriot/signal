@@ -167,13 +167,14 @@ function shapingText(title, { files, checks }) {
   if (files.length && checks.length)
     return (
       `Signal: "${title}" is shaped. It expects to touch ${files.map((f) => `\`${f}\``).join(', ')}, and lists ${checks.length} check${checks.length === 1 ? '' : 's'}. ` +
-      'Write each check as a test before the code. A file outside that list is allowed, but your final message must give it a line saying why.\n'
+      'Write each check as a test before the code, and name its test file in the check. A file outside that list is allowed, but your final message must give it a line saying why.\n'
     );
   return (
     `Signal: "${title}" is not shaped yet. Before you edit any code, write two things into the item in .planning/BACKLOG.md and commit them:\n` +
     '- `Files:` the files you expect to touch, each in backticks.\n' +
     '- `Checks:` bullets, each a test the finished work must pass. For every rule this work could break or adds, a "never", "always" or "only" line in the instruction files ' +
     '(AGENTS.md, CLAUDE.md) of those folders or in the item, write a check that tests everything that leaves: every message, route and tool result, not one field.\n' +
+    '  Each check names in backticks the test file that will hold it, or says "not testable by code" and why. If there is no way yet to run tests here, making one is the first job.\n' +
     'If this work changes one of those rules, say so in the item and rewrite that rule\'s line in its instruction file in the same commit, before any code.\n' +
     'Agree them with the person if one is available; if not, draft them yourself and say so in your final message. Then write each check as a test before the code. ' +
     'At the end, a file outside the list needs a line saying why.\n'
@@ -189,6 +190,20 @@ export function outsideFiles(listed, changed) {
   const covers = (l, c) => c === l || c.endsWith('/' + l) || (l.endsWith('/') && (c.startsWith(l) || c.includes('/' + l)));
   const untest = (c) => c.replace(/\/__tests__\//, '/').replace(/\.(?:test|spec)(\.[a-z]+)$/, '$1');
   return changed.filter((c) => !listed.some((l) => covers(l, c) || covers(l, untest(c))));
+}
+
+/**
+ * The checks with no test behind them in this change: a check passes when it names, in backticks, a test
+ * file the change touched (`a.test.ts`, `a.spec.js`, under `__tests__/` or `tests/`), or says it is not
+ * testable by code.
+ */
+export function untestedChecks(checks, changed) {
+  const isTest = (p) => /\.(?:test|spec)\.[a-z]+$/.test(p) || /(?:^|\/)(?:__tests__|tests?)\//.test(p);
+  return checks.filter((c) => {
+    if (/not testable by code/i.test(c)) return false;
+    const named = [...c.matchAll(/`([^`\s]+)`/g)].map((m) => m[1].replace(/^\.\//, '')).filter(isTest);
+    return !named.some((t) => changed.some((f) => f === t || f.endsWith('/' + t)));
+  });
 }
 
 /** Whether a line of the final message names the file (its path or its file name). */

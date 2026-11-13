@@ -61,7 +61,10 @@ export function changeSince(root, base) {
     const r = spawnSync('git', ['diff', ...a, base, '--', '.', ':(exclude).planning', ':(exclude)*.md'], { cwd: root, env: gitEnv(root), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
     return r.status === 0 ? r.stdout : '';
   };
-  return { files: run('--name-only').split('\n').filter(Boolean) };
+  // New files not yet committed count too (a test written and not yet added).
+  const r = spawnSync('git', ['ls-files', '--others', '--exclude-standard', '--full-name', '--', '.', ':(exclude).planning', ':(exclude)*.md'], { cwd: root, env: gitEnv(root), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const added = r.status === 0 ? r.stdout.split('\n').filter(Boolean) : [];
+  return { files: [...new Set([...run('--name-only').split('\n').filter(Boolean), ...added])] };
 }
 
 /**
