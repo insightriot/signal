@@ -20,7 +20,8 @@
 //
 // It also holds the build to the item's shape (piece 1): when the item has a `Files:` list, each changed
 // file outside it must be named in the final message; when the build changed code and the item still
-// has no `Files:` and `Checks:`, it asks for them.
+// has no `Files:` and `Checks:`, it asks for them; and each check must name a test file the build changed,
+// or say it is not testable by code (run 12: a check can be written and never tested).
 //
 // It sends the agent back at most once per build. Second stop (`stop_hook_active`), no note, or
 // anything it cannot read: the stop happens.
@@ -28,7 +29,7 @@
 import { readFileSync, rmSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 
-import { checkFiled, namesFile, outsideFiles, parseEntries, shapeOf, titleOf } from '../tools/lib/open-items.js';
+import { checkFiled, namesFile, outsideFiles, parseEntries, shapeOf, titleOf, untestedChecks } from '../tools/lib/open-items.js';
 import { changeSince, findRecordsRoot, notePath, recordsText, rulesAtBase } from './records-root.js';
 
 /** The last assistant text in a transcript, for a Claude Code that does not send `last_assistant_message`. */
@@ -80,7 +81,8 @@ function main() {
   const shape = target ? shapeOf(target.body) : { files: [], checks: [] };
   const unshaped = Boolean(note.base && target && change.files.length && !(shape.files.length && shape.checks.length));
   const outside = shape.files.length ? outsideFiles(shape.files, change.files).filter((f) => !namesFile(message, f)) : [];
-  if (r.ok && rules.length === 0 && !unshaped && outside.length === 0) {
+  const untested = !unshaped && change.files.length ? untestedChecks(shape.checks, change.files) : [];
+  if (r.ok && rules.length === 0 && !unshaped && outside.length === 0 && untested.length === 0) {
     rmSync(notePath(event.session_id, root), { force: true });
     return 0;
   }
@@ -104,6 +106,12 @@ function main() {
         outside.slice(0, 20).map((f) => `- ${f}\n`).join('') +
         (outside.length > 20 ? `(${outside.length - 20} more)\n` : '') +
         `Give each one a line saying why it was needed. Going outside the list is allowed; doing it without a word is not.\n`,
+    );
+  if (untested.length)
+    parts.push(
+      `Signal: ${untested.length} of the item's checks name${untested.length === 1 ? 's' : ''} no test file this build changed:\n` +
+        untested.slice(0, 12).map((c) => `- ${c.length > 200 ? c.slice(0, 199) + '…' : c}\n`).join('') +
+        `For each, write the test that does what it says and name its file in the check, in backticks, or write "not testable by code" in the check and why.\n`,
     );
   if (rules.length)
     parts.push(

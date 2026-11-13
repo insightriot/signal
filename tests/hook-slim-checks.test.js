@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { checkFiled, codeTokens, findTarget, governingDocs, limitLines, namesFile, outsideFiles, parseEntries, relevantItems, renderBeforeBuild, ruleSentences, shapeOf, shownItems, titleOf } from '../plugin/tools/lib/open-items.js';
+import { checkFiled, codeTokens, findTarget, governingDocs, limitLines, namesFile, outsideFiles, parseEntries, relevantItems, renderBeforeBuild, ruleSentences, shapeOf, shownItems, titleOf, untestedChecks } from '../plugin/tools/lib/open-items.js';
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugin', 'hooks');
 
@@ -155,6 +155,7 @@ Built. Known limits: none yet.
     expect(before).toMatch(/^Signal: "Planner: water reminders" is not shaped yet\. Before you edit any code/);
     expect(before).toMatch(/tests everything that leaves: every message, route and tool result, not one field/);
     // Runs 9-11: a build that narrowed a rule fixed its line only after the end check pointed at it.
+    expect(before).toMatch(/Each check names in backticks the test file that will hold it, or says "not testable by code" and why\. If there is no way yet to run tests here, making one is the first job\./);
     expect(before).toMatch(/If this work changes one of those rules, say so in the item and rewrite that rule's line in its instruction file in the same commit, before any code\./);
     const shaped = parseEntries(BACKLOG.replace('Send a reminder when a bed needs water.', 'Send a reminder when a bed needs water.\nFiles: `src/beds/`, `src/remind.ts`\nChecks:\n- a dry bed gets one reminder a day'));
     const st = findTarget('Planner: water reminders', shaped);
@@ -263,7 +264,7 @@ describe('show-open-items.js and check-limits-filed.js', () => {
     execFileSync('git', ['checkout', '-q', '--', 'src'], { cwd: dir });
     run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s3, cwd: dir, prompt: 'Planner: water reminders' });
     writeFileSync(join(dir, 'top.ts'), 'export {};\n');
-    expect(run('check-limits-filed.js', { ...stop, session_id: s3, last_assistant_message: ANSWERED }).status).toBe(0);
+    expect(run('check-limits-filed.js', { ...stop, session_id: s3, last_assistant_message: ANSWERED }).stderr).not.toMatch(/standing rules/);
   });
 
   it('holds the build to the item\'s Files: list, and asks for a shape when the build left none', () => {
@@ -293,7 +294,36 @@ describe('show-open-items.js and check-limits-filed.js', () => {
     expect(outside.stderr).not.toMatch(/still has no/);
     const s3 = randomUUID();
     run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s3, cwd: dir, prompt: 'Planner: water reminders' });
-    expect(run('check-limits-filed.js', { ...stop, session_id: s3, last_assistant_message: 'Built it.\n- `water.ts`: the reminder reads the soil level from it.' }).status).toBe(0);
+    const named = run('check-limits-filed.js', { ...stop, session_id: s3, last_assistant_message: 'Built it.\n- `water.ts`: the reminder reads the soil level from it.' });
+    expect(named.stderr).not.toMatch(/outside the item's/);
+    // ...but its one check names no test file the build changed.
+    expect(named.status).toBe(2);
+    expect(named.stderr).toMatch(/1 of the item's checks names no test file this build changed:\n- a dry bed gets one reminder a day\n/);
+
+    // A check that names a changed test file passes.
+    writeFileSync(join(dir, '.planning', 'BACKLOG.md'), BACKLOG.replace('Send a reminder when a bed needs water.', 'Send a reminder when a bed needs water.\nFiles: `src/remind.ts`, `src/water.ts`\nChecks:\n- a dry bed gets one reminder a day (`src/remind.test.ts`)'));
+    writeFileSync(join(dir, 'src', 'remind.test.ts'), 'test;\n');
+    const s4 = randomUUID();
+    run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s4, cwd: dir, prompt: 'Planner: water reminders' });
+    // The test file is new and not yet committed; it still counts.
+    expect(run('check-limits-filed.js', { ...stop, session_id: s4 }).status).toBe(0);
+  });
+
+  it('finds the checks with no test behind them in the change', () => {
+    const changed = ['app/src/remind.ts', 'app/src/remind.test.ts', 'app/tests/water.js'];
+    expect(
+      untestedChecks(
+        [
+          'a dry bed gets one reminder (`src/remind.test.ts`)',
+          'water level read (`tests/water.js`)',
+          'logged never (`src/log.test.ts`)',
+          'no test named at all',
+          'names a source file only (`src/remind.ts`)',
+          'the email reads well: not testable by code, it is a judgement',
+        ],
+        changed,
+      ),
+    ).toEqual(['logged never (`src/log.test.ts`)', 'no test named at all', 'names a source file only (`src/remind.ts`)']);
   });
 
   it('does nothing for a prompt that names no entry, or a project with no BACKLOG.md', () => {

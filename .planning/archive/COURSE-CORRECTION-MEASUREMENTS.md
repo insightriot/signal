@@ -656,3 +656,42 @@ What it shows, with one run:
 - **F3's checks cover every model call and the call-log rows, not logs or Sentry,** though its own
   records say tool calls are never logged. No check in either run tests that typed answers never
   reach the agent through a tool result.
+
+## Step 3, run 13: each check names its test; F2 then F3 (2026-11-13)
+
+What changed from run 12: each check must name, in backticks, the test file that holds it, or say "not
+testable by code" and why; where nothing can run tests yet, that comes first. The end check sends back
+checks that name no test file the build changed. New files not yet committed now count as changed.
+Same base and prompts as run 11; hooks pinned at 1f4d8316. One grader per feature under letters (F2
+against run 11's F2, F3 against run 12's F3), and new: each check read against its test. Records by a
+fresh grader per feature.
+
+| | Run 11 F2 | Run 13 F2 | Run 12 F3 | Run 13 F3 |
+|---|---|---|---|---|
+| Files and Checks before the first code edit | yes | yes | yes | yes |
+| Checks with a test that does what they say | 9 of 9 | 10 of 10 | 13 of 14 | 10.5 of 11 |
+| Checks marked "not testable by code" | 0 | 1 (logs; partly fair) | 0 | 2 (logs: not fair; real models: fair) |
+| Rule lines it changed, rewritten before the first code commit | no (same commit) | yes | yes | **no**: the planned one yes; the typed-answers one, decided during the build, after the code commit (said before the end check) |
+| Acted on, sheet items | 13 of 14 | 13 of 14 | 16 of 17 | 14 of 17 |
+| Acted on, own F2 follow-ups | | | 4 of 4 | 7 of 9 |
+| of those, after a push | 0 | 0 | 0 | 0 |
+| Files outside the list, unexplained | 0 | 0 (all 16 listed) | 0 | 0 |
+| Records score | 5 | 5.5 | 5.5 | 4.5 |
+| Time / cost | 15 min / $8.9 | 18 min / $10.2 | 26 min / $13.2 | 26 min / $14.1 |
+
+This grader put run 12's F3 at 16 of 17 (run 12's grader: 15). The end check sent back no untested
+check in either feature: every check named a test file the build changed.
+
+**Under the rule fixed before the run, it fails one line:** F3 rewrote the typed-answers rule line after
+its first code commit. Every other line passes; F2's time (17 min 59 s) and F3's records (4.5) are at
+their bars exactly.
+
+What it shows:
+- **The escape is where the hard check went.** Both features marked their "never logged" check "not
+  testable by code". It is testable (plant a marker value, check the logger, Sentry and the call-log
+  row); run 11's F2 did just that. The gap run 12 showed is still open, now labelled.
+- **A rule change planned in the shape is rewritten first; one decided during the build is not.** F3's
+  shape rewrote the failing-lookups rule before code; it then decided mid-build that a tool may return a
+  typed answer and updated that line after the code, though it said so in its main report.
+- **Every named test was a real one.** All but three checks across both features have a test that does
+  exactly what the check says; the three partly ones each miss a comparison against the old output.

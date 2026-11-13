@@ -60,6 +60,10 @@ keeping the roadmap ranked by what matters.
    Run 12 (F3 only, the shape also rewrites any rule line it changes before code): passed every line:
    rule lines rewritten in the shape commit, 15 of 17 and 4 of 4, records 5.5, 26 min / $13.2. Sizes,
    checkability and the person's side are next.
+   Run 13 (each check names its test file, or says "not testable by code"): every named test was real
+   (10 of 10, 10.5 of 11), acted-on, files, time and cost held; fails one line: F3 rewrote a rule it
+   decided to change mid-build after its code. Both features marked "never logged" untestable, which
+   it is not. Sizes and the person's side are next.
 2. **Before a build: show the open problems.** Code, not an instruction to go and look: before the
    agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the files listed
    in the item, and must fix each one or say why it is leaving it.
