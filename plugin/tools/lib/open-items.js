@@ -174,6 +174,7 @@ function shapingText(title, { files, checks }) {
     '- `Files:` the files you expect to touch, each in backticks.\n' +
     '- `Checks:` bullets, each a test the finished work must pass. For every rule this work could break or adds, a "never", "always" or "only" line in the instruction files ' +
     '(AGENTS.md, CLAUDE.md) of those folders or in the item, write a check that tests everything that leaves: every message, route and tool result, not one field.\n' +
+    'If this work changes one of those rules, say so in the item and rewrite that rule\'s line in its instruction file in the same commit, before any code.\n' +
     'Agree them with the person if one is available; if not, draft them yourself and say so in your final message. Then write each check as a test before the code. ' +
     'At the end, a file outside the list needs a line saying why.\n'
   );

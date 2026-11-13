@@ -56,7 +56,10 @@ keeping the roadmap ranked by what matters.
    `Checks:` is shaped before any code, and the end check names changed files outside the list. Run 11:
    both features shaped first; F3 wrote every-route checks with tests; lists were wide (26 files);
    F3 still updated the rule lines it narrowed only after the rules check, and ran 2 min and $0.4 over
-   its bar, partly from a parser defect since fixed. Sizes, checkability and the person's side are next.
+   its bar, partly from a parser defect since fixed.
+   Run 12 (F3 only, the shape also rewrites any rule line it changes before code): passed every line:
+   rule lines rewritten in the shape commit, 15 of 17 and 4 of 4, records 5.5, 26 min / $13.2. Sizes,
+   checkability and the person's side are next.
 2. **Before a build: show the open problems.** Code, not an instruction to go and look: before the
    agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the files listed
    in the item, and must fix each one or say why it is leaving it.

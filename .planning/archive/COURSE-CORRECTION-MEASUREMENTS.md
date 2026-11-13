@@ -621,3 +621,38 @@ What it shows:
   item).
 
 Limits: one build per feature. The agent drafted its own shape; the person's side is untested.
+
+## Step 3, run 12: a shape that changes a rule rewrites its line first; F3 only (2026-11-13)
+
+What changed from run 11: the parser fix, and one line in the before-build text for an unshaped item:
+"If this work changes one of those rules, say so in the item and rewrite that rule's line in its
+instruction file in the same commit, before any code." F3 only, from run 11's F2 merge (7ebc5c2), same
+prompt; hooks pinned at 87c707e8. One grader under letters against run 11's F3; records by a fresh
+grader.
+
+| | Run 11 F3 | Run 12 F3 |
+|---|---|---|
+| Committed Files and Checks before the first code edit | yes | yes |
+| Rule lines it changed, rewritten before the first code commit | no (after the rules check) | **yes, both, in the shape commit** |
+| F1's typed-answers rule | narrowed | **kept** (tools return record entries only) |
+| Acted on, sheet items | 15 of 17 | 15 of 17 |
+| Acted on, F2 follow-ups | 3 of 4 | 4 of 4 |
+| of those, after a push | 0 | 0 |
+| Files changed outside the list, unexplained | 0 | 0 (24 changed, all listed) |
+| Records score | 4 | **5.5** (no false statement) |
+| Time / cost | 35 min / $18.4 | **26 min / $13.2** |
+
+This grader put run 11's F3 at 15 of 17 and 3 of 4 (the run 11 grader: 13 of 17, 4 of 4).
+
+**Under the rule fixed before the run, it passes every line.**
+
+What it shows, with one run:
+- **The two rules F3 extended were rewritten in the shape commit**, before any code, and the rules
+  check had nothing to send back. It also kept F1's rule this time by design, so whether the new line
+  or a different design choice did that cannot be told apart from one run.
+- **Time and cost came back under run 10's bar** with the parser defect gone.
+- **The rules check reads never/always lines only.** A plain sentence the build made stale ("Both
+  wrappers say every lookup and action succeeds at once") stayed, in this run and in run 11.
+- **F3's checks cover every model call and the call-log rows, not logs or Sentry,** though its own
+  records say tool calls are never logged. No check in either run tests that typed answers never
+  reach the agent through a tool result.
