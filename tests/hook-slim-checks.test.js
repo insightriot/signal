@@ -154,6 +154,8 @@ Built. Known limits: none yet.
     const before = renderBeforeBuild(t, relevantItems(t, e, []));
     expect(before).toMatch(/^Signal: "Planner: water reminders" is not shaped yet\. Before you edit any code/);
     expect(before).toMatch(/tests everything that leaves: every message, route and tool result, not one field/);
+    // Runs 9-11: a build that narrowed a rule fixed its line only after the end check pointed at it.
+    expect(before).toMatch(/If this work changes one of those rules, say so in the item and rewrite that rule's line in its instruction file in the same commit, before any code\./);
     const shaped = parseEntries(BACKLOG.replace('Send a reminder when a bed needs water.', 'Send a reminder when a bed needs water.\nFiles: `src/beds/`, `src/remind.ts`\nChecks:\n- a dry bed gets one reminder a day'));
     const st = findTarget('Planner: water reminders', shaped);
     expect(renderBeforeBuild(st, relevantItems(st, shaped, []))).toMatch(/^Signal: "Planner: water reminders" is shaped\. It expects to touch `src\/beds\/`, `src\/remind\.ts`, and lists 1 check\./);
