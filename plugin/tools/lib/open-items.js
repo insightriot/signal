@@ -139,11 +139,18 @@ export function renderBeforeBuild(target, { open, done, bugs }) {
 /**
  * What the item says it will touch and must pass (`.planning/SLIM-SIGNAL.md`, piece 1): a `Files:` line
  * of backticked paths, and `Checks:` followed by bullets. Either label may be bold or a bullet itself.
- * @returns {{files:string[], checks:string[]}}
+ * Sizes: under a `Sizes:` line the agent drafts up to three, each with its own `Files:` and `Checks:`;
+ * once the person picks, a `Picked:` line names the size and only what follows it is the shape. With
+ * sizes and no pick the item is `drafted` and has no shape yet.
+ * @returns {{files:string[], checks:string[], drafted:boolean, picked:string|null}}
  */
 export function shapeOf(body) {
-  const lines = String(body ?? '').split('\n');
   const label = (l, name) => new RegExp(`^\\s*(?:[-*]\\s+)?\\**${name}\\**\\s*:\\**\\s*(.*)$`, 'i').exec(l);
+  let lines = String(body ?? '').split('\n');
+  const at = lines.findLastIndex((l) => label(l, 'picked'));
+  const picked = at >= 0 ? label(lines[at], 'picked')[1].replace(/\*+/g, '').trim() || null : null;
+  if (at >= 0) lines = lines.slice(at + 1);
+  else if (lines.some((l) => label(l, 'sizes'))) return { files: [], checks: [], drafted: true, picked: null };
   const files = [];
   const checks = [];
   lines.forEach((l, i) => {
@@ -159,31 +166,37 @@ export function shapeOf(body) {
       if (at === level) checks.push(next.replace(BULLET_RE, '').trim());
     }
   });
-  return { files, checks };
+  return { files, checks, drafted: false, picked };
 }
 
-/** Run 13: a rule change decided during the build had its line rewritten only after the code. */
-const MID_BUILD_RULE = 'If you decide during the build to change a rule in an instruction file, rewrite its line in your next commit, before more code.';
-
-/** The opening paragraph: shape the item first, or hold the build to the shape it has. */
-function shapingText(title, { files, checks }) {
+/** The opening paragraph: size and shape the item first, or hold the build to the size picked. */
+function shapingText(title, { files, checks, drafted, picked }) {
+  const inside = 'The build stays inside it: a new idea is filed as an open item, not built.';
   if (files.length && checks.length)
     return (
-      `Signal: "${title}" is shaped. It expects to touch ${files.map((f) => `\`${f}\``).join(', ')}, and lists ${checks.length} check${checks.length === 1 ? '' : 's'}. ` +
+      `Signal: "${title}" is shaped${picked ? ` (size picked: ${picked})` : ''}. It expects to touch ${files.map((f) => `\`${f}\``).join(', ')}, and lists ${checks.length} check${checks.length === 1 ? '' : 's'}. ` +
       'Write each check as a test before the code, and name its test file in the check. A file outside that list is allowed, but your final message must give it a line saying why. ' +
-      MID_BUILD_RULE + '\n'
+      inside + '\n'
+    );
+  if (drafted)
+    return (
+      `Signal: "${title}" has sizes drafted and none picked. Take the person's pick from their message; if they have not picked, ask again and stop. ` +
+      'Add a `Picked:` line naming the size, copy that size\'s `Files:` and `Checks:` under it, commit, then write each check as a test before the code. ' +
+      inside + '\n'
     );
   return (
-    `Signal: "${title}" is not shaped yet. Before you edit any code, write two things into the item in .planning/BACKLOG.md and commit them:\n` +
-    '- `Files:` the files you expect to touch, each in backticks.\n' +
-    '- `Checks:` bullets, each a test the finished work must pass. For every rule this work could break or adds, a "never", "always" or "only" line in the instruction files ' +
-    '(AGENTS.md, CLAUDE.md) of those folders or in the item, write a check that tests everything that leaves: every message, route and tool result, not one field.\n' +
-    '  Each check names in backticks the test file that will hold it, or says "not testable by code" and why. A never, always or only check is always testable: plant a marker value and check every way out, logs and error reports included. ' +
-    'If there is no way yet to run tests here, making one is the first job.\n' +
-    'If this work changes one of those rules, say so in the item and rewrite that rule\'s line in its instruction file in the same commit, before any code. ' +
-    MID_BUILD_RULE + '\n' +
-    'Agree them with the person if one is available; if not, draft them yourself and say so in your final message. Then write each check as a test before the code. ' +
-    'At the end, a file outside the list needs a line saying why.\n'
+    `Signal: "${title}" is not shaped yet. Before you edit any code, size it with the person, in its item in .planning/BACKLOG.md:\n` +
+    '- Under a `Sizes:` line, draft up to three sizes, each a bullet with a short spec, a `Files:` line (the files it would touch, each in backticks), `Checks:` bullets and a rough cost in minutes. ' +
+    '*As asked*: the item as described. *Deeper*: as a top professional would do it: what they would add that is not asked, what they would start from, which methods and tools, and what other than you or the person would show it is right. ' +
+    '*Higher*: the goal behind the item, tied to what the roadmap says it is for. Mark one recommended, and say why.\n' +
+    '- Say whether you can check the work yourself: tests, test data, a way to run it. If not, making it checkable is the first job in every size.\n' +
+    '- Each check is a test the finished work must pass. For every rule the work could break or adds, a "never", "always" or "only" line in the instruction files ' +
+    '(AGENTS.md, CLAUDE.md) of those folders or in the item, write a check that tests everything that leaves: every message, route and tool result, not one field. ' +
+    'Each check names in backticks the test file that will hold it, or says "not testable by code" and why. A never, always or only check is always testable: plant a marker value and check every way out, logs and error reports included.\n' +
+    '- If a size changes one of those rules, say so in it.\n' +
+    'Commit, ask the person to pick, and end your turn with no code. If no person is available, pick the recommended size yourself and say so in your final message. ' +
+    'Once one is picked, add a `Picked:` line naming it and copy its `Files:` and `Checks:` under it; rewrite the line of any rule it changes in that same commit, before any code. ' +
+    'Then write each check as a test before the code. ' + inside + ' At the end, a file outside the list needs a line saying why.\n'
   );
 }
 

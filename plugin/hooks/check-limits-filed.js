@@ -23,6 +23,9 @@
 // has no `Files:` and `Checks:`, it asks for them; and each check must name a test file the build changed,
 // or say it is not testable by code (run 12: a check can be written and never tested).
 //
+// With sizes drafted and none picked, a turn that changed no code is the agent asking the person to
+// pick: it passes and the note is kept for the reply; one that changed code is sent back.
+//
 // It sends the agent back at most once per build. Second stop (`stop_hook_active`), no note, or
 // anything it cannot read: the stop happens.
 
@@ -48,6 +51,17 @@ function lastFromTranscript(path) {
   return '';
 }
 
+/** Whether the note's item has sizes drafted and none picked (its note is kept for the person's reply). */
+function drafted(root, path) {
+  try {
+    const title = String(JSON.parse(readFileSync(path, 'utf8')).title).toLowerCase();
+    const e = parseEntries(recordsText(root)).find((x) => x.level >= 3 && titleOf(x.heading).toLowerCase() === title);
+    return Boolean(e && shapeOf(e.body).drafted);
+  } catch {
+    return false;
+  }
+}
+
 function main() {
   let event;
   try {
@@ -61,7 +75,7 @@ function main() {
   if (!root) return 0;
   // Sent back once already: let the stop happen, and check this build no more.
   if (event.stop_hook_active) {
-    rmSync(notePath(event.session_id, root), { force: true });
+    if (!drafted(root, notePath(event.session_id, root))) rmSync(notePath(event.session_id, root), { force: true });
     return 0;
   }
   let note;
@@ -78,7 +92,9 @@ function main() {
   const rules = note.base && change.files.length ? rulesAtBase(root, note.base, change.files).filter((x) => x.kept) : [];
   // The item as it stands now: shaped during the build, its Files: list against what changed.
   const target = parseEntries(after).find((e) => e.level >= 3 && titleOf(e.heading).toLowerCase() === String(note.title).toLowerCase());
-  const shape = target ? shapeOf(target.body) : { files: [], checks: [] };
+  const shape = target ? shapeOf(target.body) : { files: [], checks: [], drafted: false };
+  // Sizes drafted and no code yet: the turn ends to ask the person. Keep the note for their reply.
+  if (shape.drafted && !change.files.length && r.ok) return 0;
   const unshaped = Boolean(note.base && target && change.files.length && !(shape.files.length && shape.checks.length));
   const outside = shape.files.length ? outsideFiles(shape.files, change.files).filter((f) => !namesFile(message, f)) : [];
   const untested = !unshaped && change.files.length ? untestedChecks(shape.checks, change.files) : [];
@@ -95,7 +111,12 @@ function main() {
         `File each one as its own open entry in .planning/BACKLOG.md (BUGS.md for a bug), or as bullets under one new open "${note.title} follow-ups" entry, and commit it. ` +
         `If a line above is not a real limit, say so in one line instead.\n`,
     );
-  if (unshaped)
+  if (unshaped && shape.drafted)
+    parts.push(
+      `Signal: "${note.title}" has sizes drafted and none picked, and this build changed code. Say so in your final message, ` +
+        `and add a \`Picked:\` line naming the size you built, with its \`Files:\` and \`Checks:\` under it.\n`,
+    );
+  else if (unshaped)
     parts.push(
       `Signal: "${note.title}" still has no \`Files:\` list and \`Checks:\` bullets in .planning/BACKLOG.md. Write them in as they stand for what you built, ` +
         `and say in your final message that they were written after the build.\n`,
