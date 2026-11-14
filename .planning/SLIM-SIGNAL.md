@@ -66,7 +66,13 @@ keeping the roadmap ranked by what matters.
    it is not.
    Run 14 (a rule check cannot be labelled untestable; a mid-build rule change rewritten next): no rule
    check dodged, coverage up, records 6 and 6; fails two lines: one route missed per feature, and the
-   mid-build sentence had no effect (the rules check still catches it). Sizes and the person's side are next.
+   mid-build sentence had no effect (the rules check still catches it), so it came out on 2026-11-13.
+   **Sizes built 2026-11-13**: an unshaped item gets up to three sizes under `Sizes:`, one recommended,
+   and the turn ends to ask the person; only the size under a `Picked:` line is held to the end checks.
+   Run 15 (scripted person picks the recommended size): both features sized before code, three real
+   sizes, built only the picked one, rule lines rewritten in the pick commit, F3 kept F1's rule. Fails
+   three lines: about $3 more per feature, records 3.5 and 3.5 (both wrote the pick as Brett's), F3
+   checks 75%. Estimates were in human time.
 2. **Before a build: show the open problems.** Code, not an instruction to go and look: before the
    agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the files listed
    in the item, and must fix each one or say why it is leaving it.
