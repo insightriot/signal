@@ -208,9 +208,13 @@ describe('sizes', () => {
     expect(before).toMatch(/\*As asked\*.*\*Deeper\*.*\*Higher\*.*Mark one recommended, and say why\./s);
     expect(before).toMatch(/Commit, ask the person to pick, and end your turn with no code\. If no person is available, pick the recommended size yourself/);
     expect(before).toMatch(/a new idea is filed as an open item, not built/);
+    // Run 15: estimates came in a human developer's time, and the pick was credited to a named person who never made it.
+    expect(before).toMatch(/a rough cost in your own working minutes, not a human developer's/);
+    expect(before).toMatch(/`Picked:` line naming only the size, not who picked it/);
     const d = parseEntries(BACKLOG.replace('Send a reminder when a bed needs water.', SIZES));
     const dt = findTarget('Planner: water reminders', d);
     expect(renderBeforeBuild(dt, relevantItems(dt, d, []))).toMatch(/^Signal: "Planner: water reminders" has sizes drafted and none picked\./);
+    expect(renderBeforeBuild(dt, relevantItems(dt, d, []))).toMatch(/naming only the size, not who picked it/);
     const p = parseEntries(BACKLOG.replace('Send a reminder when a bed needs water.', SIZES + '\nPicked: deeper\nFiles: `src/snooze.ts`\nChecks:\n- snooze holds'));
     const pt = findTarget('Planner: water reminders', p);
     expect(renderBeforeBuild(pt, relevantItems(pt, p, []))).toMatch(/^Signal: "Planner: water reminders" is shaped \(size picked: deeper\)\./);
