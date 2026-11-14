@@ -181,12 +181,12 @@ function shapingText(title, { files, checks, drafted, picked }) {
   if (drafted)
     return (
       `Signal: "${title}" has sizes drafted and none picked. Take the person's pick from their message; if they have not picked, ask again and stop. ` +
-      'Add a `Picked:` line naming the size, copy that size\'s `Files:` and `Checks:` under it, commit, then write each check as a test before the code. ' +
+      'Add a `Picked:` line naming only the size, not who picked it, copy that size\'s `Files:` and `Checks:` under it, commit, then write each check as a test before the code. ' +
       inside + '\n'
     );
   return (
     `Signal: "${title}" is not shaped yet. Before you edit any code, size it with the person, in its item in .planning/BACKLOG.md:\n` +
-    '- Under a `Sizes:` line, draft up to three sizes, each a bullet with a short spec, a `Files:` line (the files it would touch, each in backticks), `Checks:` bullets and a rough cost in minutes. ' +
+    '- Under a `Sizes:` line, draft up to three sizes, each a bullet with a short spec, a `Files:` line (the files it would touch, each in backticks), `Checks:` bullets and a rough cost in your own working minutes, not a human developer\'s. ' +
     '*As asked*: the item as described. *Deeper*: as a top professional would do it: what they would add that is not asked, what they would start from, which methods and tools, and what other than you or the person would show it is right. ' +
     '*Higher*: the goal behind the item, tied to what the roadmap says it is for. Mark one recommended, and say why.\n' +
     '- Say whether you can check the work yourself: tests, test data, a way to run it. If not, making it checkable is the first job in every size.\n' +
@@ -195,7 +195,7 @@ function shapingText(title, { files, checks, drafted, picked }) {
     'Each check names in backticks the test file that will hold it, or says "not testable by code" and why. A never, always or only check is always testable: plant a marker value and check every way out, logs and error reports included.\n' +
     '- If a size changes one of those rules, say so in it.\n' +
     'Commit, ask the person to pick, and end your turn with no code. If no person is available, pick the recommended size yourself and say so in your final message. ' +
-    'Once one is picked, add a `Picked:` line naming it and copy its `Files:` and `Checks:` under it; rewrite the line of any rule it changes in that same commit, before any code. ' +
+    'Once one is picked, add a `Picked:` line naming only the size, not who picked it, and copy its `Files:` and `Checks:` under it; rewrite the line of any rule it changes in that same commit, before any code. ' +
     'Then write each check as a test before the code. ' + inside + ' At the end, a file outside the list needs a line saying why.\n'
   );
 }
