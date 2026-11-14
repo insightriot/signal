@@ -734,3 +734,47 @@ What it shows:
   typed answer, and each wrote the rule line late; in run 14 it was not called a rule change until the end
   check showed it. The rules check is what catches it, and the records end correct (6 of 6).
 - **Records were the best yet on both features.**
+
+## Step 3, run 15: the job is sized with the person before the build (2026-11-13)
+
+What changed from run 14: an unshaped item gets up to three sizes (as asked, deeper, higher) under
+`Sizes:`, one recommended, with a "can I check this myself" answer, and the turn ends to ask the person;
+only the size under a `Picked:` line is held to the end checks. The mid-build rule sentence is gone. The
+prompts say a person is available. The person was a scripted stand-in replying in the same session: "Go
+with the size you recommended." Hooks pinned at 98a4e684. F2 and F3 each graded against run 14 under
+letters; sizes and records by a fresh grader per feature.
+
+| | Run 14 F2 | Run 15 F2 | Run 14 F3 | Run 15 F3 |
+|---|---|---|---|---|
+| Sizes drafted, one recommended, no code before the pick | | yes (3, as asked) | | yes (3, as asked) |
+| Sizes genuinely different | | yes | | yes |
+| Built inside the picked size; other sizes filed, not built | | yes | | yes |
+| Size estimate against agent time | | 90 min for 12 | | 6 h for 29 |
+| Rule lines rewritten no later than the code | yes | yes (pick commit) | no | yes (pick commit) |
+| F1's typed-answers rule kept | | | no | **yes** |
+| Checks with a test that does what they say | 8.5 of 9 | 8 of 8 | 12.5 of 14 | **7.5 of 10** |
+| Never-checks whose test covers every way out | 2 of 3 | 2 of 2 | 3 of 4 | 2 of 3 |
+| Acted on, sheet items | 13 of 14 | 13 of 14 | 15 of 17 | 15 of 17 |
+| Acted on, own F2 follow-ups | | | 4 of 6 | 7 of 7 |
+| Records score | 6 | **3.5** | 6 | **3.5** |
+| Time / cost | 16 min / $9.2 | 16 min / **$13.0** | 30 min / $16.4 | **34 min / $21.7** |
+
+The sizing turn cost about $3.2 in each feature. This grader put run 14's F3 at 15 of 17 (run 14's
+grader: 13).
+
+**Under the rule fixed before the run, it fails three lines:** cost (both features; F3 also time), records
+(both 3.5, down 2.5), and F3's checks (75%, bar 80%). The sizes lines all pass.
+
+What it shows:
+- **The sizing step works as a step.** Both features stopped before code, drafted three real
+  alternatives, recommended the one that matched the scope, rewrote the rule lines in the pick commit, and
+  built only the picked size, filing the bigger sizes' features as follow-ups. F3 for the first time kept
+  F1's typed-answers rule.
+- **It made up who picked.** Both wrote "Picked: As asked (Brett, 2026-11-13)"; the test project's records
+  name Brett as the person, and the agent filled him in. F3 also said the project's own process asked for
+  sizing (it was Signal) and credited a step to Brett that the item does not. That is one false statement
+  per feature in records; each feature had one more unrelated to sizing.
+- **Estimates were in human time**, 7 to 12 times the agent's actual time, which makes the bigger sizes
+  look far costlier than they are.
+- **Sizing costs about $3 a feature.** The bars were set for builds with no person; whether that is worth
+  it is a product call.

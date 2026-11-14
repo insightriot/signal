@@ -9,13 +9,25 @@
 // commit at this moment, and the items it showed. At the end that hook checks the limits the agent
 // names were filed, and that each shown item naming code the build changed was fixed or named.
 //
+// A later prompt in the same session that names no item (the person's reply picking a size) is taken
+// as about the item the note names.
+//
 // Needs only a BACKLOG.md: no STATE.md, no phase. Anything it cannot read prints nothing.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 
-import { findTarget, parseEntries, relevantItems, renderBeforeBuild, shownItems } from '../tools/lib/open-items.js';
+import { findTarget, parseEntries, relevantItems, renderBeforeBuild, shownItems, titleOf } from '../tools/lib/open-items.js';
 import { findRecordsRoot, headCommit, notePath, readOr, recordsText } from './records-root.js';
+
+function sessionItem(path, entries) {
+  try {
+    const title = String(JSON.parse(readFileSync(path, 'utf8')).title).toLowerCase();
+    return entries.find((e) => e.level >= 3 && titleOf(e.heading).toLowerCase() === title) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function main() {
   let event;
@@ -29,7 +41,8 @@ function main() {
   const root = findRecordsRoot(cwd);
   if (!root) return 0;
   const entries = parseEntries(readOr(join(root, '.planning', 'BACKLOG.md')));
-  const target = findTarget(event.prompt, entries);
+  // A reply that names no item (the person picking a size) carries on with the item this session is on.
+  const target = findTarget(event.prompt, entries) ?? sessionItem(notePath(event.session_id, root), entries);
   if (!target) return 0;
   const items = relevantItems(target, entries, parseEntries(readOr(join(root, '.planning', 'BUGS.md'))));
   writeFileSync(notePath(event.session_id, root), JSON.stringify({ title: target.title, records: recordsText(root), base: headCommit(root), items: shownItems(items) }));
