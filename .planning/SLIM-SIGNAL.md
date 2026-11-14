@@ -63,7 +63,10 @@ keeping the roadmap ranked by what matters.
    Run 13 (each check names its test file, or says "not testable by code"): every named test was real
    (10 of 10, 10.5 of 11), acted-on, files, time and cost held; fails one line: F3 rewrote a rule it
    decided to change mid-build after its code. Both features marked "never logged" untestable, which
-   it is not. Sizes and the person's side are next.
+   it is not.
+   Run 14 (a rule check cannot be labelled untestable; a mid-build rule change rewritten next): no rule
+   check dodged, coverage up, records 6 and 6; fails two lines: one route missed per feature, and the
+   mid-build sentence had no effect (the rules check still catches it). Sizes and the person's side are next.
 2. **Before a build: show the open problems.** Code, not an instruction to go and look: before the
    agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the files listed
    in the item, and must fix each one or say why it is leaving it.

@@ -695,3 +695,42 @@ What it shows:
   typed answer and updated that line after the code, though it said so in its main report.
 - **Every named test was a real one.** All but three checks across both features have a test that does
   exactly what the check says; the three partly ones each miss a comparison against the old output.
+
+## Step 3, run 14: rule checks are always testable; a mid-build rule change is rewritten next (2026-11-13)
+
+What changed from run 13: the before-build text says a never/always/only check is always testable (plant
+a marker value, check every way out, logs and error reports included), and the end check refuses "not
+testable by code" on such a check; and both shaped and unshaped text say a rule changed during the build
+gets its line rewritten in the next commit, before more code. Same base and prompts; hooks pinned at
+ac43716c. One grader per feature under letters (F2 and F3 each against run 13); records by a fresh grader
+per feature.
+
+| | Run 13 F2 | Run 14 F2 | Run 13 F3 | Run 14 F3 |
+|---|---|---|---|---|
+| Never/always/only checks marked "not testable by code" | 1 | **0** | 1 | **0** |
+| Never-checks whose test covers every way out | 2 of 3 | 2 of 3 | 1 of 3 | 3 of 4 |
+| Checks with a test that does what they say | 9 of 10 | 8 of 9 | 10 of 11 | 13.5 of 14 |
+| Rule lines rewritten no later than the code that changes the behaviour | yes | yes | no | **no**, and called a rule change only after the end check |
+| Acted on, sheet items | 14 of 14 | 13 of 14 | 16 of 17 | 13 of 17 |
+| Acted on, own F2 follow-ups | | | 7 of 9 | 4 of 6 |
+| of those, after a push | 0 | 0 | 0 | 0 |
+| Files outside the list, unexplained | 0 | 0 | 0 | 0 |
+| Records score | 5.5 | **6** | 4.5 | **6** |
+| Time / cost | 18 min / $10.2 | 16 min / $9.2 | 26 min / $14.1 | 30 min / $16.4 |
+
+This grader put run 13's builds a little differently from run 13's grader (F2 14 of 14, F3 16 of 17).
+The end check sent F2 back once for a never-check with no test; F2 then wrote marker tests for two more
+routes, checking their responses, logs and error reports.
+
+**Under the rule fixed before the run, it fails two lines:** not every never-check covers every way out
+(F2 misses one route's error report, F3 one route's logs), and F3 rewrote the typed-answers rule only after
+the end check. The other lines pass; F3's 13 of 17 is at its bar.
+
+What it shows:
+- **The label loophole is closed, and coverage rose where it was weakest.** No rule check was marked
+  untestable, and F3's never-checks went from 1 of 3 to 3 of 4 covering every way out. What is left is a
+  route missed, not a check dodged.
+- **The mid-build sentence did nothing.** Runs 11, 13 and 14 each decided mid-build to let a tool return a
+  typed answer, and each wrote the rule line late; in run 14 it was not called a rule change until the end
+  check showed it. The rules check is what catches it, and the records end correct (6 of 6).
+- **Records were the best yet on both features.**

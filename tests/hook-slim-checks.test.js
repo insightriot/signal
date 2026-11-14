@@ -155,10 +155,12 @@ Built. Known limits: none yet.
     expect(before).toMatch(/^Signal: "Planner: water reminders" is not shaped yet\. Before you edit any code/);
     expect(before).toMatch(/tests everything that leaves: every message, route and tool result, not one field/);
     // Runs 9-11: a build that narrowed a rule fixed its line only after the end check pointed at it.
-    expect(before).toMatch(/Each check names in backticks the test file that will hold it, or says "not testable by code" and why\. If there is no way yet to run tests here, making one is the first job\./);
+    expect(before).toMatch(/Each check names in backticks the test file that will hold it, or says "not testable by code" and why\. A never, always or only check is always testable: plant a marker value and check every way out, logs and error reports included\. If there is no way yet to run tests here, making one is the first job\./);
+    expect(before).toMatch(/If you decide during the build to change a rule in an instruction file, rewrite its line in your next commit, before more code\./);
     expect(before).toMatch(/If this work changes one of those rules, say so in the item and rewrite that rule's line in its instruction file in the same commit, before any code\./);
     const shaped = parseEntries(BACKLOG.replace('Send a reminder when a bed needs water.', 'Send a reminder when a bed needs water.\nFiles: `src/beds/`, `src/remind.ts`\nChecks:\n- a dry bed gets one reminder a day'));
     const st = findTarget('Planner: water reminders', shaped);
+    expect(renderBeforeBuild(st, relevantItems(st, shaped, []))).toMatch(/rewrite its line in your next commit, before more code\./);
     expect(renderBeforeBuild(st, relevantItems(st, shaped, []))).toMatch(/^Signal: "Planner: water reminders" is shaped\. It expects to touch `src\/beds\/`, `src\/remind\.ts`, and lists 1 check\./);
   });
 
@@ -320,10 +322,11 @@ describe('show-open-items.js and check-limits-filed.js', () => {
           'no test named at all',
           'names a source file only (`src/remind.ts`)',
           'the email reads well: not testable by code, it is a judgement',
+          'tool calls are never logged: not testable by code',
         ],
         changed,
       ),
-    ).toEqual(['logged never (`src/log.test.ts`)', 'no test named at all', 'names a source file only (`src/remind.ts`)']);
+    ).toEqual(['logged never (`src/log.test.ts`)', 'no test named at all', 'names a source file only (`src/remind.ts`)', 'tool calls are never logged: not testable by code']);
   });
 
   it('does nothing for a prompt that names no entry, or a project with no BACKLOG.md', () => {

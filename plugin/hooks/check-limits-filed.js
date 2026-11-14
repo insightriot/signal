@@ -111,7 +111,8 @@ function main() {
     parts.push(
       `Signal: ${untested.length} of the item's checks name${untested.length === 1 ? 's' : ''} no test file this build changed:\n` +
         untested.slice(0, 12).map((c) => `- ${c.length > 200 ? c.slice(0, 199) + '…' : c}\n`).join('') +
-        `For each, write the test that does what it says and name its file in the check, in backticks, or write "not testable by code" in the check and why.\n`,
+        `For each, write the test that does what it says and name its file in the check, in backticks, or write "not testable by code" in the check and why. ` +
+        `A never, always or only check is always testable: plant a marker value and check every way out, logs and error reports included.\n`,
     );
   if (rules.length)
     parts.push(
