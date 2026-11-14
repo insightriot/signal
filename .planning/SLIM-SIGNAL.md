@@ -73,6 +73,8 @@ keeping the roadmap ranked by what matters.
    sizes, built only the picked one, rule lines rewritten in the pick commit, F3 kept F1's rule. Fails
    three lines: about $3 more per feature, records 3.5 and 3.5 (both wrote the pick as Brett's), F3
    checks 75%. Estimates were in human time.
+   2026-11-14: estimates now in the agent's own minutes, and `Picked:` names the size only. Brett
+   accepted the sizing cost: runs with a person get $3 more per feature on the cost bar.
 2. **Before a build: show the open problems.** Code, not an instruction to go and look: before the
    agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the files listed
    in the item, and must fix each one or say why it is leaving it.
