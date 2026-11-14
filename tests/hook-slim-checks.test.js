@@ -145,8 +145,8 @@ Built. Known limits: none yet.
   });
 
   it('reads an item\'s shape, and asks for one before the build when it has none', () => {
-    expect(shapeOf('Intro.\n**Files:** `src/a.ts`, `./src/b/`\nChecks:\n- one\n  - detail of one\n- two\nAfter.')).toEqual({ files: ['src/a.ts', 'src/b/'], checks: ['one', 'two'] });
-    expect(shapeOf('Files: `src/a.ts`')).toEqual({ files: ['src/a.ts'], checks: [] });
+    expect(shapeOf('Intro.\n**Files:** `src/a.ts`, `./src/b/`\nChecks:\n- one\n  - detail of one\n- two\nAfter.')).toEqual({ files: ['src/a.ts', 'src/b/'], checks: ['one', 'two'], drafted: false, picked: null });
+    expect(shapeOf('Files: `src/a.ts`')).toEqual({ files: ['src/a.ts'], checks: [], drafted: false, picked: null });
     // A check that opens with its own label is still a check (run 11: every check was read as none).
     expect(shapeOf('Files: `src/a.ts`\nChecks:\n- Tools: one per intervention.\n- Results: found when inputs match.\nAdded while building: `src/b.ts`.').checks).toEqual(['Tools: one per intervention.', 'Results: found when inputs match.']);
     const e = parseEntries(BACKLOG);
@@ -155,10 +155,11 @@ Built. Known limits: none yet.
     expect(before).toMatch(/^Signal: "Planner: water reminders" is not shaped yet\. Before you edit any code/);
     expect(before).toMatch(/tests everything that leaves: every message, route and tool result, not one field/);
     // Runs 9-11: a build that narrowed a rule fixed its line only after the end check pointed at it.
-    expect(before).toMatch(/Each check names in backticks the test file that will hold it, or says "not testable by code" and why\. A never, always or only check is always testable: plant a marker value and check every way out, logs and error reports included\. If there is no way yet to run tests here, making one is the first job\./);
+    expect(before).toMatch(/Each check names in backticks the test file that will hold it, or says "not testable by code" and why\. A never, always or only check is always testable: plant a marker value and check every way out, logs and error reports included\./);
+    expect(before).toMatch(/If not, making it checkable is the first job in every size\./);
     // Runs 12-14: a sentence asking for a mid-build rule change to be rewritten in the next commit had no effect; the end check catches it.
     expect(before).not.toMatch(/during the build to change a rule/);
-    expect(before).toMatch(/If this work changes one of those rules, say so in the item and rewrite that rule's line in its instruction file in the same commit, before any code\./);
+    expect(before).toMatch(/rewrite the line of any rule it changes in that same commit, before any code\./);
     const shaped = parseEntries(BACKLOG.replace('Send a reminder when a bed needs water.', 'Send a reminder when a bed needs water.\nFiles: `src/beds/`, `src/remind.ts`\nChecks:\n- a dry bed gets one reminder a day'));
     const st = findTarget('Planner: water reminders', shaped);
     expect(renderBeforeBuild(st, relevantItems(st, shaped, []))).not.toMatch(/during the build to change a rule/);
@@ -182,6 +183,37 @@ Built. Known limits: none yet.
     // The top level is left out: every session reads it already.
     expect(governingDocs(['src/lib/rehearsal/engine.ts'], docs)).toEqual(['src/AGENTS.md', 'src/lib/AGENTS.md']);
     expect(governingDocs(['README.ts'], docs)).toEqual([]);
+  });
+});
+
+describe('sizes', () => {
+  const SIZES = 'Send a reminder when a bed needs water.\nSizes:\n- as asked: one reminder.\n  Files: `src/remind.ts`\n  Checks:\n  - one a day (`src/remind.test.ts`)\n- deeper (recommended): snooze too.\n  Files: `src/remind.ts`, `src/snooze.ts`\n  Checks:\n  - one a day (`src/remind.test.ts`)\n  - snooze holds (`src/snooze.test.ts`)';
+  it('reads drafted sizes as no shape yet, and only the picked size once one is picked', () => {
+    // Three sizes each with Files: and Checks: must not read as one shape with their union.
+    expect(shapeOf(SIZES)).toEqual({ files: [], checks: [], drafted: true, picked: null });
+    expect(shapeOf(SIZES + '\n**Picked:** deeper\nFiles: `src/remind.ts`, `src/snooze.ts`\nChecks:\n- snooze holds (`src/snooze.test.ts`)')).toEqual({
+      files: ['src/remind.ts', 'src/snooze.ts'],
+      checks: ['snooze holds (`src/snooze.test.ts`)'],
+      drafted: false,
+      picked: 'deeper',
+    });
+    expect(shapeOf('Files: `a.ts`\nChecks:\n- one')).toEqual({ files: ['a.ts'], checks: ['one'], drafted: false, picked: null });
+  });
+
+  it('asks for sizes and a pick before code, and says when sizes wait on a pick', () => {
+    const e = parseEntries(BACKLOG);
+    const t = findTarget('Planner: water reminders', e);
+    const before = renderBeforeBuild(t, relevantItems(t, e, []));
+    expect(before).toMatch(/Under a `Sizes:` line, draft up to three sizes/);
+    expect(before).toMatch(/\*As asked\*.*\*Deeper\*.*\*Higher\*.*Mark one recommended, and say why\./s);
+    expect(before).toMatch(/Commit, ask the person to pick, and end your turn with no code\. If no person is available, pick the recommended size yourself/);
+    expect(before).toMatch(/a new idea is filed as an open item, not built/);
+    const d = parseEntries(BACKLOG.replace('Send a reminder when a bed needs water.', SIZES));
+    const dt = findTarget('Planner: water reminders', d);
+    expect(renderBeforeBuild(dt, relevantItems(dt, d, []))).toMatch(/^Signal: "Planner: water reminders" has sizes drafted and none picked\./);
+    const p = parseEntries(BACKLOG.replace('Send a reminder when a bed needs water.', SIZES + '\nPicked: deeper\nFiles: `src/snooze.ts`\nChecks:\n- snooze holds'));
+    const pt = findTarget('Planner: water reminders', p);
+    expect(renderBeforeBuild(pt, relevantItems(pt, p, []))).toMatch(/^Signal: "Planner: water reminders" is shaped \(size picked: deeper\)\./);
   });
 });
 
@@ -310,6 +342,36 @@ describe('show-open-items.js and check-limits-filed.js', () => {
     run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s4, cwd: dir, prompt: 'Planner: water reminders' });
     // The test file is new and not yet committed; it still counts.
     expect(run('check-limits-filed.js', { ...stop, session_id: s4 }).status).toBe(0);
+  });
+
+  it('lets a turn end to ask for a pick, carries the item into the reply, and sends back code built before a pick', () => {
+    const SIZES = 'Send a reminder when a bed needs water.\nSizes:\n- as asked (recommended): one reminder.\n  Files: `src/remind.ts`\n  Checks:\n  - one a day (`src/remind.test.ts`)\n- deeper: snooze.\n  Files: `src/snooze.ts`\n  Checks:\n  - snooze holds';
+    const dir = project();
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(join(dir, 'src', 'remind.ts'), 'export const a = 1;\n');
+    execFileSync('git', ['add', '-A'], { cwd: dir });
+    execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'base'], { cwd: dir });
+    const session = randomUUID();
+    run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: session, cwd: dir, prompt: 'Planner: water reminders' });
+    // The agent drafts sizes in the records only and asks: the stop passes.
+    writeFileSync(join(dir, '.planning', 'BACKLOG.md'), BACKLOG.replace('Send a reminder when a bed needs water.', SIZES));
+    const stop = { hook_event_name: 'Stop', session_id: session, cwd: dir, last_assistant_message: 'Which size? I recommend as asked.' };
+    expect(run('check-limits-filed.js', stop).status).toBe(0);
+    // The person's reply names no item; the before-build text still comes, about the same item.
+    const reply = run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: session, cwd: dir, prompt: 'Go with your recommendation.' });
+    expect(reply.stdout).toMatch(/^Signal: "Planner: water reminders" has sizes drafted and none picked\./);
+    // Code changed with no pick written: sent back.
+    writeFileSync(join(dir, 'src', 'remind.ts'), 'export const a = 2;\n');
+    const built = run('check-limits-filed.js', { ...stop, last_assistant_message: 'Built it.' });
+    expect(built.status).toBe(2);
+    expect(built.stderr).toMatch(/has sizes drafted and none picked, and this build changed code/);
+    // Picked: the picked size's check is held to a test.
+    writeFileSync(join(dir, '.planning', 'BACKLOG.md'), BACKLOG.replace('Send a reminder when a bed needs water.', SIZES + '\nPicked: as asked\nFiles: `src/remind.ts`\nChecks:\n- one a day (`src/remind.test.ts`)'));
+    const s2 = randomUUID();
+    run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: s2, cwd: dir, prompt: 'Planner: water reminders' });
+    const picked = run('check-limits-filed.js', { ...stop, session_id: s2, last_assistant_message: 'Built it.' });
+    expect(picked.stderr).toMatch(/1 of the item's checks names no test file this build changed:\n- one a day/);
+    expect(picked.stderr).not.toMatch(/snooze/);
   });
 
   it('finds the checks with no test behind them in the change', () => {
