@@ -162,16 +162,12 @@ export function shapeOf(body) {
   return { files, checks };
 }
 
-/** Run 13: a rule change decided during the build had its line rewritten only after the code. */
-const MID_BUILD_RULE = 'If you decide during the build to change a rule in an instruction file, rewrite its line in your next commit, before more code.';
-
 /** The opening paragraph: shape the item first, or hold the build to the shape it has. */
 function shapingText(title, { files, checks }) {
   if (files.length && checks.length)
     return (
       `Signal: "${title}" is shaped. It expects to touch ${files.map((f) => `\`${f}\``).join(', ')}, and lists ${checks.length} check${checks.length === 1 ? '' : 's'}. ` +
-      'Write each check as a test before the code, and name its test file in the check. A file outside that list is allowed, but your final message must give it a line saying why. ' +
-      MID_BUILD_RULE + '\n'
+      'Write each check as a test before the code, and name its test file in the check. A file outside that list is allowed, but your final message must give it a line saying why.\n'
     );
   return (
     `Signal: "${title}" is not shaped yet. Before you edit any code, write two things into the item in .planning/BACKLOG.md and commit them:\n` +
@@ -180,8 +176,7 @@ function shapingText(title, { files, checks }) {
     '(AGENTS.md, CLAUDE.md) of those folders or in the item, write a check that tests everything that leaves: every message, route and tool result, not one field.\n' +
     '  Each check names in backticks the test file that will hold it, or says "not testable by code" and why. A never, always or only check is always testable: plant a marker value and check every way out, logs and error reports included. ' +
     'If there is no way yet to run tests here, making one is the first job.\n' +
-    'If this work changes one of those rules, say so in the item and rewrite that rule\'s line in its instruction file in the same commit, before any code. ' +
-    MID_BUILD_RULE + '\n' +
+    'If this work changes one of those rules, say so in the item and rewrite that rule\'s line in its instruction file in the same commit, before any code.\n' +
     'Agree them with the person if one is available; if not, draft them yourself and say so in your final message. Then write each check as a test before the code. ' +
     'At the end, a file outside the list needs a line saying why.\n'
   );

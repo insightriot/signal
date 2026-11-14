@@ -156,11 +156,12 @@ Built. Known limits: none yet.
     expect(before).toMatch(/tests everything that leaves: every message, route and tool result, not one field/);
     // Runs 9-11: a build that narrowed a rule fixed its line only after the end check pointed at it.
     expect(before).toMatch(/Each check names in backticks the test file that will hold it, or says "not testable by code" and why\. A never, always or only check is always testable: plant a marker value and check every way out, logs and error reports included\. If there is no way yet to run tests here, making one is the first job\./);
-    expect(before).toMatch(/If you decide during the build to change a rule in an instruction file, rewrite its line in your next commit, before more code\./);
+    // Runs 12-14: a sentence asking for a mid-build rule change to be rewritten in the next commit had no effect; the end check catches it.
+    expect(before).not.toMatch(/during the build to change a rule/);
     expect(before).toMatch(/If this work changes one of those rules, say so in the item and rewrite that rule's line in its instruction file in the same commit, before any code\./);
     const shaped = parseEntries(BACKLOG.replace('Send a reminder when a bed needs water.', 'Send a reminder when a bed needs water.\nFiles: `src/beds/`, `src/remind.ts`\nChecks:\n- a dry bed gets one reminder a day'));
     const st = findTarget('Planner: water reminders', shaped);
-    expect(renderBeforeBuild(st, relevantItems(st, shaped, []))).toMatch(/rewrite its line in your next commit, before more code\./);
+    expect(renderBeforeBuild(st, relevantItems(st, shaped, []))).not.toMatch(/during the build to change a rule/);
     expect(renderBeforeBuild(st, relevantItems(st, shaped, []))).toMatch(/^Signal: "Planner: water reminders" is shaped\. It expects to touch `src\/beds\/`, `src\/remind\.ts`, and lists 1 check\./);
   });
 
