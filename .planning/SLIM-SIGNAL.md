@@ -75,6 +75,8 @@ keeping the roadmap ranked by what matters.
    checks 75%. Estimates were in human time.
    2026-11-14: estimates now in the agent's own minutes, and `Picked:` names the size only. Brett
    accepted the sizing cost: runs with a person get $3 more per feature on the cost bar.
+   Run 17 (run 16 void: it ran on another model): passes every line in both features; records 6 and
+   5.5, no pick credited to a person, cost within the new bars. Estimates still 4.5 to 8.5 times high.
 2. **Before a build: show the open problems.** Code, not an instruction to go and look: before the
    agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the files listed
    in the item, and must fix each one or say why it is leaving it.

@@ -778,3 +778,48 @@ What it shows:
   look far costlier than they are.
 - **Sizing costs about $3 a feature.** The bars were set for builds with no person; whether that is worth
   it is a product call.
+
+## Step 3, run 17: run 15 with two text fixes, the model pinned (2026-11-14)
+
+What changed from run 15: estimates are asked for in the agent's own working minutes, and the `Picked:`
+line names only the size, not who picked it. Brett accepted about $3 per feature for sizing, so runs with a
+person get $3 more on the cost bar (F2 $14, F3 $21; time bars unchanged). Same scripted person, prompts and
+graders. Hooks pinned at 952aea67. F2 and F3 each graded against run 15 under letters.
+
+**Run 16 is void.** The test scripts never named a model, and the CLI's default changed between runs: run
+16 was built by claude-fable-5-2 throughout, where runs 10-15 were built by claude-opus-5-5. It cost $25.6
+and $34.8 and is not comparable. Run 17 is run 16 with `--model claude-opus-5-5`. Seen in run 16 before it
+was voided: both `Picked:` lines named the size only.
+
+| | Run 15 F2 | Run 17 F2 | Run 15 F3 | Run 17 F3 |
+|---|---|---|---|---|
+| Sizes drafted, one recommended, no code before the pick | yes | yes (3, as asked) | yes | yes (3, as asked) |
+| Sizes genuinely different | yes | yes | yes | yes |
+| Built inside the picked size | yes | yes | yes | yes |
+| `Picked:` line or a record names someone who did not pick | yes | **no** | yes | **no** |
+| Size estimate against agent time | 90 min for 12 | 60 min for 13 | 6 h for 29 | "3 h of my time" for 21 |
+| Rule lines rewritten no later than the code | yes | yes (pick commit) | yes | yes, one after the end check |
+| F1's typed-answers rule kept | | | yes | **no**: narrowed, said only after the end check |
+| Checks with a test that does what they say | 8 of 8 | 7 of 7 | 7.5 of 10 (this grader: 9.5 of 11) | **13.5 of 14** |
+| Never-checks whose test covers every way out | 2 of 2 | 2 of 2 | 2 of 3 (this grader: 3 of 4) | 4 of 4 |
+| Acted on, sheet items | 13 of 14 | 13 of 14 | 15 of 17 | 15 of 17 |
+| Acted on, own F2 follow-ups | | | 7 of 7 | 5 of 5 |
+| Records score | 3.5 | **6** | 3.5 | **5.5** |
+| Time / cost | 16 min / $13.0 | 17 min / **$11.7** | 34 min / $21.7 | 27 min / **$18.4** |
+
+The sizing turn cost $2.9 (F2) and $3.5 (F3).
+
+**Under the rule fixed before the run, it passes every line**, in both features. One run each.
+
+What it shows:
+- **The two fixes did what they were for.** No record credits a pick to a person, and records are back to
+  run 14's level (6 and 5.5, no false statements).
+- **Estimates are still too high:** 4.5 times in F2, 8.5 times in F3, where F3 called human-scale hours
+  "my time". The wording changed the label, not the number. Not a pass line; worth a fix.
+- **F3 narrowed F1's typed-answers rule in code** (a typed answer can reach the agent as a tool result) and
+  said so only after the end check, which caught it. Run 15's F3 kept the rule. The end check works; the
+  before-build text did not prevent it.
+- **"Deeper" is weak on "what they would start from"** in both features.
+- **An unpinned model is a confound.** Every test-run script now names its model.
+- The records checklist file the graders were pointed to (r6-records-slim.md) no longer exists in the
+  scratchpad; graders in runs 15 and 17 took the same seven checks from earlier records grades.
