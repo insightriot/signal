@@ -186,7 +186,7 @@ function shapingText(title, { files, checks, drafted, picked }) {
     );
   return (
     `Signal: "${title}" is not shaped yet. Before you edit any code, size it with the person, in its item in .planning/BACKLOG.md:\n` +
-    '- Under a `Sizes:` line, draft up to three sizes, each a bullet with a short spec, a `Files:` line (the files it would touch, each in backticks), `Checks:` bullets and a rough cost in your own working minutes, not a human developer\'s. ' +
+    '- Under a `Sizes:` line, draft up to three sizes, each a bullet with a short spec, a `Files:` line (the files it would touch, each in backticks), `Checks:` bullets and its cost as a multiple of *As asked* (for example 2x), never in minutes or hours. ' +
     '*As asked*: the item as described. *Deeper*: as a top professional would do it: what they would add that is not asked, what they would start from, which methods and tools, and what other than you or the person would show it is right. ' +
     '*Higher*: the goal behind the item, tied to what the roadmap says it is for. Mark one recommended, and say why.\n' +
     '- Say whether you can check the work yourself: tests, test data, a way to run it. If not, making it checkable is the first job in every size.\n' +
