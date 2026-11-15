@@ -209,7 +209,9 @@ describe('sizes', () => {
     expect(before).toMatch(/Commit, ask the person to pick, and end your turn with no code\. If no person is available, pick the recommended size yourself/);
     expect(before).toMatch(/a new idea is filed as an open item, not built/);
     // Run 15: estimates came in a human developer's time, and the pick was credited to a named person who never made it.
-    expect(before).toMatch(/a rough cost in your own working minutes, not a human developer's/);
+    // Run 17: asked for its own minutes, it still guessed 4.5 to 8.5 times the real build, so cost is now relative.
+    expect(before).toMatch(/its cost as a multiple of \*As asked\* \(for example 2x\), never in minutes or hours/);
+    expect(before).not.toMatch(/working minutes/);
     expect(before).toMatch(/`Picked:` line naming only the size, not who picked it/);
     const d = parseEntries(BACKLOG.replace('Send a reminder when a bed needs water.', SIZES));
     const dt = findTarget('Planner: water reminders', d);
