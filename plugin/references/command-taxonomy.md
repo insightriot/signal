@@ -26,8 +26,10 @@ two things.
 
 ### 1. Flow — moves work forward
 
-`new-project` · `init` · `calibrate` · `discuss` · `plan` · `execute` · `verify` · `review` ·
+`build` · `new-project` · `init` · `calibrate` · `discuss` · `plan` · `execute` · `verify` · `review` ·
 `ship` · `escalate`
+
+`build` is the short way: one backlog item, no phases, records kept in `.planning/BACKLOG.md`.
 
 Named for **the phase or the act**, because the six phases are a fixed vocabulary users learn once
 (`PROJECT.md` § Vocabulary). Tier-gated: each reads `PROFILE.md` and may exit early.

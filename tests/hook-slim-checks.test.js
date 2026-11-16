@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { checkFiled, codeTokens, findTarget, governingDocs, limitLines, namesFile, outsideFiles, parseEntries, relevantItems, renderBeforeBuild, ruleSentences, shapeOf, shownItems, titleOf, untestedChecks } from '../plugin/tools/lib/open-items.js';
+import { checkFiled, codeTokens, findTarget, matchItem, governingDocs, limitLines, namesFile, outsideFiles, parseEntries, relevantItems, renderBeforeBuild, ruleSentences, shapeOf, shownItems, titleOf, untestedChecks } from '../plugin/tools/lib/open-items.js';
 
 const HOOKS = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugin', 'hooks');
 
@@ -406,5 +406,42 @@ describe('show-open-items.js and check-limits-filed.js', () => {
     const bare = mkdtempSync(join(tmpdir(), 'slim-bare-'));
     execFileSync('git', ['init', '-q'], { cwd: bare });
     expect(run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: session, cwd: bare, prompt: 'Planner: water reminders' }).stdout).toBe('');
+  });
+});
+
+describe('/sig:build: matchItem and start-build.js', () => {
+  const e = parseEntries(BACKLOG);
+  it('matches a full title, or loose words with one clear best open item', () => {
+    expect(matchItem('Planner: water reminders', e).target?.title).toBe('Planner: water reminders');
+    expect(matchItem('water reminders', e).target?.title).toBe('Planner: water reminders');
+  });
+  it('never picks a done item, and does not guess between ties or weak overlaps', () => {
+    expect(matchItem('plant list per bed', e).target).toBeNull();
+    const tie = parseEntries('# B\n\n## S\n\n### Voice: record a call\n\n### Voice: play a call\n');
+    const r = matchItem('voice call', tie);
+    expect(r.target).toBeNull();
+    expect(r.candidates.map((c) => c.title)).toEqual(['Voice: record a call', 'Voice: play a call']);
+    expect(matchItem('add a voice layer to rehearsal with real audio', tie).target).toBeNull();
+    expect(matchItem('the weather', e)).toEqual({ target: null, candidates: [] });
+  });
+  const start = (dir, args, env = {}) => spawnSync('node', [join(HOOKS, 'start-build.js'), ...args], { cwd: dir, env: { ...process.env, ...env }, encoding: 'utf8' });
+  it('prints the open items, and leaves the note the end check reads for this session', () => {
+    const dir = project();
+    const session = randomUUID();
+    const out = start(dir, ['water', 'reminders'], { CLAUDE_CODE_SESSION_ID: session });
+    expect(out.status).toBe(0);
+    expect(out.stdout).toMatch(/before you build "Planner: water reminders"/);
+    const stop = run('check-limits-filed.js', { hook_event_name: 'Stop', session_id: session, cwd: dir, last_assistant_message: 'Done. Known limit: reminders are not sent when the app is closed.' });
+    expect(stop.status).toBe(2);
+  });
+  it('says what to do when nothing matches, or there is no backlog', () => {
+    expect(start(project(), ['voice', 'layer']).stdout).toMatch(/no open backlog item matches "voice layer"/);
+    const bare = mkdtempSync(join(tmpdir(), 'slim-build-'));
+    execFileSync('git', ['init', '-q'], { cwd: bare });
+    expect(start(bare, ['anything']).stdout).toMatch(/no \.planning\/BACKLOG\.md/);
+  });
+  it('the prompt hook leaves /sig:build to start-build.js', () => {
+    const out = run('show-open-items.js', { hook_event_name: 'UserPromptSubmit', session_id: randomUUID(), cwd: project(), prompt: '/sig:build Planner: water reminders' });
+    expect(out.stdout).toBe('');
   });
 });

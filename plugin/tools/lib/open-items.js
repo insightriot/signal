@@ -70,6 +70,30 @@ export function findTarget(prompt, entries) {
   return best;
 }
 
+const titleWords = (s) => new Set(norm(s).split(/[^a-z0-9]+/).filter((w) => w.length > 2));
+
+/**
+ * The open backlog entry `/sig:build <words>` means. A full title wins; otherwise the open entries
+ * (level 3 or deeper) sharing the most words with the request, counting only words longer than two
+ * letters. One clear best is the target; a tie, or a best that shares under half the request's
+ * words, is not guessed and comes back as candidates.
+ * @returns {{target: object|null, candidates: object[]}}
+ */
+export function matchItem(request, entries) {
+  const open = entries.filter((e) => e.level >= 3 && !e.done);
+  const exact = findTarget(request, open);
+  if (exact) return { target: exact, candidates: [] };
+  const want = titleWords(request);
+  if (!want.size) return { target: null, candidates: [] };
+  const scored = open
+    .map((e) => ({ e, n: [...titleWords(e.title)].filter((w) => want.has(w)).length }))
+    .filter((s) => s.n > 0)
+    .sort((a, b) => b.n - a.n);
+  if (!scored.length) return { target: null, candidates: [] };
+  const clear = scored[0].n * 2 >= want.size && (scored.length === 1 || scored[1].n < scored[0].n);
+  return clear ? { target: scored[0].e, candidates: [] } : { target: null, candidates: scored.slice(0, 5).map((s) => s.e) };
+}
+
 const filesIn = (text) => new Set([...String(text).matchAll(FILE_TOKEN_RE)].map((m) => m[1]));
 
 /**

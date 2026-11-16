@@ -94,11 +94,12 @@
       "The command files (plugin/commands/*.md) are instructions the model reads on every run.",
       "They grew to ~470 KB with 222 references to old bug and decision IDs: fixes were added as more text.",
       "Course correction D-BR1026-3: they may shrink and never grow. Enforced by tests/command-corpus-budget.test.js.",
-      "When a change shrinks them, lower these numbers in the same change so the gain is kept."
+      "When a change shrinks them, lower these numbers in the same change so the gain is kept.",
+      "Raised once for /sig:build (0.1.55, +1 file, +2176 bytes): the one command a user starts a build with; the old commands stay until the keep-or-scrap decision because one install serves every project."
     ],
     "dir": "plugin/commands",
-    "maxFiles": 20,
-    "maxBytes": 327212,
+    "maxFiles": 21,
+    "maxBytes": 329388,
     "maxHistoryIds": 75,
     "historyIdPattern": "\\b(?:B[0-9]{1,3}|SIG-[0-9]+|D-[A-Z0-9][A-Za-z0-9.-]*)\\b"
   }

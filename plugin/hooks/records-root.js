@@ -5,12 +5,12 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative } from 'node:path';
 
 import { gitEnv } from '../tools/lib/git-env.js';
-import { governingDocs, ruleSentences } from '../tools/lib/open-items.js';
+import { governingDocs, parseEntries, relevantItems, renderBeforeBuild, ruleSentences, shownItems } from '../tools/lib/open-items.js';
 
 const real = (p) => {
   try {
@@ -48,6 +48,16 @@ export const recordsText = (root) => readOr(join(root, '.planning', 'BACKLOG.md'
 /** Where the before-check leaves its note for the after-check, per session and project. */
 export const notePath = (sessionId, root) =>
   join(tmpdir(), `signal-build-note-${createHash('sha256').update(`${sessionId}\0${root}`).digest('hex').slice(0, 16)}.json`);
+
+/**
+ * Start a build of `target`: leave the note the after-check reads (when there is a session id) and
+ * return the text the agent is shown before it builds.
+ */
+export function startBuild(root, sessionId, target) {
+  const items = relevantItems(target, parseEntries(readOr(join(root, '.planning', 'BACKLOG.md'))), parseEntries(readOr(join(root, '.planning', 'BUGS.md'))));
+  if (sessionId) writeFileSync(notePath(sessionId, root), JSON.stringify({ title: target.title, records: recordsText(root), base: headCommit(root), items: shownItems(items) }));
+  return renderBeforeBuild(target, items);
+}
 
 /** The commit the build starts from, or null when there is none yet. */
 export function headCommit(root) {

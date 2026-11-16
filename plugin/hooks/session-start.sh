@@ -27,3 +27,6 @@ for f in "${PLUGIN_ROOT}"/commands/*.md; do
   COMMANDS="${COMMANDS:+${COMMANDS}, }/sig:$(basename "$f" .md)"
 done
 echo "[signal] Plugin loaded. Commands: ${COMMANDS}"
+if [ -f ".planning/BACKLOG.md" ]; then
+  echo "[signal] To build a backlog item, run /sig:build <item>: it shows the open problems beside it, sizes it with you, and records what was done and why in .planning/BACKLOG.md."
+fi
