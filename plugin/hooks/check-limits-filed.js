@@ -107,7 +107,7 @@ function main() {
     parts.push(
       `Signal: your final message names ${r.limits.length} limit${r.limits.length === 1 ? '' : 's'} or follow-up${r.limits.length === 1 ? '' : 's'}, and none is filed as an open item:\n` +
         r.limits.slice(0, 12).map((l) => `- ${l}\n`).join('') +
-        (r.buried ? `They are written inside "${note.title}", which is now marked done; done entries get removed, and the limits go with them.\n` : '') +
+        (r.buried ? `They are written inside "${note.title}", which is now marked done; nobody reads a done item for open work, so they would be lost.\n` : '') +
         `File each one as its own open entry in .planning/BACKLOG.md (BUGS.md for a bug), or as bullets under one new open "${note.title} follow-ups" entry, and commit it. ` +
         `If a line above is not a real limit, say so in one line instead.\n`,
     );

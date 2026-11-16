@@ -14,11 +14,11 @@
 //
 // Needs only a BACKLOG.md: no STATE.md, no phase. Anything it cannot read prints nothing.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 
-import { findTarget, parseEntries, relevantItems, renderBeforeBuild, shownItems, titleOf } from '../tools/lib/open-items.js';
-import { findRecordsRoot, headCommit, notePath, readOr, recordsText } from './records-root.js';
+import { findTarget, parseEntries, titleOf } from '../tools/lib/open-items.js';
+import { findRecordsRoot, notePath, readOr, startBuild } from './records-root.js';
 
 function sessionItem(path, entries) {
   try {
@@ -40,13 +40,13 @@ function main() {
   const cwd = typeof event.cwd === 'string' && isAbsolute(event.cwd) ? event.cwd : process.cwd();
   const root = findRecordsRoot(cwd);
   if (!root) return 0;
+  // `/sig:build` starts its own build (`start-build.js`), matching loose words; don't start it twice.
+  if (/^\s*\/sig:build\b/.test(event.prompt)) return 0;
   const entries = parseEntries(readOr(join(root, '.planning', 'BACKLOG.md')));
   // A reply that names no item (the person picking a size) carries on with the item this session is on.
   const target = findTarget(event.prompt, entries) ?? sessionItem(notePath(event.session_id, root), entries);
   if (!target) return 0;
-  const items = relevantItems(target, entries, parseEntries(readOr(join(root, '.planning', 'BUGS.md'))));
-  writeFileSync(notePath(event.session_id, root), JSON.stringify({ title: target.title, records: recordsText(root), base: headCommit(root), items: shownItems(items) }));
-  process.stdout.write(renderBeforeBuild(target, items) + '\n');
+  process.stdout.write(startBuild(root, event.session_id, target) + '\n');
   return 0;
 }
 

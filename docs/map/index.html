@@ -501,7 +501,7 @@
      ██ ██ ██    ██ ██  ████ ██   ██ ██
 ███████ ██  ██████  ██   ███ ██   ██ ███████</pre>
 <p class="tagline">Right-sized rigor for AI-assisted engineering.</p>
-<p class="meta">Map &middot; v0.1.54 &middot; <a href="../commands/">commands/</a> &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a></p>
+<p class="meta">Map &middot; v0.1.55 &middot; <a href="../commands/">commands/</a> &middot; <a href="../.planning/PROJECT.md">PROJECT.md § Vocabulary</a> &middot; <a href="../references/tier-definitions.md">tier-definitions.md</a></p>
 </header>
 
 <nav class="view-tabs" aria-label="Views">
@@ -708,6 +708,18 @@
 // appears in a command file (many of those are cross-references or rejected proposals).
 // map-roster:begin COMMANDS
 const COMMANDS = [
+  {
+    group: 'Build',
+    blurb: 'The short way: one backlog item, no phases.',
+    items: [
+      {
+        name: '/sig:build',
+        tags: ['not phase-gated'],
+        summary: 'Build one item from .planning/BACKLOG.md: shows the open problems beside it, sizes it with you, builds it with a test per check, and marks it done with what was built and why. At the end it checks that every limit named was filed as an open item.',
+        flags: [],
+      },
+    ],
+  },
   {
     group: 'Set up',
     blurb: 'Bring Signal to a codebase — new or existing.',
