@@ -6,6 +6,33 @@ All notable changes to Signal are documented here. Format loosely follows [Keep 
 
 ---
 
+## [0.1.55] — 2026-11-16 — `/sig:build`: build one backlog item, with the checks before and after
+
+### What you can now do
+
+`/sig:build <item>` builds one item from `.planning/BACKLOG.md`, with no phases. A few words from the
+item's title are enough; if they could mean more than one item it lists them and asks, and if no
+item matches it files a new one first. Before any code it shows the open problems in the same
+backlog section and the open bugs that name the same files, and sizes the work with you (As asked /
+Deeper / Higher, each with the files it touches and the checks it must pass, cost as a multiple of
+As asked). When the work is done the item stays in the backlog, struck through and dated, with a
+`Built:` line saying what was built and why. Work that stops early gets a `Stopped:` line instead.
+
+At the end, Signal checks that every limit or follow-up the agent names is filed as an open item,
+that each check has a test, that files outside the item's list are explained, and that the standing
+rules of the folders it changed still hold. It sends the agent back once if not.
+
+These checks were measured on copies of a real project over 18 scripted runs (see
+`.planning/SLIM-SIGNAL.md`). This release is for trying them on real work.
+
+### Also
+
+- The session greeting points at `/sig:build` in any project with a `.planning/BACKLOG.md`.
+- The six phase commands are unchanged and still there. One install serves every project on a
+  machine, so they stay until the decision on whether this shorter way replaces them.
+
+---
+
 ## [0.1.54] — 2026-11-01 — The phase commands as plain steps; closes confirm after a rebase merge
 
 ### The phase commands, rewritten as plain steps
