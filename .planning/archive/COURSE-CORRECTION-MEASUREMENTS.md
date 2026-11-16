@@ -823,3 +823,50 @@ What it shows:
 - **An unpinned model is a confound.** Every test-run script now names its model.
 - The records checklist file the graders were pointed to (r6-records-slim.md) no longer exists in the
   scratchpad; graders in runs 15 and 17 took the same seven checks from earlier records grades.
+
+## Step 3, run 18: sizes costed as a multiple of As asked (2026-11-15)
+
+What changed from run 17: each size gives its cost as a multiple of *As asked*, never minutes or hours
+(PR #364). Everything else as run 17: same scripted person, prompts, graders and bars; hooks at 663eeb31;
+model pinned (every main-session message claude-opus-5-5; helper calls on claude-fable-5-2 took about a
+third of the spend, the same split as run 17). F2 and F3 each graded against run 17 under fresh letters.
+The practice copy's source repo and the two grading sheets were lost to a scratch-folder cleanup overnight;
+the copy was taken from run 17's origin at the same base commit and the sheets rebuilt byte for byte from
+the session's own writes, both before any grading.
+
+| | Run 17 F2 | Run 18 F2 | Run 17 F3 | Run 18 F3 |
+|---|---|---|---|---|
+| Sizes drafted, one recommended, no code before the pick | yes | yes (As asked) | yes | yes (As asked) |
+| Built inside the picked size | yes | yes | yes | yes |
+| `Picked:` line or a record names someone who did not pick | no | no | no | no |
+| Size cost | 60 min for 13 | **1x / 2x / 5x** | "3 h of my time" for 21 | **1x / 1.8x / 4x** |
+| Multiples consistent with each size's files and checks | | 1x yes, 2x and 5x partly | | 1x yes, 1.8x and 4x partly |
+| Rule lines rewritten no later than the code | yes | yes (pick commit; reworded after code to match it) | one after the end check | one after the end check |
+| F1's typed-answers rule kept | | | no | **no**: narrowed again, said only after the end check |
+| Checks with a test that does what they say (this grader) | 6.5 of 7 | **11 of 11** | 14 of 14 | 13 of 14 |
+| Never-checks whose test covers every way out (this grader) | 2 of 2 | 5 of 5 | 3 of 3 | 2 of 3 |
+| Acted on, sheet items (this grader) | 13 of 14 | 13 of 14 | 16 of 17 | 16 of 17 |
+| Acted on, own F2 follow-ups (this grader) | | | 5 of 5 | 7 of 8 |
+| Records score | 6 | **6** | 5.5 | **4** |
+| Time / cost | 17 min / $11.7 | 18.5 min / $13.6 | 27 min / $18.4 | 24 min / $15.7 |
+
+The sizing turn cost $3.0 (F2) and $2.9 (F3).
+
+**Under the rule fixed before the run, it fails two lines:** F2's time (18.5 min against 18, close) and F3's
+records (4 against a floor of 5). Every other line holds, including both new ones: no size gives a time.
+
+What it shows:
+- **The cost fix did what it was for.** No minutes or hours anywhere; the multiples rank the sizes in the
+  order of their work. Above 1x they are only partly backed by each size's own lists (loosely named files,
+  parts with no check), so they read as a ranking, not a measure.
+- **F3 narrowed F1's typed-answers rule for the second run in a row**, in a different way: a mock tool
+  answers differently when the agent's input matches a typed answer, so the agent can learn whether its
+  guess was right. Said only after the end check ("needs a qualifier"), with one doc line left unqualified.
+  No check in either run's F3 covered that rule, though the sizing text asks for a check on every rule the
+  work could break.
+- **F3's records:** a follow-up the build's own later fix made false, a state paragraph calling two merged
+  features "not yet merged", and two "cannot show today" lines the build made untrue. Run 17's F3 scored 5.5.
+- **Recommendation reasons quote the person loosely:** F2 said Brett called the item "the smaller step"; the
+  records put that phrase in the planner's words. Graded an overstatement, not a false record.
+- **"Deeper" is still weak on "what they would start from"** in both features (third run).
+- Grader variance on re-grades of run 17: F2 checks 7 of 7 then 6.5 of 7; F3 acted on 15 then 16 of 17.
