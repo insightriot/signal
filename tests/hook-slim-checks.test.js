@@ -421,7 +421,8 @@ describe('/sig:build: matchItem and start-build.js', () => {
     const r = matchItem('voice call', tie);
     expect(r.target).toBeNull();
     expect(r.candidates.map((c) => c.title)).toEqual(['Voice: record a call', 'Voice: play a call']);
-    expect(matchItem('add a voice layer to rehearsal with real audio', tie).target).toBeNull();
+    // A weak overlap (one word of six) is neither a target nor a candidate: it would list unrelated items.
+    expect(matchItem('add a voice layer to rehearsal with real audio', tie)).toEqual({ target: null, candidates: [] });
     expect(matchItem('the weather', e)).toEqual({ target: null, candidates: [] });
   });
   const start = (dir, args, env = {}) => spawnSync('node', [join(HOOKS, 'start-build.js'), ...args], { cwd: dir, env: { ...process.env, ...env }, encoding: 'utf8' });
