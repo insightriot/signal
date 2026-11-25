@@ -79,6 +79,9 @@ keeping the roadmap ranked by what matters.
    5.5, no pick credited to a person, cost within the new bars. Estimates still 4.5 to 8.5 times high.
    2026-11-15: sizes give cost as a multiple of *As asked*, never minutes: two wordings of minutes
    left the guess 4.5 to 8.5 times the real build. Watch next run: F3 narrowing F1's rule (run 17).
+   Run 18: no size gives a time (1x / 2x / 5x and 1x / 1.8x / 4x, in the order of their work). Fails two
+   lines: F2 time 18.5 min (bar 18) and F3 records 4 (floor 5). F3 narrowed F1's rule again, said after
+   the end check, with no check on it.
 2. **Before a build: show the open problems.** Code, not an instruction to go and look: before the
    agent starts, it is handed the open items (bugs, follow-ups, limits) that touch the files listed
    in the item, and must fix each one or say why it is leaving it.
