@@ -182,6 +182,42 @@ The six-phase flow as the default, the decision queue, review loops beyond one r
 setting, the tiers, most of the 26 agents, the JSON work store, and Signal's notes about itself.
 Archived, not deleted.
 
+## The cut-down, step by step (proposed 2026-11-24, not yet agreed)
+
+Brett's three goals: right-size the work; manage issues, work and roadmap; accurate docs on the work
+and the codebase, easy to find. Brett's reason for not using Signal: it looks busy and has nothing to
+show. So every step below ends in something he can check himself, not in a report.
+
+Measured 2026-11-24: `/sig:build` runs on about 1,300 lines (the build hooks, `open-items.js`,
+`test-run.js`, `git-env.js`) of 54,624 in `plugin/tools/lib`. 16 of 26 agents are named by no command
+file. 313 entries sit at the top of `.planning/`. On the test project, one item was filed, sized and
+picked through `/sig:build` on 2026-11-18; no item has closed with a `Built:` line yet.
+
+1. **Archive now, one PR.** Only `plugin/` ships to a project, so this cannot break one. Tag first;
+   move with `git mv`; delete nothing; `STATUS.md` stays. Signal's notes about itself in `.planning/`
+   (down to about five files), `analysis/`, the adherence harness and its per-PR regeneration commit,
+   the 16 agents no command names, and `CLAUDE.md` cut to about 5 KB.
+   *Check:* `ls .planning | wc -l` prints under 10 and the suite is green.
+2. **Kept frozen:** the six phase commands and the work store. The production project has an Epic
+   open on them and 27 unit records in the store. They are archived only after Brett moves that
+   project to `/sig:build`.
+3. **Sort the rest of `plugin/` by an import trace** from the kept commands, in a second PR. What
+   nothing kept imports is archived, with its tests. No list is written here: one made from file
+   names would be a guess.
+4. **Build what is missing, in this order:**
+   - **A sprint:** size several backlog items with the person in one sitting, then build them in a
+     row unattended, each ending in passing tests and a `Built:` line. This is what Brett was waiting
+     for. The Stop hook and the commit hook from 2026-11-03 are the starting point. Unmeasured.
+   - `/sig:add` captures straight into the backlog.
+   - A codebase page generated from the code (the `/sig:init` scanners), not written freehand.
+   - One "where we are" page in place of `/sig:status` and `/sig:resume`.
+   - Backlog ranking (piece 8).
+   *Check for each:* Brett runs it on the test project and the item closes with a `Built:` line he
+   agrees with. No scripted runs.
+
+**Open, before step 4:** a search for existing tools that already do step 4, so Signal adopts rather
+than builds. One page, ending in a decision per tool: adopt, borrow one named thing, or nothing.
+
 ## Where the borrowed ideas come from
 
 Both are from an article on agent loops and graphs (x.com/HoodieFade_, 2026-11-04), which also backs
