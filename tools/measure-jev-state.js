@@ -45,7 +45,7 @@ async function main() {
 
   const stateRaw = await readFile(join(ROOT, 'tests/fixtures/jev/STATE-3518c11.md'), 'utf8');
   const pluginJson = execFileSync('git', ['show', `${SPIKE_COMMIT}:plugin/.claude-plugin/plugin.json`], { cwd: ROOT, encoding: 'utf8' });
-  const spike = JSON.parse(await readFile(join(ROOT, 'analysis/jev-spike/labels-and-results.json'), 'utf8'));
+  const spike = JSON.parse(await readFile(join(ROOT, 'archive/analysis/jev-spike/labels-and-results.json'), 'utf8'));
   const labelled = spike.cases.filter((c) => c.set === 'narrative');
 
   const dir = await mkdtemp(join(tmpdir(), 'sig-measure-jev-'));

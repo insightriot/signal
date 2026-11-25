@@ -28,4 +28,4 @@ On privacy, since people ask: Signal keeps all state in `.planning/` in your rep
 
 ## If you want to look
 
-The full landscape write-up this draws on is in [`../analysis/REPO-ANALYSIS.md`](../analysis/REPO-ANALYSIS.md); a candid "when to reach for which" guide — including the projects Signal is built from — is in [`./vs.md`](./vs.md); and a complete FULL-tier run is committed as a worked example at [`../examples/url-shortener/`](../examples/url-shortener/), where you can read the whole `.planning/` chain end to end. If you try it, I'd genuinely like to know where it breaks for you.
+The full landscape write-up this draws on is in [`../analysis/REPO-ANALYSIS.md`](../archive/analysis/REPO-ANALYSIS.md); a candid "when to reach for which" guide — including the projects Signal is built from — is in [`./vs.md`](./vs.md); and a complete FULL-tier run is committed as a worked example at [`../examples/url-shortener/`](../examples/url-shortener/), where you can read the whole `.planning/` chain end to end. If you try it, I'd genuinely like to know where it breaks for you.

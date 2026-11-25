@@ -109,7 +109,7 @@ Then in Claude Code:
 /sig:new-project
 ```
 
-Claude asks five questions about what you're building. The output is a [`.planning/PROJECT.md`](.planning/PROJECT.md) capturing intent. Then:
+Claude asks five questions about what you're building. The output is a `.planning/PROJECT.md` capturing intent. Then:
 
 ```
 /sig:calibrate
@@ -123,7 +123,7 @@ Five diagnostic questions:
 4. **Reversibility** — `trivial / moderate / painful / irreversible`
 5. **Horizon** — `hours / days / months / years`
 
-Out comes [`.planning/PROFILE.md`](.planning/PROFILE.md) with your tier and ten rigor toggles (TDD on/off, security audit none/basic/full, Nyquist test-mapping off/basic/strict, etc.).
+Out comes `.planning/PROFILE.md` with your tier and ten rigor toggles (TDD on/off, security audit none/basic/full, Nyquist test-mapping off/basic/strict, etc.).
 
 Then walk the phases:
 
@@ -169,8 +169,8 @@ In Claude Code:
 `/sig:init` runs four parallel scanner agents that read your repo (read-only — no installs, no edits) and produces:
 
 - **`.planning/LANDSCAPE.md`** — a "lay of the land" derived from your code: detected languages and frameworks, project structure, git activity signals (cadence, contributors, hot files, health classification), test surface, open work signals (TODOs / CHANGELOG state), license, and a synthesized "What this project is" paragraph.
-- **[`.planning/PROJECT.md`](.planning/PROJECT.md)** — a baseline project spec drafted from `LANDSCAPE.md`, with `[INFERRED — please verify]` markers on auto-filled fields and `[FILL IN — Signal could not infer this]` markers on forward-looking fields (Success Criteria, Done When, Scope-out — these need your input, not your code's inference).
-- **[`.planning/STATE.md`](.planning/STATE.md)** — initialized to `Current Phase: CALIBRATE` so you can run `/sig:calibrate` next.
+- **`.planning/PROJECT.md`** — a baseline project spec drafted from `LANDSCAPE.md`, with `[INFERRED — please verify]` markers on auto-filled fields and `[FILL IN — Signal could not infer this]` markers on forward-looking fields (Success Criteria, Done When, Scope-out — these need your input, not your code's inference).
+- **`.planning/STATE.md`** — initialized to `Current Phase: CALIBRATE` so you can run `/sig:calibrate` next.
 - **`.planning/scan/{stack,structure,activity,quality}.md`** — the raw per-scanner outputs that fed `LANDSCAPE.md`. Useful for verifying any inference Signal made.
 
 **Before you run `/sig:calibrate`**, open `LANDSCAPE.md` and `PROJECT.md` and resolve the markers. Calibration depends on knowing reversibility, stakes, and horizon — all of which derive from your real goals, not Signal's inferred ones. Brownfield codebases tend to lean toward higher tiers (a 5-year-old codebase rarely calibrates to SKETCH; reversibility cost is non-trivial for established work).
@@ -211,7 +211,7 @@ A feature that adds a call adds a line here. `node tools/audit-network-calls.js`
 - **`/sig:add`** — capture a new idea or work item without breaking the current phase. Verbatim capture (no rewrites), atomic write, sensitive-data scrub, lock-protected. Not tier-gated. Capture defaults to `.planning/FUTURE-IDEAS.md`; `--question "…"` routes to [`.planning/OPEN-QUESTIONS.md`](.planning/OPEN-QUESTIONS.md), and `--milestone [N] "…"` routes to a `## Captured via /sig:add` holding section in a milestone file (current milestone when `N` is omitted, else `MILESTONE-N.md`). Run with no arguments to get a one-question prompt that files your answer to FUTURE-IDEAS.md. Routing is the explicit flags or the default FUTURE-IDEAS — nothing in between; no automatic guessing. The first run in a repo shows a one-time, `gate_strictness`-modulated note that `.planning/` is git-tracked (so captures become permanent on commit); the capture stays instant regardless.
 - **`/sig:item`** — the work-item store (opt-in, `v0.1.43`; records since `M6.E13`). One record per thing — `.planning/work/items/00/SIG-412.json`, with its prose in `SIG-412.md` beside it — created at capture and **never moved, copied or deleted**. Its status is worked out from the events on the record (triaged, started, closed, …), and a `fixed` close reads *closing* until its commit is on `main`. The old lists (`BUGS.md`, `BACKLOG.md`, the inbox, `OPEN-QUESTIONS.md`) are generated views, and the hook blocks hand edits to them and to the records. Actions: `new`, `triage`, `move`, `close`, `reopen`, `edit`, `show`, `list`. **Off unless `.planning/work/WORK.md` exists** — projects that haven't switched see no change; move an existing project over with `/sig:docs-migrate --work-store` (`v0.1.50`). With the store on, `/sig:add` writes an item instead of appending to a list.
 - **`/sig:docs-migrate`** — auto-sensing memory/doc migration for a bloated or old-layout `.planning/`. **Relocate-never-delete, dry-run by default, git-reversible, idempotent.** Senses frontmatter-prose, an oversized `STATE.md` body, and **closed-unit scaffolding — Epic-named or not** (a unit that is not the current one and has a passing verdict; a retrospective alone no longer counts, and nothing is archived when `STATE.md` cannot be read — `v0.1.50`), and (on explicit confirm) reorganizes — including the v2→v3 doc-layout transition (capture-inbox rename, `BACKLOG.md` create, closed-milestone `DECISIONS.md` eviction behind resolvable anchors) — then stamps `docs_layout_version`. **`--work-store [--key KEY]`** moves a project's hand-kept lists onto the work store: every item renumbered with its old ID kept, originals archived byte-for-byte, and entries that look finished — plain wording plus a reference found on the default branch — *proposed* for one yes, never closed on their own. An out-of-date project is prompted to run it by a fail-open banner on `/sig:resume` / `/sig:status` / SessionStart. Not tier-gated.
-- **`/sig:docs-index`** — regenerate [`.planning/INDEX.md`](.planning/INDEX.md) (the documentation map) from disk. Mechanical rows (path · growth-policy, two-tier Live/Cold) regenerate; hand-curated one-line notes survive by key (file path or Epic ID). Idempotent — a no-op run produces no diff. The Signal-native successor to external doc-reconcile tooling; runs automatically at `/sig:ship`. Not tier-gated.
+- **`/sig:docs-index`** — regenerate `.planning/INDEX.md` (the documentation map) from disk. Mechanical rows (path · growth-policy, two-tier Live/Cold) regenerate; hand-curated one-line notes survive by key (file path or Epic ID). Idempotent — a no-op run produces no diff. The Signal-native successor to external doc-reconcile tooling; runs automatically at `/sig:ship`. Not tier-gated.
 
 **Epic mode (optional).** For larger projects, Signal can run the work as a series of **Epics** instead of one linear pass. Pass `--epic <name>` to `/sig:discuss` or `/sig:new-project` to open an Epic: commands then write Epic-scoped artifacts (`{EpicID}-*.md`), track the active Epic in `STATE.md`, and let each Epic carry its own tier (a spike inside a production project can honestly run at SKETCH — `/sig:status` and `/sig:resume` surface the override so it's never silent). Without `--epic`, projects run in **linear mode** exactly as described above — Epic mode is fully additive and opt-in, with no migration. See [`references/epic-native-flow.md`](./plugin/references/epic-native-flow.md).
 

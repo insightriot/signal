@@ -216,40 +216,6 @@ describe('AC0.1 — the deferred half is impossible to miss', () => {
   });
 });
 
-describe('AC S6.3 — the corpus measurement is shipped, per check', () => {
-  it('states, for every check, how many corpora it could and could not evaluate', async () => {
-    const doc = await readFile(
-      join(ROOT, '.planning', 'M5.E10-CORPUS-MEASUREMENT.md'),
-      'utf8'
-    );
-    for (const check of ['FR1', 'FR2', 'FR3', 'FR4', 'FR7', 'FR8']) {
-      expect(doc, `${check} must have a row`).toMatch(new RegExp(`\\*\\*${check} [^|]+\\|`));
-    }
-    // Both halves of the fraction, per row — a count of successes alone is the
-    // completeness claim this Epic exists to stop.
-    expect(doc).toMatch(/\*\*2 \/ 12\*\*/);
-    expect(doc).toMatch(/\| Could evaluate \| Could not \|/);
-  });
-
-  it('does not let the flagship check’s 2/12 read as a clean result', async () => {
-    const doc = await readFile(
-      join(ROOT, '.planning', 'M5.E10-CORPUS-MEASUREMENT.md'),
-      'utf8'
-    );
-    expect(doc).toMatch(/Not "found nothing wrong in 10"/i);
-    expect(doc).toMatch(/Could not look at 10/i);
-  });
-
-  it('states what the measurement itself could not establish', async () => {
-    const doc = await readFile(
-      join(ROOT, '.planning', 'M5.E10-CORPUS-MEASUREMENT.md'),
-      'utf8'
-    );
-    expect(doc).toMatch(/could not establish/i);
-    expect(doc).toMatch(/measures applicability, not correctness/i);
-  });
-});
-
 describe('/code-review finding on M5.E10 (2026-08-13) — where the denominator must be', () => {
   const report = (coverage) => [
     '## Verdict', '',

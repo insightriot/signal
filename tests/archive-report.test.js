@@ -539,35 +539,6 @@ describe('AC4.5 second half — the empty bound is stated ON THE WIRED PATH', ()
 // AC4.3 — against Signal's own tree
 // ---------------------------------------------------------------------------
 
-describe('S7 AC4.3 — Signal\'s own tree: only real retros move, the rest are reported', () => {
-  it('renders without throwing and reports every unit by status', async () => {
-    const { resolveClosures } = await import('../plugin/tools/lib/closure.js');
-    const { senseArchiveTree } = await import('../plugin/tools/lib/archive-tree.js');
-    const root = join(import.meta.dirname, '..');
-    const res = await resolveClosures(root);
-    const { moves } = await senseArchiveTree(root);
-    const text = render({
-      ...base,
-      closures: res.units,
-      moves,
-      stateReadable: res.stateReadable,
-    });
-    expect(text.length).toBeGreaterThan(0);
-    // Every unit the resolver saw is accounted for somewhere in the report.
-    expect(res.units.length).toBeGreaterThan(0);
-    const counted = text.match(/(\d+) unit/g);
-    expect(counted, 'the report states unit counts').toBeTruthy();
-  });
-
-  it('the four STUB-retro Epics are not among the proposed moves (S5 still holds)', async () => {
-    const { senseArchiveTree } = await import('../plugin/tools/lib/archive-tree.js');
-    const { moves } = await senseArchiveTree(join(import.meta.dirname, '..'));
-    for (const stub of ['M4.5.E1', 'M4.5.E3', 'M4.5.E6', 'M4.5.E7']) {
-      expect(moves.some((m) => m.from.includes(`${stub}-`)), stub).toBe(false);
-    }
-  });
-});
-
 // ---------------------------------------------------------------------------
 // FR6 — check (c)'s applicability. Latent gap, 0 of 12 blast radius.
 // ---------------------------------------------------------------------------

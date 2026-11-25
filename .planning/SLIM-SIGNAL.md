@@ -193,21 +193,24 @@ Measured 2026-11-24: `/sig:build` runs on about 1,300 lines (the build hooks, `o
 file. 313 entries sit at the top of `.planning/`. On the test project, one item was filed, sized and
 picked through `/sig:build` on 2026-11-18; no item has closed with a `Built:` line yet.
 
-1. **Archive now, one PR.** Nothing inside `plugin/` moves in this PR, and only `plugin/` ships to a
-   project, so this cannot break one. Tag first; move with `git mv`; delete nothing; `STATUS.md`
-   stays. Signal's notes about itself in `.planning/` (down to about five files), `analysis/`, the
-   parts of the adherence harness outside `plugin/` with its per-PR regeneration commit, and
-   `CLAUDE.md` cut to about 5 KB.
-   *Check:* `ls .planning | wc -l` prints under 10, the suite is green, and every file that was in
-   the repo at the tag is still in it.
+1. **Archive now, one PR. Done 2026-11-25.** Nothing inside `plugin/` moved, and only `plugin/`
+   ships to a project, so this could not break one. 339 files were moved with `git mv` and none was
+   deleted: Signal's notes about itself in `.planning/`, `analysis/`, and two test files that were
+   only about those notes. `CLAUDE.md` was cut from 36.5 KB to 5 KB. 24 test cases that asserted
+   something about the archived notes were removed. The list, and the way back, is
+   [`archive/2026-11-25-self-notes/LEDGER.md`](archive/2026-11-25-self-notes/LEDGER.md); the tag
+   `pre-archive-2026-11-25` is the repository as it stood.
+   *Check:* `ls .planning | wc -l` prints under 10, the suite is green, and the check in the ledger
+   prints only the files that were edited.
 2. **Kept frozen:** the six phase commands and the work store. The production project has an Epic
    open on them and 27 unit records in the store. They are archived only after Brett moves that
    project to `/sig:build`.
 3. **Sort the rest of `plugin/` by an import trace** from the kept commands, in a second PR. What
    nothing kept imports is archived, with its tests. No list is written here: one made from file
-   names would be a guess. The 16 agents no command names and the adherence files under `plugin/`
-   wait for this PR too: they ship to projects, so they do not belong in a PR that promises to
-   change nothing a project runs.
+   names would be a guess. The 16 agents no command names wait for this PR: they ship to projects, so
+   they did not belong in a PR that promised to change nothing a project runs. So does the whole
+   adherence harness. Its log, its tools, its tests and its files under `plugin/` check each other,
+   and moving only the half outside `plugin/` in step 1 broke a guard test, so it was put back.
 4. **Build what is missing, in this order:**
    - **A sprint:** size several backlog items with the person in one sitting, then build them in a
      row unattended, each ending in passing tests and a `Built:` line. This is what Brett was waiting

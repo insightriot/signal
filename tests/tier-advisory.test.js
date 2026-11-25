@@ -105,14 +105,6 @@ describe('B90 — the tier advisory', () => {
 });
 
 describe('B90 — the one-way framing is gone from the docs that introduce the dial', () => {
-  it('CLAUDE.md no longer says escalate only promotes', async () => {
-    const { readFile } = await import('node:fs/promises');
-    const s = await readFile(new URL('../CLAUDE.md', import.meta.url), 'utf-8');
-    expect(s).not.toMatch(/`\/sig:escalate` promotes tier mid-flight if scope grows/);
-    expect(s).toMatch(/EITHER direction/);
-    expect(s).toMatch(/CEILING, not a floor/);
-  });
-
   it('escalate.md advertises the down direction in its own description', async () => {
     // The command list is where a user meets this command. If the description
     // says "escape hatch when scope grows", the down path stays invisible no

@@ -1,392 +1,90 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Read this first — the course correction (2026-10-26)
-
-Six months of work went mostly into Signal keeping its own records, and the autonomous loop was never
-built. **[`.planning/COURSE-CORRECTION.md`](.planning/COURSE-CORRECTION.md) is the one home for what
-happened, the plan, and what is frozen.** Read it before picking any work.
-
-**The rule:** before starting any work on Signal, ask *would someone running Signal on their own
-project notice the difference?* It must change what the agent builds, how well, or how long it runs
-on its own, or how that project keeps its records. Work that only touches Signal's own notes about
-building Signal does not qualify. If nothing in the backlog passes, say so and stop.
-
-**The archive** (`.planning/archive/`) is history. Read it only when asked, or to trace why a specific
-line exists, or when a live doc links to a specific file there. Never treat it as current state.
-
-Much of the material below this section predates the correction and is being cut in Step 1. Where it
-conflicts with `COURSE-CORRECTION.md`, that file wins.
-
-## Project Overview
-
-This repository is **Signal** (market-facing: *SignalOS*) — a Claude Code plugin that integrates patterns from across the Claude Code plugin ecosystem and adds a project-complexity calibration layer so rigor is right-sized per project.
-
-**v1 MVP — direct ports (currently being built):**
-- **GSD (Get Shit Done)** — execution orchestration: wave-based parallel execution, 21 specialized agents, context monitoring, file-based state management
-- **Agent Skills** (Addy Osmani) — quality enforcement: 21 skills, 3 specialist agents, anti-rationalization tables, phase gates
-
-**v2 planned integrations (see [`analysis/SIGNAL-INTEGRATION-RUNDOWN.md`](analysis/SIGNAL-INTEGRATION-RUNDOWN.md)):**
-- **gstack** (Garry Tan) — 15-phase security audit, retro + learn memory loop, office-hours reframing
-- **pm-skills** (phuryn) — upstream ideation / validation / strategy phases
-- **superpowers** (Jesse Vincent / obra) — harder TDD, systematic-debugging, `<HARD-GATE>` mechanism
-- **compound-engineering** (Every Inc) — post-ship Compound memory phase, multi-lens review panel
-
-**Pattern sources (ideas borrowed, not full ports):**
-- **planning-with-files** (OthmanAdi) — hook-driven context discipline
-- **oh-my-claudecode** (Yeachan-Heo) — deep-interview spec-rigor gate, consensus planning
-
-**Signal's own contribution:**
-- `/sig:calibrate` (Phase 0) + `/sig:escalate` — a routing layer that writes [`.planning/PROFILE.md`](.planning/PROFILE.md) so every downstream command dials rigor up or down based on project tier (SKETCH / FEATURE / SPIKE / FULL). No source repo in the landscape solves this problem; it's Signal's unique contribution.
-
-Command prefix: `/sig:`. The organizing metaphor is *signal vs. noise* at every phase — calibrate tunes the receiver, and the flow amplifies signal (real problem, real coverage, real user value) and suppresses noise (shiny objects, test theater, ship-for-shipping's-sake).
-
-The plugin targets solo developers and small teams who want production-grade engineering output from AI agents — without over-engineering throwaways or under-engineering production systems.
-
-## Current State
-
-Milestones 1–4 closed; v1 + brownfield onboarding (`/sig:init`) feature-complete and shipped. **M4.5 (release hardening / stranger-adoption readiness): CLOSED 2026-07-15** — all Epics E1–E11 shipped across v0.1.1–v0.1.7; the "≥3 non-Signal testers" criterion was declared met (4 non-Signal users) from memory; **no record of tester feedback exists** (`.planning/M5.E7-COUNTERFACTUAL.md`), so treat it as unverified. Highlights: install-path fix (v0.1.1), STATE schema_version 1 + `/sig:checkpoint` (v0.1.2), synthesizer/docs/retro-foundations/`/sig:doctor`/`/sig:add` (v0.1.3), worked example + comparison (v0.1.4), resume-trust + capture integrity (v0.1.5), doc-integrity write-guard (v0.1.6), **Epic-native flow — `--epic` first-class (v0.1.7, 2026-07-15)**.
-
-**Latest: `M6.E7` — `/sig:advise`, the Roadmap Advisor (merged 2026-09-06, PR #239). Signal's 23rd command.** Read-only: it reads this project's own `.planning/` corpus and writes one dated advisory naming what to work on next **and every live row it looked at and passed over, with the reason**. It proposes and never selects. **Every claim carries a `path:line` citation resolved against disk before the file is written; a citation that does not resolve fails the run and no file appears.** Three things in it are counter-intuitive and each was measured, not assumed: **a textual scan of the artifact cannot work** (live `BACKLOG.md` rows carry 108 backticked path-like tokens, 51 unresolvable, so a scan fires on the first quoted row and nothing is ever written — citations therefore occupy **one structural position** and the extractor reads only that); **the gate asserts a COUNT, not a flag** (`verifyCitations` returns `ok: true` over zero citations, correct at the unit and vacuous at a gate); and **the backlog is read at `maxDepth: 4`** (the default is 3 and Signal's own promoted rows sit at `####`, so a default read looks like a working command and is blind to nine of them). ⚠ **The Epic's real finding is about itself: six times, a claim was written from the shape of the work rather than derived from the artifact — inside the Epic that built a mechanism against exactly that**, and two of the six reached committed artifacts. **Two reviewers found 9 of the 11 Important issues**, and the PR reviewer — running *after* REVIEW returned PASS — found the two that mattered most: a live row absorbing the body of any discharged row beneath it (22 of 51 rows, and fixing it **changed the ranking**), and **every citation in the first shipped advisory being off by five lines**, because `t3.7`'s own *"one-time human edit at SHIP"* inserted five lines above every cited row after generation. `verifyCitations` passed all 51 as resolved, because it checks a line is *within* the file and never that it carries the claimed content — **the limit this Epic documented and then walked straight into on its own first artifact.** Fixed with a stale-read guard that refuses to write when a cited line no longer carries its row. 3203 → **3304 tests**. Retro: [`.planning/M6.E7-RETROSPECTIVE.md`](.planning/M6.E7-RETROSPECTIVE.md).
-
-**Release history lives in [`CHANGELOG.md`](CHANGELOG.md), not here.** Everything from `v0.1.15`
-through `v0.1.32` had a paragraph in this file summarising what shipped and what it taught. That is
-duplicated content — [`CHANGELOG.md`](CHANGELOG.md) carries every entry in full, and the per-Epic retrospectives in
-[`.planning/RETROSPECTIVES.md`](.planning/RETROSPECTIVES.md) carry the reasoning. This file is read at
-the start of **every** session, so the duplication was paid for on every run.
-
-Removed 2026-09-02 under the doc-budget rule (see *House rules* below). Nothing was lost: search
-[`CHANGELOG.md`](CHANGELOG.md) for a version, or the retros for an Epic.
-
-**Previous: `v0.1.40` shipped 2026-09-10 — `/sig:drive` can take a step.** It could not, at any
-setting: traced over every phase, `canProceedUnattended` returned **stop everywhere**, and this
-project's own `checkpointed` profile was the worst case. Two defects — `checkpointed` was documented
-as *"runs free inside a phase"*, a behaviour with **no code path**; and floors fired on a phase's
-**name**, so PLAN halted with an empty inbox and nothing to gate. **Every run at every setting was
-DISCUSS → dead stop at PLAN.** The `hasFloor` hook to fix it had existed since the command shipped
-and no caller passed it. `/sig:drive` now **asks how you want it run** in the same question that
-picks the work (`M6.E10`). `M6.E9` shipped alongside: all 26 agents carry a determination, 7
-dispatched / 19 dormant, and `plan.md` § 2 stopped ordering runs to spawn three agents that existed
-nowhere. Retros: [`.planning/M6.E10-RETROSPECTIVE.md`](.planning/M6.E10-RETROSPECTIVE.md),
-[`.planning/M6.E9-RETROSPECTIVE.md`](.planning/M6.E9-RETROSPECTIVE.md). **3379 tests.**
-
-⚠ **Nothing ever asked whether `proceed` was true, and TWO TESTS WERE HOLDING THE DEFECTS SHUT** —
-*"checkpointed stops at the phase boundary"* and *"queues at unattended and checkpointed"*. Both
-described real behaviour; both made the bug the contract. **Coverage asserting the wrong thing is
-worse than no coverage**, because fixing the defect turns the suite red. ⚠ **The reported symptom
-was accurate for a week before it was reproduced** — *"every time I use it something doesn't work"*
-was answered with a diagnosis about missing external users, while 42+ repositories were using it.
-**A user saying it doesn't work is a claim about the software; reproduce it before reframing it.**
-The trace that settled it took four minutes.
-
-**Previous: `v0.1.42` (2026-09-27) — `M6.E3` shipped: Jev checks Signal's own records, as advice with
-receipts.** It checks `STATE.md` paragraphs against derived facts (at `/sig:resume` and SHIP) and
-`confirmed` bugs a release may have fixed (at SHIP). It is on only with `TYPESAFE_API_KEY`, and a
-model finding **cannot refuse, by declaration** (`judged: 'model'`). Measured live: 4 of 4, 0/26
-false alarms. ⚠ **Three fresh-context REVIEW passes; pass 2 found a High in pass 1's own fixes**
-(a committed `.ENV` passing a `.env` check on macOS). Fix-on-fix needs its own fresh read. Retro:
-[`.planning/M6.E3-RETROSPECTIVE.md`](.planning/M6.E3-RETROSPECTIVE.md). 
-
-**Active: `v0.1.45` (2026-10-02) — `M6.E12` shipped: `/sig:advise` proposes big-picture priorities
-and asks.** It reads a cited digest of the docs, the agent proposes 3–5 priorities with evidence, code
-checks them, you pick, the pick is recorded, and it offers to start; age is no longer an input.
-`/sig:drive`'s pick step uses the same flow. ⚠ **Three fresh-context review passes, each finding new
-routes for hostile repositories and branches**; stopped at the loop ceiling with a bounded fix, residue
-in `SIG-257`. Retro: [`.planning/M6.E12-RETROSPECTIVE.md`](.planning/M6.E12-RETROSPECTIVE.md).
-**Previous: `v0.1.48`–`v0.1.49` (2026-10-05, -07) — `M6.E13`, `M6.E14`:** work items are JSON records
-that never move, status from recorded events; then the store hardened. Retros:
-[`.planning/M6.E13-RETROSPECTIVE.md`](.planning/M6.E13-RETROSPECTIVE.md),
-[`.planning/M6.E14-RETROSPECTIVE.md`](.planning/M6.E14-RETROSPECTIVE.md).
-**Previous: `v0.1.50` (2026-10-10) — `M6.E15`:** other projects move onto the work store
-(`/sig:docs-migrate --work-store`); nothing is closed on its own, closes are *proposed* for one yes.
-Retro: [`.planning/M6.E15-RETROSPECTIVE.md`](.planning/M6.E15-RETROSPECTIVE.md).
-**Previous: `v0.1.51` (2026-10-13) — `M6.E16`: Epics and units are records**
-(`.planning/work/units/<ID>.json`). A close is requested at SHIP and confirmed only when its commit is
-on the remote's recorded default branch, which is never guessed. ⚠ Four full REVIEW passes each found
-real defects in a different corner, and three fix rounds each made a new one; it shipped after a narrow
-fresh read of the last fixes. Retro: [`.planning/M6.E16-RETROSPECTIVE.md`](.planning/M6.E16-RETROSPECTIVE.md).
-**Latest: `v0.1.52` (2026-10-19) — `M6.E17` shipped: the REVIEW fix loop is a mechanism.** Passes are
-recorded and counted (`recordPass`), each fix round carries a fresh read checked before a verdict
-(`checkFixRounds`), and `parent-run.js` proves a new test fails on the base. ⚠ It caught its own Epic:
-five passes, two past the ceiling by Brett's call. Retro: [`.planning/M6.E17-RETROSPECTIVE.md`](.planning/M6.E17-RETROSPECTIVE.md).
-
-✅ **`B117` — the Epic lane kept getting squashed. CLOSED 2026-09-08 by the ruleset** (see *How changes reach `main`* below: `main` now permits `merge` only, so the sticky button cannot arm anything). The history is kept because the *cause* is the lesson. PR #239 was
-merged with the green button and collapsed 35 commits into one, orphaning two published anchors and
-turning `tests/adherence-anchor-reachability.test.js` red on `main` (repaired by PR #240). Third
-instance. **GitHub remembers the last merge method REPO-WIDE**, so the fix lane's correct `--squash`
-arms the very next Epic merge — the two lanes' correct behaviours are in direct conflict and the
-conflict was invisible at the moment of clicking. The trap was documented from `v0.1.19` and
-fired three times anyway, **which is the evidence that documentation was not the fix** — a repo
-setting was. A second harm surfaced at the third instance: GitHub deletes the branch at merge, so an
-Epic's commit messages — *"frequently the best surviving account of why a line exists"* — survive
-only if someone pushes the branch back. **That half is NOT fixed by the ruleset** and still applies.
-
-⚠ **`B116` — the requirement-coverage check under-counts its own denominator** on 21 of 22
-`*-REQUIREMENTS.md` artifacts here, so `missing: []` can read clean over a requirement it never
-counted. Found by *using* it during `M6.E7` VERIFY.
-
-✅ **`/sig:drive` is proven end to end.** It drove `M6.E6` from VERIFY through SHIP (2026-09-04), and
-**`M6.E14` from DISCUSS through SHIP (2026-10-07)** at `checkpointed`: one floor halt (PLAN's inbox),
-every phase advanced, VERIFY and REVIEW each looped once, a halt at SHIP's floors, no `loop-unknown`.
-That was `SIG-163`. Rough edges it found are filed (`SIG-282`).
-
-⚠ **And the reason it did not feel like a loop was a dial nobody turned.** This project's
-`PROFILE.md` had no `attention`, so it derived `attended` from `gate_strictness: strict` and
-`/sig:drive` stopped at **every** gate. Four consecutive Epics (`M6.E4`–`M6.E7`) each wrote a
-per-Epic `PROFILE.md` at `light` to escape it rather than setting the dial — because `attention` was
-missing from `references/profile-schema.md`, the document every phase command points at for the
-profile contract. Set explicitly to `checkpointed` on 2026-09-08 (`D-BR0908-1`); FULL rigor is
-unchanged, which is the whole point of the axis being separate.
-
-**The queue is [`.planning/BACKLOG.md`](.planning/BACKLOG.md), not this file** (`D-M5E18-1`) — read the
-candidates there, including what was excluded on evidence.
-
-For current state and active work, read in order: [`.planning/CONTEXT.md`](.planning/CONTEXT.md) → [`.planning/STATE.md`](.planning/STATE.md) (YAML frontmatter is authoritative) → [`.planning/MILESTONE-5.md`](.planning/MILESTONE-5.md). The full v1 spec is [`.planning/PROJECT.md`](.planning/PROJECT.md). See `## Vocabulary` in PROJECT.md for the locked Milestone / Epic / Slice / Task / Phase / Wave / Tier terms and the ID-is-identity rule.
-
-Key supporting docs:
-- [`analysis/REPO-ANALYSIS.md`](analysis/REPO-ANALYSIS.md) — landscape analysis of 7 AI-dev plugins; the seed of Signal.
-- [`analysis/SIGNAL-INTEGRATION-RUNDOWN.md`](analysis/SIGNAL-INTEGRATION-RUNDOWN.md) — v2 vision (10-phase architecture).
-- [`analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md`](analysis/AGENT-EFFECTIVENESS-ALIGNMENT.md) — Signal vs. external field evidence (Span, *Beyond the Model*, Q3 2026). Strong on prompt clarity + quality stewardship; **environment readiness is the absent axis**, and it is blocked on a permission model (`/sig:permissions`), not on a one-off exception. M5.E8 stays scoped to instruction-adherence.
-- `references/eval-corpus.md` — **what `eval-project-A` … `eval-project-L` mean.** Signal's checks are measured against a set of real projects of varying size and complexity — the *eval corpus* — because this repository's own `.planning/` is not a representative shape and assuming it was has produced real defects (`B82` lived only where unit names are not Epic IDs: 8 of 12 corpus projects). **Corpus projects are referred to by stable anonymous labels and never by name**; no mapping is published, and `tests/private-name-guard.test.js` fails the suite if one appears. Corpus runs are read-only — to exercise a command end-to-end, use `examples/sandbox/`.
-- [`analysis/CLAIM-INTEGRITY-ANALYSIS.md`](analysis/CLAIM-INTEGRITY-ANALYSIS.md) — the second defect class, named (2026-07-28): **completeness claims written from the shape of the work rather than from the artifact.** Field evidence from eval-project-C Phase 11 (five false coverage claims in one FULL-tier phase; every catch incidental); Signal-side causes traced to `verify.md`/`review.md`/validators. Ranked fixes homed at **M5.E10** (trigger satisfied) + a tracker-integration epic (GitHub Issues as single home for obligation status). Every completeness claim must be derived, checked, or labeled unverified — never asserted from memory.
-- [`analysis/LOOP-ENGINEERING-ANALYSIS.md`](analysis/LOOP-ENGINEERING-ANALYSIS.md) — loop engineering, analyzed (2026-08-03): **rigor and attention are two dials currently welded into one knob (`gate_strictness`).** Line-cited audit found ~48–86 synchronous human touchpoints per FULL-tier Epic, most enforced only in prose (`light` ≡ `strict` in code except `anti_rationalization`); proposes an `attention` axis (attended / checkpointed / unattended), an async decision queue with reversibility-weighted auto-adopt, a driver command, and parallel Epic lanes last — PR-merge stays human (merge = delivery). Feeds a future Epic (captured in ISSUES-INBOX); four defects found by the audit are in BUGS.md (needs-triage).
-- `analysis/JOURNEY-MAP.html` — visual companion.
-- [`GSD-AgentSkills-Combination-Analysis.md`](GSD-AgentSkills-Combination-Analysis.md) — historical (pre-landscape) two-framework analysis.
-
-## Architecture
-
-Three-layer design, plus a Phase 0 router above it:
-
-0. **Calibration Router (Phase 0, Signal's own)** — `/sig:calibrate` asks 5 diagnostic questions, writes [`.planning/PROFILE.md`](.planning/PROFILE.md) that gates every downstream phase by tier (SKETCH / FEATURE / SPIKE / FULL). `/sig:escalate` upgrades tier mid-flight.
-1. **Orchestration Engine (Layer 1, from GSD)** — wave-based parallel execution, `.planning/` state management, context monitoring (35% warn / 25% critical), agent spawning, CLI tools
-2. **Quality Gates (Layer 2, from Agent Skills)** — on-demand skill loading per phase (not all at once), exit criteria checklists, anti-rationalization tables
-3. **Anti-Rationalization & Verification (Layer 3, shared)** — Nyquist test-coverage validation, 8-dimension plan validation, specialist verifier agents
-
-## Workflow — Phase 0 + Six Phases
-
-```
-/sig:calibrate → /sig:discuss → /sig:plan → /sig:execute → /sig:verify → /sig:review → /sig:ship
-   (Phase 0,
-    routes by tier)
-```
-
-Escape hatch: **`/sig:escalate` moves the tier in EITHER direction mid-flight** — up if scope or stakes grow, **down if the work turns out to be smaller than the project's ceiling** (the command is named for the common case; `escalate.md` §Case C is de-escalation). **Project tier is a CEILING, not a floor:** a per-unit `{UnitID}-PROFILE.md` runs one slice lighter without touching the project's calibration.
-
-The REVIEW phase (between VERIFY and SHIP) is the key addition over GSD's original flow. It covers code quality, security hardening, performance optimization, and code simplification via Agent Skills' specialist agents.
-
-**Tier-gating:** Every phase command's first action is to read `PROFILE.md`. If the current tier skips that phase, the command exits early. If `rigor_overrides` apply (e.g., `tdd_required: false` in SKETCH), the command respects them.
-
-**v1 vs v2 scope:** v1 is the 6-phase MVP speced in [`.planning/PROJECT.md`](.planning/PROJECT.md). v2 expands to 10 phases per [`analysis/SIGNAL-INTEGRATION-RUNDOWN.md`](analysis/SIGNAL-INTEGRATION-RUNDOWN.md) (adds IDEATE / VALIDATE / STRATEGIZE upstream and COMPOUND downstream), and is gated on v1 shipping + having real users. See [`.planning/PROJECT.md`](.planning/PROJECT.md) → "Scope & Roadmap" for the full v1/v2 split and gating criteria.
-
-## Planned Plugin Structure
-
-```
-commands/       # 21 slash commands, in 5 groups (references/command-taxonomy.md):
-                #   flow        /sig:build, /sig:new-project, /sig:init, /sig:calibrate,
-                #               /sig:discuss, /sig:plan, /sig:execute,
-                #               /sig:verify, /sig:review, /sig:ship, /sig:escalate
-                #   orientation /sig:status, /sig:resume, /sig:advise
-                #   capture     /sig:add, /sig:item
-                #   doc upkeep  /sig:docs-index, /sig:docs-sweep, /sig:docs-migrate, /sig:docs-archive
-                #   (doctor, update, permissions archived 2026-10-26, checkpoint 2026-10-30: archive/commands/)
-agents/         # 26 agents (19 GSD + 3 Agent Skills specialists + 4 brownfield scanners)
-skills/         # 21 quality skills organized by phase (define/, plan/, build/, verify/, review/, ship/)
-references/     # Merged checklists and gates from both frameworks,
-                # plus PROFILE.md schema + tier definitions
-state/          # GSD's .planning/ state management (now including PROFILE.md)
-tools/          # GSD's CLI tools layer
-```
-
-## Key Constraints
-
-- Node.js 22+; git 2.38+ (on an older git the git-backed checks stop and say so)
-- Skills must load on-demand per phase to preserve context budget — never load all 21 at once
-- Plugin must be installable in under 5 minutes
-- Claude Code is the primary runtime; adapter layer for Cursor/Codex is secondary
-- Integration of existing frameworks, not reinvention — respect both projects' licenses
-- `STATE.md` uses YAML frontmatter (`schema_version: 1`) as of v0.1.x (M4.5.E6). Schema migrations are auto-applied on first write to a legacy STATE.md; original content is preserved verbatim under an HTML comment marker. See `references/state-schema.md` and [`docs/migration-state-schema-v0.1.x.md`](docs/migration-state-schema-v0.1.x.md).
-
-## Working in this repository
-
-Behavioral rules that apply to every conversation and every agent, in addition to anything Signal's phase commands add on top.
-
-### How changes reach `main` (as of 2026-08-01 — read this before your first commit)
-
-**`main` is protected. You cannot push to it directly — the server rejects it.** Every change goes through a branch and a pull request with a green `test` check. Zero approvals are required, so nothing deadlocks, but the PR is not optional.
-
-**Two lanes, one gate** (`D-M5E17-5`):
-
-| | Epic lane | Fix lane |
-|---|---|---|
-| For | features, design work | bugs, papercuts, doc fixes |
-| Six phases | yes | **no** |
-| Branch + PR + green CI | **yes** | **yes** |
-| Merge strategy | **`--merge`** (merge commit) | **`--merge`** — the ruleset allows nothing else (see below) |
-
-A one-line fix does **not** need DISCUSS→SHIP. It **does** need a branch, a PR, and a green suite. `gh pr create --fill` then `gh pr merge --merge` is the whole overhead. (**Not `--squash`** — since 2026-09-08 the server refuses it on `main`.)
-
-**Before a PR in this repository** (moved from `ship.md`'s checklist, which is a user's checklist): refresh `docs/map/index.html` if the command, agent or skill roster changed, and re-measure with `node tools/adherence-run.js --canary <id>` if the wording of a measured instruction in `plugin/commands/*.md` changed. "No change needed" is a valid outcome for both.
-
-⚠ **EXCEPTION, and it is not rare: a fix-lane PR that regenerates
-[`.planning/ADHERENCE-LOG.md`](.planning/ADHERENCE-LOG.md) must merge with `--merge`.** The tool pins
-the current `HEAD` as the run's reproducibility anchor, so on a branch it pins a **branch** commit —
-and `--squash` never lands that commit on `main`, which is the orphaned-anchor failure this file
-already describes two paragraphs down. The fix lane's `--squash` is a *preference*; a reachable anchor
-is a *correctness requirement*, and regenerating that file moves the requirement into the fix lane.
-
-**No test can catch this before the merge.** `tests/adherence-anchor-reachability.test.js` checks
-reachability from `HEAD`, which is green on the branch and only goes red on `main` afterwards — so the
-guard fires *after* the damage, by construction. Found by the PR reviewer on `#243`, on a fix-lane PR
-that had regenerated the file because edits to `commands/*.md` moved the directive-line ceiling.
-Regenerating it is not optional in that situation; choosing `--squash` afterwards is.
-
-*(The durable version is `tools/adherence-ceiling.js` pinning the newest commit that is already on
-`origin/main` rather than `HEAD`. Not done — it changes what the anchor means, which is a design call,
-not a papercut.)*
-
-> ### ⚠ The two lanes need DIFFERENT merge methods, and GitHub's web UI remembers only the last one
->
-> **Merging in the browser is how the Epic lane keeps squashing.** The green button's method is
-> sticky per repository, so **the fix lane's correct `--squash` arms a trap for the very next Epic
-> merge** — which then squashes silently and reports success. This is not a hypothesis; it is the
-> measured pattern:
->
-> | PR | Lane | Parents |
-> |---|---|---|
-> | `#233` | Epic | **2** ✅ |
-> | `#234` | Epic | **2** ✅ |
-> | `#235` | release — squashed *correctly* | 1 |
-> | `#236` | Epic | **1** ❌ — inherited the button from `#235` |
->
-> `#236` orphaned all six of its commits **and** left `STATE.md`'s `last_updated_commit` pointing at
-> a commit nobody can reach. `#211` failed the same way in August.
->
-> ### ✅ APPLIED 2026-09-08 — the trap above is CLOSED, and this section is kept as the reason why
->
-> **`main`'s ruleset (`main-requires-pr-and-green-ci`) now carries `allowed_merge_methods: ["merge"]`.**
-> The button has one option, so it is always correct for every lane and every merger, and the sticky
-> state described above can no longer arm anything. Verified against the API, not assumed —
-> `gh api repos/insightriot/signal/rulesets/20199646`, whose `updated_at` is `2026-09-08T17:45:24-04:00`
-> and is where this heading's date comes from. ⚠ **Repo-level settings still allow all three**
-> (`allow_squash_merge=true`), deliberately: the restriction is scoped to `main`, which is the *"do not
-> instead disable squash repo-wide"* advice this section used to give, honoured.
->
-> **How it was found is the part worth keeping:** a fix-lane `gh pr merge --squash` on `#248` was
-> refused by the server — *"Squash merges are not allowed on this repository"* — while this file still
-> read **"Not yet applied"** and the table above still told the fix lane to squash. Someone applied the
-> setting and no document learned it. **A correct guard and a stale instruction fail the same way:**
-> whoever follows the file hits an error the file says is impossible.
->
-> **The cost is the one this section always predicted:** a one-line fix now gets a merge commit too.
-> That was the stated trade — squash in the fix lane is a *preference* (*"nothing worth preserving
-> underneath"*), the Epic lane's `--merge` is a *correctness requirement*, and the preference loses.
->
-> **The backstop is a test, not this paragraph** (`tests/adherence-anchor-reachability.test.js`):
-> every commit pinned by `ADHERENCE-LOG.md` or `STATE.md` must be reachable from `HEAD`. It goes red
-> on `main` right after a squash orphans one, and it holds however the orphaning happened — which
-> matters, because the two instances had different causes and identical consequences.
-
-**Why the Epic lane merges instead of squashing** (`v0.1.19`, the first PR to set the precedent). Squash is right for the fix lane: one small change, one commit, nothing worth preserving underneath. It is **wrong** for an Epic, for a reason specific to this repo rather than a taste in git history.
-
-[`.planning/ADHERENCE-LOG.md`](.planning/ADHERENCE-LOG.md) **pins commit SHAs as its reproducibility anchor** — every run record names the commit that produced the verdict, and `adherence-run.js` states the failure mode in its own words: AC4.3 breaks when *"the record would name a state nobody can return to."* Squash-merging never lands those commits on `main`; rebase-merging rewrites them. Either leaves a published verdict pointing at a commit absent from `main`'s history.
-
-There is a second, softer reason: `commands/ship.md` §2 asks you to curate a coherent history of atomic, descriptively-messaged commits. Squashing an Epic discards that curation, which makes §2 wasted work. Under `--merge` the section means something — and an Epic's commit messages are frequently the best surviving account of *why* a line exists.
-
-**Why this is enforced rather than written down.** `ship.md` used to carry a parenthetical exempting "the Signal-on-Signal flow" from its own Exit Criteria — which require a PR and an approval. It was written 2026-05-26; **thirteen releases shipped under it and exactly one pull request existed in that span.** The file defining the rule was the file granting the exception, so nothing caught it. Removed in v0.1.15, and the gate now lives in a GitHub ruleset because this repo has twice been bitten by rules that existed only as prose (`B7`→`B58`, `B39`).
-
-**Delivery** (`D-M5E17-4`): `marketplace.json` uses the relative `./plugin` source — the plugin is this repo's `plugin/` folder (since `M6.E1`) — so **users track `main`**, not a pinned tag. There is no `ref` or `sha` to keep in sync, and reintroducing them fails `install-contract.test.js`. Bumping `plugin.json` is what makes an update visible to users. Tags are bookmarks, not delivery.
-
-### House rules, and how one becomes a check
-
-A rule here has three states, and the point of naming them is that a rule is allowed to sit in the
-first one — not every convention needs a test on day one.
-
-1. **Convention** — written down, honoured by judgement. Most rules live here and should.
-2. **Advisory** — a check that reports and never fails. Useful for things where the right answer is
-   a judgement call the tool cannot make.
-3. **Enforced** — a test that fails the suite.
-
-**Promote a rule when the advisory stops changing behaviour.** That is the trigger, and it is
-observable rather than a matter of taste. Worked example: `checkClaudeMdBloat` has nudged at 40 KB
-for weeks while [`CLAUDE.md`](CLAUDE.md) grew to 49 KB. The nudge was ignored, so the rule earned a ceiling —
-`tools/doc-budgets.json`, enforced by `tests/doc-budgets.test.js`.
-
-**Promotion requires a grandfather list, not a clean corpus.** A limit that fails on adoption day
-never gets adopted, which is how the 40 KB nudge ended up decorative. So a file already over budget
-is recorded at its **current** size, with a stated reason: it may shrink freely and may not grow, and
-shrinking re-tightens the ceiling. **The exception list is the debt register** — it is supposed to be
-non-empty, and it is supposed to shrink.
-
-⚠ **A ceiling on an append-only ledger is wrong.** `BUGS.md` growing when a bug is found is correct
-behaviour, and a check that fires on correct behaviour teaches people to ignore checks. Ledgers are
-exempt **by category with a reason**, and their size is managed by archiving instead. Exemptions are
-listed rather than merely absent, so a population check can tell a deliberate exemption from a file
-nobody considered.
-
-*(Borrowed and credited: [`analysis/OPENKB-ASSESSMENT.md`](analysis/OPENKB-ASSESSMENT.md) §1.)*
-
-### Naming & plain language
-- **Use real names.** Refer to features, functions, files, tables, and flows by the name that exists in the code, plan, or spec. If you don't know the real name, grep for it before using it. Never invent a label that sounds plausible.
-- **Mark dev-only terms.** If you reference an internal identifier (a function, a flag, a table), say it's the code-level name — don't present it as user-facing language.
-- **No filler jargon.** Don't reach for a fancier word to sound precise. If a term doesn't carry concrete meaning, cut it and say the plain thing.
-- **State guesses as guesses.** If you're inferring something, flag it as an assumption. Don't assert it.
-- **Don't dress up mistakes.** If you got something wrong, say so plainly and fix it. Never reframe an error as if it were intentional.
-
-### Surface ambiguity, don't resolve silently
-- If a request admits multiple interpretations, present them. Don't pick one and proceed.
-- If you find a simpler approach than what was asked, surface it. Don't silently substitute.
-- If you discover context that conflicts with what you were told, stop and flag it.
-
-### Surgical edits
-- Every changed line should trace directly to the requested change. If you can't justify a line against the task, don't write it.
-- Don't refactor, reformat, or "improve" code outside the scope of the change — even in files you're already editing.
-- Match the existing style of the file you're editing, even if you'd do it differently.
-- Pre-existing dead code or issues you notice but weren't asked to fix: mention them. Don't delete or "improve" them unsolicited.
-- Orphans your changes created (now-unused imports, variables, helpers): remove them.
-
-### Signal or prose — which tool does new work go into (`D-BR0814-1`)
-
-Both plugins are installed and one person maintains both, so this gets asked. The rule:
-
-> If it looks at the work you are doing **right now** — the change in progress, the slice, the phase —
-> it belongs in **Signal**.
-> If it looks at the **whole codebase, whenever you ask** — no phase, no `.planning/` required — it
-> belongs in **prose**.
-
-`/prose:` is a **separate plugin on purpose**: it must run in any repo, including one with no
-`.planning/` and no Signal install. That is the property Signal cannot give it.
-
-They already overlap — `/prose:audit` and `agents/specialists/security-auditor.md` cover the same
-ground at different scopes. The rule exists so the overlap stays deliberate. It settles nothing about
-whether the plugins ever combine; borrowing a discipline from prose is Signal's stated model and is a
-separate call each time.
-
-## Reference Repositories
-
-- **Agent Skills**: https://github.com/addyosmani/agent-skills
-- **GSD**: https://github.com/gsd-build/get-shit-done
-- **GSD Skill Creator** (bridge reference): https://github.com/Tibsfox/gsd-skill-creator
-
-## Development Strategy
-
-**Build `/sig:calibrate` first**: It's the smallest, most self-contained command — no skills loaded, no agents spawned. Just 5 questions → YAML write to `PROFILE.md`. Ship this first because every downstream command depends on the `PROFILE.md` contract. Validating the contract early de-risks the entire flow.
-
-**Then `/sig:discuss`**: Once calibration works, build DISCUSS as the first phase that exercises the full pattern — command → reads PROFILE.md → loads skills → spawns agents → gates approval.
-
-**Self-bootstrapping**: Once `/sig:calibrate`, `/sig:discuss`, and `/sig:plan` work, use Signal itself to plan and execute remaining phases. This is the fastest way to validate whether the architecture holds.
-
-**Token budget is the highest risk**: Before investing days in building phase commands, measure the token cost of loading Agent Skills' larger skill files (especially `security-and-hardening`). If they blow the context budget, you'll need to summarize or chunk them — which changes the loader design. Test this in Phase 1.
-
-**Critical path runs through Phase Commands (WBS 2.0)**: The commands are where the two frameworks' philosophies collide — that's where the integration design gets proven or broken. Agents (3.0) and skills (4.0) can be developed in parallel once `/sig:calibrate` + `/sig:discuss` validate the command pattern.
-
-## Critical Path
-
-Foundation (1.0) → `/sig:calibrate` → `/sig:discuss` → rest of Phase Commands (2.0) → Integration Testing (5.0) → Documentation (6.0)
+Guidance for Claude Code when working in this repository.
+
+## What this is
+
+**Signal** (market name *SignalOS*) is a Claude Code plugin. Command prefix: `/sig:`. Only the
+`plugin/` folder ships to a project. Everything else here is for building Signal.
+
+Signal is being cut down to a small core: size the work with the person, show the open problems
+before a build, check that limits were filed after it, and keep plain records. `/sig:build` is that
+core. Read these two files before picking any work:
+
+- [`.planning/COURSE-CORRECTION.md`](.planning/COURSE-CORRECTION.md): what went wrong, the rule,
+  and what is frozen.
+- [`.planning/SLIM-SIGNAL.md`](.planning/SLIM-SIGNAL.md): what Signal is cut down to, and "The
+  cut-down, step by step", which is the current plan. Where the two disagree, this one wins.
+
+## The rule
+
+Before starting any work on Signal, ask: **would someone running Signal on their own project notice
+the difference?** It must change what the agent builds, how well, how long it runs on its own, or how
+that project keeps its records. Work that only touches Signal's own notes about building Signal does
+not qualify. If nothing in the backlog passes, say so and stop. Do not invent work.
+
+Every step should end in something the person can check themselves: a command they run, or a number
+a command prints. A report from the agent is not that.
+
+## Where things are
+
+- `plugin/`: the plugin. `plugin/commands/` (21 commands), `plugin/hooks/`, `plugin/tools/lib/`,
+  `plugin/agents/`, `plugin/skills/`, `plugin/references/`.
+- `.planning/BACKLOG.md`, `BUGS.md`, `ISSUES-INBOX.md`, `OPEN-QUESTIONS.md`: Signal's own work
+  items. They are generated by `/sig:item` from `.planning/work/`. Do not edit them by hand. Work
+  items are due to move to GitHub Issues (SLIM-SIGNAL.md, step 4).
+- `tests/`, `tools/`: the suite (`npm test`) and maintainer scripts. Neither ships.
+- [`CHANGELOG.md`](CHANGELOG.md): release history.
+- **The archive** is history: `.planning/archive/` and `archive/`. Read it only when asked, or to
+  trace why a specific line exists. Never treat it as current state. Everything that was live before
+  2026-11-25 is in `.planning/archive/2026-11-25-self-notes/` (see its `LEDGER.md`), and the whole
+  repository as it stood is at the tag `pre-archive-2026-11-25`. The previous version of this file
+  is `archive/CLAUDE-pre-archive-2026-11-25.md`.
+
+## What is frozen
+
+The six phase commands (`/sig:discuss` to `/sig:ship`) and the work store get no new features. They
+stay in `plugin/` because a project in production still runs on them. Fix crashes only. They are
+archived after that project moves to `/sig:build`.
+
+Files and commands are archived with `git mv`, never deleted.
+
+## How changes reach `main`
+
+`main` is protected. Every change goes through a branch and a pull request with a green `test`
+check. Merge with `gh pr merge --merge`. The server refuses squash and rebase on `main`.
+
+Users track `main`: the plugin is this repo's `plugin/` folder. Bumping the version in
+`plugin/.claude-plugin/plugin.json` is what makes an update visible to them. Tags are bookmarks.
+
+If the command, agent or skill roster changed, refresh `docs/map/index.html` before the PR.
+
+## Working rules
+
+- **Use real names.** Refer to files, functions and commands by the name that exists in the code.
+  Grep before using a name you are not sure of. Say when a term is a code-level name.
+- **Plain language.** No filler jargon. State guesses as guesses. If you got something wrong, say so
+  plainly and fix it.
+- **Surface ambiguity.** If a request has more than one reading, or you find a simpler approach, or
+  something conflicts with what you were told, say so before going on.
+- **Surgical edits.** Every changed line should trace to the request. Match the file's style. Do not
+  tidy code outside the change; mention what you notice. Remove orphans your own change created.
+- **Never name a private project in a file here.** This repository is public. Other projects are
+  referred to by role ("the test project") or by the anonymous `eval-project-A` to `-L` labels.
+  `tests/private-name-guard.test.js` fails the suite if a name appears. Commit messages, PR text
+  and tags are public too, and that test does not read them.
+- **Never run Signal's tools against another project's live checkout.** Use `examples/sandbox/` or a
+  committed fixture. Reading another project to diagnose something is fine.
+- **Signal or prose?** Work that looks at the change in progress belongs in Signal. Work that looks
+  at a whole codebase on request, with no `.planning/` needed, belongs in the separate `/prose:`
+  plugin.
+
+## Constraints
+
+Node.js 22 or newer. git 2.38 or newer. Claude Code is the runtime.
 
 ## MPS (automated, by design)
 
-This repo is tracked by **MPS**, Brett's portfolio system of record. A daily `mps-compiler[bot]` job regenerates [`STATUS.md`](STATUS.md) — its frontmatter, the `owner=agent` sections, and "Recent reality"; commits are `[skip ci]` (no CI/deploy). Harmless background activity — rebase past it on push, don't flag it as drift.
-
-- **Don't delete [`STATUS.md`](STATUS.md)** — recreated, and its absence reads as drift in MPS.
-- **Don't hand-edit** the frontmatter, `owner=agent` blocks, or "Recent reality" — regenerated daily, edits lost. The `owner=human` sections (`Decision rules`, `Deferred`) are the safe-to-edit zone.
+A daily `mps-compiler[bot]` job regenerates [`STATUS.md`](STATUS.md) with `[skip ci]` commits. Rebase
+past it on push. Do not delete `STATUS.md`. Do not hand-edit its frontmatter, its `owner=agent`
+sections or "Recent reality"; the `owner=human` sections are safe to edit.

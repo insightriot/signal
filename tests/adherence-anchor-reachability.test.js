@@ -26,7 +26,8 @@ import {
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LOG = join(ROOT, '.planning/ADHERENCE-LOG.md');
-const STATE = join(ROOT, '.planning/STATE.md');
+// STATE.md was archived on 2026-11-25; the commit it pins must stay reachable all the same.
+const STATE = join(ROOT, '.planning', 'archive', '2026-11-25-self-notes', 'STATE.md');
 
 describe('parseAnchors — labelled pins only', () => {
   it('reads both published shapes: the inline ceiling pin and a run-record row', () => {
