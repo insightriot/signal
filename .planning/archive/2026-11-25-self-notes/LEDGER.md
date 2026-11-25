@@ -7,7 +7,7 @@ This file is generated from `git diff --name-status` against the tag `pre-archiv
 
 - **339 files were moved with `git mv`, byte for byte.** None was deleted.
 - **21 files were edited** (listed below with the reason).
-- **24 test cases were removed from 10 test files.** Each one asserted something about Signal's own notes, which are now archived. Two test files that were only about those notes were moved whole to `archive/tests/`.
+- **23 test cases were removed from 10 test files.** Each one asserted something about Signal's own notes, which are now archived. Two test files that were only about those notes were moved whole to `archive/tests/`.
 - **Nothing inside `plugin/` changed**, so nothing a project runs changed.
 
 ## How to get something back
@@ -22,7 +22,7 @@ The tag `pre-archive-2026-11-25` is the whole repository as it stood before this
 
 This prints every file whose exact content was in the repository at the tag and is not in it now. It should
 print 20 names and nothing else: the edited files, minus `CLAUDE.md`, whose earlier content is kept whole
-in `archive/`:
+in `archive/`. That count is for the commit this change merged as; later work will add its own names:
 
 ```
 git ls-tree -r pre-archive-2026-11-25 | awk '{print $3"\t"$4}' | sort > /tmp/before.txt
@@ -67,7 +67,7 @@ on this repository's backlog, a profile file parsing). Tests of what the plugin 
   - DECISIONS.md records D-M5E18-6 without rewriting D-M5E17-1 in place (1 test)
   - DECISIONS.md carries D-M5E17-5 with the two-lane rule (1 test)
 - `tests/correction-protocol.test.js`
-  - a retraction this Epic actually wrote (2 tests)
+  - DECISIONS.md carries no uncorrected assertion of the scoping rule it retracted (1 test)
 - `tests/planning-index.test.js`
   - every D-… across Signal's live + archived DECISIONS resolves to a file that DEFINES it (AC3.3 on real data) (1 test)
 - `tests/state-drift-checks-general.test.js`

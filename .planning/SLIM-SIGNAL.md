@@ -196,7 +196,7 @@ picked through `/sig:build` on 2026-11-18; no item has closed with a `Built:` li
 1. **Archive now, one PR. Done 2026-11-25.** Nothing inside `plugin/` moved, and only `plugin/`
    ships to a project, so this could not break one. 339 files were moved with `git mv` and none was
    deleted: Signal's notes about itself in `.planning/`, `analysis/`, and two test files that were
-   only about those notes. `CLAUDE.md` was cut from 36.5 KB to 5 KB. 24 test cases that asserted
+   only about those notes. `CLAUDE.md` was cut from 36.5 KB to 5 KB. 23 test cases that asserted
    something about the archived notes were removed. The list, and the way back, is
    [`archive/2026-11-25-self-notes/LEDGER.md`](archive/2026-11-25-self-notes/LEDGER.md); the tag
    `pre-archive-2026-11-25` is the repository as it stood.

@@ -132,3 +132,19 @@ describe('AC4.4 / D-M5E10-3 — blocks at FULL, advisory below', () => {
     }
   });
 });
+
+describe('a known limit', () => {
+  it('a claim that WRAPS across lines is invisible — the limit, pinned', () => {
+    // Coherent with the threat model (grep is equally blind to a phrase
+    // spanning a newline) and a genuine hole in any use of this as a general
+    // corpus audit. Pinned so it stays a known limit rather than a surprise.
+    const wrapped = 'the amended pair\npasses cleanly';
+    const r = checkCorrectionProtocol({
+      claim: 'the amended pair passes',
+      files: [{ path: 'a.md', content: wrapped }],
+    });
+    expect(r.outcome).toBe(CORRECTION.CLEAN);
+    expect(r.corrected).toEqual([]);
+    expect(r.uncorrected).toEqual([]);
+  });
+});
