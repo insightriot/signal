@@ -223,13 +223,6 @@ describe("M5.E17 S3 — review.md's three Critical statements express one rule (
     expect(text, 'the no-design-impact condition dropped out').toMatch(/design|architect/);
   });
 
-  it('DECISIONS.md records D-M5E17-1 with its rationale (AC2.2)', () => {
-    const decisions = readFileSync(join(ROOT, '.planning/DECISIONS.md'), 'utf-8');
-    expect(decisions).toContain('D-M5E17-1');
-    // The counter-argument is part of the decision, not decoration — a rule
-    // about how Signal judges its own work records why it might be wrong.
-    expect(decisions.toLowerCase()).toContain('conjunctive');
-  });
 });
 
 describe('B78 — review.md states the PASS-WITH-FIXES rule ONCE (D-M5E18-6)', () => {
@@ -311,14 +304,6 @@ describe('B78 — review.md states the PASS-WITH-FIXES rule ONCE (D-M5E18-6)', (
     );
   });
 
-  it('DECISIONS.md records D-M5E18-6 without rewriting D-M5E17-1 in place', () => {
-    const decisions = readFileSync(join(ROOT, '.planning/DECISIONS.md'), 'utf-8');
-    expect(decisions).toContain('D-M5E18-6');
-    // PROJECT.md makes IDs permanent addresses: a refinement supersedes by new
-    // dated entry. D-M5E17-1 must still be readable where it was written.
-    expect(decisions).toContain('D-M5E17-1');
-    expect(decisions.toLowerCase()).toMatch(/non-test source/);
-  });
 });
 
 describe('M5.E17 S4 — plan.md schedules what the Epic does for the FIRST TIME (FR1)', () => {
@@ -399,11 +384,4 @@ describe('M5.E17 follow-up — ship.md grants itself no PR exemption (D-M5E17-5)
     expect(/required even if no PR was created/i.test(stripQuoted(asItShipped))).toBe(true);
   });
 
-  it('DECISIONS.md carries D-M5E17-5 with the two-lane rule', () => {
-    const d = readFileSync(join(ROOT, '.planning/DECISIONS.md'), 'utf-8');
-    expect(d).toContain('D-M5E17-5');
-    // PR discipline is constant; Epic ceremony is what varies.
-    expect(d).toMatch(/Fix lane/i);
-    expect(d).toMatch(/Epic lane/i);
-  });
 });

@@ -71,7 +71,7 @@ describe('askChoice — the answer', () => {
 
   it('parses every stored answer in the spike dataset (fixture honesty — both shapes)', () => {
     const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-    const data = JSON.parse(readFileSync(join(root, 'analysis/jev-spike/labels-and-results.json'), 'utf8'));
+    const data = JSON.parse(readFileSync(join(root, 'archive/analysis/jev-spike/labels-and-results.json'), 'utf8'));
     const choiceCases = data.cases.filter((c) => c.question?.type === 'choice');
     expect(choiceCases.length).toBeGreaterThan(0);
     for (const c of choiceCases) {
@@ -227,7 +227,7 @@ describe('askNoul — the yes/no form (D-M6E3-15)', () => {
 
   it('parses every stored yes/no answer in the spike dataset', () => {
     const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-    const data = JSON.parse(readFileSync(join(root, 'analysis/jev-spike/labels-and-results.json'), 'utf8'));
+    const data = JSON.parse(readFileSync(join(root, 'archive/analysis/jev-spike/labels-and-results.json'), 'utf8'));
     const noulCases = data.cases.filter((c) => c.question?.type === 'noul');
     expect(noulCases.length).toBeGreaterThan(0);
     for (const c of noulCases) for (const run of [c.run1, c.run2]) expect(run.noul).toBeGreaterThanOrEqual(0);

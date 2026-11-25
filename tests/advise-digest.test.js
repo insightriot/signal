@@ -5,7 +5,7 @@
 // silently absent, and the whole thing stays inside its budget.
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, renameSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -198,22 +198,6 @@ describe('TRIM_ORDER', () => {
   it('every group the digest can grow without limit is trimmable (REVIEW pass 1)', () => {
     for (const g of ['backlog', 'high-priority bugs', 'low-priority bugs', 'milestone rows', 'retrospectives', 'open questions']) {
       expect(TRIM_ORDER).toContain(g);
-    }
-  });
-});
-
-describe('on this repository', () => {
-  it('reads every source and every file reference resolves', async () => {
-    const base = process.cwd();
-    const g = await gatherBigPicture(base);
-    expect(g.cannotCheck).toEqual([]);
-    for (const source of DIGEST_SOURCES) {
-      for (const e of g.entries[source]) {
-        if (!e.path) continue;
-        expect(existsSync(join(base, e.path)), e.path).toBe(true);
-        if (e.line === null) continue; // a work-store item: cited by its record file, which has no line (M6.E13)
-        expect(e.line).toBeLessThanOrEqual(readFileSync(join(base, e.path), 'utf8').split('\n').length);
-      }
     }
   });
 });

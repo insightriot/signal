@@ -31,7 +31,7 @@ every commit and had become something to scroll past.
 
 So the navigation file asserted Phase 11 was closed and filed away while Phase 11 was the current
 phase. That is the same defect class documented in
-[`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../analysis/CLAIM-INTEGRITY-ANALYSIS.md) — a
+[`../analysis/CLAIM-INTEGRITY-ANALYSIS.md`](../archive/analysis/CLAIM-INTEGRITY-ANALYSIS.md) — a
 completeness claim written from the shape of the work rather than from the artifact — sitting in the
 map instead of in the phase reports.
 

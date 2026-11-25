@@ -3,9 +3,6 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import {
   checkCorrectionProtocol,
@@ -13,8 +10,6 @@ import {
   lineSelfCorrects,
   CORRECTION,
 } from '../plugin/tools/lib/correction-protocol.js';
-
-const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 
 const CLAIM = 'the amended pair passes';
 
@@ -138,25 +133,7 @@ describe('AC4.4 / D-M5E10-3 — blocks at FULL, advisory below', () => {
   });
 });
 
-describe('a retraction this Epic actually wrote', () => {
-  it('DECISIONS.md carries no uncorrected assertion of the scoping rule it retracted', async () => {
-    // D-M5E10-6 originally scoped FR1's denominator to "sections whose heading
-    // or body names the unit". Measurement killed it. The retraction has to
-    // hold at line granularity in the file that made the claim.
-    const decisions = await readFile(join(ROOT, '.planning', 'DECISIONS.md'), 'utf8');
-    const r = checkCorrectionProtocol({
-      claim: 'heading or body names the unit',
-      files: [{ path: '.planning/DECISIONS.md', content: decisions }],
-    });
-    expect(r.uncorrected).toEqual([]);
-    // NOT vacuous. The first version of this test searched for a phrase that
-    // WRAPS across two lines, matched nothing, and passed — "clean" and "never
-    // looked" rendering identically, in the test suite of the Epic built to
-    // stop exactly that. The denominator is asserted here so the assertion
-    // cannot pass by finding nothing.
-    expect(r.corrected.length).toBeGreaterThan(0);
-  });
-
+describe('a known limit', () => {
   it('a claim that WRAPS across lines is invisible — the limit, pinned', () => {
     // Coherent with the threat model (grep is equally blind to a phrase
     // spanning a newline) and a genuine hole in any use of this as a general

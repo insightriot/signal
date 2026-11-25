@@ -27,7 +27,7 @@ import { JEV_REASON } from '../plugin/tools/lib/jev.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURE = readFileSync(join(ROOT, 'tests/fixtures/jev/STATE-3518c11.md'), 'utf8');
-const SPIKE = JSON.parse(readFileSync(join(ROOT, 'analysis/jev-spike/labels-and-results.json'), 'utf8'));
+const SPIKE = JSON.parse(readFileSync(join(ROOT, 'archive/analysis/jev-spike/labels-and-results.json'), 'utf8'));
 const NARR = SPIKE.cases.filter((c) => c.set === 'narrative');
 const PARAS = splitParagraphs(FIXTURE);
 

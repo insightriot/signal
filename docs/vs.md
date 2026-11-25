@@ -34,4 +34,4 @@ A learning loop where every project makes the next one sharper, plus a deep mult
 
 Nothing wrong with a hammer, a screwdriver, or a drill — but to build a house you want all of them in one toolbox, and you want to fit the tool to the job. That's Signal: a best-practices toolbox inspired by the projects above, under one roof, with calibration so the rigor matches the work. Want just one tool? Use it directly — they're great. Want the toolbox, sized to the job? That's the idea.
 
-For the full landscape analysis this page draws on — all seven plugins, including [gstack](https://github.com/garrytan/gstack), [pm-skills](https://github.com/phuryn/pm-skills), and [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) — see [`../analysis/REPO-ANALYSIS.md`](../analysis/REPO-ANALYSIS.md).
+For the full landscape analysis this page draws on — all seven plugins, including [gstack](https://github.com/garrytan/gstack), [pm-skills](https://github.com/phuryn/pm-skills), and [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode) — see [`../analysis/REPO-ANALYSIS.md`](../archive/analysis/REPO-ANALYSIS.md).
