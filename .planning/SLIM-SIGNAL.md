@@ -250,6 +250,13 @@ script at the prompt and a script at the stop, which Signal has (`show-open-item
 Where the three reports contradicted each other (GSD's gates, fiberplane/drift,
 `openspec validate --strict`), nothing was taken.
 
+**Two more tools, read 2026-11-25.** mattpocock/skills and a private project that is not named. What
+each does well, where it falls short and what to borrow is in
+[`EXTERNAL-REVIEWS.md`](EXTERNAL-REVIEWS.md). Its ideas are candidates for step 4, not new work. Two
+can be enforced by a script: save the person's uncommitted edits before a file write or a git command
+that discards changes, and cap retries (already in the loop above). The others are wording for the
+agent, and wording gets skipped.
+
 ## Where the borrowed ideas come from
 
 Both are from an article on agent loops and graphs (x.com/HoodieFade_, 2026-11-04), which also backs
@@ -264,6 +271,12 @@ tutorial for humans with models* (felixrieseberg.com, 2026-10). The harness arti
 task, a decision log file) are already in Claude Code or were tested here without helping.
 
 ## How it is proven, and when it is 2.0
+
+**For now the proof is Brett's own use (confirmed 2026-11-25).** The scripted runs were stopped on
+2026-11-16 after run 18. Until he asks for them again, a piece counts as working when he has used it
+on the test project himself and agrees with what it did. No scripted run against plain Claude Code is
+started on the strength of the list below, or of any other file that says an idea is "a candidate
+until tested". The list is the method to use if the runs come back.
 
 - After each piece is built, rerun the three-feature test against plain Claude Code on fresh copies
   of the test project, with the rule for winning written down before the run.
