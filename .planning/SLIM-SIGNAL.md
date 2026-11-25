@@ -182,6 +182,68 @@ The six-phase flow as the default, the decision queue, review loops beyond one r
 setting, the tiers, most of the 26 agents, the JSON work store, and Signal's notes about itself.
 Archived, not deleted.
 
+## The cut-down, step by step (steps 1 to 3 agreed 2026-11-24)
+
+Brett's three goals: right-size the work; manage issues, work and roadmap; accurate docs on the work
+and the codebase, easy to find. Brett's reason for not using Signal: it looks busy and has nothing to
+show. So every step below ends in something he can check himself, not in a report.
+
+Measured 2026-11-24: `/sig:build` runs on about 1,300 lines (the build hooks, `open-items.js`,
+`test-run.js`, `git-env.js`) of 54,624 in `plugin/tools/lib`. 16 of 26 agents are named by no command
+file. 313 entries sit at the top of `.planning/`. On the test project, one item was filed, sized and
+picked through `/sig:build` on 2026-11-18; no item has closed with a `Built:` line yet.
+
+1. **Archive now, one PR.** Nothing inside `plugin/` moves in this PR, and only `plugin/` ships to a
+   project, so this cannot break one. Tag first; move with `git mv`; delete nothing; `STATUS.md`
+   stays. Signal's notes about itself in `.planning/` (down to about five files), `analysis/`, the
+   parts of the adherence harness outside `plugin/` with its per-PR regeneration commit, and
+   `CLAUDE.md` cut to about 5 KB.
+   *Check:* `ls .planning | wc -l` prints under 10, the suite is green, and every file that was in
+   the repo at the tag is still in it.
+2. **Kept frozen:** the six phase commands and the work store. The production project has an Epic
+   open on them and 27 unit records in the store. They are archived only after Brett moves that
+   project to `/sig:build`.
+3. **Sort the rest of `plugin/` by an import trace** from the kept commands, in a second PR. What
+   nothing kept imports is archived, with its tests. No list is written here: one made from file
+   names would be a guess. The 16 agents no command names and the adherence files under `plugin/`
+   wait for this PR too: they ship to projects, so they do not belong in a PR that promises to
+   change nothing a project runs.
+4. **Build what is missing, in this order:**
+   - **A sprint:** size several backlog items with the person in one sitting, then build them in a
+     row unattended, each ending in passing tests and a `Built:` line. This is what Brett was waiting
+     for. The Stop hook and the commit hook from 2026-11-03 are the starting point. Unmeasured.
+   - `/sig:add` captures straight into the backlog.
+   - A codebase page generated from the code (the `/sig:init` scanners), not written freehand.
+   - One "where we are" page in place of `/sig:status` and `/sig:resume`.
+   - Backlog ranking (piece 8).
+   *Check for each:* Brett runs it on the test project and the item closes with a `Built:` line he
+   agrees with. No scripted runs.
+
+**Work items move to GitHub Issues (agreed 2026-11-24).** Ideas, bugs and the backlog live in the
+project's GitHub Issues. What the code is and why stays in files in the repo, so a session can still
+read it when GitHub cannot be reached. The reason: the agent keeps its own records badly, and a
+merged pull request that closes an issue makes "done" an event rather than a line someone edited.
+The reading and the filing stay scripts, because the measurement showed that where the records live
+was never the problem. Start small: three types (idea, bug, feature), one size, one "ready" marker,
+a sprint as a milestone. This replaces "plain `.md` records" in *Records* above for work items only,
+and it is built in step 4, not before.
+
+**The search for existing tools (done 2026-11-24).** Three research runs on three models; none of
+them installed or ran a tool. All three agree: no tool is worth adopting whole, and no tool makes the
+agent read the open problems before a build or file its limits after one. The fix each describes is a
+script at the prompt and a script at the stop, which Signal has (`show-open-items.js`,
+`check-limits-filed.js`). Two things are borrowed:
+
+- **From bmad-loop, the shape of the sprint loop.** A plain script picks the item, starts a fresh
+  session, runs the test commands itself, commits only when they pass, retries a fixed number of
+  times, then parks the item and moves on. Read in its source at commit `8224d535`, not run. The tool
+  itself is not adopted: it needs a BMAD project, and its list of test commands is empty by default.
+- **From beans, when the open work is shown.** At the start of a session and again before a long
+  session's memory is compressed, not only when a prompt names an item. Read in its README only.
+
+Where the three reports contradicted each other (GSD's gates, fiberplane/drift,
+`openspec validate --strict`), nothing was taken.
+
 ## Where the borrowed ideas come from
 
 Both are from an article on agent loops and graphs (x.com/HoodieFade_, 2026-11-04), which also backs
