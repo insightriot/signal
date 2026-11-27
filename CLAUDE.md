@@ -26,6 +26,8 @@ not qualify. If nothing in the backlog passes, say so and stop. Do not invent wo
 Every step should end in something the person can check themselves: a command they run, or a number
 a command prints. A report from the agent is not that.
 
+For the install and upgrade guides and the package entry points, use the [repo map](MAP.md).
+
 ## Where things are
 
 - `plugin/`: the plugin. `plugin/commands/` (21 commands), `plugin/hooks/`, `plugin/tools/lib/`,
