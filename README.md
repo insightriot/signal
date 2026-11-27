@@ -152,6 +152,8 @@ Each phase command writes `STATE.md` and commits it with the phase's work, so th
 
 See [`references/state-schema.md`](plugin/references/state-schema.md) for the full `STATE.md` schema and the auto-update protocol's tier-aware behavior.
 
+For older installations, [choose the upgrade guide for your project](MAP.md#install-or-upgrade).
+
 ## Bringing Signal to an existing codebase
 
 If you already have code and want Signal applied to it (the most common adoption path), use `/sig:init` instead of `/sig:new-project`:
